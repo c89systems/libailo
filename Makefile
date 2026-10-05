@@ -2,13 +2,13 @@
 PRESET ?= debug
 TARGET ?= x86_64-linux-gnu
 DEPENDENCY ?=
-.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind
+.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind test-scalar-matrix example-smoke-local
 help:
-	@printf '%s\n' 'deps [DEPENDENCY=name] [TARGET=id] - acquire verified pinned dependencies' 'build [PRESET=name] - serialized dependency/native build' 'build-debug - default Vulkan+CPU build' 'build-release - native release build' 'test - deterministic CTest suite' 'test-debug - debug tests' 'valgrind - native backend enumeration and C89 policy memory checks (requires host valgrind)' 'upstream-inventory - compare every pinned public C declaration' 'format - format project C/C++ sources' 'format-check - assert formatting' 'finalize-slice - format and deterministic tests'
+	@scripts/help.sh
 deps:
-	python3 scripts/deps.py --target $(TARGET) $(if $(DEPENDENCY),--component $(DEPENDENCY))
+	scripts/deps.sh --target "$(TARGET)" --component "$(DEPENDENCY)"
 build:
-	python3 scripts/build.py --preset $(PRESET)
+	scripts/build.sh --preset "$(PRESET)"
 build-debug:
 	$(MAKE) build PRESET=debug
 build-release:
@@ -20,10 +20,17 @@ test-debug:
 upstream-inventory:
 	python3 scripts/upstream_inventory.py
 format:
-	python3 scripts/format.py
+	scripts/format.sh
 format-check:
-	python3 scripts/format.py --check
+	scripts/format.sh --check
 finalize-slice: format test format-check
 valgrind: build
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=definite --errors-for-leak-kinds=definite build/$(PRESET)/ailo_backend_test
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=definite --errors-for-leak-kinds=definite build/$(PRESET)/ailo_c89_policy
+	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_values_static
+	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_values_shared
+	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_integer_bridge
+test-scalar-matrix:
+	scripts/test_scalar_matrix.sh
+example-smoke-local: build
+	ctest --preset "$(PRESET)" --output-on-failure -j1 -L example-smoke

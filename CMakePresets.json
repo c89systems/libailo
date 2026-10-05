@@ -27,6 +27,14 @@
       "inherits": "debug"
     },
     {
+      "name": "library",
+      "inherits": "debug",
+      "cacheVariables": {
+        "AILO_BUILD_TESTS": false,
+        "AILO_BUILD_EXAMPLES": false
+      }
+    },
+    {
       "name": "cpu",
       "inherits": "debug",
       "cacheVariables": {
@@ -95,6 +103,10 @@
     }
   ],
   "buildPresets": [
+    {
+      "name": "library",
+      "configurePreset": "library"
+    },
     {
       "name": "debug",
       "configurePreset": "debug"

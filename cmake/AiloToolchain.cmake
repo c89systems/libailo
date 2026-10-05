@@ -3,6 +3,7 @@ get_filename_component(AILO_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 if(NOT AILO_TARGET_ID)
   set(AILO_TARGET_ID "x86_64-linux-gnu" CACHE STRING "Bootlin target")
 endif()
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES AILO_TARGET_ID)
 execute_process(COMMAND "${AILO_SOURCE_ROOT}/scripts/cpkt-toolchains.sh" ensure "${AILO_TARGET_ID}"
   RESULT_VARIABLE result ERROR_VARIABLE error OUTPUT_QUIET)
 if(NOT result EQUAL 0)

@@ -205,6 +205,10 @@ archive cache, disposable per-target extraction/build/install roots, strict
 C89 flags, local executable runtime helper, exact lightweight-tag versioning,
 static/shared targets, examples, install metadata, packaging and checksum gates.
 `make help` is the command index. No remote CI scaffold or automatic push.
+Build, dependency, formatting, cleanup and verification orchestration uses Bash
+and CMake scripts. Keep Make recipes as simple calls to those scripts, without
+embedded escaped shell programs. Python is reserved for tasks that materially
+need it, currently compiler AST inventory processing and test HTTP fixtures.
 
 Linux target presets cover x86_64/aarch64/armhf with glibc and musl. Cross-target
 ABI proof includes all exact-width conversions. Vulkan uses pinned headers,

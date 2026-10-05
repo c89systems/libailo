@@ -1,0 +1,7 @@
+ailo_error_clear
+ailo_i64_from_long
+ailo_i64_to_long
+ailo_status_name
+ailo_string_free
+ailo_u64_from_ulong
+ailo_u64_to_ulong
