@@ -1,0 +1,15 @@
+--- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+@@ -16127 +16127,11 @@
+-    static std::vector<ggml_backend_dev_t> devices;
++    struct device_owner {
++        std::vector<ggml_backend_dev_t> values;
++        ~device_owner() {
++            for (ggml_backend_dev_t dev : values) {
++                delete static_cast<ggml_backend_vk_device_context *>(dev->context);
++                delete dev;
++            }
++        }
++    };
++    static device_owner owner;
++    std::vector<ggml_backend_dev_t> & devices = owner.values;

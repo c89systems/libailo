@@ -1,0 +1,227 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/AiloToolchain.cmake",
+        "AILO_VULKAN": true,
+        "AILO_BUILD_TESTS": true,
+        "AILO_BUILD_EXAMPLES": true
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "AILO_TARGET_ID": "x86_64-linux-gnu"
+      }
+    },
+    {
+      "name": "valgrind",
+      "inherits": "debug"
+    },
+    {
+      "name": "cpu",
+      "inherits": "debug",
+      "cacheVariables": {
+        "AILO_VULKAN": false
+      }
+    },
+    {
+      "name": "x86_64-linux-gnu-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "AILO_TARGET_ID": "x86_64-linux-gnu",
+        "AILO_VULKAN": true,
+        "AILO_DIST_DIR": "${sourceDir}/dist"
+      }
+    },
+    {
+      "name": "x86_64-linux-musl-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "AILO_TARGET_ID": "x86_64-linux-musl",
+        "AILO_VULKAN": true,
+        "AILO_DIST_DIR": "${sourceDir}/dist"
+      }
+    },
+    {
+      "name": "aarch64-linux-gnu-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "AILO_TARGET_ID": "aarch64-linux-gnu",
+        "AILO_VULKAN": true,
+        "AILO_DIST_DIR": "${sourceDir}/dist"
+      }
+    },
+    {
+      "name": "aarch64-linux-musl-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "AILO_TARGET_ID": "aarch64-linux-musl",
+        "AILO_VULKAN": true,
+        "AILO_DIST_DIR": "${sourceDir}/dist"
+      }
+    },
+    {
+      "name": "armhf-linux-gnu-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "AILO_TARGET_ID": "armhf-linux-gnu",
+        "AILO_VULKAN": true,
+        "AILO_DIST_DIR": "${sourceDir}/dist"
+      }
+    },
+    {
+      "name": "armhf-linux-musl-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "AILO_TARGET_ID": "armhf-linux-musl",
+        "AILO_VULKAN": true,
+        "AILO_DIST_DIR": "${sourceDir}/dist"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "valgrind",
+      "configurePreset": "valgrind"
+    },
+    {
+      "name": "cpu",
+      "configurePreset": "cpu"
+    },
+    {
+      "name": "x86_64-linux-gnu-release",
+      "configurePreset": "x86_64-linux-gnu-release"
+    },
+    {
+      "name": "x86_64-linux-musl-release",
+      "configurePreset": "x86_64-linux-musl-release"
+    },
+    {
+      "name": "aarch64-linux-gnu-release",
+      "configurePreset": "aarch64-linux-gnu-release"
+    },
+    {
+      "name": "aarch64-linux-musl-release",
+      "configurePreset": "aarch64-linux-musl-release"
+    },
+    {
+      "name": "armhf-linux-gnu-release",
+      "configurePreset": "armhf-linux-gnu-release"
+    },
+    {
+      "name": "armhf-linux-musl-release",
+      "configurePreset": "armhf-linux-musl-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    },
+    {
+      "name": "valgrind",
+      "configurePreset": "valgrind",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    },
+    {
+      "name": "cpu",
+      "configurePreset": "cpu",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    },
+    {
+      "name": "x86_64-linux-gnu-release",
+      "configurePreset": "x86_64-linux-gnu-release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    },
+    {
+      "name": "x86_64-linux-musl-release",
+      "configurePreset": "x86_64-linux-musl-release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    },
+    {
+      "name": "aarch64-linux-gnu-release",
+      "configurePreset": "aarch64-linux-gnu-release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    },
+    {
+      "name": "aarch64-linux-musl-release",
+      "configurePreset": "aarch64-linux-musl-release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    },
+    {
+      "name": "armhf-linux-gnu-release",
+      "configurePreset": "armhf-linux-gnu-release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    },
+    {
+      "name": "armhf-linux-musl-release",
+      "configurePreset": "armhf-linux-musl-release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    }
+  ]
+}
