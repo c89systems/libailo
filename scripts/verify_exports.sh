@@ -23,7 +23,7 @@ workspace=$(mktemp -d "$work/exports.XXXXXXXX")
 cleanup() { cmake -E rm -rf "$workspace"; }
 trap cleanup EXIT
 LC_ALL=C "$nm" -D --defined-only -P "$library" | awk 'NF { print $1 }' | LC_ALL=C sort > "$workspace/actual"
-cat "$root/cmake/ailo.exports" "$root/cmake/ailo-native.exports" | LC_ALL=C sort > "$workspace/expected"
+cat "$root/cmake/ailo.exports" "$root/cmake/ailo-native.exports" "$root/cmake/ailo-variadic.exports" "$root/cmake/ailo-macros.exports" | LC_ALL=C sort > "$workspace/expected"
 if ! diff -u "$workspace/expected" "$workspace/actual"; then
   printf 'exports: shared library differs from its public ABI allowlist\n' >&2
   exit 1

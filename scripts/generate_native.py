@@ -33,7 +33,18 @@ H = []
 C = []
 EXPORTS = []
 COVERAGE = {'functions': [], 'fields': [], 'records': [], 'typedefs': [], 'enums': [], 'macros': []}
+MACRO_ADAPTERS = {
+    'GGML_ABORT', 'GGML_API', 'GGML_ASSERT', 'GGML_ATTRIBUTE_FORMAT',
+    'GGML_BACKEND_API', 'GGML_DEPRECATED', 'GGML_NORETURN', 'GGML_N_TASKS_MAX',
+    'GGML_PAD', 'GGML_RESTRICT', 'GGML_TENSOR_BINARY_OP_LOCALS',
+    'GGML_TENSOR_BINARY_OP_LOCALS01', 'GGML_TENSOR_LOCALS',
+    'GGML_TENSOR_LOCALS_1', 'GGML_TENSOR_LOCALS_2', 'GGML_TENSOR_LOCALS_3',
+    'GGML_TENSOR_TERNARY_OP_LOCALS', 'GGML_TENSOR_UNARY_OP_LOCALS',
+    'GGML_UNREACHABLE', 'GGML_UNUSED', 'GGML_UNUSED_VARS', 'LLAMA_API', 'MTMD_API'
+}
+NONCAPABILITY_MACROS = {'LLAMA_H', 'MTMD_H', 'MTMD_HELPER_H'}
 BACKEND_FUNCTIONS = {}
+MANUAL_FUNCTIONS = {'ggml_abort', 'ggml_format_name'}
 for backend in ['blas', 'cann', 'cuda', 'metal', 'rpc', 'virtgpu', 'sycl', 'vulkan', 'webgpu', 'zendnn', 'openvino']:
     header = ROOT / '.cache/deps-build/x86_64-linux-gnu/llama/source/ggml/include' / ('ggml-' + backend + '.h')
     source = re.sub(r'/\*.*?\*/|//[^\n]*', '', header.read_text(), flags=re.S)
@@ -281,6 +292,9 @@ def generate():
 
     for function in DATA['functions']:
         name = function['name']
+        if name in MANUAL_FUNCTIONS:
+            COVERAGE['functions'].append(name)
+            continue
         try:
             if function['variadic']:
                 raise Gap('variadic adapter pending')
@@ -352,8 +366,15 @@ def generate():
          prelude='if (device) *device = nullptr;\n')
     for macro in DATA['macros']:
         name, value = macro['name'], macro['value']
-        if not macro['parameters'] and re.fullmatch(r'(?:-?\d+(?:\.\d+)?[uUfFlL]*|0x[0-9A-Fa-f]+[uUlL]*|"[^"\n]*")', value):
+        if name in NONCAPABILITY_MACROS:
+            continue
+        if name in MACRO_ADAPTERS:
+            COVERAGE['macros'].append(name)
+        elif not macro['parameters'] and re.fullmatch(r'(?:-?\d+(?:\.\d+)?[uUfFlL]*|0x[0-9A-Fa-f]+[uUlL]*|"[^"\n]*")', value):
             H.append('#define AILO_' + name + ' ' + value)
+            COVERAGE['macros'].append(name)
+        elif not macro['parameters'] and re.fullmatch(r'(?:GGML|GGUF|LLAMA|MTMD)_[A-Z0-9_]+', value):
+            H.append('#define AILO_' + name + ' AILO_' + value)
             COVERAGE['macros'].append(name)
         else:
             GAPS.append({'kind': 'macro', 'name': name, 'reason': 'macro classification/adapter pending'})
@@ -369,6 +390,8 @@ def outputs():
     forward.append(MAP_PUBLIC + ';')
     header = (preamble + '#ifndef AILO_NATIVE_H\n#define AILO_NATIVE_H\n'
               '#include "ailo/base.h"\n#include <stddef.h>\n#include <stdio.h>\n'
+              '#include "ailo/native_variadic.h"\n'
+              '#include "ailo/native_macros.h"\n'
               '#ifdef __cplusplus\nextern "C" {\n#endif\n'
               + '\n'.join(forward + H) + '\n#ifdef __cplusplus\n}\n#endif\n#endif\n')
     includes = ['#include "' + h + '"' for h in DATA['headers']]
@@ -378,7 +401,13 @@ def outputs():
            + '\n'.join(includes + C) + '\n#pragma GCC diagnostic pop\n')
     manifest = {'inventory_sha256': hashlib.sha256((ROOT / 'docs/upstream-api.json').read_bytes()).hexdigest(),
                 'implemented': COVERAGE, 'gaps': GAPS, 'exports': sorted(EXPORTS),
+                'manual_function_exports': sorted('ailo_' + n for n in MANUAL_FUNCTIONS),
+                'noncapability_macros': {n: 'Native header guard; project headers have their own guards' for n in sorted(NONCAPABILITY_MACROS)},
+                'constants': {'GGML_TENSOR_SIZE': 'AILO_GGML_TENSOR_SIZE / ailo_ggml_tensor_native_size'},
                 'backend_conditions': BACKEND_FUNCTIONS}
+    for constant in DATA.get('constants', []):
+        if constant['name'] not in manifest['constants']:
+            GAPS.append({'kind': 'constant', 'name': constant['name'], 'reason': 'constant adapter pending'})
     tests = record_tests(preamble, includes)
     return {'include/ailo/native.h': header, 'src/ailo_native.cpp': cpp,
             'tests/native_records.cpp': tests,

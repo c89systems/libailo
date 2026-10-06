@@ -4,6 +4,8 @@
 #ifndef AILO_NATIVE_H
 #define AILO_NATIVE_H
 #include "ailo/base.h"
+#include "ailo/native_macros.h"
+#include "ailo/native_variadic.h"
 #include <stddef.h>
 #include <stdio.h>
 #ifdef __cplusplus
@@ -9879,11 +9881,13 @@ ailo_backend_memory_map_get(const struct ailo_backend_memory_map *self,
 #define AILO_LLAMA_FILE_MAGIC_GGLA 0x67676c61u
 #define AILO_LLAMA_FILE_MAGIC_GGSN 0x6767736eu
 #define AILO_LLAMA_FILE_MAGIC_GGSQ 0x67677371u
+#define AILO_LLAMA_SESSION_MAGIC AILO_LLAMA_FILE_MAGIC_GGSN
 #define AILO_LLAMA_SESSION_VERSION 11
 #define AILO_LLAMA_STATE_SEQ_FLAGS_NONE 0
 #define AILO_LLAMA_STATE_SEQ_FLAGS_ON_DEVICE 2
 #define AILO_LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY 1
 #define AILO_LLAMA_STATE_SEQ_FLAGS_SWA_ONLY 1
+#define AILO_LLAMA_STATE_SEQ_MAGIC AILO_LLAMA_FILE_MAGIC_GGSQ
 #define AILO_LLAMA_STATE_SEQ_VERSION 4
 #define AILO_LLAMA_TOKEN_NULL -1
 #ifdef __cplusplus

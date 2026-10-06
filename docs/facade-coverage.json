@@ -1,7 +1,8 @@
 {
-  "inventory_sha256": "5269b3c469b1a29a4def9e94b0ade2217632166e0d5774591b3fc99bb020f67b",
+  "inventory_sha256": "f8c019f2cfaeaa440de15e7415c03b8116f5831ee4fe8dce82d20a5fe6e30a3a",
   "implemented": {
     "functions": [
+      "ggml_abort",
       "ggml_abs",
       "ggml_abs_inplace",
       "ggml_acc",
@@ -328,6 +329,7 @@
       "ggml_floor",
       "ggml_floor_inplace",
       "ggml_fopen",
+      "ggml_format_name",
       "ggml_fp16_to_fp32",
       "ggml_fp16_to_fp32_row",
       "ggml_fp32_to_bf16",
@@ -1483,6 +1485,11 @@
       "mtmd_input_chunk_type"
     ],
     "macros": [
+      "GGML_ABORT",
+      "GGML_API",
+      "GGML_ASSERT",
+      "GGML_ATTRIBUTE_FORMAT",
+      "GGML_BACKEND_API",
       "GGML_BACKEND_META_MAX_DEVICES",
       "GGML_CANN_MAX_DEVICES",
       "GGML_CUBLAS_NAME",
@@ -1490,6 +1497,7 @@
       "GGML_CUDA_NAME",
       "GGML_DEFAULT_GRAPH_SIZE",
       "GGML_DEFAULT_N_THREADS",
+      "GGML_DEPRECATED",
       "GGML_EXIT_ABORTED",
       "GGML_EXIT_SUCCESS",
       "GGML_FILE_MAGIC",
@@ -1502,9 +1510,13 @@
       "GGML_MAX_SRC",
       "GGML_MEM_ALIGN",
       "GGML_MROPE_SECTIONS",
+      "GGML_NORETURN",
+      "GGML_N_TASKS_MAX",
       "GGML_OPENVINO_NAME",
+      "GGML_PAD",
       "GGML_QNT_VERSION",
       "GGML_QNT_VERSION_FACTOR",
+      "GGML_RESTRICT",
       "GGML_ROPE_TYPE_IMROPE",
       "GGML_ROPE_TYPE_MROPE",
       "GGML_ROPE_TYPE_NEOX",
@@ -1513,6 +1525,17 @@
       "GGML_RPC_MAX_SERVERS",
       "GGML_SYCL_MAX_DEVICES",
       "GGML_SYCL_NAME",
+      "GGML_TENSOR_BINARY_OP_LOCALS",
+      "GGML_TENSOR_BINARY_OP_LOCALS01",
+      "GGML_TENSOR_LOCALS",
+      "GGML_TENSOR_LOCALS_1",
+      "GGML_TENSOR_LOCALS_2",
+      "GGML_TENSOR_LOCALS_3",
+      "GGML_TENSOR_TERNARY_OP_LOCALS",
+      "GGML_TENSOR_UNARY_OP_LOCALS",
+      "GGML_UNREACHABLE",
+      "GGML_UNUSED",
+      "GGML_UNUSED_VARS",
       "GGML_VK_MAX_DEVICES",
       "GGML_VK_NAME",
       "GGML_WEBGPU_NAME",
@@ -1520,17 +1543,21 @@
       "GGUF_KEY_GENERAL_ALIGNMENT",
       "GGUF_MAGIC",
       "GGUF_VERSION",
+      "LLAMA_API",
       "LLAMA_DEFAULT_SEED",
       "LLAMA_FILE_MAGIC_GGLA",
       "LLAMA_FILE_MAGIC_GGSN",
       "LLAMA_FILE_MAGIC_GGSQ",
+      "LLAMA_SESSION_MAGIC",
       "LLAMA_SESSION_VERSION",
       "LLAMA_STATE_SEQ_FLAGS_NONE",
       "LLAMA_STATE_SEQ_FLAGS_ON_DEVICE",
       "LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY",
       "LLAMA_STATE_SEQ_FLAGS_SWA_ONLY",
+      "LLAMA_STATE_SEQ_MAGIC",
       "LLAMA_STATE_SEQ_VERSION",
-      "LLAMA_TOKEN_NULL"
+      "LLAMA_TOKEN_NULL",
+      "MTMD_API"
     ]
   },
   "gaps": [
@@ -1811,11 +1838,6 @@
     },
     {
       "kind": "function",
-      "name": "ggml_abort",
-      "reason": "variadic adapter pending"
-    },
-    {
-      "kind": "function",
       "name": "ggml_backend_compare_graph_backend",
       "reason": "callback adapter pending"
     },
@@ -1848,11 +1870,6 @@
       "kind": "function",
       "name": "ggml_custom_inplace",
       "reason": "callback adapter pending"
-    },
-    {
-      "kind": "function",
-      "name": "ggml_format_name",
-      "reason": "variadic adapter pending"
     },
     {
       "kind": "function",
@@ -1958,146 +1975,6 @@
       "kind": "function",
       "name": "mtmd_log_set",
       "reason": "callback adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_ABORT",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_API",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_ASSERT",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_ATTRIBUTE_FORMAT",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_BACKEND_API",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_DEPRECATED",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_NORETURN",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_N_TASKS_MAX",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_PAD",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_RESTRICT",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_TENSOR_BINARY_OP_LOCALS",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_TENSOR_BINARY_OP_LOCALS01",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_TENSOR_LOCALS",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_TENSOR_LOCALS_1",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_TENSOR_LOCALS_2",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_TENSOR_LOCALS_3",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_TENSOR_TERNARY_OP_LOCALS",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_TENSOR_UNARY_OP_LOCALS",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_UNREACHABLE",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_UNUSED",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "GGML_UNUSED_VARS",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "LLAMA_API",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "LLAMA_H",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "LLAMA_SESSION_MAGIC",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "LLAMA_STATE_SEQ_MAGIC",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "MTMD_API",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "MTMD_H",
-      "reason": "macro classification/adapter pending"
-    },
-    {
-      "kind": "macro",
-      "name": "MTMD_HELPER_H",
-      "reason": "macro classification/adapter pending"
     }
   ],
   "exports": [
@@ -3936,6 +3813,18 @@
     "ailo_storage_uint64_t_get",
     "ailo_storage_uint64_t_set"
   ],
+  "manual_function_exports": [
+    "ailo_ggml_abort",
+    "ailo_ggml_format_name"
+  ],
+  "noncapability_macros": {
+    "LLAMA_H": "Native header guard; project headers have their own guards",
+    "MTMD_H": "Native header guard; project headers have their own guards",
+    "MTMD_HELPER_H": "Native header guard; project headers have their own guards"
+  },
+  "constants": {
+    "GGML_TENSOR_SIZE": "AILO_GGML_TENSOR_SIZE / ailo_ggml_tensor_native_size"
+  },
   "backend_conditions": {
     "ggml_backend_blas_init": "blas",
     "ggml_backend_is_blas": "blas",

@@ -21596,6 +21596,12 @@
       ]
     }
   ],
+  "constants": [
+    {
+      "name": "GGML_TENSOR_SIZE",
+      "type": "const size_t"
+    }
+  ],
   "macros": [
     {
       "name": "GGML_ABORT",

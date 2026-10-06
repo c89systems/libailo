@@ -41,6 +41,7 @@ def inventory(source, clang):
     functions = {}
     typedefs = {}
     enums = {}
+    constants = {}
     excluded_cpp_wrappers = set()
 
     def canonical(type_):
@@ -57,6 +58,8 @@ def inventory(source, clang):
         name = node.get('name', '')
         if kind == 'NamespaceDecl':
             namespace = namespace + (name,)
+        if kind == 'VarDecl' and not namespace and re.match(r'^(?:GGML|GGUF|LLAMA|MTMD)_', name):
+            constants[name] = {'name': name, 'type': canonical(node['type']['qualType'])}
         if PREFIX.match(name) and namespace:
             if kind in {'FunctionDecl', 'CXXRecordDecl', 'TypedefDecl', 'EnumDecl'}:
                 excluded_cpp_wrappers.add('::'.join(namespace + (name,)))
@@ -110,6 +113,7 @@ def inventory(source, clang):
             'records': sorted(records.values(), key=lambda x: x['name']),
             'typedefs': sorted(typedefs.values(), key=lambda x: x['name']),
             'enums': sorted(enums.values(), key=lambda x: x['name']),
+            'constants': sorted(constants.values(), key=lambda x: x['name']),
             'macros': sorted(macros, key=lambda x: x['name'])}
 
 

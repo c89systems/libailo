@@ -12,9 +12,9 @@ v0.45.0, and pinned Vulkan/SPIR-V components. The static/shared project librarie
 provide the portable C89 scalar/error boundary and generated native bindings
 described in [docs/c89-boundary.md](docs/c89-boundary.md) and
 [docs/facade-bindings.md](docs/facade-bindings.md). The current bridge implements
-1,053 upstream functions and 281 record fields, including native-backed arrays
-and the public mtmd memory map. It is incomplete: callbacks, variadic adapters
-and some macro adapters remain explicit gaps in
+1,055 upstream functions and 281 record fields, including native-backed arrays,
+the public mtmd memory map, variadic formatting and C89 macro adapters. It is
+incomplete: 83 callback adapter gaps remain explicit in
 [docs/facade-coverage.json](docs/facade-coverage.json). The receiver, model
 download/cache helpers, and redistributable SDK are still pending.
 

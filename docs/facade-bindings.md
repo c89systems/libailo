@@ -58,7 +58,23 @@ dependencies instead of merging their archives into `libailo.a`.
 
 Callback registration and callable native callback views require additional
 typed adapters, with independent registration state and explicit lifetimes.
-That implementation choice remains pending. Until those adapters and the two
-native variadic functions are implemented and tested, the facade is incomplete.
-The progress manifest must distinguish implemented functions and record fields
-from these gaps; no declaration-only placeholder counts as coverage.
+That implementation choice remains pending. Until those adapters are implemented
+and tested, the facade is incomplete. The progress manifest must distinguish
+implemented functions and record fields from these gaps; no declaration-only
+placeholder counts as coverage.
+
+The two native variadic operations are implemented separately in
+`ailo/native_variadic.h`. Tensor-name formatting preserves the native bounded
+buffer, return view and printf argument semantics. Fatal diagnostics preserve
+the native file/line prefix, truncation, abort hook and process termination;
+invalid file/format arguments or an oversized prefix fail before aborting.
+
+`ailo/native_macros.h` provides C89 compositions for the public macros. Variadic
+preprocessing uses a parenthesized argument tuple instead, for example
+`AILO_GGML_ABORT((__FILE__, __LINE__, NULL, "failure %d", code))`.
+`AILO_GGML_UNUSED_VARS((0, a, b, c))` requires an initial marker and references
+its arguments without evaluating them. Tensor locals use `ailo_i64` for `ne`
+and `size_t` for `nb`, reading opaque native records through typed helpers.
+`AILO_GGML_TENSOR_SIZE` queries the native size at runtime; it is not a C89
+constant expression. Annotation macros omit non-C89 compiler attributes.
+Native header guards are classified separately from API capabilities.
