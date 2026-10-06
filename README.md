@@ -15,8 +15,9 @@ described in [docs/c89-boundary.md](docs/c89-boundary.md) and
 1,055 upstream functions and 281 record fields, including native-backed arrays,
 the public mtmd memory map, variadic formatting and C89 macro adapters. It is
 incomplete: 83 callback adapter gaps remain explicit in
-[docs/facade-coverage.json](docs/facade-coverage.json). The receiver, model
-download/cache helpers, and redistributable SDK are still pending.
+[docs/facade-coverage.json](docs/facade-coverage.json). Standalone model
+download/cache helpers are implemented in [include/ailo/model.h](include/ailo/model.h).
+The receiver and redistributable SDK are still pending.
 
 [docs/upstream-api.json](docs/upstream-api.json) records the pinned public C API
 inventory. An inventory is the baseline for the forthcoming facade coverage
@@ -109,3 +110,47 @@ static and shared model tests with all leak kinds fatal. The broader
 loader/driver retained allocations; CPU-only memory evidence does not claim
 Vulkan driver leak freedom. Full callback, receiver, multimodal inference,
 trained-model smoke and packaging acceptance are still pending.
+
+## Model acquisition
+
+`ailo_model_cache_path` validates a zero-initialized `ailo_model_source` and
+resolves its primary path without creating files or making network requests.
+`ailo_model_acquire` validates local/cached files or downloads explicitly
+permitted missing Hugging Face files. Both return an owned path released with
+`ailo_string_free`. Local files stay in place. Cache precedence is an absolute
+override, `$XDG_CACHE_HOME/ailo`, then `$HOME/.cache/ailo`; nonempty relative
+environment paths fail. Repo/revision identities use a SHA-256 directory key,
+with nested filenames below it. Revisions are explicit; pin a commit for a
+stable model identity.
+Filename components beginning `.ailo-` are reserved for implementation state.
+
+Downloads stream through bounded curl buffers into same-directory exclusive
+partial files. HTTP byte counts, GGUF v2/v3 headers, per-file size limits and
+optional SHA-256 values are checked before atomic no-replace publication.
+Existing invalid files fail for explicit caller repair. Verified cache hits
+make zero network requests. Split acquisition validates every requested sibling
+before returning; complete shards survive a later shard failure and are reused.
+Publication locks also serialize individually requested split siblings. A
+subsequent permitted attempt removes only that target's reserved partial files
+left by process death. Unrelated files/partials are preserved.
+The TLS fixtures also acquire a real split GGUF and load it through the C89
+facade for token decode and state restoration.
+
+Transport allows five verified HTTPS redirects, with per-attempt connect/transfer
+timeouts and bounded retries. Explicit bearer tokens stay on their original
+origin. The implementation uses curl's
+[peer verification](https://curl.se/libcurl/c/CURLOPT_SSL_VERIFYPEER.html) and
+[redirect URL resolution](https://curl.se/libcurl/c/CURLINFO_REDIRECT_URL.html);
+no insecure transport or alternate origin is exposed by the public API.
+The test-only alternate origin/CA remains private and enforces TLS verification.
+The supported Linux cache filesystem must provide atomic no-replace rename.
+These helpers validate acquisition integrity; actual model loading remains a
+separate native operation.
+
+`ailo_model_cache_example --local MODEL` shows local use. Hugging Face use takes
+`--repo OWNER/REPO --revision COMMIT --file FILE [--cache ABSOLUTE-PATH]`;
+`--download` is required for a miss, and `--sha256 HEX` pins a single-file checksum.
+`make valgrind-acquisition` checks C89 static/shared ownership plus local TLS
+success, error, cancellation, callback-exception and concurrent-client cases.
+Curl/OpenSSL archives remain separate static dependencies; the shared library
+links SDK shared libraries. No model weights or test trust certificates ship.

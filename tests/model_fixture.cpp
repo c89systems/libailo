@@ -96,6 +96,26 @@ static void build(const char *path) {
   tensor(ctx.get(), file.get(), "blk.0.ffn_down.weight", 64, 32);
   if (!gguf_write_to_file(file.get(), path, false))
     throw std::runtime_error("Cannot write GGUF fixture");
+  for (unsigned shard = 0; shard < 2; ++shard) {
+    std::unique_ptr<gguf_context, decltype(&gguf_free)> split(gguf_init_empty(),
+                                                              gguf_free);
+    if (!split)
+      throw std::bad_alloc();
+    gguf_set_kv(split.get(), file.get());
+    gguf_set_val_u16(split.get(), "split.no", static_cast<uint16_t>(shard));
+    gguf_set_val_u16(split.get(), "split.count", 2);
+    gguf_set_val_i32(split.get(), "split.tensors.count", 12);
+    unsigned index = 0;
+    for (ggml_tensor *t = ggml_get_first_tensor(ctx.get()); t;
+         t = ggml_get_next_tensor(ctx.get(), t), ++index)
+      if (index % 2 == shard)
+        gguf_add_tensor(split.get(), t);
+    const std::string split_path =
+        std::string(path) +
+        (shard ? "-00002-of-00002.gguf" : "-00001-of-00002.gguf");
+    if (!gguf_write_to_file(split.get(), split_path.c_str(), false))
+      throw std::runtime_error("Cannot write split GGUF fixture");
+  }
   gguf_set_val_str(file.get(), "general.architecture",
                    "ailo-unknown-test-arch");
   if (!gguf_write_to_file(file.get(),
