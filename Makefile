@@ -2,7 +2,7 @@
 PRESET ?= debug
 TARGET ?= x86_64-linux-gnu
 DEPENDENCY ?=
-.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind valgrind-model valgrind-acquisition test-scalar-matrix example-smoke-local generate-native facade-coverage inference-smoke-vulkan
+.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind valgrind-model valgrind-acquisition test-scalar-matrix example-smoke-local generate-native facade-coverage inference-smoke-vulkan test-install-tree
 help:
 	@scripts/help.sh
 deps:
@@ -17,6 +17,8 @@ test: build
 	ctest --preset $(PRESET) --output-on-failure -j1
 test-debug:
 	$(MAKE) test PRESET=debug
+test-install-tree: build
+	scripts/test_install_tree.sh "$(PRESET)"
 upstream-inventory:
 	python3 scripts/upstream_inventory.py
 format:

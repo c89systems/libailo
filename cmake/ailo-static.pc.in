@@ -1,0 +1,10 @@
+prefix=${pcfiledir}/../..
+includedir=${prefix}/include
+
+Name: ailo-static
+Description: Strict C89 local GGUF inference library with separate static link closure
+Version: @PROJECT_VERSION@
+Requires.private: libcurl >= 8.22.0 libcrypto >= 3.6.4
+Libs: -L${prefix}/lib -l:libailo.a
+Libs.private: -static-libstdc++ -static-libgcc -L${prefix}/lib/ailo/native -L${prefix}/lib/ailo/runtime @AILO_NATIVE_PC@ @AILO_NATIVE_PC@ @AILO_RUNTIME_PC@ @AILO_VULKAN_PC@ -pthread -lm -ldl
+Cflags: -I${includedir}

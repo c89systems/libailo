@@ -1,0 +1,18 @@
+{
+  "gcc-COPYING3": {
+    "url": "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-15.3.0/COPYING3",
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  "gcc-COPYING.RUNTIME": {
+    "url": "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-15.3.0/COPYING.RUNTIME",
+    "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74"
+  },
+  "miniaudio.txt": {
+    "url": "https://github.com/ggml-org/llama.cpp/blob/b11430/vendor/miniaudio/miniaudio.h",
+    "sha256": "8ee059f719506d610d0e11e15a36d5c6fd9a55801931b80215f9d26ed019e0d1"
+  },
+  "stb.txt": {
+    "url": "https://github.com/ggml-org/llama.cpp/blob/b11430/vendor/stb/stb_image.h",
+    "sha256": "36df9677aa6a2ae37a01c7aaa39c3206fa02a4e06bb5037ebe89e5828b931f31"
+  }
+}

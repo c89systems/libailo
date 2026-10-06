@@ -8,6 +8,7 @@ build-debug                       Build default Vulkan+CPU configuration.
 build-release                     Build native release configuration.
 test [PRESET=name]                 Run deterministic CTest checks.
 test-debug                        Run debug checks.
+test-install-tree                 Verify relocated CMake/pkg-config C/C++ consumers.
 valgrind                          Check native executables (requires Valgrind).
 valgrind-model                    Check static/shared GGUF inference in the native CPU build.
 valgrind-acquisition              Check C89 model cache and TLS transport ownership.

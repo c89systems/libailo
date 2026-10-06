@@ -17,7 +17,8 @@ the public mtmd memory map, variadic formatting and C89 macro adapters. It is
 incomplete: 83 callback adapter gaps remain explicit in
 [docs/facade-coverage.json](docs/facade-coverage.json). Standalone model
 download/cache helpers are implemented in [include/ailo/model.h](include/ailo/model.h).
-The receiver and redistributable SDK are still pending.
+The receiver and release SDK gates are still pending. Native install-tree
+CMake/pkg-config consumers are available.
 
 [docs/upstream-api.json](docs/upstream-api.json) records the pinned public C API
 inventory. An inventory is the baseline for the forthcoming facade coverage
@@ -154,3 +155,34 @@ separate native operation.
 success, error, cancellation, callback-exception and concurrent-client cases.
 Curl/OpenSSL archives remain separate static dependencies; the shared library
 links SDK shared libraries. No model weights or test trust certificates ship.
+
+## Installed consumers
+
+`make test-install-tree PRESET=cpu` builds, installs into a temporary prefix,
+moves that prefix to a path containing spaces, then compiles and runs C-only
+and C++ consumers through static/shared CMake targets and pkg-config metadata.
+It also checks isolated header inclusion, real model decode/state restoration,
+the exact installed dynamic export set, private-symbol link rejection, missing
+external SDK diagnostics, and relative installed runtime paths.
+
+The install component `ailo` contains only project headers and libraries,
+separate native archives under `lib/ailo/native`, selected GNU runtime archives
+under `lib/ailo/runtime`, package metadata and documentation/licenses. Curl and
+OpenSSL remain external requirements. No native upstream headers are installed.
+`share/ailo/dependencies.json` records target-specific dependency URLs/checksums
+and bundled/external roles. Version `0.0.0` remains the development placeholder;
+install-tree verification does not constitute a release or completed SDK.
+
+For CMake, use `find_package(ailo CONFIG REQUIRED COMPONENTS static)` or
+`COMPONENTS shared`, then link `ailo::static` or `ailo::shared`. Static consumers
+supply the matching c.pkt.systems v0.11.0 SDK through `CMAKE_PREFIX_PATH` or
+`ailo_EXTERNAL_ROOT`. The metadata owns native and GNU runtime archive ordering,
+so C-only consumers do not need to enable C++ or write private library lists.
+`pkg-config --cflags --libs ailo` selects the shared library;
+`pkg-config --static --cflags --libs ailo-static` selects the facade/native/runtime
+archives explicitly. Provide c.pkt.systems's `lib/pkgconfig` on `PKG_CONFIG_PATH`.
+Shared consumers must make the external SDK libraries and compatible GNU C++
+shared runtime available to the dynamic loader. Installed libraries contain
+only `$ORIGIN`-relative lookup paths; test executables alone receive local paths.
+Release archives, complete binary privacy scans, exact-tag versioning, source
+reconstruction, and cross-target package gates remain pending.
