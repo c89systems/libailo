@@ -14,6 +14,12 @@ package-source                   Require an exact release tag and complete facad
 test-source-archive               Check development source archive staging/rejection/determinism.
 package-source-smoke SOURCE_ARCHIVE=path
                                  Reconstruct a source archive without VCS state (CPU build).
+package [PRESET=name]             Require exact tag/full facade, then stage a stripped SDK.
+package-checksums ARTIFACT_DIRECTORY=path ARTIFACT_VERSION=X.Y.Z ARTIFACT_LIST=path
+                                 Write the sole checksum manifest from explicit artifact names.
+package-verify CHECKSUM_MANIFEST=path
+                                 Verify every checksum-listed source/SDK archive.
+release-matrix                   Require exact tag/full facade; build/verify six Linux SDKs serially.
 valgrind                          Check native executables (requires Valgrind).
 valgrind-model                    Check static/shared GGUF inference in the native CPU build.
 valgrind-acquisition              Check C89 model cache and TLS transport ownership.

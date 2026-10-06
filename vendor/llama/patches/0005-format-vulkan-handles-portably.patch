@@ -1,0 +1,11 @@
+--- a/ggml/src/ggml-vulkan/ggml-vulkan-debug.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan-debug.cpp
+@@ -26,1 +26,1 @@
+-    VK_LOG_MEMORY(buf->device->name << ": +" << format_size(size) << " " << type << " at " << buf->buffer << ". Total device: " << format_size(total_device) << ", total host: " << format_size(total_host));
++    VK_LOG_MEMORY(buf->device->name << ": +" << format_size(size) << " " << type << " at " << static_cast<VkBuffer>(buf->buffer) << ". Total device: " << format_size(total_device) << ", total host: " << format_size(total_host));
+@@ -42,1 +42,1 @@
+-        VK_LOG_MEMORY(buf->device->name << ": -" << format_size(it->second) << " " << type << " at " << buf->buffer << ". Total device: " << format_size(total_device) << ", total host: " << format_size(total_host));
++        VK_LOG_MEMORY(buf->device->name << ": -" << format_size(it->second) << " " << type << " at " << static_cast<VkBuffer>(buf->buffer) << ". Total device: " << format_size(total_device) << ", total host: " << format_size(total_host));
+@@ -45,1 +45,1 @@
+-        VK_LOG_MEMORY("ERROR " << buf->device->name << ": Attempted to deallocate unknown " << type << " memory at " << buf->buffer);
++        VK_LOG_MEMORY("ERROR " << buf->device->name << ": Attempted to deallocate unknown " << type << " memory at " << static_cast<VkBuffer>(buf->buffer));

@@ -16,7 +16,7 @@ cmake --install "$binary" --prefix "$work/original" --component ailo >"$work/ins
 mv "$work/original" "$work/relocated sdk"
 prefix="$work/relocated sdk"
 while IFS= read -r -d '' file; do
-  case "$file" in *.a) "$strip_tool" --strip-debug "$file" ;; *.so|*.so.*) "$strip_tool" --strip-unneeded "$file" ;; esac
+  case "$file" in *.a) "$strip_tool" --enable-deterministic-archives --strip-debug "$file" ;; *.so|*.so.*) "$strip_tool" --strip-unneeded "$file" ;; esac
 done < <(find "$prefix/lib" -type f -print0)
 # Scan extracted bytes, not only the install staging directory.
 (cd "$work" && cmake -E tar czf sdk.tar.gz --format=gnutar 'relocated sdk')

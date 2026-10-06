@@ -83,3 +83,22 @@ At this pinned revision, restoring model state into a fresh context requires a
 subsequent decode before logits can be queried. The native model tests compare
 continuation logits against an uninterrupted context after both full-context
 and sequence state restoration.
+
+The remaining 83 inventory gaps comprise 30 callback typedefs, 25 record fields
+and 28 functions. The dependency decision is required by concrete pinned API
+shapes, including `ggml_to_float_t`/`ggml_from_float_t` (native `int64_t` length,
+no userdata), `ggml_backend_comm_init_t` (no registration context), and fatal
+abort callback chaining (no userdata). C89 word-pair integers require explicit
+ABI conversion. Callable native views can use typed invocation helpers, but
+installing independent C89 bindings into these native function-pointer slots
+also needs a correctly typed, independently owned native call entry.
+
+The recommended private, checksum-pinned libffi dependency supplies those native
+closures and remains a separate link dependency. The C89 surface would own
+callback handles with explicit retain/release and bound-owner lifetimes; no
+libffi/C++ types would be installed. Conversion/error tests must cover independent
+registrations, callback chaining, returned native views, native booleans and
+64-bit values, by-value optimizer results, sampler clones/destruction and
+asynchronous/retained use. The dependency has not been approved or implemented.
+Incompatible function-pointer casts, a fixed/global callback-slot substitute,
+or handwritten executable trampolines are not an approved complete alternative.

@@ -78,6 +78,7 @@ archive during preparation:
 - Own and destroy Vulkan device descriptors and their contexts at shutdown.
 - Implement the declared upstream threadpool-count query that lacked a body.
 - Give CPU repack traits static ownership rather than an unfreed allocation.
+- Format Vulkan buffer handles through their native type on 32-bit targets.
 
 The ownership patches address allocations observed by Valgrind during backend
 enumeration and CPU graph execution. Public upstream header declarations remain
@@ -191,9 +192,9 @@ the Vulkan loader searches system configuration under `/etc`. No linked binary
 is rewritten to hide a path. Negative archive fixtures prove rejection of
 repository/home paths, local file URLs, foreign workstation paths, absolute
 RPATHs, and escaping/dangling symlinks. Both CPU-only and Vulkan-enabled extracted
-trees pass. Release checksum manifests, the actual tag-mutation release contract,
-nested release-payload verification, and the full cross-target package matrix
-remain pending.
+trees pass. Development checksum sets and all six Linux SDKs have been verified.
+The actual tag-mutation release contract, nested release-payload verification,
+and complete-facade/receiver acceptance remain pending.
 
 ## Versions and source reconstruction
 
@@ -218,3 +219,27 @@ at version `2.3.4` has passed this proof with generated-header/package version
 agreement. This candidate is a test value, not a selected or published release.
 Read-only tag-record parsing and current-worktree checks run in ordinary tests;
 actual tag creation/signing checks remain outside the authorized implementation.
+
+## Checksummed SDKs
+
+`make package` requires an exact lightweight release tag and a complete facade.
+The development `scripts/package.sh --development --preset NAME --no-build
+--output-directory build/PATH` surface stages a configured build for verification.
+It creates a deterministic stripped archive containing payload and symlink
+ledgers plus explicit development/capability metadata; it cannot write to `dist/`.
+
+`make package-checksums ARTIFACT_DIRECTORY=path ARTIFACT_VERSION=X.Y.Z
+ARTIFACT_LIST=path` derives the sole `libailo-X.Y.Z-CHECKSUMS` file from an explicit
+list of artifact basenames. Stale/unlisted/duplicate/missing files fail.
+`make package-verify CHECKSUM_MANIFEST=path` verifies the complete listed set,
+then checks each extracted SDK's payload, target-correct archive ABI, required
+layout, private-header/dependency exclusion, loader metadata and exact exports.
+`scripts/release_upload_files.sh MANIFEST` prints only the verified listed files
+plus the manifest itself; it does not upload or publish anything.
+
+The serialized development Linux matrix has built and verified Vulkan+CPU SDKs
+for x86_64, aarch64 and armhf with both glibc and musl. It also executes the
+existing six-target scalar/bridge checks, including ARM QEMU coverage. The
+cross-link helper supplies dependency paths only at link time; native test
+executable runtime paths remain private and do not enter SDK metadata.
+This matrix proves the current foundation, not facade or receiver completion.

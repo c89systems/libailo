@@ -2,7 +2,7 @@
 PRESET ?= debug
 TARGET ?= x86_64-linux-gnu
 DEPENDENCY ?=
-.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind valgrind-model valgrind-acquisition test-scalar-matrix example-smoke-local generate-native facade-coverage inference-smoke-vulkan test-install-tree print-release-version package-source package-source-smoke test-source-archive
+.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind valgrind-model valgrind-acquisition test-scalar-matrix example-smoke-local generate-native facade-coverage inference-smoke-vulkan test-install-tree print-release-version package-source package-source-smoke test-source-archive package package-checksums package-verify release-matrix
 help:
 	@scripts/help.sh
 print-release-version:
@@ -13,6 +13,14 @@ package-source-smoke:
 	scripts/test_release_from_source.sh "$(SOURCE_ARCHIVE)"
 test-source-archive:
 	scripts/test_source_archive.sh
+package:
+	scripts/package.sh --preset "$(PRESET)"
+package-checksums:
+	scripts/package_checksums.sh "$(ARTIFACT_DIRECTORY)" "$(ARTIFACT_VERSION)" "$(ARTIFACT_LIST)"
+package-verify:
+	scripts/verify_release_artifacts.sh "$(CHECKSUM_MANIFEST)"
+release-matrix:
+	scripts/run_linux_release_matrix.sh
 deps:
 	scripts/deps.sh --target "$(TARGET)" --component "$(DEPENDENCY)"
 build:
