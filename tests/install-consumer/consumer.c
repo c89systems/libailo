@@ -1,6 +1,7 @@
 #include "ailo/base.h"
 #include "ailo/model.h"
 #include "ailo/native.h"
+#include "ailo/version.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -13,6 +14,8 @@ int main(int argc, char **argv) {
   char *path = NULL;
   if (argc != 2)
     return 2;
+  if (strcmp(AILO_VERSION, EXPECTED_VERSION) != 0 || AILO_ABI_VERSION != 0)
+    return 1;
   memset(&source, 0, sizeof(source));
   source.local_path = argv[1];
   if (ailo_model_acquire(&source, &path, &error) != AILO_OK) {

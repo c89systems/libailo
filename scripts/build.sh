@@ -64,7 +64,7 @@ if [[ "$vulkan" == ON ]]; then
     -DBUILD_WSI_XCB_SUPPORT=OFF -DBUILD_WSI_XLIB_SUPPORT=OFF \
     -DBUILD_WSI_WAYLAND_SUPPORT=OFF -DBUILD_WSI_XLIB_XRANDR_SUPPORT=OFF
 fi
-cmake --preset "$preset"
+cmake --preset "$preset" "-DAILO_VERSION_OVERRIDE:STRING=${AILO_VERSION_OVERRIDE:-}"
 if ! "$configure_only"; then
   cmake --build --preset "$preset" --parallel "$jobs"
 fi

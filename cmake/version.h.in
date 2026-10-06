@@ -1,0 +1,9 @@
+#ifndef AILO_VERSION_H
+#define AILO_VERSION_H
+#define AILO_VERSION "@PROJECT_VERSION@"
+#define AILO_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define AILO_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define AILO_VERSION_PATCH @PROJECT_VERSION_PATCH@
+/* Shared ABI is independent of the project release version. */
+#define AILO_ABI_VERSION 0
+#endif

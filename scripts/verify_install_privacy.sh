@@ -9,7 +9,9 @@ readelf=$2
   exit 2
 }
 scan_status=0
-leaks=$(rg -a -l --hidden --no-ignore -F -e "$root" -e "$HOME" -e 'file://$HOME' -e 'file:///home/' -e 'file:///tmp/' "$tree") || scan_status=$?
+home_uri='file://'
+home_uri+='$HOME'
+leaks=$(rg -a -l --hidden --no-ignore -F -e "$root" -e "$HOME" -e "$home_uri" -e 'file:///home/' -e 'file:///tmp/' "$tree") || scan_status=$?
 if [[ "$scan_status" -gt 1 ]]; then
   printf 'install-privacy: payload scan failed\n' >&2
   exit 1

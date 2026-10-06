@@ -2,9 +2,17 @@
 PRESET ?= debug
 TARGET ?= x86_64-linux-gnu
 DEPENDENCY ?=
-.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind valgrind-model valgrind-acquisition test-scalar-matrix example-smoke-local generate-native facade-coverage inference-smoke-vulkan test-install-tree
+.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind valgrind-model valgrind-acquisition test-scalar-matrix example-smoke-local generate-native facade-coverage inference-smoke-vulkan test-install-tree print-release-version package-source package-source-smoke test-source-archive
 help:
 	@scripts/help.sh
+print-release-version:
+	@scripts/release_version.sh --override "$(AILO_VERSION_OVERRIDE)"
+package-source:
+	scripts/package_source.sh
+package-source-smoke:
+	scripts/test_release_from_source.sh "$(SOURCE_ARCHIVE)"
+test-source-archive:
+	scripts/test_source_archive.sh
 deps:
 	scripts/deps.sh --target "$(TARGET)" --component "$(DEPENDENCY)"
 build:

@@ -170,7 +170,7 @@ separate native archives under `lib/ailo/native`, selected GNU runtime archives
 under `lib/ailo/runtime`, package metadata and documentation/licenses. Curl and
 OpenSSL remain external requirements. No native upstream headers are installed.
 `share/ailo/dependencies.json` records target-specific dependency URLs/checksums
-and bundled/external roles. Version `0.0.0` remains the development placeholder;
+and bundled/external roles. Untagged Git builds resolve to `0.0.0` by default;
 install-tree verification does not constitute a release or completed SDK.
 
 For CMake, use `find_package(ailo CONFIG REQUIRED COMPONENTS static)` or
@@ -191,6 +191,30 @@ the Vulkan loader searches system configuration under `/etc`. No linked binary
 is rewritten to hide a path. Negative archive fixtures prove rejection of
 repository/home paths, local file URLs, foreign workstation paths, absolute
 RPATHs, and escaping/dangling symlinks. Both CPU-only and Vulkan-enabled extracted
-trees pass. Release checksum manifests, exact-tag versioning, source
-reconstruction, nested release-payload verification, and the full cross-target
-package matrix remain pending.
+trees pass. Release checksum manifests, the actual tag-mutation release contract,
+nested release-payload verification, and the full cross-target package matrix
+remain pending.
+
+## Versions and source reconstruction
+
+`make print-release-version` reads an exact lightweight `vX.Y.Z` tag on HEAD,
+then an explicit `AILO_VERSION_OVERRIDE`, then defaults to `0.0.0` in Git.
+Annotated/signed or ambiguous exact release tags fail. Git worktrees ignore
+`VERSION`. Extracted sources read their staged `VERSION` even when extracted
+inside another checkout. `include/ailo/version.h` is generated at build time;
+its project version agrees with CMake/pkg-config metadata, while shared ABI 0
+remains independently controlled. Candidate overrides never create tags.
+
+`make package-source` requires an exact release version and complete facade.
+The explicit `cmake/source-manifest.txt` controls inclusion; staging injects
+`VERSION` and `SOURCE-MANIFEST.sha256`. Archives are deterministic and verification
+rejects extra/missing files, generated directories, duplicate/escaping entries,
+links, checksum corruption and local source paths. `make test-source-archive`
+tests this with development archives under `build/`, without producing releases.
+
+`make package-source-smoke SOURCE_ARCHIVE=path` extracts, checks and reconstructs
+the full CPU build/test/install surfaces without `.git`. A development candidate
+at version `2.3.4` has passed this proof with generated-header/package version
+agreement. This candidate is a test value, not a selected or published release.
+Read-only tag-record parsing and current-worktree checks run in ordinary tests;
+actual tag creation/signing checks remain outside the authorized implementation.

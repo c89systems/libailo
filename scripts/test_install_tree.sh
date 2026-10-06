@@ -4,9 +4,9 @@ root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 [[ $# -eq 1 && "$1" =~ ^[A-Za-z0-9_-]+$ ]] || { printf 'Usage: test_install_tree.sh preset\n' >&2; exit 2; }
 binary="$root/build/$1"
 [[ -f "$binary/install/test-settings.txt" ]] || { printf 'install-tree: configure/build the preset first\n' >&2; exit 2; }
-target= nm= readelf= strip_tool= toolchain=
+target= cc= sysroot= nm= readelf= strip_tool= toolchain=
 while IFS='=' read -r key value; do
-  case "$key" in target) target=$value ;; nm) nm=$value ;; readelf) readelf=$value ;; strip) strip_tool=$value ;; toolchain) toolchain=$value ;; esac
+  case "$key" in target) target=$value ;; cc) cc=$value ;; sysroot) sysroot=$value ;; nm) nm=$value ;; readelf) readelf=$value ;; strip) strip_tool=$value ;; toolchain) toolchain=$value ;; esac
 done < "$binary/install/test-settings.txt"
 [[ "$target" == x86_64-linux-gnu ]] || { printf 'install-tree: execution currently requires the native GNU target\n' >&2; exit 2; }
 mkdir -p "$root/build/install-tests"
@@ -32,7 +32,7 @@ if rg -a -l -F -e "$root" -e "$HOME" "$prefix/lib/cmake" "$prefix/lib/pkgconfig"
   exit 1
 fi
 for header in "$prefix/include/ailo/"*.h; do
-  [[ -f "$root/include/ailo/${header##*/}" ]] || { printf 'install-tree: leaked header %s\n' "$header" >&2; exit 1; }
+  [[ -f "$root/include/ailo/${header##*/}" || "${header##*/}" == version.h ]] || { printf 'install-tree: leaked header %s\n' "$header" >&2; exit 1; }
 done
 if cmake -S "$root/tests/install-consumer" -B "$work/missing-sdk" -G Ninja \
     -DCMAKE_TOOLCHAIN_FILE="$toolchain" -DAILO_TARGET_ID="$target" \
@@ -75,7 +75,7 @@ while IFS= read -r path; do
   done
 done < <("$readelf" -d "$prefix/lib/libailo.so.0" | sed -n '/(RPATH)\|(RUNPATH)/s/.*\[\(.*\)\].*/\1/p')
 "$root/scripts/verify_exports.sh" --library "$prefix/lib/libailo.so.0" --nm "$nm" \
-  --cc "$(sed -n 's/^CMAKE_C_COMPILER:FILEPATH=//p' "$binary/CMakeCache.txt")" \
-  --sysroot "$(sed -n 's/^CMAKE_SYSROOT:PATH=//p' "$binary/CMakeCache.txt")" \
+  --cc "$cc" \
+  --sysroot "$sysroot" \
   --work "$work/exports" --runtime-directory "$dep/cpkt/install/lib" --runtime-directory "$prefix/lib/ailo/native"
 printf 'Relocated CMake/pkg-config C-only and C++ consumers, header privacy and exports: passed\n'

@@ -9,6 +9,11 @@ build-release                     Build native release configuration.
 test [PRESET=name]                 Run deterministic CTest checks.
 test-debug                        Run debug checks.
 test-install-tree                 Verify relocated CMake/pkg-config C/C++ consumers.
+print-release-version             Read exact lightweight tag/candidate/archive version.
+package-source                   Require an exact release tag and complete facade, then archive.
+test-source-archive               Check development source archive staging/rejection/determinism.
+package-source-smoke SOURCE_ARCHIVE=path
+                                 Reconstruct a source archive without VCS state (CPU build).
 valgrind                          Check native executables (requires Valgrind).
 valgrind-model                    Check static/shared GGUF inference in the native CPU build.
 valgrind-acquisition              Check C89 model cache and TLS transport ownership.
