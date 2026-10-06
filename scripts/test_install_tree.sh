@@ -4,9 +4,9 @@ root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 [[ $# -eq 1 && "$1" =~ ^[A-Za-z0-9_-]+$ ]] || { printf 'Usage: test_install_tree.sh preset\n' >&2; exit 2; }
 binary="$root/build/$1"
 [[ -f "$binary/install/test-settings.txt" ]] || { printf 'install-tree: configure/build the preset first\n' >&2; exit 2; }
-target= nm= readelf= toolchain=
+target= nm= readelf= strip_tool= toolchain=
 while IFS='=' read -r key value; do
-  case "$key" in target) target=$value ;; nm) nm=$value ;; readelf) readelf=$value ;; toolchain) toolchain=$value ;; esac
+  case "$key" in target) target=$value ;; nm) nm=$value ;; readelf) readelf=$value ;; strip) strip_tool=$value ;; toolchain) toolchain=$value ;; esac
 done < "$binary/install/test-settings.txt"
 [[ "$target" == x86_64-linux-gnu ]] || { printf 'install-tree: execution currently requires the native GNU target\n' >&2; exit 2; }
 mkdir -p "$root/build/install-tests"
@@ -15,6 +15,15 @@ trap 'cmake -E rm -rf "$work"' EXIT
 cmake --install "$binary" --prefix "$work/original" --component ailo >"$work/install.log"
 mv "$work/original" "$work/relocated sdk"
 prefix="$work/relocated sdk"
+while IFS= read -r -d '' file; do
+  case "$file" in *.a) "$strip_tool" --strip-debug "$file" ;; *.so|*.so.*) "$strip_tool" --strip-unneeded "$file" ;; esac
+done < <(find "$prefix/lib" -type f -print0)
+# Scan extracted bytes, not only the install staging directory.
+(cd "$work" && cmake -E tar czf sdk.tar.gz --format=gnutar 'relocated sdk')
+mkdir "$work/extracted"
+(cd "$work/extracted" && cmake -E tar xf "$work/sdk.tar.gz")
+prefix="$work/extracted/relocated sdk"
+"$root/scripts/verify_install_privacy.sh" "$prefix" "$readelf"
 dep="$root/.cache/deps/$target"
 ctest --test-dir "$binary" --output-on-failure -j1 -R '^model-fixture$'
 fixture="$binary/model-fixtures/tiny-llama.gguf"

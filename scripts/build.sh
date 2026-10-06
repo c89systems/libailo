@@ -47,7 +47,9 @@ configure_dependency() {
     -DCMAKE_TOOLCHAIN_FILE="$root/cmake/AiloToolchain.cmake" \
     -DAILO_TARGET_ID="$target" -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$install" -DCMAKE_INSTALL_LIBDIR=lib \
-    -DCMAKE_INSTALL_MESSAGE=NEVER "$@"
+    -DCMAKE_INSTALL_MESSAGE=NEVER \
+    "-DCMAKE_C_FLAGS=-ffile-prefix-map=$root/.cache/deps-build/$target/$name/source=$name -ffile-prefix-map=$root/.cache/deps-build/$target/$name/build=$name-generated" \
+    "-DCMAKE_CXX_FLAGS=-ffile-prefix-map=$root/.cache/deps-build/$target/$name/source=$name -ffile-prefix-map=$root/.cache/deps-build/$target/$name/build=$name-generated" "$@"
   cmake --build "$base/build" --parallel "$jobs"
   cmake --install "$base/build"
 }
@@ -56,6 +58,7 @@ if [[ "$vulkan" == ON ]]; then
   configure_dependency vulkan-headers -DVULKAN_HEADERS_ENABLE_TESTS=OFF
   configure_dependency spirv-headers -DSPIRV_HEADERS_ENABLE_TESTS=OFF
   configure_dependency vulkan-loader \
+    -DSYSCONFDIR=/etc \
     -DVulkanHeaders_DIR="$root/.cache/deps/$target/vulkan-headers/install/share/cmake/VulkanHeaders" \
     -DBUILD_TESTS=OFF -DBUILD_WERROR=OFF \
     -DBUILD_WSI_XCB_SUPPORT=OFF -DBUILD_WSI_XLIB_SUPPORT=OFF \

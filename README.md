@@ -184,5 +184,13 @@ archives explicitly. Provide c.pkt.systems's `lib/pkgconfig` on `PKG_CONFIG_PATH
 Shared consumers must make the external SDK libraries and compatible GNU C++
 shared runtime available to the dynamic loader. Installed libraries contain
 only `$ORIGIN`-relative lookup paths; test executables alone receive local paths.
-Release archives, complete binary privacy scans, exact-tag versioning, source
-reconstruction, and cross-target package gates remain pending.
+The install-tree gate strips verification copies, creates and extracts an SDK
+archive, and scans its text/binary payload and loader metadata before running
+consumers. Compilation maps diagnostic/debug filenames to logical names;
+the Vulkan loader searches system configuration under `/etc`. No linked binary
+is rewritten to hide a path. Negative archive fixtures prove rejection of
+repository/home paths, local file URLs, foreign workstation paths, absolute
+RPATHs, and escaping/dangling symlinks. Both CPU-only and Vulkan-enabled extracted
+trees pass. Release checksum manifests, exact-tag versioning, source
+reconstruction, nested release-payload verification, and the full cross-target
+package matrix remain pending.
