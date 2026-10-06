@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 get_filename_component(ailo_root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 file(READ "${ailo_root}/CMakePresets.json" presets)
-if(NOT AILO_PRESET MATCHES "^[a-zA-Z0-9-]+$")
+if(NOT AILO_PRESET MATCHES "^[a-zA-Z0-9_-]+$")
   message(FATAL_ERROR "Invalid preset name: ${AILO_PRESET}")
 endif()
 

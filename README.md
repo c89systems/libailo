@@ -53,8 +53,9 @@ entry points run serially.
 discovery. `make test-scalar-matrix` executes scalar and native-width bridge
 checks on all six Linux targets; ARM execution requires host `qemu-arm` and
 `qemu-aarch64`. Those checks prove the scalar contract, not full model inference
-or facade coverage. Native model, Vulkan and packaging matrix evidence remains
-pending. `make valgrind` covers current native executable tests.
+or facade coverage. Full model, backend and packaging matrix evidence remains
+pending; native fixture evidence is described below. `make valgrind` covers
+current native executable tests.
 `make facade-coverage` intentionally fails until every coverage gap is resolved;
 ordinary unit checks do not substitute for that completeness gate. Generated
 bindings are checked in and require no Python invocation for ordinary builds.
@@ -83,3 +84,28 @@ inventory; the global public mtmd memory-report operation remains covered.
 
 No HTTP server, Kore integration, Responses API, stored completions, release,
 tag, or push is part of the current foundation.
+
+## Native model evidence
+
+The test suite builds a complete one-layer, 26,976-parameter Llama GGUF using
+public native GGUF/tensor APIs. Repeated writes must match SHA-256
+`e32806b9651b70b20c6109e4f4aab9e8ef0099108b69a1214e937f8ef1a77668`.
+This is an untrained deterministic execution fixture, not a text-quality model.
+All fixture files stay under the selected `build/` directory; no download is
+needed. Static and shared C89 tests cover model metadata, native chat templates,
+tokenization/detokenization, actual decode, greedy sampling, independent contexts,
+context/sequence state restoration, and native load failures for missing,
+truncated and unsupported model files.
+
+The Vulkan CTest runs real decode when a Vulkan device exists and reports an
+explicit skip otherwise. `make inference-smoke-vulkan` requires hardware and
+asserts native model/KV offload evidence, so absence cannot pass that gate.
+The native Intel RPL-U device has passed this gate. CPU tests explicitly disable
+both GPU layers and operation/KV offload.
+
+`make valgrind-model` builds the native CPU-only configuration and checks both
+static and shared model tests with all leak kinds fatal. The broader
+`make valgrind` includes it. A separate Vulkan-enabled process check exposed
+loader/driver retained allocations; CPU-only memory evidence does not claim
+Vulkan driver leak freedom. Full callback, receiver, multimodal inference,
+trained-model smoke and packaging acceptance are still pending.

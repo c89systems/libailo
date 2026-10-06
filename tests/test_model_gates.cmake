@@ -1,0 +1,50 @@
+cmake_minimum_required(VERSION 3.24)
+get_filename_component(root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+string(RANDOM LENGTH 12 ALPHABET abcdef0123456789 random)
+set(work "${root}/build/tests/model-gates-${random}")
+file(MAKE_DIRECTORY "${work}/scripts" "${work}/bin" "${work}/build/probe")
+file(COPY "${root}/scripts/test_model_vulkan.sh" DESTINATION "${work}/scripts")
+file(WRITE "${work}/bin/ctest" "#!/usr/bin/env bash\nexit 0\n")
+file(CHMOD "${work}/bin/ctest" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+
+# These controlled process/log fixtures test the gate, not model inference.
+# Actual inference is exercised separately through the C89 test executable.
+function(expect_gate boolean program expected)
+  file(WRITE "${work}/build/probe/CMakeCache.txt" "AILO_VULKAN:BOOL=${boolean}\n")
+  file(WRITE "${work}/build/probe/ailo_model_test" "#!/usr/bin/env bash\n${program}\n")
+  file(CHMOD "${work}/build/probe/ailo_model_test" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+  execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
+    "${work}/scripts/test_model_vulkan.sh" probe
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+  if(NOT result EQUAL expected)
+    message(FATAL_ERROR "Vulkan gate (${boolean}) returned ${result}, expected ${expected}: ${output}${error}")
+  endif()
+endfunction()
+set(success "printf 'offloaded 2/2 layers to GPU\\nVulkan0 KV buffer size = 0.03 MiB\\n'\nexit 0")
+foreach(boolean ON TRUE YES 1)
+  expect_gate("${boolean}" "${success}" 0)
+endforeach()
+foreach(boolean OFF FALSE NO 0)
+  expect_gate("${boolean}" "${success}" 2)
+endforeach()
+expect_gate(TRUE "printf 'SKIP: no Vulkan device\\n'\nexit 77" 1)
+expect_gate(TRUE "exit 1" 1)
+expect_gate(TRUE "printf 'offloaded 0/2 layers to GPU\\nVulkan0 KV buffer size = 0.03 MiB\\n'" 1)
+expect_gate(TRUE "printf 'offloaded 2/2 layers to GPU\\n'" 1)
+file(MAKE_DIRECTORY "${work}/build/x86_64-linux-gnu-release")
+file(WRITE "${work}/build/probe/ailo_model_test" "#!/usr/bin/env bash\n${success}\n")
+file(COPY "${work}/build/probe/ailo_model_test" "${work}/build/probe/CMakeCache.txt"
+  DESTINATION "${work}/build/x86_64-linux-gnu-release")
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
+  "${work}/scripts/test_model_vulkan.sh" x86_64-linux-gnu-release
+  RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+  message(FATAL_ERROR "Vulkan gate rejected a declared release preset: ${output}${error}")
+endif()
+execute_process(COMMAND "${work}/scripts/test_model_vulkan.sh" "../probe"
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_QUIET)
+if(NOT result EQUAL 2)
+  message(FATAL_ERROR "Vulkan gate accepted a traversal preset")
+endif()
+file(REMOVE_RECURSE "${work}")
+message(STATUS "Vulkan gate rejects missing hardware, disabled backends, inference failure and missing offload evidence")

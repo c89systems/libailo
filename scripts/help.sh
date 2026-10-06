@@ -9,6 +9,8 @@ build-release                     Build native release configuration.
 test [PRESET=name]                 Run deterministic CTest checks.
 test-debug                        Run debug checks.
 valgrind                          Check native executables (requires Valgrind).
+valgrind-model                    Check static/shared GGUF inference in the native CPU build.
+inference-smoke-vulkan            Require GGUF decode on a real Vulkan device.
 test-scalar-matrix                 Run scalar/bridge checks on six Linux targets.
                                   Cross execution requires qemu-arm/aarch64.
 example-smoke-local                Build and exercise local C89 examples.

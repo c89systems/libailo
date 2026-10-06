@@ -19,6 +19,9 @@ expect_preset(debug "target=x86_64-linux-gnu\nvulkan=ON\n")
 expect_preset(valgrind "target=x86_64-linux-gnu\nvulkan=ON\n")
 expect_preset(cpu "target=x86_64-linux-gnu\nvulkan=OFF\n")
 expect_preset(armhf-linux-musl-release "target=armhf-linux-musl\nvulkan=ON\n")
+foreach(target x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl armhf-linux-gnu armhf-linux-musl)
+  expect_preset("${target}-release" "target=${target}\nvulkan=ON\n")
+endforeach()
 foreach(preset base nonexistent "../debug")
   execute_process(COMMAND "${CMAKE_COMMAND}" "-DAILO_PRESET=${preset}" "-DAILO_PRESET_RESULT=${work}/preset"
     -P "${root}/cmake/AiloPreset.cmake" RESULT_VARIABLE result ERROR_QUIET)
@@ -38,6 +41,21 @@ execute_process(COMMAND "${CMAKE_COMMAND}" -E env AILO_JOBS=0 "${root}/scripts/b
 if(NOT result EQUAL 2)
   message(FATAL_ERROR "Invalid build worker count was accepted")
 endif()
+
+# Observe that the shell driver accepts every declared target name and reaches
+# its configure step. Stop the mocked CMake before any dependency/build action.
+file(MAKE_DIRECTORY "${work}/driver/scripts" "${work}/bin")
+file(COPY "${root}/scripts/build.sh" DESTINATION "${work}/driver/scripts")
+file(WRITE "${work}/bin/cmake" "#!/usr/bin/env bash\nexit 75\n")
+file(CHMOD "${work}/bin/cmake" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+foreach(target x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl armhf-linux-gnu armhf-linux-musl)
+  execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}" AILO_JOBS=1
+    "${work}/driver/scripts/build.sh" --preset "${target}-release" --configure-only
+    RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+  if(NOT result EQUAL 75)
+    message(FATAL_ERROR "Build driver rejected ${target}-release before configuring: ${result}: ${error}")
+  endif()
+endforeach()
 
 # Synthetic source acquisition uses its own counted/test archive cache only.
 set(component "fixture-${random}")

@@ -78,3 +78,8 @@ and `size_t` for `nb`, reading opaque native records through typed helpers.
 `AILO_GGML_TENSOR_SIZE` queries the native size at runtime; it is not a C89
 constant expression. Annotation macros omit non-C89 compiler attributes.
 Native header guards are classified separately from API capabilities.
+
+At this pinned revision, restoring model state into a fresh context requires a
+subsequent decode before logits can be queried. The native model tests compare
+continuation logits against an uninterrupted context after both full-context
+and sequence state restoration.

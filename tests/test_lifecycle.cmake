@@ -24,7 +24,7 @@ execute_process(COMMAND make help WORKING_DIRECTORY "${root}"
 if(NOT result EQUAL 0)
   message(FATAL_ERROR "make help failed")
 endif()
-foreach(command deps build test format upstream-inventory valgrind test-scalar-matrix example-smoke-local)
+foreach(command deps build test format upstream-inventory valgrind valgrind-model inference-smoke-vulkan test-scalar-matrix example-smoke-local)
   if(NOT help MATCHES "(^|\n)${command}[ \r\n]")
     message(FATAL_ERROR "make help omits ${command}")
   endif()

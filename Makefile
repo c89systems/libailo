@@ -2,7 +2,7 @@
 PRESET ?= debug
 TARGET ?= x86_64-linux-gnu
 DEPENDENCY ?=
-.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind test-scalar-matrix example-smoke-local generate-native facade-coverage
+.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind valgrind-model test-scalar-matrix example-smoke-local generate-native facade-coverage inference-smoke-vulkan
 help:
 	@scripts/help.sh
 deps:
@@ -24,6 +24,10 @@ format:
 format-check:
 	scripts/format.sh --check
 finalize-slice: format test format-check
+inference-smoke-vulkan: build
+	scripts/test_model_vulkan.sh "$(PRESET)"
+valgrind-model:
+	scripts/test_model_memory.sh
 valgrind: build
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=definite --errors-for-leak-kinds=definite build/$(PRESET)/ailo_backend_test
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=definite --errors-for-leak-kinds=definite build/$(PRESET)/ailo_c89_policy
@@ -37,6 +41,7 @@ valgrind: build
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_variadic_parity
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_macros_test
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_macros_parity
+	$(MAKE) valgrind-model
 test-scalar-matrix:
 	scripts/test_scalar_matrix.sh
 example-smoke-local: build

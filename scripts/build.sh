@@ -12,7 +12,7 @@ while [[ $# -gt 0 ]]; do
 done
 jobs=${AILO_JOBS:-2}
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { printf 'build: AILO_JOBS must be a positive integer\n' >&2; exit 2; }
-[[ "$preset" =~ ^[a-zA-Z0-9-]+$ ]] || { printf 'build: invalid preset name\n' >&2; exit 2; }
+[[ "$preset" =~ ^[a-zA-Z0-9_-]+$ ]] || { printf 'build: invalid preset name\n' >&2; exit 2; }
 mkdir -p "$root/build/presets"
 result="$root/build/presets/$preset.txt"
 cmake -DAILO_PRESET="$preset" -DAILO_PRESET_RESULT="$result" -P "$root/cmake/AiloPreset.cmake"
