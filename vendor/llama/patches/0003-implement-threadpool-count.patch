@@ -1,0 +1,9 @@
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -2741 +2741,6 @@
++int ggml_threadpool_get_n_threads(struct ggml_threadpool * threadpool) {
++    GGML_ASSERT(threadpool);
++    return threadpool->n_threads;
++}
++
+ void ggml_threadpool_free(struct ggml_threadpool* threadpool) {

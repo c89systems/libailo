@@ -25,6 +25,15 @@
   "excluded_headers": {
     "ggml/include/ggml-cpp.h": "C++ utilities, excluded by product scope"
   },
+  "excluded_cpp_wrappers": [
+    "mtmd::mtmd_batch_deleter",
+    "mtmd::mtmd_bitmap_deleter",
+    "mtmd::mtmd_context_deleter",
+    "mtmd::mtmd_input_chunk_deleter",
+    "mtmd::mtmd_input_chunks_deleter",
+    "mtmd_helper::mtmd_helper_gen_audio_deleter",
+    "mtmd_helper::mtmd_helper_video_deleter"
+  ],
   "functions": [
     {
       "name": "ggml_abort",
@@ -18961,18 +18970,6 @@
       "nested": []
     },
     {
-      "name": "mtmd_batch_deleter",
-      "tag": "struct",
-      "fields": [],
-      "nested": []
-    },
-    {
-      "name": "mtmd_bitmap_deleter",
-      "tag": "struct",
-      "fields": [],
-      "nested": []
-    },
-    {
       "name": "mtmd_caps",
       "tag": "struct",
       "fields": [
@@ -18985,12 +18982,6 @@
           "type": "bool"
         }
       ],
-      "nested": []
-    },
-    {
-      "name": "mtmd_context_deleter",
-      "tag": "struct",
-      "fields": [],
       "nested": []
     },
     {
@@ -19255,12 +19246,6 @@
       "nested": []
     },
     {
-      "name": "mtmd_helper_gen_audio_deleter",
-      "tag": "struct",
-      "fields": [],
-      "nested": []
-    },
-    {
       "name": "mtmd_helper_gen_audio_inp",
       "tag": "struct",
       "fields": [
@@ -19315,12 +19300,6 @@
       "nested": []
     },
     {
-      "name": "mtmd_helper_video_deleter",
-      "tag": "struct",
-      "fields": [],
-      "nested": []
-    },
-    {
       "name": "mtmd_helper_video_info",
       "tag": "struct",
       "fields": [
@@ -19360,18 +19339,6 @@
           "type": "int64_t"
         }
       ],
-      "nested": []
-    },
-    {
-      "name": "mtmd_input_chunk_deleter",
-      "tag": "struct",
-      "fields": [],
-      "nested": []
-    },
-    {
-      "name": "mtmd_input_chunks_deleter",
-      "tag": "struct",
-      "fields": [],
       "nested": []
     },
     {

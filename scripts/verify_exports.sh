@@ -2,11 +2,13 @@
 set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 library= nm= cc= sysroot= work=
+runtime_directories=()
 while [[ $# -gt 0 ]]; do
   [[ $# -ge 2 ]] || { printf 'exports: option requires a value\n' >&2; exit 2; }
   case "$1" in
     --library) library=$2 ;; --nm) nm=$2 ;; --cc) cc=$2 ;;
     --sysroot) sysroot=$2 ;; --work) work=$2 ;;
+    --runtime-directory) runtime_directories+=("$2") ;;
     *) printf 'Usage: verify_exports.sh --library path --nm path --cc path --sysroot path --work path\n' >&2; exit 2 ;;
   esac
   shift 2
@@ -21,7 +23,7 @@ workspace=$(mktemp -d "$work/exports.XXXXXXXX")
 cleanup() { cmake -E rm -rf "$workspace"; }
 trap cleanup EXIT
 LC_ALL=C "$nm" -D --defined-only -P "$library" | awk 'NF { print $1 }' | LC_ALL=C sort > "$workspace/actual"
-LC_ALL=C sort "$root/cmake/ailo.exports" > "$workspace/expected"
+cat "$root/cmake/ailo.exports" "$root/cmake/ailo-native.exports" | LC_ALL=C sort > "$workspace/expected"
 if ! diff -u "$workspace/expected" "$workspace/actual"; then
   printf 'exports: shared library differs from its public ABI allowlist\n' >&2
   exit 1
@@ -33,6 +35,9 @@ SOURCE
 command=("$cc" "--sysroot=$sysroot" -std=c89 -Wall -Wextra -Wpedantic \
   -pedantic-errors -Werror -Wl,--fatal-warnings "-I$root/include" \
   "$workspace/consumer.c" "$library" -o "$workspace/consumer")
+for directory in "${runtime_directories[@]}"; do
+  command+=("-Wl,-rpath-link,$directory")
+done
 "${command[@]}"
 cat > "$workspace/consumer.c" <<'SOURCE'
 #include "ailo/base.h"

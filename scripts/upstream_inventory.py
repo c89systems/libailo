@@ -41,6 +41,7 @@ def inventory(source, clang):
     functions = {}
     typedefs = {}
     enums = {}
+    excluded_cpp_wrappers = set()
 
     def canonical(type_):
         return type_.replace(str(source) + '/', '')
@@ -51,10 +52,15 @@ def inventory(source, clang):
             result['bitfield'] = True
         return result
 
-    def walk(node):
+    def walk(node, namespace=()):
         kind = node.get('kind')
         name = node.get('name', '')
-        if PREFIX.match(name):
+        if kind == 'NamespaceDecl':
+            namespace = namespace + (name,)
+        if PREFIX.match(name) and namespace:
+            if kind in {'FunctionDecl', 'CXXRecordDecl', 'TypedefDecl', 'EnumDecl'}:
+                excluded_cpp_wrappers.add('::'.join(namespace + (name,)))
+        elif PREFIX.match(name):
             if kind == 'FunctionDecl':
                 functions[name] = {'name': name, 'type': canonical(node['type']['qualType']),
                                    'parameters': [field(n) for n in node.get('inner', []) if n['kind'] == 'ParmVarDecl'],
@@ -88,7 +94,7 @@ def inventory(source, clang):
                     vals.append({'name': entry['name'], 'value': current})
                 enums[name] = {'name': name, 'values': vals}
         for child in node.get('inner', []):
-            walk(child)
+            walk(child, namespace)
 
     walk(ast)
     macros_text = subprocess.check_output([a for a in args if a != '-fsyntax-only'] + ['-E', '-dM'], text=True)
@@ -99,6 +105,7 @@ def inventory(source, clang):
             macros.append({'name': match[1], 'parameters': match[2], 'value': canonical(match[3])})
     return {'revision': '8345f333951c661d166b00e6f9362e553768f292', 'headers': HEADERS,
             'excluded_headers': {'ggml/include/ggml-cpp.h': 'C++ utilities, excluded by product scope'},
+            'excluded_cpp_wrappers': sorted(excluded_cpp_wrappers),
             'functions': sorted(functions.values(), key=lambda x: x['name']),
             'records': sorted(records.values(), key=lambda x: x['name']),
             'typedefs': sorted(typedefs.values(), key=lambda x: x['name']),

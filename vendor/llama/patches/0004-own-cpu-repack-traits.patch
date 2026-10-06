@@ -1,0 +1,9 @@
+--- a/ggml/src/ggml-cpu/repack.cpp
++++ b/ggml/src/ggml-cpu/repack.cpp
+@@ -5239,2 +5239,3 @@
+ ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void) {
++    static ggml::cpu::repack::extra_buffer_type context;
+     static struct ggml_backend_buffer_type ggml_backend_cpu_buffer_type_repack = {
+@@ -5251 +5252 @@
+-        /* .context = */ new ggml::cpu::repack::extra_buffer_type(),
++        /* .context = */ &context,

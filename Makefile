@@ -2,7 +2,7 @@
 PRESET ?= debug
 TARGET ?= x86_64-linux-gnu
 DEPENDENCY ?=
-.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind test-scalar-matrix example-smoke-local
+.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind test-scalar-matrix example-smoke-local generate-native facade-coverage
 help:
 	@scripts/help.sh
 deps:
@@ -30,7 +30,14 @@ valgrind: build
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_values_static
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_values_shared
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_integer_bridge
+	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_native_records
+	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_native_storage
+	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_native_test
 test-scalar-matrix:
 	scripts/test_scalar_matrix.sh
 example-smoke-local: build
 	ctest --preset "$(PRESET)" --output-on-failure -j1 -L example-smoke
+generate-native:
+	python3 scripts/generate_native.py
+facade-coverage:
+	python3 scripts/generate_native.py --check --require-complete

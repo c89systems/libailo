@@ -1,2 +1,4 @@
 0001-pinned-shader-toolchain.patch
 0002-own-vulkan-device-descriptors.patch
+0003-implement-threadpool-count.patch
+0004-own-cpu-repack-traits.patch
