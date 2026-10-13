@@ -110,8 +110,10 @@ RADV for AMD Radeon and Mesa ANV for Intel GPUs, with permissive userspace
 dependencies and explicit exclusion of libudev/libelf auto-discovery. The
 maintained Linux ROCm/HIP stack is excluded because it requires LGPL libnuma.
 The [userspace dependency assessment](docs/gpu-userspace-dependencies.md)
-records the source evidence, compiler-runtime assumption and required static
-integration work. Licensing eligibility is not proof of a working static
+records the source evidence, accepted GCC runtime exception, feature losses
+from omitting optional dependencies and required static integration work.
+Permissive implementations of optional APIs may be qualified separately.
+Licensing eligibility is not proof of a working static
 deployment. Fully static CPU inference is the intended
 standalone musl path; proving the final executable is a separate gate from SDK
 archive verification.

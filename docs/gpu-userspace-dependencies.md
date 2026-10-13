@@ -24,8 +24,10 @@ libstdc++/libgcc under GPL with the GCC Runtime Library Exception. The
 [exception](https://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html)
 permits proprietary applications to incorporate the runtime through eligible
 compilation, including static linking, but is not a purely permissive license.
-These GPU profiles qualify on their additional dependencies; a literally
-permissive-only complete executable still needs a compiler-runtime decision.
+The project accepts these existing runtime libraries under that exception.
+Additional GPU userspace libraries must use permissive licensing. LLVM libc++
+is a different C++ library with permissive licensing; it is not the GNU runtime
+discussed here, and no runtime substitution is required by this decision.
 
 ## Sources inspected
 
@@ -96,13 +98,16 @@ Primary license references:
    runtime compilers; its internal shaders still require host mesa_clc and
    vtn_bindgen2 build tools. A host LLVM-backed shader tool does not establish
    a target LLVM dependency. Check generated shader notices too.
-3. Explicitly prevent libelf and libudev from entering the dependency graph.
+3. Explicitly prevent unqualified libelf and libudev implementations from
+   entering the dependency graph. The initial minimal profile omits both.
    Mesa probes both with `required: false`, independent of a general
    `auto_features=disabled` setting. RADV lists dep_elf, and shared WSI lists
    dep_libudev. The absence of a hard requirement makes their exclusion
    possible; relying on whatever happens to be installed is insufficient.
    Use controlled target package discovery and explicit exclusions in the
-   dependency integration, then inspect the resolved link graph.
+   dependency integration, then inspect the resolved link graph. The libelf
+   interface itself is not excluded: a permissive implementation may be
+   qualified separately to retain the functionality described below.
 4. Use only libdrm core plus the amdgpu module when needed. ANV does not require
    the separate libdrm_intel module or its libpciaccess dependency. libdrm's
    compiler-atomic path avoids an external libatomic_ops dependency.
@@ -112,6 +117,45 @@ Primary license references:
 6. Preserve each applicable license and attribution. Confirm the selected
    source list, generated code and complete static link dependency graph
    before claiming that an artifact has a permissive GPU userspace stack.
+
+## Consequences of omitting libelf and libudev
+
+ELF is also an object-file format for GPU programs. Those objects can contain
+GPU instructions, named sections, symbols and address relocations. A userspace
+driver may need an ELF parser to extract code and resolve addresses before
+uploading it to GPU memory. That operation is distinct from loading a host
+shared library through dlopen.
+
+In the inspected Mesa release:
+
+| Omission | Concrete consequence | Relevance to headless inference |
+| --- | --- | --- |
+| libelf from RADV | LLVM/RTLD ELF shader binaries cannot be processed or uploaded | Use the normal ACO compiler and its non-ELF binary path |
+| libelf from RADV | Radeon GPU Profiler capture files cannot be exported | Loses detailed RGP profiling for tuning and debugging |
+| libelf from ANV | No direct ANV dependency or corresponding ELF shader path was found | No identified ANV inference feature depends on this library |
+| libudev from shared Vulkan WSI | Display-output hotplug listener is omitted | Normal DRM-based GPU enumeration is separate; inference has no display output |
+
+The evidence is explicit in `radv_shader.c`: RTLD handling is gated by
+USE_LIBELF, while `radv_aco_build_shader_binary` creates RADV_BINARY_TYPE_LEGACY
+binaries with GPU code embedded directly. `src/amd/common/ac_rtld.c` reads
+ELF sections and handles AMD GPU relocations. `ac_rgp.c` reports an error when
+asked to export an RGP capture without libelf. Shared Vulkan `vk_instance.c`
+enumerates devices through drmGetDevices2; libudev calls are guarded in the
+display hotplug listener in `wsi_common_display.c`.
+
+This supports an expectation that omitting these libraries preserves ordinary
+ACO/ANV inference. It does not prove equal performance or hardware compatibility;
+actual shader execution, model output and performance still need validation.
+Profiling capability is a real loss, even when inference remains possible.
+
+The API name libelf does not determine its license. The
+[ELF Tool Chain implementation used by FreeBSD](https://github.com/freebsd/freebsd-src/blob/main/contrib/elftoolchain/libelf/elf.c)
+has BSD-2-Clause source terms, unlike elfutils' copyleft implementation. It is
+an available source candidate for restoring ELF-based functionality under our
+policy. Its complete Linux/musl port, dependency closure, static build and Mesa
+compatibility have not been qualified here; the FreeBSD sources include BSD
+platform headers. Do not substitute it and claim compatibility from the common
+API name alone.
 
 ## Why ROCm is not selected
 
