@@ -50,8 +50,10 @@ compatibility surface, not a claim of complete OpenAI API compatibility.
    build capabilities. A missing optional CUDA/Metal/etc. implementation must
    not be misrepresented as successful support.
 8. Use released SDK bundles from
-   [sa6mwa/c.pkt.systems](https://github.com/sa6mwa/c.pkt.systems/releases/tag/v0.11.0)
-   v0.11.0 for curl/OpenSSL and
+   [c89systems/cpkt](https://github.com/c89systems/cpkt/releases/tag/v0.3.0)
+   v0.3.0 for curl/OpenSSL, independent
+   [cpktmisc](https://github.com/c89systems/cpktmisc/releases/tag/v0.2.0)
+   v0.2.0 for private libffi 3.8.0 callback support, and
    [sa6mwa/lonejson](https://github.com/sa6mwa/lonejson/releases/tag/v0.45.0)
    v0.45.0 for JSON. Pin exact per-target asset URLs and SHA-256 digests. Do not
    switch to c89systems/cpkt. No project-owned JSON parser or escaping code.

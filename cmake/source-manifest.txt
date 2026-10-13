@@ -42,6 +42,8 @@ include/ailo/native_macros.h
 include/ailo/native_variadic.h
 scripts/build.sh
 scripts/cpkt-archive-cache.sh
+scripts/cpkt-afl-runtime.sh
+scripts/cpkt-aflpp.sh
 scripts/cpkt-toolchains.sh
 scripts/deps.sh
 scripts/discover_target_tools.sh
@@ -53,6 +55,7 @@ scripts/package_checksums.sh
 scripts/package_source.sh
 scripts/release_upload_files.sh
 scripts/release_version.sh
+scripts/require-host-bash.sh
 scripts/run_linux_release_matrix.sh
 scripts/stage_release_sources.sh
 scripts/test_install_tree.sh
@@ -61,6 +64,7 @@ scripts/test_model_memory.sh
 scripts/test_model_vulkan.sh
 scripts/test_release_from_source.sh
 scripts/test_scalar_matrix.sh
+scripts/test_foundation_matrix.sh
 scripts/test_source_archive.sh
 scripts/test_variadic_abort.sh
 scripts/upstream_inventory.py
@@ -88,6 +92,8 @@ tests/c89_policy.c
 tests/install-consumer/CMakeLists.txt
 tests/install-consumer/consumer.c
 tests/integer_bridge.cpp
+tests/dependency_ffi.cpp
+tests/foundation-matrix/CMakeLists.txt
 tests/macros.c
 tests/macros_native.cpp
 tests/model.c
@@ -100,6 +106,8 @@ tests/native_storage.cpp
 tests/scalar-matrix/CMakeLists.txt
 tests/test_archive_cache.py
 tests/test_build_drivers.cmake
+tests/test_cache_defaults.cmake
+tests/test_clean.cmake
 tests/test_install_privacy.cmake
 tests/test_lifecycle.cmake
 tests/test_model_dependencies.cmake

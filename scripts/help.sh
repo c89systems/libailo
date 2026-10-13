@@ -9,6 +9,8 @@ build-release                     Build native release configuration.
 test [PRESET=name]                 Run deterministic CTest checks.
 test-debug                        Run debug checks.
 test-install-tree                 Verify relocated CMake/pkg-config C/C++ consumers.
+test-foundation-matrix            Verify cpkt/core and misc libffi on six Linux targets.
+clean                             Remove build/, dist/ and local .cache/; preserve global cache.
 print-release-version             Read exact lightweight tag/candidate/archive version.
 package-source                   Require an exact release tag and complete facade, then archive.
 test-source-archive               Check development source archive staging/rejection/determinism.

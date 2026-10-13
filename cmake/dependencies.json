@@ -1,35 +1,69 @@
 {
   "cpkt": {
-    "version": "v0.11.0",
-    "upstream": "https://github.com/sa6mwa/c.pkt.systems",
+    "version": "v0.3.0",
+    "upstream": "https://github.com/c89systems/cpkt",
     "assets": {
       "aarch64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/c.pkt.systems/releases/download/v0.11.0/c.pkt.systems-0.11.0-aarch64-linux-gnu.tar.gz",
-        "sha256": "940c3d63f0d9b436cc3f27b73547b62e989fae258915274749160446e936124a"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "4f1f964e5e54f191162d42871815a74afd9da02c77adce304a52dd03397d4740"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/sa6mwa/c.pkt.systems/releases/download/v0.11.0/c.pkt.systems-0.11.0-aarch64-linux-musl.tar.gz",
-        "sha256": "6de39175f8f399a966d0aa925fcf665dd2c221bc38255624215f2faf332ab248"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-aarch64-linux-musl.tar.gz",
+        "sha256": "7e25be64d73bc7140f01659c0c0e11e066990c88587fce2ca49ba8bf874a31aa"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/sa6mwa/c.pkt.systems/releases/download/v0.11.0/c.pkt.systems-0.11.0-arm64-apple-darwin.tar.gz",
-        "sha256": "89e6d81df7a41d076a6067d6a79545e9ed318bef595a506e1da02b1b6fd601df"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-arm64-apple-darwin.tar.gz",
+        "sha256": "5bf571b6dfeb19a8dc796cb584fd8e770eb1a10a3d2b98ab46269d7c8e895fce"
       },
       "armhf-linux-gnu": {
-        "url": "https://github.com/sa6mwa/c.pkt.systems/releases/download/v0.11.0/c.pkt.systems-0.11.0-armhf-linux-gnu.tar.gz",
-        "sha256": "ca71287d539f550ef97311b12637a32e76ef163e4ac70edcfa26831474f41677"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-armhf-linux-gnu.tar.gz",
+        "sha256": "2b57c7090186ed06a1df2525407e0cc222d6be1b40e3d7ff09c62e25354bee42"
       },
       "armhf-linux-musl": {
-        "url": "https://github.com/sa6mwa/c.pkt.systems/releases/download/v0.11.0/c.pkt.systems-0.11.0-armhf-linux-musl.tar.gz",
-        "sha256": "4c4eabad12354164f3fbc8f181e99e49d34fa073be9a4a328070493f27f1374e"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-armhf-linux-musl.tar.gz",
+        "sha256": "dcc7d29a6536382ce05fc1351917bb7118b8db13a4fb52e3cb96d4a91ff977f5"
       },
       "x86_64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/c.pkt.systems/releases/download/v0.11.0/c.pkt.systems-0.11.0-x86_64-linux-gnu.tar.gz",
-        "sha256": "fbd3e3f357c22dc26b94cc7e5e200651b59ecb39357ce7bb8c4cb3d939a2b557"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "7b59ac702da1aab906c48c33a67954954c074f591d714085f3e4bd7a23619a66"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/sa6mwa/c.pkt.systems/releases/download/v0.11.0/c.pkt.systems-0.11.0-x86_64-linux-musl.tar.gz",
-        "sha256": "f07a729e860efb275874871d73f3fcdde5ab6e0395762963f90b9db481ae34b8"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-x86_64-linux-musl.tar.gz",
+        "sha256": "61c6e657cefd916b5f500374917ccc7e039d27b2ef1353a45a8f6f22d91c75ed"
+      }
+    }
+  },
+  "cpktmisc": {
+    "version": "v0.2.0",
+    "upstream": "https://github.com/c89systems/cpktmisc",
+    "assets": {
+      "aarch64-linux-gnu": {
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "179fcde812eedfb566797a09edadda9bf32e99f618aa2b97f3cfaf75fe065733"
+      },
+      "aarch64-linux-musl": {
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-aarch64-linux-musl.tar.gz",
+        "sha256": "3e031026e1913fd0ec8c544445fbb6c4c9e71270750dd6e10d6bff0afb8be2cb"
+      },
+      "arm64-apple-darwin": {
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-arm64-apple-darwin.tar.gz",
+        "sha256": "f4c4790a63af3cfb0315bb7c453ab6bb2b3841bbdc98b9db3a5900c6cd20bd19"
+      },
+      "armhf-linux-gnu": {
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-armhf-linux-gnu.tar.gz",
+        "sha256": "7efa0e4ec6b51edbf7dc36f0f7ab3de3dae846c1ce1faee1b844da393bea3693"
+      },
+      "armhf-linux-musl": {
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-armhf-linux-musl.tar.gz",
+        "sha256": "d4921e6bf8b605b87b976470db84370820bc431245335d3fd9268f3ad7abe54b"
+      },
+      "x86_64-linux-gnu": {
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "abac4dff1f51d98c8403f078279a0fc290b1c1e37539c879e3365b9500786d50"
+      },
+      "x86_64-linux-musl": {
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-x86_64-linux-musl.tar.gz",
+        "sha256": "89f4d9e309f34a6cd903dedecfa57c94a1f5619d7765603ff08d7826879c580e"
       }
     }
   },

@@ -93,12 +93,14 @@ ABI conversion. Callable native views can use typed invocation helpers, but
 installing independent C89 bindings into these native function-pointer slots
 also needs a correctly typed, independently owned native call entry.
 
-The recommended private, checksum-pinned libffi dependency supplies those native
-closures and remains a separate link dependency. The C89 surface would own
+The private libffi 3.8.0 dependency is provided by checksum-pinned cpktmisc
+0.2.0, independently installed alongside cpkt 0.3.0. Its native closure support
+is verified by static/shared dependency tests and remains a separate library. The C89 surface would own
 callback handles with explicit retain/release and bound-owner lifetimes; no
 libffi/C++ types would be installed. Conversion/error tests must cover independent
 registrations, callback chaining, returned native views, native booleans and
 64-bit values, by-value optimizer results, sampler clones/destruction and
-asynchronous/retained use. The dependency has not been approved or implemented.
+asynchronous/retained use. The callback bridge itself is still pending; dependency acquisition and native
+closure verification are implemented.
 Incompatible function-pointer casts, a fixed/global callback-slot substitute,
 or handwritten executable trampolines are not an approved complete alternative.

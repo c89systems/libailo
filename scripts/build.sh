@@ -22,7 +22,11 @@ while IFS='=' read -r key value; do
   case "$key" in target) target=$value ;; vulkan) vulkan=$value ;; esac
 done < "$result"
 cd -- "$root"
-"$root/scripts/deps.sh" --target "$target" --component cpkt --component lonejson --component llama
+"$root/scripts/cpkt-toolchains.sh" ensure "$target" >/dev/null
+if [[ "$vulkan" == ON ]]; then
+  "$root/scripts/cpkt-toolchains.sh" ensure x86_64-linux-gnu >/dev/null
+fi
+"$root/scripts/deps.sh" --target "$target" --component cpkt --component cpktmisc --component lonejson --component llama
 source_root="$root/.cache/deps-build/$target/llama/source"
 while IFS= read -r name; do
   [[ -n "$name" && "$name" != \#* ]] || continue

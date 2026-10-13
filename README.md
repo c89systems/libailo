@@ -7,7 +7,7 @@ contract is in [docs/architecture.md](docs/architecture.md).
 ## Implementation state
 
 The dependency/build foundation is present: pinned llama.cpp b11430, CPU and
-Vulkan backends, public multimodal libraries, c.pkt.systems v0.11.0, lonejson
+Vulkan backends, public multimodal libraries, cpkt v0.3.0 and cpktmisc v0.2.0, lonejson
 v0.45.0, and pinned Vulkan/SPIR-V components. The static/shared project libraries
 provide the portable C89 scalar/error boundary and generated native bindings
 described in [docs/c89-boundary.md](docs/c89-boundary.md) and
@@ -28,12 +28,26 @@ gate; it does not itself prove facade completeness.
 
 Use `make help` for the current command index. The default native build requires
 CMake 3.24+, Ninja, Bash, ripgrep, coreutils, clang-format, patch, and glslc.
+Vulkan builds use the host `glslc` executable from shaderc (for example, the
+`glslc` package on Debian/Ubuntu). It compiles GLSL into SPIR-V for every target;
+no target-specific shader compiler is needed. Its shaderc/glslang/SPIRV-Tools
+libraries are host build tools and are not linked into libailo. The Vulkan
+headers and loader still come from our pinned sources. Set
+`Vulkan_GLSLC_EXECUTABLE` in CMake to select an explicit host executable.
+The CPU preset does not require shader tooling. CUDA support remains pending;
+it will require host `nvcc` plus matching target CUDA headers/runtime/math
+libraries, and an NVIDIA driver for execution.
 Dependency preparation, builds, formatting and export checks use Bash/CMake.
 Python 3 is confined to compiler AST inventory processing and test fixtures;
 host Clang is needed for the inventory check. The lifecycle resolver selects the pinned Bootlin
 C/C++ collection; it never falls back to a host compiler for compiled targets.
 Host Clang is used only to inspect declarations. Valgrind is a host prerequisite
 for memory checks.
+Owned C targets use explicit `-std=c89 -pedantic-errors -Werror` and disable
+C extensions in CMake. Every public header, including the generated version
+header, compiles independently under those flags in the normal test build and
+again from the extracted SDK. Private C++ and upstream targets keep their own
+language requirements.
 
 ```sh
 make deps
@@ -64,7 +78,7 @@ bindings are checked in and require no Python invocation for ordinary builds.
 `make generate-native` performs the separate compiler-inventory regeneration.
 
 Verified external archives use the shared
-`${CPKT_DEPENDENCY_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/c.pkt.systems/deps}`
+`${CPKT_DEPENDENCY_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/cpkt/deps}`
 cache. Toolchains use its sibling `toolchains` cache. Disposable extracted and
 built dependencies stay under `.cache/`; other generated work stays under
 `build/`. None is source or a release artifact.
@@ -176,12 +190,17 @@ install-tree verification does not constitute a release or completed SDK.
 
 For CMake, use `find_package(ailo CONFIG REQUIRED COMPONENTS static)` or
 `COMPONENTS shared`, then link `ailo::static` or `ailo::shared`. Static consumers
-supply the matching c.pkt.systems v0.11.0 SDK through `CMAKE_PREFIX_PATH` or
+supply a compatible cpkt core SDK (baseline v0.3.0) through `CMAKE_PREFIX_PATH` or
 `ailo_EXTERNAL_ROOT`. The metadata owns native and GNU runtime archive ordering,
 so C-only consumers do not need to enable C++ or write private library lists.
 `pkg-config --cflags --libs ailo` selects the shared library;
 `pkg-config --static --cflags --libs ailo-static` selects the facade/native/runtime
-archives explicitly. Provide c.pkt.systems's `lib/pkgconfig` on `PKG_CONFIG_PATH`.
+archives explicitly. Provide cpkt's `lib/pkgconfig` on `PKG_CONFIG_PATH`.
+Builds also prepare cpktmisc v0.2.0 in a separate prefix and verify its libffi
+3.8.0 closures. The current installed facade does not yet link libffi; it becomes
+a consumer dependency when the callback bridge is implemented. cpktdb is not
+required. Toolchain and archive defaults use `~/.cache/cpkt`; the retired cache
+is not searched or modified.
 Shared consumers must make the external SDK libraries and compatible GNU C++
 shared runtime available to the dynamic loader. Installed libraries contain
 only `$ORIGIN`-relative lookup paths; test executables alone receive local paths.

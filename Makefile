@@ -2,9 +2,13 @@
 PRESET ?= debug
 TARGET ?= x86_64-linux-gnu
 DEPENDENCY ?=
-.PHONY: help deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind valgrind-model valgrind-acquisition test-scalar-matrix example-smoke-local generate-native facade-coverage inference-smoke-vulkan test-install-tree print-release-version package-source package-source-smoke test-source-archive package package-checksums package-verify release-matrix
+.PHONY: help clean test-foundation-matrix deps build build-debug build-release test test-debug format format-check upstream-inventory finalize-slice valgrind valgrind-model valgrind-acquisition test-scalar-matrix example-smoke-local generate-native facade-coverage inference-smoke-vulkan test-install-tree print-release-version package-source package-source-smoke test-source-archive package package-checksums package-verify release-matrix
 help:
 	@scripts/help.sh
+clean:
+	cmake -E rm -rf build dist .cache
+test-foundation-matrix:
+	scripts/test_foundation_matrix.sh
 print-release-version:
 	@scripts/release_version.sh --override "$(AILO_VERSION_OVERRIDE)"
 package-source:

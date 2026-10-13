@@ -42,7 +42,7 @@ if cmake -S "$root/tests/install-consumer" -B "$work/missing-sdk" -G Ninja \
   printf 'install-tree: missing external SDK was silently accepted\n' >&2
   exit 1
 fi
-rg -q 'c.pkt.systems v0.11.0' "$work/missing.log"
+rg -q 'cpkt >= 0.3.0' "$work/missing.log"
 [[ ! -d "$prefix/include/ggml" && ! -f "$prefix/include/llama.h" ]] || { printf 'install-tree: native headers leaked\n' >&2; exit 1; }
 for mode in static shared pkg-static pkg-shared; do
   for language in OFF ON; do

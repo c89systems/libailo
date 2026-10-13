@@ -4,6 +4,7 @@ set(ailo_privacy_maps
   "${CMAKE_CURRENT_SOURCE_DIR}=ailo"
   "${AILO_BOOTLIN_ROOT}=bootlin"
   "${CMAKE_CURRENT_SOURCE_DIR}/.cache/deps/${AILO_TARGET_ID}/cpkt/install=cpkt"
+  "${CMAKE_CURRENT_SOURCE_DIR}/.cache/deps/${AILO_TARGET_ID}/cpktmisc/install=cpktmisc"
   "${CMAKE_CURRENT_SOURCE_DIR}/.cache/deps-build/${AILO_TARGET_ID}/llama/source=llama"
   "${CMAKE_CURRENT_SOURCE_DIR}/.cache/deps-build/${AILO_TARGET_ID}/llama/build=llama-generated")
 foreach(mapping IN LISTS ailo_privacy_maps)
