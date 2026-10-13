@@ -34,19 +34,8 @@ no target-specific shader compiler is needed. Its shaderc/glslang/SPIRV-Tools
 libraries are host build tools and are not linked into libailo. The Vulkan
 headers and loader still come from our pinned sources. Set
 `Vulkan_GLSLC_EXECUTABLE` in CMake to select an explicit host executable.
-The CPU preset does not require shader tooling. CUDA support remains pending;
-it will require host `nvcc` plus matching target CUDA headers/runtime/math
-libraries, and an NVIDIA driver for execution.
-A musl SDK or a static facade archive does not establish a fully static GPU
-executable. Vulkan normally loads userspace driver libraries, and CUDA still
-needs the NVIDIA driver libraries. Fully static musl cannot use `dlopen`; a
-static glibc executable loading a glibc driver still needs compatible shared
-glibc. Where shared glibc is unavailable, CUDA is not an established deployment
-path. Fully static CPU inference is the intended standalone musl path; proving
-that final executable is a separate gate from SDK archive verification.
-NVIDIA supplies `libcuda.so`, not `libcuda.a`; its userspace driver is closed
-source. The open kernel modules do not provide that driver. The official CUDA
-stack therefore cannot satisfy deployment with no shared-object loading.
+The CPU preset does not require shader tooling. CUDA is excluded from supported
+backends; see the support policy below.
 Dependency preparation, builds, formatting and export checks use Bash/CMake.
 Python 3 is confined to compiler AST inventory processing and test fixtures;
 host Clang is needed for the inventory check. The lifecycle resolver selects the pinned Bootlin
@@ -93,6 +82,34 @@ Verified external archives use the shared
 cache. Toolchains use its sibling `toolchains` cache. Disposable extracted and
 built dependencies stay under `.cache/`; other generated work stays under
 `build/`. None is source or a release artifact.
+
+## Backend support policy
+
+libailo will not compromise its deployment requirements to accommodate NVIDIA's
+proprietary runtime dependencies. NVIDIA's official CUDA userspace driver is
+closed source and supplied as `libcuda.so`, without a static `libcuda.a`.
+Its [open kernel modules](https://github.com/NVIDIA/open-gpu-kernel-modules)
+do not provide an open userspace CUDA driver; NVIDIA explicitly distinguishes
+these components in its
+[driver source policy](https://developer.nvidia.com/blog/nvidia-releases-open-source-gpu-kernel-modules/).
+The official CUDA stack cannot satisfy deployment without shared-object loading.
+CUDA support is therefore excluded. Vendor market share does not override our
+requirements for reproducible builds and independent distribution.
+
+Independent open implementations exist.
+[LibreCUDA](https://github.com/mikex86/LibreCuda) offers a static driver library,
+but its authors describe rudimentary functionality unsuitable for production.
+It has not been qualified for libailo or the pinned llama.cpp backend and is
+outside our supported dependency stack.
+
+A musl SDK or a static facade archive does not establish a fully static GPU
+executable. Vulkan normally loads userspace driver libraries. Fully static musl
+cannot use `dlopen`; a static glibc executable loading a glibc driver still needs
+compatible shared glibc. Open userspace stacks such as Mesa RADV for AMD Radeon
+and Mesa ANV for Intel GPUs are candidates for source-based integration, not
+proof of a working static deployment. Fully static CPU inference is the intended
+standalone musl path; proving the final executable is a separate gate from SDK
+archive verification.
 
 ## Upstream patches
 

@@ -47,8 +47,10 @@ compatibility surface, not a claim of complete OpenAI API compatibility.
    callback lifetimes, including custom samplers and optimizer hooks.
 7. Backend-specific APIs remain conditional on the corresponding built backend;
    the inventory records their conditions. CPU and Vulkan are required initial
-   build capabilities. A missing optional CUDA/Metal/etc. implementation must
-   not be misrepresented as successful support.
+   build capabilities. CUDA is excluded under the
+   [backend support policy](../README.md#backend-support-policy). A missing
+   optional backend implementation must not be misrepresented as successful
+   support. Upstream API inventory does not imply a supported backend.
 8. Use released SDK bundles from
    [c89systems/cpkt](https://github.com/c89systems/cpkt/releases/tag/v0.3.0)
    v0.3.0 for curl/OpenSSL, independent
