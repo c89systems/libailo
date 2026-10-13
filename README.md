@@ -37,6 +37,16 @@ headers and loader still come from our pinned sources. Set
 The CPU preset does not require shader tooling. CUDA support remains pending;
 it will require host `nvcc` plus matching target CUDA headers/runtime/math
 libraries, and an NVIDIA driver for execution.
+A musl SDK or a static facade archive does not establish a fully static GPU
+executable. Vulkan normally loads userspace driver libraries, and CUDA still
+needs the NVIDIA driver libraries. Fully static musl cannot use `dlopen`; a
+static glibc executable loading a glibc driver still needs compatible shared
+glibc. Where shared glibc is unavailable, CUDA is not an established deployment
+path. Fully static CPU inference is the intended standalone musl path; proving
+that final executable is a separate gate from SDK archive verification.
+NVIDIA supplies `libcuda.so`, not `libcuda.a`; its userspace driver is closed
+source. The open kernel modules do not provide that driver. The official CUDA
+stack therefore cannot satisfy deployment with no shared-object loading.
 Dependency preparation, builds, formatting and export checks use Bash/CMake.
 Python 3 is confined to compiler AST inventory processing and test fixtures;
 host Clang is needed for the inventory check. The lifecycle resolver selects the pinned Bootlin
@@ -62,13 +72,14 @@ make facade-coverage
 `make build PRESET=cpu` is the explicitly CPU-only configuration. The default
 `debug` configuration includes Vulkan and CPU. Cross-release presets are
 declared; their full build, execution and packaging evidence remains pending.
+Shipments cover x86_64 and aarch64 with glibc or musl. ARM hard-float is retired;
+its presets, dependency assets and SDK artifact names are no longer accepted.
 `AILO_JOBS` controls workers inside one build (default 2); lifecycle command
 entry points run serially.
 
 `make build PRESET=library` configures and builds without test/tool Python
 discovery. `make test-scalar-matrix` executes scalar and native-width bridge
-checks on all six Linux targets; ARM execution requires host `qemu-arm` and
-`qemu-aarch64`. Those checks prove the scalar contract, not full model inference
+checks on all four Linux targets; ARM execution requires host `qemu-aarch64`. Those checks prove the scalar contract, not full model inference
 or facade coverage. Full model, backend and packaging matrix evidence remains
 pending; native fixture evidence is described below. `make valgrind` covers
 current native executable tests.
@@ -211,7 +222,7 @@ the Vulkan loader searches system configuration under `/etc`. No linked binary
 is rewritten to hide a path. Negative archive fixtures prove rejection of
 repository/home paths, local file URLs, foreign workstation paths, absolute
 RPATHs, and escaping/dangling symlinks. Both CPU-only and Vulkan-enabled extracted
-trees pass. Development checksum sets and all six Linux SDKs have been verified.
+trees pass. Development checksum sets and all four Linux SDKs have been verified.
 The actual tag-mutation release contract, nested release-payload verification,
 and complete-facade/receiver acceptance remain pending.
 
@@ -257,8 +268,8 @@ layout, private-header/dependency exclusion, loader metadata and exact exports.
 plus the manifest itself; it does not upload or publish anything.
 
 The serialized development Linux matrix has built and verified Vulkan+CPU SDKs
-for x86_64, aarch64 and armhf with both glibc and musl. It also executes the
-existing six-target scalar/bridge checks, including ARM QEMU coverage. The
+for x86_64 and aarch64 with both glibc and musl. It also executes the
+existing four-target scalar/bridge checks, including ARM QEMU coverage. The
 cross-link helper supplies dependency paths only at link time; native test
 executable runtime paths remain private and do not enter SDK metadata.
 This matrix proves the current foundation, not facade or receiver completion.

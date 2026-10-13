@@ -2,7 +2,7 @@
 set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 [[ $# -eq 0 ]] || { printf 'Usage: test_foundation_matrix.sh\n' >&2; exit 2; }
-for target in x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl armhf-linux-gnu armhf-linux-musl; do
+for target in x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl; do
   "$root/scripts/cpkt-toolchains.sh" ensure "$target" >/dev/null
   "$root/scripts/deps.sh" --target "$target" --component cpkt --component cpktmisc
   directory="$root/build/foundation-matrix/$target"

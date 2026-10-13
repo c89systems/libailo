@@ -5,7 +5,7 @@ root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 archive=$(realpath -- "$1")
 name=${archive##*/}
 name=${name%.tar.gz}
-[[ "$name" =~ ^libailo-([0-9]+\.[0-9]+\.[0-9]+)-((x86_64|aarch64|armhf)-linux-(gnu|musl))$ ]] || { printf 'sdk-verify: invalid SDK artifact name\n' >&2; exit 2; }
+[[ "$name" =~ ^libailo-([0-9]+\.[0-9]+\.[0-9]+)-((x86_64|aarch64)-linux-(gnu|musl))$ ]] || { printf 'sdk-verify: invalid SDK artifact name\n' >&2; exit 2; }
 version=${BASH_REMATCH[1]}
 target=${BASH_REMATCH[2]}
 cc= sysroot= nm= readelf= strip_tool=
@@ -60,7 +60,7 @@ rg -q "^version=$version$" "$sdk/share/ailo/package.txt"
 rg -q "^target=$target$" "$sdk/share/ailo/package.txt"
 rg -q "#define AILO_VERSION \"$version\"" "$sdk/include/ailo/version.h"
 header=$("$readelf" -h "$sdk/lib/libailo.so.0")
-case "$target" in x86_64-*) machine='Advanced Micro Devices X86-64' ;; aarch64-*) machine=AArch64 ;; armhf-*) machine=ARM ;; esac
+case "$target" in x86_64-*) machine='Advanced Micro Devices X86-64' ;; aarch64-*) machine=AArch64 ;; esac
 printf '%s\n' "$header" | rg -q "Machine:.*$machine"
 while IFS= read -r -d '' library; do
   case "$library" in *.a|*.so|*.so.*)

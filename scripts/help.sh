@@ -9,7 +9,7 @@ build-release                     Build native release configuration.
 test [PRESET=name]                 Run deterministic CTest checks.
 test-debug                        Run debug checks.
 test-install-tree                 Verify relocated CMake/pkg-config C/C++ consumers.
-test-foundation-matrix            Verify cpkt/core and misc libffi on six Linux targets.
+test-foundation-matrix            Verify cpkt/core and misc libffi on four Linux targets.
 clean                             Remove build/, dist/ and local .cache/; preserve global cache.
 print-release-version             Read exact lightweight tag/candidate/archive version.
 package-source                   Require an exact release tag and complete facade, then archive.
@@ -21,12 +21,12 @@ package-checksums ARTIFACT_DIRECTORY=path ARTIFACT_VERSION=X.Y.Z ARTIFACT_LIST=p
                                  Write the sole checksum manifest from explicit artifact names.
 package-verify CHECKSUM_MANIFEST=path
                                  Verify every checksum-listed source/SDK archive.
-release-matrix                   Require exact tag/full facade; build/verify six Linux SDKs serially.
+release-matrix                   Require exact tag/full facade; build/verify four Linux SDKs serially.
 valgrind                          Check native executables (requires Valgrind).
 valgrind-model                    Check static/shared GGUF inference in the native CPU build.
 valgrind-acquisition              Check C89 model cache and TLS transport ownership.
 inference-smoke-vulkan            Require GGUF decode on a real Vulkan device.
-test-scalar-matrix                 Run scalar/bridge checks on six Linux targets.
+test-scalar-matrix                 Run scalar/bridge checks on four Linux targets.
                                   Cross execution requires qemu-arm/aarch64.
 example-smoke-local                Build and exercise local C89 examples.
 upstream-inventory                Compare pinned public compiler AST declarations.

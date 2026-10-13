@@ -212,8 +212,9 @@ and CMake scripts. Keep Make recipes as simple calls to those scripts, without
 embedded escaped shell programs. Python is reserved for tasks that materially
 need it, currently compiler AST inventory processing and test HTTP fixtures.
 
-Linux target presets cover x86_64/aarch64/armhf with glibc and musl. Cross-target
-ABI proof includes all exact-width conversions. Vulkan uses pinned headers,
+Linux target presets cover x86_64/aarch64 with glibc and musl.
+ARM hard-float is outside the supported shipment and verification matrix.
+Cross-target ABI proof includes all exact-width conversions. Vulkan uses pinned headers,
 loader and SPIR-V headers with a usable host shader compiler, never an implicit
 host C/C++ compiler fallback. It is enabled in the default native build and CPU
 is always built. Missing Vulkan build prerequisites fail with actionable

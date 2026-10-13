@@ -80,26 +80,6 @@
         "AILO_VULKAN": true,
         "AILO_DIST_DIR": "${sourceDir}/dist"
       }
-    },
-    {
-      "name": "armhf-linux-gnu-release",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "AILO_TARGET_ID": "armhf-linux-gnu",
-        "AILO_VULKAN": true,
-        "AILO_DIST_DIR": "${sourceDir}/dist"
-      }
-    },
-    {
-      "name": "armhf-linux-musl-release",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "AILO_TARGET_ID": "armhf-linux-musl",
-        "AILO_VULKAN": true,
-        "AILO_DIST_DIR": "${sourceDir}/dist"
-      }
     }
   ],
   "buildPresets": [
@@ -134,14 +114,6 @@
     {
       "name": "aarch64-linux-musl-release",
       "configurePreset": "aarch64-linux-musl-release"
-    },
-    {
-      "name": "armhf-linux-gnu-release",
-      "configurePreset": "armhf-linux-gnu-release"
-    },
-    {
-      "name": "armhf-linux-musl-release",
-      "configurePreset": "armhf-linux-musl-release"
     }
   ],
   "testPresets": [
@@ -208,26 +180,6 @@
     {
       "name": "aarch64-linux-musl-release",
       "configurePreset": "aarch64-linux-musl-release",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "jobs": 1
-      }
-    },
-    {
-      "name": "armhf-linux-gnu-release",
-      "configurePreset": "armhf-linux-gnu-release",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "jobs": 1
-      }
-    },
-    {
-      "name": "armhf-linux-musl-release",
-      "configurePreset": "armhf-linux-musl-release",
       "output": {
         "outputOnFailure": true
       },

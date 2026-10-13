@@ -23,7 +23,7 @@ fi
 mkdir -p "$output" "$root/build/packaging"
 list=$(mktemp "$root/build/packaging/matrix.XXXXXXXX")
 trap 'cmake -E rm -f "$list"' EXIT
-for target in x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl armhf-linux-gnu armhf-linux-musl; do
+for target in x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl; do
   "$root/scripts/build.sh" --preset "$target-release"
   if [[ "$target" == x86_64-linux-gnu ]]; then
     ctest --test-dir "$root/build/$target-release" --output-on-failure -j1
@@ -36,8 +36,8 @@ for target in x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux
   printf 'libailo-%s-%s.tar.gz\n' "$version" "$target" >> "$list"
   "$root/scripts/verify_sdk_archive.sh" "$output/libailo-$version-$target.tar.gz"
 done
-# Existing six-target QEMU scalar/bridge coverage is mandatory, never a skip.
+# Existing four-target QEMU scalar/bridge coverage is mandatory, never a skip.
 "$root/scripts/test_scalar_matrix.sh"
 "$root/scripts/package_checksums.sh" "$output" "$version" "$list"
 "$root/scripts/verify_release_artifacts.sh" "$output/libailo-$version-CHECKSUMS"
-printf 'Six-target Linux package matrix verified\n'
+printf 'Four-target Linux package matrix verified\n'

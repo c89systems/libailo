@@ -5,7 +5,7 @@ if(NOT DEFINED AILO_DEPENDENCY_LOCK)
   set(AILO_DEPENDENCY_LOCK "${CMAKE_CURRENT_LIST_DIR}/dependencies.json")
 endif()
 file(READ "${AILO_DEPENDENCY_LOCK}" pins)
-if(NOT AILO_TARGET_ID MATCHES "^(x86_64|aarch64|armhf)-linux-(gnu|musl)$")
+if(NOT AILO_TARGET_ID MATCHES "^(x86_64|aarch64)-linux-(gnu|musl)$")
   message(FATAL_ERROR "Unsupported dependency target: ${AILO_TARGET_ID}")
 endif()
 

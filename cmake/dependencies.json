@@ -15,14 +15,6 @@
         "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-arm64-apple-darwin.tar.gz",
         "sha256": "5bf571b6dfeb19a8dc796cb584fd8e770eb1a10a3d2b98ab46269d7c8e895fce"
       },
-      "armhf-linux-gnu": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-armhf-linux-gnu.tar.gz",
-        "sha256": "2b57c7090186ed06a1df2525407e0cc222d6be1b40e3d7ff09c62e25354bee42"
-      },
-      "armhf-linux-musl": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-armhf-linux-musl.tar.gz",
-        "sha256": "dcc7d29a6536382ce05fc1351917bb7118b8db13a4fb52e3cb96d4a91ff977f5"
-      },
       "x86_64-linux-gnu": {
         "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-x86_64-linux-gnu.tar.gz",
         "sha256": "7b59ac702da1aab906c48c33a67954954c074f591d714085f3e4bd7a23619a66"
@@ -49,14 +41,6 @@
         "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-arm64-apple-darwin.tar.gz",
         "sha256": "f4c4790a63af3cfb0315bb7c453ab6bb2b3841bbdc98b9db3a5900c6cd20bd19"
       },
-      "armhf-linux-gnu": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-armhf-linux-gnu.tar.gz",
-        "sha256": "7efa0e4ec6b51edbf7dc36f0f7ab3de3dae846c1ce1faee1b844da393bea3693"
-      },
-      "armhf-linux-musl": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-armhf-linux-musl.tar.gz",
-        "sha256": "d4921e6bf8b605b87b976470db84370820bc431245335d3fd9268f3ad7abe54b"
-      },
       "x86_64-linux-gnu": {
         "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-x86_64-linux-gnu.tar.gz",
         "sha256": "abac4dff1f51d98c8403f078279a0fc290b1c1e37539c879e3365b9500786d50"
@@ -82,14 +66,6 @@
       "arm64-apple-darwin": {
         "url": "https://github.com/sa6mwa/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-arm64-apple-darwin.tar.gz",
         "sha256": "9dc6b277241068a2ab1a737357cf18982c5612ec43280f161044ce719aed50dc"
-      },
-      "armhf-linux-gnu": {
-        "url": "https://github.com/sa6mwa/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-armhf-linux-gnu.tar.gz",
-        "sha256": "ab2f89eb4054fbb1b4cd85b6be5d9d2005b364459ba362b910bc35ac1c6511b5"
-      },
-      "armhf-linux-musl": {
-        "url": "https://github.com/sa6mwa/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-armhf-linux-musl.tar.gz",
-        "sha256": "8b103a732181b06d90fc5f39c074a887969522d29e0d9006b30982f31969982d"
       },
       "x86_64-linux-gnu": {
         "url": "https://github.com/sa6mwa/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-x86_64-linux-gnu.tar.gz",
