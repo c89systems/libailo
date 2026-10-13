@@ -20,6 +20,12 @@ download/cache helpers are implemented in [include/ailo/model.h](include/ailo/mo
 The receiver and release SDK gates are still pending. Native install-tree
 CMake/pkg-config consumers are available.
 
+The required receiver includes normal-use Hugging Face acquisition, configurable
+XDG model caching and a structured JSON model card for the loaded model. The
+complete static RADV/ANV deployment and AMD/Intel/mixed multi-GPU layer splitting
+contract is in [docs/static-vulkan.md](docs/static-vulkan.md). These capabilities
+are specified; they are not established by the current shared-driver foundation.
+
 [docs/upstream-api.json](docs/upstream-api.json) records the pinned public C API
 inventory. An inventory is the baseline for the forthcoming facade coverage
 gate; it does not itself prove facade completeness.

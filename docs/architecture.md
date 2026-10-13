@@ -1,6 +1,7 @@
 # Ailo implementation specification
 
-Status: reviewed specification; implementation and acceptance evidence pending.
+Status: reviewed specification, updated 2026-10-14; full implementation followed
+by thorough acceptance testing. Pending capabilities are not release claims.
 
 ## Intent and scope
 
@@ -56,6 +57,10 @@ compatibility surface, not a claim of complete OpenAI API compatibility.
    RADV and ANV are the selected qualification paths. Linux ROCm/HIP is excluded
    by its required LGPL libnuma dependency. Fully static GPU support requires
    final-executable and hardware evidence without shared-object loading.
+   The required implementation is described in
+   [static Vulkan and multi-GPU deployment](static-vulkan.md), including both
+   providers and multi-GPU layer splitting. Single-GPU qualification does not
+   replace the multi-GPU requirement.
 8. Use released SDK bundles from
    [c89systems/cpkt](https://github.com/c89systems/cpkt/releases/tag/v0.3.0)
    v0.3.0 for curl/OpenSSL, independent
@@ -63,7 +68,8 @@ compatibility surface, not a claim of complete OpenAI API compatibility.
    v0.2.0 for private libffi 3.8.0 callback support, and
    [sa6mwa/lonejson](https://github.com/sa6mwa/lonejson/releases/tag/v0.45.0)
    v0.45.0 for JSON. Pin exact per-target asset URLs and SHA-256 digests. Do not
-   switch to c89systems/cpkt. No project-owned JSON parser or escaping code.
+   replace lonejson with a different JSON implementation when adopting cpkt.
+   No project-owned JSON parser or escaping code.
 9. External curl, OpenSSL, lonejson and their dependencies remain independent
    libraries. Never concatenate their object files into `libailo.a`. Keep native
    llama/GGML/mtmd and C++ runtime link dependencies explicit as separate archives
@@ -95,7 +101,8 @@ native assertions by passing arbitrary invalid handles.
 `ailo_client_new(config, out_client, error)` returns an allocated receiver shell
 whose mutable state is private. Methods have the receiver as the first argument:
 `client->chat_completions(client, ...)`, `client->models(client, ...)`,
-`client->model(client, ...)`, `client->handle(client, ...)`, and
+`client->model(client, ...)`, `client->model_card(client, ...)`,
+`client->devices(client, ...)`, `client->handle(client, ...)`, and
 `client->destroy(client)`. Equivalent `ailo_client_*` functions are exported.
 Destroy and project-owned string cleanup tolerate NULL. Fallible constructors
 set output handles to NULL before validation.
@@ -103,12 +110,23 @@ set output handles to NULL before validation.
 Zero-initializable configuration specifies a local model path or Hugging Face
 repo/revision/filename, served model ID, cache override, explicit download
 permission, eager or lazy loading, backend policy (`auto`, `cpu`, `vulkan`), GPU
-layer count, context size, batch size, threads and default generation limits.
-Strings are copied by construction. No default model silently triggers network
-access. Backend defaults to auto, CPU remains available, and diagnostics identify
-the backend actually used. Explicit Vulkan can fail clearly; auto retries model
+layer count, selected device identities and layer distribution, context size,
+batch size, threads and default generation limits. Acquisition options use the
+same `ailo_model_source` contract as the standalone helper, including checksums,
+shards, progress/cancellation, credentials, timeouts and byte limits.
+Configuration strings and arrays are copied by construction; callback user
+state remains caller owned until client destruction. No default model silently
+triggers network access. Backend defaults to auto, CPU remains available, and
+diagnostics identify the backend actually used. Explicit Vulkan can fail clearly; auto retries model
 and context setup on CPU if GPU setup fails. Unsupported architecture, invalid
 GGUF, and CPU failure return actionable errors rather than synthetic output.
+An explicit device selection or layer distribution is a placement commitment:
+fail clearly rather than silently changing devices or falling back to CPU.
+Report actual layer placement, CPU fallback operations and KV-cache placement
+separately from requested settings. The `devices` method and equivalent free
+function return an owned JSON snapshot of available built-in providers and
+usable devices; release with `ailo_string_free`. Enumeration needs no model
+download. Selection and memory-reporting rules are in the static Vulkan spec.
 
 Status and detailed error objects distinguish invalid arguments, malformed JSON,
 unsupported features, unknown model, download/cache failure, model load/evaluate
@@ -178,8 +196,14 @@ owns closing an already-started HTTP response.
 
 ## Hugging Face acquisition and model cache
 
-Provide standalone C89 model acquisition helpers also usable by construction
-and lazy loading. Direct pinned `https://huggingface.co/{repo}/resolve/{revision}/`
+Automatic acquisition is a normal library capability, not a testing utility or
+an external downloader prerequisite. `ailo_client_new` accepts a local source or
+an explicit Hugging Face source. Eager construction acquires and loads it; lazy
+construction copies/validates configuration and the first operation needing
+weights acquires and loads it. Both use the standalone C89 acquisition facility;
+tests exercise the same path as applications.
+
+Direct pinned `https://huggingface.co/{repo}/resolve/{revision}/`
 URLs suffice; avoid a Hugging Face metadata API when it adds no needed behavior.
 Validate/encode repo, revision and filename components, reject traversal and
 absolute filenames, and keep distinct repo/revision/file identities separate.
@@ -206,6 +230,103 @@ The model cache and lifecycle dependency archive cache are different contracts.
 The library owns only requested files under its model-cache root; build cleanup
 never deletes downloaded models or either shared lifecycle cache.
 
+## Structured model card
+
+The receiver exposes structured JSON metadata for its actual loaded model,
+through `client->model_card(client, out_json, error)` and
+`ailo_client_model_card(client, out_json, error)`, both returning `ailo_status`.
+Output is an owned NUL-terminated UTF-8 string, released with `ailo_string_free`;
+set it to NULL on failure. This call performs the configured acquisition/load
+when lazy, follows the client's busy/cancellation rules, and cannot describe an
+unloaded file as a verified model. Model list/retrieve retain their existing
+OpenAI-compatible shape and do not force loading. No new HTTP route or original
+Hugging Face Markdown card is required.
+
+Use lonejson to construct and validate the card. Its documented fields are:
+
+| Field | Meaning and evidence |
+| --- | --- |
+| `id`, `name` | Configured served identity and GGUF model name, respectively |
+| `source` | Local or Hugging Face origin; remote repo, requested revision and resolved immutable revision when known |
+| `license` | Identifier/name/link when present, with the source of the claim; unknown is null |
+| `architecture` | GGUF architecture actually accepted by the native loader |
+| `parameter_count` | Native llama_model_n_params count: total tensor elements, including stored experts, not active MoE parameters |
+| `quantization` | GGUF file type and tensor-type distribution; mixed precision is represented explicitly |
+| `context` | `trained_tokens`, `original_tokens`, `scaling`, `configured_tokens` and `effective_tokens` distinguish declarations from the loaded limit |
+| `chat_template` | Presence, selected template identity and whether the receiver can apply it; an override is identified as caller supplied |
+| `capabilities` | Receiver-supported text/modality/features for this model and implementation; declarations alone do not establish support |
+| `files` | Ordered shard sizes and validated digests when available |
+| `provenance` | Origin of supplemental claims and any conflicts or unavailable metadata |
+
+Parameter counts and file byte counts use decimal strings for lossless 64-bit
+representation across C89 and JSON clients. Context limits are JSON integers.
+`source` is an object with `kind`, `repo`, `requested_revision` and
+`resolved_revision`; remote identifiers are null for local models. `license` is
+an object with `id`, `name`, `url` and `origin`, or null when unknown.
+`architecture` and `name` are strings or null. `files` is an ordered array of
+objects with `filename`, `bytes`, `sha256` and `checksum_validated`; expose a
+local basename only. `quantization` describes the native file type and an array
+of tensor types/counts, without treating mixed tensors as uniformly quantized.
+`provenance` records claim origins and conflicting values. Other nested fields
+must have documented types in the installed API documentation.
+
+Unknown scalar values are null; unknown collections are null rather than an
+invented empty result. A checksum is labelled validated only after bytes were
+actually checked. No host paths, bearer tokens or credential-bearing URLs enter
+the card. A filename is never evidence for architecture, size, quantization,
+license, instruction tuning or supported capabilities.
+
+GGUF/native facts are authoritative about the loaded artifact. Publisher license
+and lineage are claims with provenance, not a legal conclusion or proof of model
+quality. Configuration may supply a bounded supplemental JSON metadata object
+for local or remote models; copy and validate it at construction. It may provide
+name, license and source lineage, but cannot override loaded-model facts.
+
+For Hugging Face sources where GGUF metadata is insufficient, the acquisition
+facility attempts to retrieve structured repository metadata for the same
+immutable revision when downloads are permitted. Cache only the selected bounded
+JSON metadata alongside the model, with atomic publication and identity checks. Never combine
+a mutable branch's current metadata with earlier cached weights. If an immutable
+identity cannot be established, leave publisher fields unknown and expose that
+limitation. Metadata HTTP failure/missing fields do not invalidate successfully
+loaded weights; malformed caller-supplied metadata fails configuration.
+Existing cached metadata and GGUF facts must remain usable offline. Card access
+never bypasses download permission to fill missing fields; no YAML/Markdown
+parser or additional target dependency is introduced.
+
+Card generation reads native metadata without inference. Limit each supplemental
+or remote metadata input to 1 MiB and the resulting card to 4 MiB, with actionable
+errors for oversized caller input/output. Verify all shard identities,
+and preserve conflicts in provenance rather than silently replacing facts.
+
+## Trained inference fixture
+
+Use a small trained instruct model through the receiver's ordinary acquisition
+and cache path for CPU and available Vulkan hardware checks:
+
+- Repository: `bartowski/SmolLM2-135M-Instruct-GGUF`.
+- Immutable revision: `09816acd5d99df7be770d85ea30822623dab342c`.
+- File: `SmolLM2-135M-Instruct-Q4_K_M.gguf`.
+- Size: 105,454,432 bytes (about 100.57 MiB).
+- SHA-256: `2e8040ceae7815abe0dcb3540b9995eaa1fa0d2ca9e797d0a635ae4433c68c2d`.
+
+The [base instruct model](https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct)
+and [GGUF publisher](https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/tree/09816acd5d99df7be770d85ea30822623dab342c)
+declare Apache-2.0. The revision, size and checksum were inspected in repository
+metadata; trained inference with this pin remains to be proven. This replaces
+the earlier Qwen2.5-3B smoke recommendation, whose
+[publisher declares the Qwen research license](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct).
+Model licensing is independent of library licensing.
+
+Keep tiny generated fixtures for deterministic boundary tests. They cannot
+establish trained chat-template/inference behavior. Ordinary tests remain local;
+an explicit live integration gate acquires this pin, generates bounded text on
+CPU and Vulkan, reads its card, then proves cache reuse with networking disabled.
+On this host use the detected Vulkan GPU when available, recording its actual
+identity. An absent GPU is reported as unavailable evidence, never a passed
+GPU test. Larger dense and MoE model qualification is additional coverage;
+this small fixture cannot prove those workloads or frontier-level quality.
+
 ## Lifecycle, packages and verification
 
 Follow the lifecycle skill's local Make/CMake structure, pinned Bootlin C/C++
@@ -221,11 +342,13 @@ need it, currently compiler AST inventory processing and test HTTP fixtures.
 
 Linux target presets cover x86_64/aarch64 with glibc and musl.
 ARM hard-float is outside the supported shipment and verification matrix.
-Cross-target ABI proof includes all exact-width conversions. Vulkan uses pinned headers,
-loader and SPIR-V headers with a usable host shader compiler, never an implicit
-host C/C++ compiler fallback. It is enabled in the default native build and CPU
-is always built. Missing Vulkan build prerequisites fail with actionable
-diagnostics; an explicit CPU-only build is a separate configuration. Runtime GPU
+Cross-target ABI proof includes all exact-width conversions. Vulkan uses pinned
+headers, SPIR-V headers and the static loader/provider integration specified in
+[static-vulkan.md](static-vulkan.md), with declared host shader/source generators
+and no host target-library or implicit C/C++ compiler fallback. It is enabled
+in the default native build and CPU is always built. Missing Vulkan build
+prerequisites fail with actionable diagnostics; an explicit CPU-only build is
+a separate configuration. Runtime GPU
 availability must be measured, not inferred from installed ICD filenames.
 
 Shared exports are restricted to the exact project allowlist, with native C++
@@ -241,9 +364,9 @@ Acceptance requires:
   callback and record conversion tests, boundary-width tests, custom sampler and
   native model/context/state/GGUF/tensor/multimodal lifecycle tests.
 - Actual GGUF inference for buffered and incremental streamed text; CPU and
-  Vulkan backend probes and fallback tests. A small pinned deterministic fixture
-  is appropriate for tests; Qwen2.5-3B-Instruct-Q4_K_M is a supported live smoke
-  example, not a mandatory multi-gigabyte unit-test dependency.
+  Vulkan backend probes and fallback tests, trained SmolLM2 receiver/cache/card
+  integration, both static providers, and AMD/Intel/mixed multi-GPU layer splits
+  under the detailed static Vulkan acceptance contract.
 - Request validation, model routes, native output shape/usage, limits, UTF-8,
   stop boundaries, cancellation, sink failure, independent clients, busy/reentry
   and repeated destroy/load behavior.
@@ -252,6 +375,11 @@ Acceptance requires:
   concurrent publication, no-network hits and partial cleanup. Production
   transport remains HTTPS-only; test injection cannot enable insecure downloads
   in the exported API.
+- Model-card identity, exact counts, quantization, declared versus effective
+  context, unknown/absent metadata, conflicting publisher/caller claims,
+  shard consistency, lazy loading, offline cached metadata, corrupt/oversized
+  metadata, ownership and privacy. Changing the configured source cannot reuse
+  a different artifact's card.
 - Lifecycle archive cache contract tests, formatting, standard CTest checks,
   native Valgrind, bounded parser fuzzing, examples, static/shared installed
   consumers, exact exports/imports, package privacy/relocatability, and source

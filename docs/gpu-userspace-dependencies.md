@@ -180,6 +180,11 @@ support for compute-only Instinct hardware through RADV.
 
 ## Static deployment remains a separate gate
 
+The implementation architecture and full single/multi-GPU acceptance requirements
+are now specified in [static-vulkan.md](static-vulkan.md). This includes the
+built-in multi-provider loader, static musl driver identity adaptation and
+isolated target dependency discovery; those requirements remain pending work.
+
 The reviewed RADV and ANV build definitions explicitly use shared_library for
 their final driver. Both therefore need static-driver integration and an
 application dispatch path that avoids dynamic ICD loading. A static Khronos
