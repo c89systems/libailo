@@ -105,9 +105,14 @@ outside our supported dependency stack.
 A musl SDK or a static facade archive does not establish a fully static GPU
 executable. Vulkan normally loads userspace driver libraries. Fully static musl
 cannot use `dlopen`; a static glibc executable loading a glibc driver still needs
-compatible shared glibc. Open userspace stacks such as Mesa RADV for AMD Radeon
-and Mesa ANV for Intel GPUs are candidates for source-based integration, not
-proof of a working static deployment. Fully static CPU inference is the intended
+compatible shared glibc. The selected GPU qualification paths are headless Mesa
+RADV for AMD Radeon and Mesa ANV for Intel GPUs, with permissive userspace
+dependencies and explicit exclusion of libudev/libelf auto-discovery. The
+maintained Linux ROCm/HIP stack is excluded because it requires LGPL libnuma.
+The [userspace dependency assessment](docs/gpu-userspace-dependencies.md)
+records the source evidence, compiler-runtime assumption and required static
+integration work. Licensing eligibility is not proof of a working static
+deployment. Fully static CPU inference is the intended
 standalone musl path; proving the final executable is a separate gate from SDK
 archive verification.
 

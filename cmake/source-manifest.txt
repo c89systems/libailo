@@ -32,6 +32,7 @@ docs/architecture.md
 docs/c89-boundary.md
 docs/facade-bindings.md
 docs/facade-coverage.json
+docs/gpu-userspace-dependencies.md
 docs/upstream-api.json
 examples/model_cache.c
 examples/scalars.c

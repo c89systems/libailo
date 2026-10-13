@@ -51,6 +51,11 @@ compatibility surface, not a claim of complete OpenAI API compatibility.
    [backend support policy](../README.md#backend-support-policy). A missing
    optional backend implementation must not be misrepresented as successful
    support. Upstream API inventory does not imply a supported backend.
+   GPU userspace dependencies must satisfy the
+   [permissive dependency assessment](gpu-userspace-dependencies.md); headless
+   RADV and ANV are the selected qualification paths. Linux ROCm/HIP is excluded
+   by its required LGPL libnuma dependency. Fully static GPU support requires
+   final-executable and hardware evidence without shared-object loading.
 8. Use released SDK bundles from
    [c89systems/cpkt](https://github.com/c89systems/cpkt/releases/tag/v0.3.0)
    v0.3.0 for curl/OpenSSL, independent
