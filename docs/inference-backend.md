@@ -1,0 +1,432 @@
+# Llama inference receiver and API adapter contract
+
+Specification extension, 2026-10-14. This document supersedes the earlier text-only
+receiver restrictions in [architecture.md](architecture.md). Implement the
+complete backend contract before its comprehensive acceptance campaign. HTTP
+server integration and the Responses wire handler are subsequent integration
+work; their requirements shape this backend now.
+
+## Investigation and design decision
+
+The existing strict C89 facade exposes native loading, evaluation, sampling,
+grammar, state and memory operations. Callback coverage remains incomplete.
+There is no implemented high-level inference receiver or protocol adapter yet.
+Native coverage alone does not provide a usable conversation API.
+
+The official [Responses migration guide](https://developers.openai.com/api/docs/guides/migrate-to-responses)
+distinguishes messages/choices from typed response items and continuation state.
+The documented API is Responses; this investigation found no separate published
+"Responses API 2.0" contract. Prepare for evolution through explicit item types
+and capabilities, without inventing a version or silently accepting unknown
+semantics. The future handler must target an identified official schema.
+
+The [Chat Completions reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)
+includes function tools, output formats, sampling controls and log probabilities.
+The backend must represent these behaviors without each handler reimplementing
+tokenization, decoding, template application or state management.
+
+Three layers have distinct responsibilities:
+
+| Layer | Responsibility |
+| --- | --- |
+| Complete native C89 facade | Faithful access to pinned llama/GGML/mtmd public APIs; native ownership and semantics |
+| Inference receiver | Model/device lifecycle, typed conversation items, template/grammar selection, sampling, incremental output, cache/state and compaction |
+| Protocol adapters | Parse/validate API requests, map fields into receiver requests, and serialize events/results into the API's documented JSON/SSE contract |
+
+Model acquisition and model cards are shared receiver facilities. A handler is
+not expected to construct native batches or inspect GGUF fields. The backend
+does not depend on HTTP objects, API keys, sockets, Kore, or an OpenAI service.
+Tools are returned to the embedding application for execution; libailo never
+executes an arbitrary model-generated function or launches a hosted service.
+
+## C89 surface and ownership
+
+Retain `ailo_client_new` and the receiver shell with equivalent free functions.
+Add `generate`, `compact`, `capabilities`, `cache_stats` and `cache_clear` methods
+alongside chat/model/device conveniences. Use separate small request, item,
+event and continuation-state types; the client owns implementation state, not
+every protocol's mutable JSON representation.
+
+The neutral generation operation has this shape:
+
+```c
+ailo_status ailo_client_generate(ailo_client *client,
+                                const ailo_request *request,
+                                ailo_event_sink sink, void *user_data,
+                                ailo_run_info *out_info, ailo_error *error);
+```
+
+The names describe the implementation contract, not existing exported symbols.
+Requests use tagged C89 records/opaque owned handles and arrays with explicit
+lengths. Provide default factories, constructors/builders, getters and cleanup
+as appropriate; public callers never include C++ or upstream headers. Fallible
+constructors clear outputs. Configuration strings/arrays are copied; synchronous
+request data is borrowed for the call, and retained state is explicitly owned.
+Callbacks borrow event payload only until return. A sink consumes every supplied
+event or fails/cancels; backpressure is synchronous. `out_info` contains bounded
+terminal status, identities, usage and diagnostics, not the complete output.
+All exact-width counts use the established C89 integer representations.
+
+Buffered protocol operations collect events into an explicitly bounded owned
+result. Streaming operations forward events as generation progresses and do not
+collect a second complete result. Equivalent C89 APIs expose standalone
+compaction and replayable state without requiring a JSON handler.
+
+Keep client context access serialized with busy/reentry rejection. Distinct
+clients have independent samplers, parser state, contexts and continuations.
+Model weights may be shared by an explicitly owned internal model resource;
+mutable contexts and request state cannot be shared accidentally. Reference
+counted backend initialization must survive independent client destruction.
+
+## Conversation and event model
+
+Represent ordered items, not just role/content strings. Required item kinds are
+messages, function calls, function results, reasoning and compaction. Messages
+carry system/developer/user/assistant/tool roles where applicable, optional
+participant names, and typed content parts. Function calls preserve item ID,
+call ID, function name and arguments; results refer to the original call ID.
+Keep different identifiers separate and validate duplicate/orphan results and
+pending call groups before inference. A continuing tool cycle is ordinary input,
+not a fresh text prompt that discards tool provenance.
+
+Content types distinguish text, refusal, and supported media references/bytes.
+Carry image/audio/file identities and prepared media data through a distinct
+multimodal adapter using the pinned mtmd APIs. Raw URL/file-ID resolution and
+document extraction belong to explicit embedding-application services, with
+byte/time limits; the inference engine does not fetch arbitrary user URLs.
+Media, custom tools and other item types require actual model/template/adapter
+capabilities. Preserve extensibility without treating an unknown item as text.
+
+Generation events include run/item/content start, text/refusal/reasoning deltas,
+function identity and argument deltas, item completion, compaction, usage and
+terminal completion/incomplete/error. Preserve sequence, candidate, item and
+content indices plus stable IDs. Bound item names/IDs and parser lookahead;
+never postpone an entire tool argument or answer until end-of-generation just
+to produce a streaming-shaped result.
+
+The [Responses streaming guide](https://developers.openai.com/api/docs/guides/streaming-responses)
+uses typed lifecycle and delta events. A future adapter maps neutral events into
+those documented event types; Chat Completions maps them into choices/deltas.
+Its SSE terminator is a protocol detail, not an inference-engine event.
+
+The [Responses streaming-event reference](https://developers.openai.com/api/reference/resources/responses/streaming-events)
+requires full finalized text/arguments/items in done events and full output in
+the completed response, in addition to incremental deltas. Repeating these bytes
+requires retained output; replay cannot be supplied from bounded lookahead alone.
+Production decision pending: permit explicit, quota-bounded in-memory output
+retention at the future Responses adapter while preserving immediate deltas and
+the receiver's bounded incremental path, or keep this wire-compatibility boundary
+unresolved. No full-output retention or disk spooling is implicitly authorized
+by adding typed receiver events. Do not omit required terminal fields and claim
+complete Responses streaming compatibility.
+
+Expose actual capability flags and limits in `capabilities` and the model card:
+text, media types, tool formats, schema subset, reasoning separation/controls,
+logprobs, native sequence reuse and compaction. API fields requiring an
+unavailable capability fail explicitly. A model advertising a template is not
+proof that its tokenizer, parser and backend can perform all requested work.
+
+## Generation functionality needed by adapters
+
+Support ordered text/content input, multiple independently sampled candidates,
+output-token limits, temperature/top-p, frequency/presence penalties, token-ID
+logit bias, seed, stop sequences, token log probabilities and requested top
+alternatives. Map limits and candidates according to the target API. Validate
+ranges and contradictory settings before evaluation; enforce finite resource
+limits for candidate count, top alternatives, schema/tools and output bytes.
+Recreate sampler history for each logical request even when a prompt is reused.
+Logprob reporting must document its relation to bias, penalties, filtering and
+temperature and match the selected API semantics; raw logits are not logprobs.
+Seed is reproducibility control under a fixed configuration, not a guarantee
+of identical output across devices or numerical implementations.
+
+Support function-tool definitions and histories, tool choice none/auto/required/
+named function, and one or multiple calls where the model/template supports it.
+Parallel tool calls means multiple returned calls, not concurrent native model
+evaluation or automatic execution. Preserve function argument bytes and use
+lonejson for validation/serialization. Strict mode constrains and validates the
+supported schema subset; invalid generated arguments cannot be emitted as a
+completed valid call. End with the appropriate tool-call outcome rather than a
+fake text finish. Follow the [function calling contract](https://developers.openai.com/api/docs/guides/function-calling).
+
+Support text, JSON-object and constrained JSON-schema output, including strict
+tool arguments. Publish the precise accepted schema keywords and limits from
+the implemented grammar converter; reject unsupported constraints before
+generation instead of silently dropping them. Incremental fragments may be
+incomplete JSON; a successful final result must satisfy its promised format.
+Truncation, cancellation or grammar failure cannot claim schema-complete output.
+
+Source inspection found two concrete converter hazards: number nodes use the
+unrestricted number grammar, and oneOf is parsed into the same union structure
+as anyOf. Upstream converter success therefore does not prove numeric bounds or
+exclusive alternatives are enforced. Validate a closed keyword set and schema
+semantics before use, adapt constraints where required, and validate successful
+results incrementally. Required baseline coverage includes object properties/
+required/additionalProperties, arrays/items and size bounds, scalar/null types,
+enum/const, nullable alternatives and same-document references. Add tests for
+every advertised numerical, string/pattern and combination constraint; an
+unsupported keyword or ignored converter warning is a pre-generation error.
+
+Separate reasoning from user-visible answer text where the qualified model and
+template provide an unambiguous format. Reasoning-token budgets count toward
+the total generation limit. Do not relabel raw reasoning as a supported summary,
+invent provider-specific encrypted reasoning state, or implement reasoning
+effort by silently changing temperature. Unsupported controls fail clearly.
+Tool, reasoning and content parser state remains independent per candidate.
+
+Finish reasons, actual usage, UTF-8/stop handling, cancellation, device failure
+and sink failure follow architecture.md. Context overflow never silently drops
+messages. Compaction policy below is the explicit way to reduce context.
+
+## Private llama helper integration
+
+Pinned `llama_chat_apply_template` accepts only role/content messages and a
+predefined template set; llama.h explicitly says it is not a Jinja parser.
+Richer template/tool/schema support is in upstream common sources, including
+chat.cpp, jinja, json-schema and json-schema-to-grammar. Reuse a deliberately
+selected private helper subset rather than importing llama-server or its whole
+common target (which includes HTTP, downloads, CLI and subprocess code).
+
+These private sources are implementation dependencies, not additions to the
+public facade inventory. Upstream's private common_json uses vendored nlohmann
+JSON 3.12.0 (MIT). Allow that private upstream dependency for its existing
+template/schema helpers; keep lonejson authoritative for all application-facing
+JSON and escaping. Do not expose either dependency in installed headers or
+write a replacement general JSON parser. Record selected upstream/vendor
+source lists and notices and keep their native archive separate from libailo.a.
+Do not enable optional llguidance/Rust, subprocesses, HTTP server or new external
+dependency downloads as a side effect of helper integration.
+
+The pinned server's task_result_state::update_chat_msg appends generated_text
+and reparses it, and server-context.cpp also accumulates the reply. That path
+violates this project's streaming contract even when it sends intermediate
+chunks. Use bounded incremental template-envelope parsing and lonejson's writer
+and value-stream facilities for JSON fragments. Prove the selected parser's
+memory bound; unsupported streaming formats need an actual parser adaptation,
+not hidden full-message buffering. Request/template/schema materialization and
+bounded compaction summaries are explicitly different from streaming output.
+
+## Prompt reuse and persistent snapshots
+
+Prompt/KV reuse is a required performance capability. It reuses evaluated state
+for an exact matching token prefix, not a generated response cache and not a
+conversation archive. Independent logical requests remain independent.
+[vLLM documents prefix reuse](https://docs.vllm.ai/en/latest/features/automatic_prefix_caching/);
+[LMCache documents optional persistence](https://docs.lmcache.ai/mp/l2_storage.html).
+These establish real backend practices, not a claim that all backends share a
+portable cache format or OpenAI guarantees restart-persistent KV storage.
+
+Provide bounded in-memory reuse and opt-in disk snapshots. Default memory cache
+is private to one client, capped at 64 MiB and eight entries, with a five-minute
+idle TTL; explicit configuration can disable it or change those bounds. A
+snapshot larger than the budget is not cached. Persistent caching is off until
+the application supplies an absolute root or accepts the configured model-cache
+root's inference subdirectory, an explicit nonzero disk budget/TTL, namespace
+and encryption key. Model files, inference snapshots and conversation records
+have separate eviction/ownership rules. Cache clearing never deletes weights.
+
+Cache identity includes verified model/shard content digests, tokenizer and
+effective template identity, adapters/control vectors, exact rendered tokens,
+native revision/patch/build identity, context/RoPE/attention/KV settings and
+qualified backend/device layout. Hash model bytes when validated digests are
+unavailable; filenames/size/mtime alone cannot establish cache identity.
+Include media/preprocessing and grammar/tool inputs when they affect rendering
+or evaluation. A supplied prompt cache key selects an application namespace;
+it never overrides content/configuration matching or acts as authorization.
+Share across clients only with an explicit cache owner and trusted namespace
+supplied by the embedding application. No ambient process-global tenant cache.
+
+Find the longest safe matching prefix and evaluate its suffix. KV sequence
+copy/removal and state restoration are architecture dependent; full-attention,
+sliding-window and recurrent models require distinct validated reuse behavior.
+If a prefix cannot be retained/restored correctly, recompute it and report a
+miss, rather than shifting positions and claiming equivalent state. Recreate
+sampling/grammar state from the request. Restore paths may need to replay the
+final prefix token to obtain valid logits; count only actually skipped prompt
+evaluation as cached tokens.
+
+Use llama sequence-state APIs with host-portable state for durable snapshots;
+ON_DEVICE state is transient and invalidated by subsequent snapshots. Native
+state formats alone do not establish model compatibility: inspect a project
+envelope with authenticated identity, token count, lengths and checksum before
+native restore. Reject truncated, stale or incompatible data without mutating
+the active context. Restore into disposable state, then adopt on success.
+On corrupt/expired automatic cache entries, evict and recompute with diagnostics;
+an explicitly requested import fails clearly. Snapshots save prompt state, not
+sampler RNG/grammar/parser state for resuming a suspended generation.
+
+Persistent publication is atomic under a scoped lock, with private permissions,
+no-follow path handling, strict length limits and quota/TTL eviction. Encrypt and
+authenticate snapshots using SDK OpenSSL AES-256-GCM, unique random nonces and
+purpose-specific key derivation; application key IDs support explicit rotation.
+Do not write plaintext prompts/KV to a hidden staging file. A bounded materialized
+native state buffer is allowed and accounted in the configured snapshot/RSS
+budget; this export is not advertised as streaming. The public native buffer
+APIs require a complete state buffer, while native file APIs write directly to
+files without a public encryption sink. Never disguise either as incremental
+encrypted export. Oversized automatic snapshots are skipped with diagnostics.
+
+Expose hits/misses/evictions, cached/evaluated prompt tokens, bytes and timing.
+Caching must not hide context-token usage or imitate provider billing. Mapping
+`prompt_cache_key`, retention or breakpoint fields into local policy requires a
+documented implementation of their requested semantics; unsupported retention
+or minimum-lifetime guarantees fail instead of becoming advisory no-ops.
+The [OpenAI caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
+describes prefix matching and cached-token accounting; our local policy and
+resource limits must be explicit rather than borrowing its cloud guarantees.
+
+## Continuation and retained conversation state
+
+Provide owned canonical continuation state containing ordered items, current
+instructions/protected items and model/template identity, separately from KV
+cache entries. Explicit clone/fork operations preserve immutable prior state.
+Appends and inference updates are committed only on the documented successful
+outcome; cancellation/failure cannot silently replace the caller's history.
+A tool-call outcome may legitimately leave a pending call group for the next
+turn. Busy state cannot be mutated from a callback.
+
+Canonical items come from supplied input, explicitly buffered results, or an
+explicit caller/adapter-owned transcript. Neutral streaming generation does not
+silently collect complete assistant messages into this state. Its native token/
+memory window is bounded inference state, not a durable transcript. An embedding
+application wanting full-history replay must own that collection explicitly;
+the Responses adapter retention decision above governs its required terminal
+objects. These rules apply even when canonical state and KV state share an owner.
+
+This supplies the foundation for replayed items, `previous_response_id` and
+conversation objects. Those wire identities and stored response lookup belong
+to the future handler/state repository, not to the KV cache. Cache eviction must
+not delete canonical conversations. Storage is explicit; store=false cannot
+create durable transcript records through a hidden output collector. Retained
+records have their own bounded policy and deletion semantics. No database
+dependency is implied; future persistence adapters require a separate contract.
+
+The future Responses adapter must preserve ordered typed input/output, tool call
+IDs, per-request instructions and failure/incomplete states. It must not turn
+a response-ID lookup into append-only role/content strings or inherit top-level
+instructions contrary to the official API. Hosted tools, file services,
+background jobs and protocol transports need their own explicit adapters;
+representing an item type does not claim those services exist locally.
+
+## Server-side semantic compaction
+
+Compaction reduces model-visible context while carrying forward useful state.
+It is required alongside caching; truncating KV positions, discarding early
+messages or compressing serialized bytes is not semantic compaction. Use the
+loaded model in a separate bounded compaction context to generate a structured
+summary of older eligible history, constrained/validated through the selected
+schema path. Its quality depends on the actual local model; it is not OpenAI's
+proprietary latent compaction algorithm.
+
+Protect current system/developer instructions and tool definitions byte-for-byte,
+explicit pinned application items, recent complete turns, unresolved tool calls
+and their dependencies. Compact only complete older groups; preserve role/trust
+provenance, user goals, commitments, identifiers and essential tool findings in
+the summary. A generated summary stays lower-trust context data, never a new
+system instruction. Summary generation is bounded materialization, not a
+streaming user reply. Record before/after context tokens, summary work and which
+items were retained, without logging private content.
+
+Support explicit `compact` and configurable automatic thresholds. Automatic
+compaction is disabled by default, enabled by an explicit policy with trigger,
+target, recent-turn/pinned retention and summary/output reserves. Count the
+rendered prompt with the actual tokenizer, including instructions/tool schemas,
+and reserve space for generation and the compaction pass before hard overflow.
+Reject impossible thresholds or policies before inference. Input already too
+large for one summary pass is processed as bounded complete groups with a
+finite pass/work budget, or fails explicitly; never feed an oversized prompt
+to native assertions or silently discard an oversized protected item.
+
+When generation crosses the configured threshold, compact at a safe token/item
+checkpoint, emit a compaction event, rebuild native context and continue with
+stable run/item IDs and parser/sampler state. Preserve already-emitted output;
+do not replay it to the sink. In-flight tool arguments and retained unfinished
+content must remain coherent. If these protected spans alone cannot fit, return
+an explicit context/incomplete outcome. Keep model context/token history bounded
+by its configured window; do not retain an extra unbounded copy of generated
+text or spool it just to enable compaction.
+
+Validate summary structure, token reduction and all pinned invariants, then
+atomically adopt the new canonical window. Failure/cancellation leaves prior
+state intact and returns a compaction error; no infinite retry loop or silent
+truncation. Rebuild cache matching against the new rendered prefix; old KV is
+not valid for summarized text. Compaction work and cache invalidation are
+separately observable. Test semantic preservation with deterministic scenarios;
+do not promise a lossy summary preserves every original fact.
+
+## Compaction items and API-specific output
+
+The official [compaction guide](https://developers.openai.com/api/docs/guides/compaction)
+specifies opaque encrypted items for Responses, automatic context management
+and standalone compaction. Follow that item/response shape in the future adapter,
+including retained items in the canonical compacted window. Local tokens are
+replayable by compatible libailo instances only; OpenAI-issued encrypted content
+cannot be decrypted or accepted as local state, and vice versa.
+
+Expose an owned opaque compaction item from the backend, with item ID and
+encrypted_content. Its authenticated payload binds compacted state to model/
+tokenizer/template identity, namespace, item order/cut boundary, retained-item
+digests, instructions policy, issue/expiry and format identity. Use SDK OpenSSL
+AES-256-GCM with random nonces and purpose-separated keys. Authenticate before
+parsing; cap decoded/encrypted lengths and decompression is unnecessary.
+Duplicate/superseded/misordered items and missing required retained items fail.
+Authorized reuse/fork is allowed; replayability is not a single-use nonce rule.
+
+Configuration supplies key ID and copied key bytes (or a documented key lookup
+callback). Without a configured stable key, generate an ephemeral client key
+and make the resulting client-lifetime portability explicit. Cross-client or
+restart replay requires explicit compatible identity, namespace and keys; no
+automatic plaintext key file. Support a bounded set of old decryption keys for
+rotation, issue with the current key, and erase owned keys on destruction.
+Wrong key, tampering, expired state or changed identity returns an actionable
+error without leaking payload. Authenticate binding of retained context before
+adopting state; a ciphertext valid in another tenant is not valid here.
+
+Chat Completions content follows its requested text/JSON format; text can be
+Markdown. Its documented endpoint set has no equivalent compaction operation.
+Do not invent a compact endpoint, new field or Markdown compaction response and
+label it OpenAI compatible. The embedding application may explicitly use the
+neutral compaction/generation APIs with replayable state, but
+automatic lossy mutation of a stateless Chat Completions request is not a hidden
+default. Responses maps replayable compaction state into its documented items.
+Any libailo-specific diagnostics or readable summary access is clearly separate
+from those wire contracts. [Chat endpoint reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions).
+
+## Required verification
+
+Implementation is complete only with observable proof across these boundaries:
+
+- Strict C89/C++ header isolation, receiver lifecycle, event ownership, callback
+  failure/reentry, independent clients and full facade coverage.
+- Native trained buffered/streamed chat, multiple candidates, penalties/bias,
+  logprobs, reasoning separation, tool/result cycles and strict schema output.
+  Use qualified trained fixtures in addition to deterministic native fixtures;
+  the small SmolLM2 smoke cannot qualify every reasoning/tool/media capability.
+- Adapter contract fixtures for Chat Completions and representative Responses
+  item/event/state mappings. Prove both use the same evaluation path. No HTTP
+  server or live OpenAI call is required to test backend protocol mappings.
+- Prefix-hit and cold-run continuation equivalence within documented numerical
+  tolerances, longest-prefix edits, final-token replay, recurrent/SWA boundaries,
+  model/template/schema/media changes and namespace isolation. Measure skipped
+  evaluation and latency; merely restoring bytes is not proof of a useful hit.
+- Cache quota/TTL/clear behavior, independent clients, restart persistence,
+  corruption/truncation/wrong-key/wrong-model rejection, atomic interruption,
+  symlink defenses and no plaintext staging. Snapshot buffer/RSS bounds must be
+  measured separately from model/context memory.
+- Compaction threshold/target/reserves, explicit and automatic passes, completed
+  and pending tool groups, protected instructions, semantic scenario retention,
+  rollback on failure/cancellation, token reduction and safe mid-generation
+  continuation. Verify changed prefixes invalidate stale KV reuse.
+- Opaque item round-trip, tamper/expiry/identity/tenant/order checks, key rotation,
+  retained-window replay and deterministic rejection of foreign-provider items.
+  Successful opaque replay cannot be implemented as an expired KV-cache lookup.
+- Long generated output and large function arguments with bounded parser/output
+  RSS, early sink events, UTF-8/stop boundaries, cancellation and backpressure.
+  No complete-answer capture, reparse buffer or temporary output spool is allowed
+  on streaming paths, including compaction and adapter transitions.
+- Existing CPU/static RADV/ANV and multi-GPU qualification, memory checks,
+  installed consumers, privacy/exports/licenses and lifecycle artifact gates.
+
+Record actual implemented capabilities and outstanding hardware/model evidence.
+This specification expansion does not implement or qualify the receiver,
+cache snapshots, compaction or API handlers by itself.

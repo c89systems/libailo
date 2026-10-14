@@ -10,14 +10,19 @@ receiver shell and equivalent free functions for applications that ordinarily
 call OpenAI Chat Completions. It also supplies a complete C89 facade over the
 pinned llama.cpp public C library APIs. Neither public boundary exposes C++
 types, C++ headers, upstream headers, or compiler extensions disguised as C89.
-There is no HTTP server in this project. Vectis/Kore integration and Responses
-API support are later work.
+There is no HTTP server in this project. Vectis/Kore integration and the Responses
+wire handler are later work. The inference receiver must already support the
+shared generation, state, caching and compaction contract in
+[inference-backend.md](inference-backend.md), so future API adapters do not
+reimplement inference or force a role/content-only backend redesign.
 
-The first receiver implements text Chat Completions, buffered output and real
-streaming, model listing and model retrieval, with explicit errors for features
-outside that contract. Stored completions and their list/retrieve/update/delete
-and messages routes are later work. This is a useful, deliberately bounded
-compatibility surface, not a claim of complete OpenAI API compatibility.
+The receiver implements Chat Completions generation, buffered output and real
+streaming, tools, constrained output, model listing and model retrieval, with
+actual model capabilities and explicit errors for unavailable behavior. Stored
+completions and their list/retrieve/update/delete and messages routes require the
+later handler/state repository. Backend prompt caching and semantic compaction
+are required now, separately from stored completion records. Public API
+compatibility claims follow verified wire contracts, not the native inventory.
 
 ## Dependency and implementation boundaries
 
@@ -30,7 +35,9 @@ compatibility surface, not a claim of complete OpenAI API compatibility.
    `8345f333951c661d166b00e6f9362e553768f292`. All public C APIs means the public
    llama library, GGML core/backend/allocator/optimizer/GGUF and public backend
    headers, plus public multimodal `mtmd` and `mtmd-helper` APIs. C++ common,
-   server utilities, private backend interfaces and CLI programs are excluded.
+   server utilities, private backend interfaces and CLI programs are excluded
+   from the public facade inventory. Selected private template/schema helper
+   sources may be used internally under the inference backend contract.
 4. Facade declarations and wrappers use the `ailo_` namespace. Completeness
    includes deprecated declarations, every enum value and public constant,
    callback signatures, public record fields, unions, pointer levels, array
@@ -72,8 +79,9 @@ compatibility surface, not a claim of complete OpenAI API compatibility.
    No project-owned JSON parser or escaping code.
 9. External curl, OpenSSL, lonejson and their dependencies remain independent
    libraries. Never concatenate their object files into `libailo.a`. Keep native
-   llama/GGML/mtmd and C++ runtime link dependencies explicit as separate archives
-   for static consumers. Public installed headers contain only project APIs.
+   llama/GGML/mtmd, selected private helpers and C++ runtime link dependencies
+   explicit as separate archives for static consumers. Public installed headers
+   contain only project APIs.
 
 ## Low-level facade
 
@@ -104,6 +112,9 @@ whose mutable state is private. Methods have the receiver as the first argument:
 `client->model(client, ...)`, `client->model_card(client, ...)`,
 `client->devices(client, ...)`, `client->handle(client, ...)`, and
 `client->destroy(client)`. Equivalent `ailo_client_*` functions are exported.
+The neutral `generate`, `compact`, `capabilities`, `cache_stats` and `cache_clear`
+methods are specified in the inference backend contract. Chat JSON/SSE is an
+adapter over that neutral generation path.
 Destroy and project-owned string cleanup tolerate NULL. Fallible constructors
 set output handles to NULL before validation.
 
@@ -114,6 +125,8 @@ layer count, selected device identities and layer distribution, context size,
 batch size, threads and default generation limits. Acquisition options use the
 same `ailo_model_source` contract as the standalone helper, including checksums,
 shards, progress/cancellation, credentials, timeouts and byte limits.
+Configuration also owns explicit memory/disk cache limits, namespace/key policy,
+compaction thresholds/retention/work limits and request resource ceilings.
 Configuration strings and arrays are copied by construction; callback user
 state remains caller owned until client destruction. No default model silently
 triggers network access. Backend defaults to auto, CPU remains available, and
@@ -145,31 +158,39 @@ destroying one client must not invalidate another client or low-level context.
 
 The receiver accepts UTF-8 request JSON and uses lonejson for validation,
 inspection and response serialization. It supports `model`, ordered `messages`
-with `system`, `developer`, `user` and `assistant` text roles, `stream`,
+with `system`, `developer`, `user`, `assistant` and `tool` roles, `stream`,
 `max_tokens`/`max_completion_tokens`, `temperature`, `top_p`, `seed`, `stop`
 (string or up to four strings), and `stream_options.include_usage`.
-Text content parts are accepted; nontext parts and tool calls return explicit
-unsupported-feature errors. Missing required data, invalid types/ranges,
-conflicting limits, unknown fields with meaningful unsupported semantics, and
-unknown model IDs fail before generation. `n` defaults to 1 and other values,
-tools/tool choice, logprobs, nontext modalities, structured outputs and `store`
-true are unsupported initially. Model capabilities are not inferred from its
+The expanded contract includes `n`, participant names, function-tool calls and
+results, `tools`/`tool_choice`/`parallel_tool_calls`, `response_format`,
+frequency/presence penalties, `logit_bias`, `logprobs`/`top_logprobs` and the
+cache controls whose semantics are implemented. Reasoning/media controls are
+model/adapter dependent, not silently flattened into text. Missing required
+data, invalid types/ranges, conflicting limits, unknown fields with meaningful
+unsupported semantics and unknown model IDs fail before generation. Stored
+completion records require a configured handler repository; prompt cache state
+does not implement `store`. Model capabilities are not inferred from its
 filename. No silent ignoring of functionality requested by the caller.
 
-Apply the model's chat template through the native library; an explicit template
-override may be configured. If the model requires a template the native public
-API cannot apply, report that limitation. Prompt tokenization, context-window
-checks, prompt batching, sampler setup, EOS handling and per-token decoding use
-the actual model. Every request starts independent context state.
+Apply the model's chat template through the private native helper adapter;
+an explicit template override may be configured. The limited public template
+helper alone does not fulfill tool/Jinja behavior. Prompt tokenization,
+context-window checks, prompt batching, sampler setup, EOS handling and per-token decoding use
+the actual model. Each logical request has independent generation/sampling state;
+exact compatible prompt prefixes may reuse native evaluation without inheriting
+another request's answer or mutable sampler. No silent context truncation.
 
 Buffered results contain `id`, `object: chat.completion`, `created`, `model`,
-one indexed assistant choice with content and `finish_reason`, and token usage.
+indexed assistant choices with content or tool calls and `finish_reason`, and
+token usage.
 EOS/stop yields `stop`; exhausted output budget yields `length`. Stop matches
-are removed from output. Token counts reflect actual tokenization/evaluation.
+are removed from output; tool-call completion has its own documented outcome.
+Token counts reflect actual tokenization/evaluation, including actual cached
+prompt counts. Compaction work is reported separately from answer generation.
 
 Streaming invokes a synchronous sink during generation with SSE bytes, beginning
-with an assistant role chunk, then content deltas, a finish chunk, optional usage
-chunk, and `data: [DONE]`. Stable ID/time/model apply across all chunks. Sink
+with an assistant role chunk per choice, then content/tool deltas, finish chunks,
+an optional usage chunk, and `data: [DONE]`. Stable ID/time/model apply across all chunks. Sink
 return failure cancels promptly, stops evaluation, and does not emit a false
 successful finish. Cancellation likewise does not claim successful completion.
 The sink consumes all bytes passed before returning; memory is borrowed only
@@ -229,6 +250,9 @@ caller-owned model silently. Make resumability explicit if later added.
 The model cache and lifecycle dependency archive cache are different contracts.
 The library owns only requested files under its model-cache root; build cleanup
 never deletes downloaded models or either shared lifecycle cache.
+Inference snapshots use a separate bounded, encrypted opt-in subdirectory and
+are evicted independently; they must never delete model weights. Canonical
+conversation records, if configured by a future handler, are not cache entries.
 
 ## Structured model card
 
@@ -370,6 +394,10 @@ Acceptance requires:
 - Request validation, model routes, native output shape/usage, limits, UTF-8,
   stop boundaries, cancellation, sink failure, independent clients, busy/reentry
   and repeated destroy/load behavior.
+- The complete inference-backend acceptance contract: multiple candidates,
+  tool/schema/reasoning capabilities, typed events/state, real prefix reuse,
+  persistent snapshot integrity/isolation, semantic compaction and authenticated
+  opaque replay, with API-specific wire fixtures and bounded streaming memory.
 - Offline/local deterministic download tests for cache precedence, traversal,
   wrong content/HTTP errors/checksum mismatch/truncation, cancellation,
   concurrent publication, no-network hits and partial cleanup. Production
@@ -390,9 +418,11 @@ Acceptance requires:
 The review resolved the following before implementation:
 
 - “Complete” is relative to a pinned public C API inventory, includes multimodal
-  and public transitive GGML APIs, and excludes C++ server/common utilities.
-- Chat compatibility is bounded explicitly; Responses and stored-completion
-  persistence are not silently promised by a text completion implementation.
+  and public transitive GGML APIs, and excludes C++ server/common utilities from
+  that public inventory while allowing selected private helper dependencies.
+- A common typed inference backend supports API adapters, caching, state and
+  compaction. Responses wire integration and stored-record handlers remain
+  explicit integration work, not implicit features of a text-only wrapper.
 - Compiler/link/runtime, dependency archive and model caches have separate
   ownership boundaries. Curl/OpenSSL never become members of `libailo.a`.
 - True streaming includes stop/UTF-8 carry, sink backpressure and cancellation;

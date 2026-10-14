@@ -22,7 +22,13 @@ CMake/pkg-config consumers are available.
 
 The required receiver includes normal-use Hugging Face acquisition, configurable
 XDG model caching and a structured JSON model card for the loaded model. The
-complete static RADV/ANV deployment and AMD/Intel/mixed multi-GPU layer splitting
+shared llama receiver, tools/schema support, typed events, prompt reuse,
+opt-in persistent snapshots and authenticated compaction contract is in
+[docs/inference-backend.md](docs/inference-backend.md). Chat Completions and
+future Responses adapters use that same backend; API-specific output follows
+the documented wire contract.
+
+The complete static RADV/ANV deployment and AMD/Intel/mixed multi-GPU layer splitting
 contract is in [docs/static-vulkan.md](docs/static-vulkan.md). These capabilities
 are specified; they are not established by the current shared-driver foundation.
 
