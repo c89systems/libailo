@@ -192,6 +192,10 @@ as a layer split. Preserve the full native facade and its documented native
 semantics. This requirement does not introduce a promise of tensor-parallel,
 distributed network or concurrent execution of layers on separate GPUs.
 
+Distributed coordinator/participant routing is a separate future backend,
+explicitly outside the first few versions, as recorded in
+[the inference backend contract](inference-backend.md#future-distributed-coordinatorparticipant-backend).
+
 Memory planning considers weights, KV cache, graph/scratch buffers, staging and
 host RAM, not just the GGUF file size or the sum of advertised VRAM. MoE active
 parameter counts do not remove inactive expert storage. Report CPU-resident

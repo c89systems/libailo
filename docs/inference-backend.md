@@ -392,6 +392,99 @@ default. Responses maps replayable compaction state into its documented items.
 Any libailo-specific diagnostics or readable summary access is clearly separate
 from those wire contracts. [Chat endpoint reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions).
 
+## Future distributed coordinator/participant backend
+
+Distributed inference is an intended future capability, explicitly outside the
+first few versions. It adds no current release gate or requirement to implement
+network participants now. Local multi-GPU layer splitting remains required under
+the existing static Vulkan contract.
+
+One libailo instance acts as coordinator behind the application's OpenAI API
+handlers. Other instances act as inference participants. The coordinator owns
+request admission, model/graph placement, route configuration, sampling and
+client-visible events. This is our distributed runtime over library backends,
+not deployment of llama-server or its HTTP frontend.
+
+The coordinator establishes the computation plan. Each downstream participant
+receives its assigned work and forwarding configuration from its authorized
+upstream peer. Configuration identifies the model/graph, assigned layers or
+stage, permitted next participant(s), and the coordinator destination/join for
+the final stage. The coordinator remains the authority for the plan even when
+its configuration is delivered through participants.
+
+Activation routing follows the assigned computation graph:
+
+```mermaid
+flowchart LR
+    API[OpenAI API handler] --> C[Coordinator]
+    C --> A[Participant A]
+    A --> B[Participant B / final stage]
+    B --> J[Coordinator join and sampling]
+    J --> T[Token delta]
+    T --> L[lonejson]
+    L --> O[Client sink]
+```
+
+Intermediate activations travel directly between configured participants;
+they need not bounce through the coordinator at every stage. The final stage
+returns its result to the coordinator, or contributes to a coordinator-owned
+join when the plan has multiple branches. Join behavior must follow the model
+graph, not an assumed generic concatenation or reduction. Assigned weights and
+KV state stay with their owning stages during execution.
+
+TCP/IP is the baseline network transport, with mTLS for authenticated, encrypted
+peer connections or an explicitly selected equivalent. Authenticate control and
+activation traffic on every hop, including participant-to-participant paths.
+Authorize peer identities for the assigned stages and destinations; a forwarded
+configuration cannot grant arbitrary routing authority. Route changes must be
+bound to a plan identity so in-flight work cannot mix old and new assignments.
+
+libailo automatically provisions the cluster certificates. The main/coordinator
+instance owns the cluster CA; every participant trusts that instance's CA
+certificate and validates other cluster peers against it. Issue a separate
+coordinator leaf certificate and an individual participant leaf certificate,
+with authenticated cluster/node identity and role. CA trust does not by itself
+authorize every node to administer the cluster or change another node's routes.
+
+Participants generate and retain their own private keys, submit certificate
+signing requests through authorized enrollment, and install the issued
+certificate/chain automatically. Automate renewal before expiry and certificate
+replacement without requiring manually issued participant certificates. Keep
+the CA signing key exclusively with the main instance; participants receive its
+public trust certificate, never the CA private key. Use the existing SDK OpenSSL
+foundation rather than adding an external certificate service prerequisite.
+
+Bootstrap must establish authentic CA trust and enrollment authority before
+accepting peer instructions: supply the CA certificate or pinned fingerprint
+and a scoped enrollment credential through a trusted provisioning channel.
+Fetching and trusting an arbitrary endpoint's advertised CA is insufficient.
+Certificate, key and enrollment state belongs in explicitly configured durable
+private storage, separate from evictable model/inference caches; cache clearing
+must not destroy the cluster identity. Never log enrollment secrets or keys.
+Define credential lifetime/reuse, revocation, CA rotation, restart/recovery and
+certificate failure behavior with the distributed protocol before implementation.
+
+Bind activation frames and joins to request, sequence, decode step/microbatch,
+stage, plan and model identity, with explicit tensor type/shape/length and finite
+message/queue limits. Propagate cancellation, backpressure and failures through
+the graph. A failed participant cannot produce a false successful token or
+leave downstream work running indefinitely. Detailed protocol, retry/recovery,
+join, certificate-lifecycle and compatibility contracts must be specified and tested
+when this capability becomes active work.
+
+The pinned GGML RPC backend is a candidate foundation for remote device/graph
+execution. The direct forwarding, authenticated routing configuration and
+coordinator joins above are additional requirements to qualify or implement;
+existing RPC availability does not establish that topology or production safety.
+The distributed profile must retain the permissive userspace, static deployment
+and strict C89 public-boundary requirements of the local runtime.
+
+Client output still uses the same incremental receiver path. Emit each safe
+generated token piece through lonejson and the sink immediately; never wait
+for a text buffer to fill or an answer to complete. Necessary bounded transport
+and UTF-8/stop-prefix carry do not authorize output batching. Network pipeline
+execution and client-visible token streaming are separate responsibilities.
+
 ## Required verification
 
 Implementation is complete only with observable proof across these boundaries:

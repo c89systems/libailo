@@ -24,6 +24,11 @@ later handler/state repository. Backend prompt caching and semantic compaction
 are required now, separately from stored completion records. Public API
 compatibility claims follow verified wire contracts, not the native inventory.
 
+Distributed coordinator/participant inference over authenticated TCP/IP is a
+future direction outside the first few versions. Its direct activation-routing
+architecture is recorded in [inference-backend.md](inference-backend.md#future-distributed-coordinatorparticipant-backend);
+it does not defer the required local multi-GPU implementation.
+
 ## Dependency and implementation boundaries
 
 1. Project-owned C is compiled with explicit `-std=c89`, strict pedantic checks,
