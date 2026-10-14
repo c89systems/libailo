@@ -1,0 +1,14 @@
+# libffi 3.8.0 retains its first static trampoline table for the process.
+# The two reachable allocations (56 + 5120 bytes on x86_64) originate only
+# through this initialization path. No lost allocation or ordinary closure
+# allocation is suppressed. See docs/facade-bindings.md.
+{
+   libffi-3.8-static-trampoline-initialization-cache
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:tramp_table_alloc
+   fun:ffi_tramp_get_libffi
+   fun:ffi_tramp_init
+   fun:ffi_tramp_is_supported
+}

@@ -99,6 +99,7 @@ struct ailo_storage_bool;
 struct ailo_storage_struct_ggml_context;
 struct ailo_storage_struct_ggml_backend_device;
 struct ailo_storage_struct_ggml_tensor;
+struct ailo_storage_const_struct_ggml_tensor;
 struct ailo_storage_struct_ggml_backend;
 struct ailo_storage_struct_ggml_backend_buffer_type;
 struct ailo_storage_struct_llama_adapter_lora;
@@ -106,6 +107,44 @@ struct ailo_storage_struct_mtmd_bitmap;
 struct ailo_storage_const_struct_mtmd_bitmap;
 struct ailo_storage_const_struct_mtmd_input_part;
 struct ailo_backend_memory_map;
+struct ailo_callback_38eb1918797a;
+struct ailo_callback_4ec5f60f8303;
+struct ailo_callback_beed089dd726;
+struct ailo_callback_70c0fa845c42;
+struct ailo_callback_d341a44b8e65;
+struct ailo_callback_34abb2fc8457;
+struct ailo_callback_3e7566bc4071;
+struct ailo_callback_7ace5c7c16b7;
+struct ailo_callback_3f82fde60665;
+struct ailo_callback_f8d1d962e687;
+struct ailo_callback_483f122aa30e;
+struct ailo_callback_a5b73e2c7b21;
+struct ailo_callback_be60c48b0a98;
+struct ailo_callback_beb76e4791bb;
+struct ailo_callback_914f5b675579;
+struct ailo_callback_06b320bd6b8e;
+struct ailo_callback_0c00e218a457;
+struct ailo_callback_5408ff2d39c6;
+struct ailo_callback_802b44cd03e0;
+struct ailo_callback_60e200ad9145;
+struct ailo_callback_542e7ac54cdb;
+struct ailo_callback_2bf828528f60;
+struct ailo_callback_1719fdba8d8f;
+struct ailo_callback_7ae58ea166a8;
+struct ailo_callback_e053664ec68a;
+struct ailo_callback_2864ca7faa21;
+struct ailo_callback_5fa34150084a;
+struct ailo_callback_06fd6db0a9de;
+struct ailo_callback_afd0a9f8fed8;
+struct ailo_callback_8ad5c8b129df;
+struct ailo_callback_074319862044;
+struct ailo_callback_22d5b5dadc59;
+struct ailo_callback_d4e25f8b4940;
+struct ailo_callback_47277094ea3e;
+struct ailo_callback_5b16e27da7ff;
+struct ailo_callback_ea33beeaba68;
+struct ailo_callback_42760a748de7;
+struct ailo_callback_8ddfa7b459eb;
 enum ailo_ggml_backend_buffer_usage {
   AILO_GGML_BACKEND_BUFFER_USAGE_ANY = 0,
   AILO_GGML_BACKEND_BUFFER_USAGE_WEIGHTS = 1,
@@ -617,30 +656,1740 @@ enum ailo_mtmd_input_chunk_type {
   AILO_MTMD_INPUT_CHUNK_TYPE_AUDIO = 2,
   AILO_MTMD_INPUT_CHUNK_TYPE_COUNT = 3
 };
+typedef ailo_bool (*ailo_callback_38eb1918797a_fn)(void *,
+                                                   void *bridge_user_data);
+typedef void (*ailo_callback_4ec5f60f8303_fn)(const char *,
+                                              void *bridge_user_data);
+typedef ailo_bool (*ailo_callback_beed089dd726_fn)(
+    void *, struct ailo_storage_struct_ggml_tensor *, void *bridge_user_data);
+typedef void (*ailo_callback_70c0fa845c42_fn)(void *, void *bridge_user_data);
+typedef void *(*ailo_callback_d341a44b8e65_fn)(
+    struct ailo_storage_struct_ggml_backend *, size_t, void *bridge_user_data);
+typedef struct ailo_storage_struct_ggml_backend_buffer_type *(
+    *ailo_callback_34abb2fc8457_fn)(struct ailo_ggml_backend_device *,
+                                    void *bridge_user_data);
+typedef ailo_bool (*ailo_callback_3e7566bc4071_fn)(int,
+                                                   struct ailo_ggml_tensor *,
+                                                   struct ailo_ggml_tensor *,
+                                                   void *,
+                                                   void *bridge_user_data);
+typedef struct ailo_ggml_backend_feature *(*ailo_callback_7ace5c7c16b7_fn)(
+    struct ailo_ggml_backend_reg *, void *bridge_user_data);
+typedef struct ailo_ggml_backend_meta_split_state *(
+    *ailo_callback_3f82fde60665_fn)(const struct ailo_ggml_tensor *, void *,
+                                    void *bridge_user_data);
+typedef ailo_bool (*ailo_callback_f8d1d962e687_fn)(struct ailo_ggml_tensor *,
+                                                   ailo_bool, void *,
+                                                   void *bridge_user_data);
+typedef void (*ailo_callback_483f122aa30e_fn)(
+    struct ailo_ggml_backend *, struct ailo_callback_38eb1918797a *, void *,
+    void *bridge_user_data);
+typedef void (*ailo_callback_a5b73e2c7b21_fn)(struct ailo_ggml_backend *, int,
+                                              void *bridge_user_data);
+typedef struct ailo_ggml_backend_buffer_type *(*ailo_callback_be60c48b0a98_fn)(
+    int, const float *, void *bridge_user_data);
+typedef void (*ailo_callback_beb76e4791bb_fn)(struct ailo_ggml_tensor *,
+                                              const struct ailo_ggml_tensor *,
+                                              int, int, void *,
+                                              void *bridge_user_data);
+typedef void (*ailo_callback_914f5b675579_fn)(struct ailo_ggml_tensor *,
+                                              const struct ailo_ggml_tensor *,
+                                              const struct ailo_ggml_tensor *,
+                                              int, int, void *,
+                                              void *bridge_user_data);
+typedef void (*ailo_callback_06b320bd6b8e_fn)(struct ailo_ggml_tensor *,
+                                              const struct ailo_ggml_tensor *,
+                                              const struct ailo_ggml_tensor *,
+                                              const struct ailo_ggml_tensor *,
+                                              int, int, void *,
+                                              void *bridge_user_data);
+typedef void (*ailo_callback_0c00e218a457_fn)(struct ailo_ggml_tensor *, int,
+                                              int, void *,
+                                              void *bridge_user_data);
+typedef void (*ailo_callback_5408ff2d39c6_fn)(const float *, void *, ailo_i64,
+                                              void *bridge_user_data);
+typedef void (*ailo_callback_802b44cd03e0_fn)(enum ailo_ggml_log_level,
+                                              const char *, void *,
+                                              void *bridge_user_data);
+typedef void (*ailo_callback_60e200ad9145_fn)(ailo_bool,
+                                              struct ailo_ggml_opt_context *,
+                                              struct ailo_ggml_opt_dataset *,
+                                              struct ailo_ggml_opt_result *,
+                                              ailo_i64, ailo_i64, ailo_i64,
+                                              void *bridge_user_data);
+typedef struct ailo_ggml_opt_optimizer_params *(*ailo_callback_542e7ac54cdb_fn)(
+    void *, void *bridge_user_data);
+typedef void (*ailo_callback_2bf828528f60_fn)(const void *, float *, ailo_i64,
+                                              void *bridge_user_data);
+typedef void (*ailo_callback_1719fdba8d8f_fn)(int, float *, size_t,
+                                              const void *, size_t,
+                                              const void *, size_t, int,
+                                              void *bridge_user_data);
+typedef size_t (*ailo_callback_7ae58ea166a8_fn)(void *, void *, ailo_u64,
+                                                size_t, void *bridge_user_data);
+typedef void (*ailo_callback_e053664ec68a_fn)(struct ailo_ggml_tensor *, void *,
+                                              void *bridge_user_data);
+typedef ailo_bool (*ailo_callback_2864ca7faa21_fn)(
+    const struct ailo_ggml_tensor *, void *, void *bridge_user_data);
+typedef ailo_bool (*ailo_callback_5fa34150084a_fn)(float, void *,
+                                                   void *bridge_user_data);
+typedef int (*ailo_callback_06fd6db0a9de_fn)(
+    size_t, void *, struct ailo_storage_struct_mtmd_bitmap *, char **,
+    void *bridge_user_data);
+typedef ailo_i32 (*ailo_callback_afd0a9f8fed8_fn)(
+    const struct ailo_mtmd_helper_embd_batch *, void *, void *bridge_user_data);
+typedef const char *(*ailo_callback_8ad5c8b129df_fn)(
+    const struct ailo_llama_sampler *, void *bridge_user_data);
+typedef void (*ailo_callback_074319862044_fn)(struct ailo_llama_sampler *,
+                                              ailo_i32, void *bridge_user_data);
+typedef void (*ailo_callback_22d5b5dadc59_fn)(
+    struct ailo_llama_sampler *, struct ailo_llama_token_data_array *,
+    void *bridge_user_data);
+typedef void (*ailo_callback_d4e25f8b4940_fn)(struct ailo_llama_sampler *,
+                                              void *bridge_user_data);
+typedef struct ailo_llama_sampler *(*ailo_callback_47277094ea3e_fn)(
+    const struct ailo_llama_sampler *, void *bridge_user_data);
+typedef ailo_bool (*ailo_callback_5b16e27da7ff_fn)(
+    struct ailo_llama_sampler *, struct ailo_ggml_backend_buffer_type *,
+    ailo_u32, void *bridge_user_data);
+typedef void (*ailo_callback_ea33beeaba68_fn)(struct ailo_llama_sampler *,
+                                              struct ailo_ggml_context *,
+                                              struct ailo_ggml_cgraph *,
+                                              struct ailo_ggml_tensor *,
+                                              void *bridge_user_data);
+typedef void (*ailo_callback_42760a748de7_fn)(struct ailo_llama_sampler *,
+                                              struct ailo_ggml_context *,
+                                              struct ailo_ggml_cgraph *,
+                                              struct ailo_llama_sampler_data *,
+                                              void *bridge_user_data);
+typedef void (*ailo_callback_8ddfa7b459eb_fn)(const struct ailo_llama_sampler *,
+                                              struct ailo_llama_sampler *,
+                                              void *bridge_user_data);
+typedef ailo_callback_38eb1918797a_fn ailo_ggml_abort_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_abort_callback_new(
+    ailo_ggml_abort_callback_fn function, void *user_data,
+    struct ailo_callback_38eb1918797a **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_abort_callback_from_address(
+    void *address, struct ailo_callback_38eb1918797a **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_ggml_abort_callback_free(struct ailo_callback_38eb1918797a *self,
+                              ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_ggml_abort_callback_call(struct ailo_callback_38eb1918797a *self,
+                              void *argument_0, ailo_bool *output,
+                              ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_abort_callback_clear_error(struct ailo_callback_38eb1918797a *self,
+                                     ailo_error *error);
+ailo_status
+ailo_ggml_abort_callback_error(struct ailo_callback_38eb1918797a *self,
+                               ailo_error *error);
+typedef struct ailo_callback_38eb1918797a
+    *ailo_ggml_cplan_abort_callback_callback;
+typedef ailo_callback_38eb1918797a_fn
+    ailo_ggml_cplan_abort_callback_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_cplan_abort_callback_callback_new(
+    ailo_ggml_cplan_abort_callback_callback_fn function, void *user_data,
+    struct ailo_callback_38eb1918797a **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_cplan_abort_callback_callback_from_address(
+    void *address, struct ailo_callback_38eb1918797a **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_cplan_abort_callback_callback_free(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_cplan_abort_callback_callback_call(
+    struct ailo_callback_38eb1918797a *self, void *argument_0,
+    ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_cplan_abort_callback_callback_clear_error(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error);
+ailo_status ailo_ggml_cplan_abort_callback_callback_error(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error);
+typedef struct ailo_callback_38eb1918797a
+    *ailo_llama_context_params_abort_callback_callback;
+typedef ailo_callback_38eb1918797a_fn
+    ailo_llama_context_params_abort_callback_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_context_params_abort_callback_callback_new(
+    ailo_llama_context_params_abort_callback_callback_fn function,
+    void *user_data, struct ailo_callback_38eb1918797a **output,
+    ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_context_params_abort_callback_callback_from_address(
+    void *address, struct ailo_callback_38eb1918797a **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_context_params_abort_callback_callback_free(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_context_params_abort_callback_callback_call(
+    struct ailo_callback_38eb1918797a *self, void *argument_0,
+    ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_context_params_abort_callback_callback_clear_error(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error);
+ailo_status ailo_llama_context_params_abort_callback_callback_error(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error);
+typedef ailo_callback_4ec5f60f8303_fn ailo_ggml_abort_callback_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_abort_callback_t_new(
+    ailo_ggml_abort_callback_t_fn function, void *user_data,
+    struct ailo_callback_4ec5f60f8303 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_abort_callback_t_from_address(
+    void *address, struct ailo_callback_4ec5f60f8303 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_ggml_abort_callback_t_free(struct ailo_callback_4ec5f60f8303 *self,
+                                ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_ggml_abort_callback_t_call(struct ailo_callback_4ec5f60f8303 *self,
+                                const char *argument_0, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_abort_callback_t_clear_error(struct ailo_callback_4ec5f60f8303 *self,
+                                       ailo_error *error);
+ailo_status
+ailo_ggml_abort_callback_t_error(struct ailo_callback_4ec5f60f8303 *self,
+                                 ailo_error *error);
+typedef ailo_callback_beed089dd726_fn
+    ailo_ggml_backend_comm_allreduce_tensor_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_comm_allreduce_tensor_t_new(
+    ailo_ggml_backend_comm_allreduce_tensor_t_fn function, void *user_data,
+    struct ailo_callback_beed089dd726 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_comm_allreduce_tensor_t_from_address(
+    void *address, struct ailo_callback_beed089dd726 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_backend_comm_allreduce_tensor_t_free(
+    struct ailo_callback_beed089dd726 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_comm_allreduce_tensor_t_call(
+    struct ailo_callback_beed089dd726 *self, void *argument_0,
+    struct ailo_storage_struct_ggml_tensor *argument_1, ailo_bool *output,
+    ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_comm_allreduce_tensor_t_clear_error(
+    struct ailo_callback_beed089dd726 *self, ailo_error *error);
+ailo_status ailo_ggml_backend_comm_allreduce_tensor_t_error(
+    struct ailo_callback_beed089dd726 *self, ailo_error *error);
+typedef ailo_callback_70c0fa845c42_fn ailo_ggml_backend_comm_free_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_comm_free_t_new(
+    ailo_ggml_backend_comm_free_t_fn function, void *user_data,
+    struct ailo_callback_70c0fa845c42 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_comm_free_t_from_address(
+    void *address, struct ailo_callback_70c0fa845c42 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_ggml_backend_comm_free_t_free(struct ailo_callback_70c0fa845c42 *self,
+                                   ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_ggml_backend_comm_free_t_call(struct ailo_callback_70c0fa845c42 *self,
+                                   void *argument_0, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_comm_free_t_clear_error(
+    struct ailo_callback_70c0fa845c42 *self, ailo_error *error);
+ailo_status
+ailo_ggml_backend_comm_free_t_error(struct ailo_callback_70c0fa845c42 *self,
+                                    ailo_error *error);
+typedef ailo_callback_d341a44b8e65_fn ailo_ggml_backend_comm_init_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_comm_init_t_new(
+    ailo_ggml_backend_comm_init_t_fn function, void *user_data,
+    struct ailo_callback_d341a44b8e65 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_comm_init_t_from_address(
+    void *address, struct ailo_callback_d341a44b8e65 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_ggml_backend_comm_init_t_free(struct ailo_callback_d341a44b8e65 *self,
+                                   ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_comm_init_t_call(
+    struct ailo_callback_d341a44b8e65 *self,
+    struct ailo_storage_struct_ggml_backend *argument_0, size_t argument_1,
+    void **output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_comm_init_t_clear_error(
+    struct ailo_callback_d341a44b8e65 *self, ailo_error *error);
+ailo_status
+ailo_ggml_backend_comm_init_t_error(struct ailo_callback_d341a44b8e65 *self,
+                                    ailo_error *error);
+typedef ailo_callback_34abb2fc8457_fn
+    ailo_ggml_backend_dev_get_extra_bufts_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_dev_get_extra_bufts_t_new(
+    ailo_ggml_backend_dev_get_extra_bufts_t_fn function, void *user_data,
+    struct ailo_callback_34abb2fc8457 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_dev_get_extra_bufts_t_from_address(
+    void *address, struct ailo_callback_34abb2fc8457 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_backend_dev_get_extra_bufts_t_free(
+    struct ailo_callback_34abb2fc8457 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_dev_get_extra_bufts_t_call(
+    struct ailo_callback_34abb2fc8457 *self,
+    struct ailo_ggml_backend_device *argument_0,
+    struct ailo_storage_struct_ggml_backend_buffer_type **output,
+    ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_dev_get_extra_bufts_t_clear_error(
+    struct ailo_callback_34abb2fc8457 *self, ailo_error *error);
+ailo_status ailo_ggml_backend_dev_get_extra_bufts_t_error(
+    struct ailo_callback_34abb2fc8457 *self, ailo_error *error);
+typedef ailo_callback_3e7566bc4071_fn ailo_ggml_backend_eval_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_eval_callback_new(
+    ailo_ggml_backend_eval_callback_fn function, void *user_data,
+    struct ailo_callback_3e7566bc4071 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_eval_callback_from_address(
+    void *address, struct ailo_callback_3e7566bc4071 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_ggml_backend_eval_callback_free(struct ailo_callback_3e7566bc4071 *self,
+                                     ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_eval_callback_call(
+    struct ailo_callback_3e7566bc4071 *self, int argument_0,
+    struct ailo_ggml_tensor *argument_1, struct ailo_ggml_tensor *argument_2,
+    void *argument_3, ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_eval_callback_clear_error(
+    struct ailo_callback_3e7566bc4071 *self, ailo_error *error);
+ailo_status
+ailo_ggml_backend_eval_callback_error(struct ailo_callback_3e7566bc4071 *self,
+                                      ailo_error *error);
+typedef ailo_callback_7ace5c7c16b7_fn ailo_ggml_backend_get_features_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_get_features_t_new(
+    ailo_ggml_backend_get_features_t_fn function, void *user_data,
+    struct ailo_callback_7ace5c7c16b7 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_get_features_t_from_address(
+    void *address, struct ailo_callback_7ace5c7c16b7 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_ggml_backend_get_features_t_free(struct ailo_callback_7ace5c7c16b7 *self,
+                                      ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_ggml_backend_get_features_t_call(struct ailo_callback_7ace5c7c16b7 *self,
+                                      struct ailo_ggml_backend_reg *argument_0,
+                                      struct ailo_ggml_backend_feature **output,
+                                      ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_get_features_t_clear_error(
+    struct ailo_callback_7ace5c7c16b7 *self, ailo_error *error);
+ailo_status
+ailo_ggml_backend_get_features_t_error(struct ailo_callback_7ace5c7c16b7 *self,
+                                       ailo_error *error);
+typedef ailo_callback_3f82fde60665_fn
+    ailo_ggml_backend_meta_get_split_state_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_meta_get_split_state_t_new(
+    ailo_ggml_backend_meta_get_split_state_t_fn function, void *user_data,
+    struct ailo_callback_3f82fde60665 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_meta_get_split_state_t_from_address(
+    void *address, struct ailo_callback_3f82fde60665 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_backend_meta_get_split_state_t_free(
+    struct ailo_callback_3f82fde60665 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_meta_get_split_state_t_call(
+    struct ailo_callback_3f82fde60665 *self,
+    const struct ailo_ggml_tensor *argument_0, void *argument_1,
+    struct ailo_ggml_backend_meta_split_state **output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_meta_get_split_state_t_clear_error(
+    struct ailo_callback_3f82fde60665 *self, ailo_error *error);
+ailo_status ailo_ggml_backend_meta_get_split_state_t_error(
+    struct ailo_callback_3f82fde60665 *self, ailo_error *error);
+typedef ailo_callback_f8d1d962e687_fn ailo_ggml_backend_sched_eval_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_sched_eval_callback_new(
+    ailo_ggml_backend_sched_eval_callback_fn function, void *user_data,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_sched_eval_callback_from_address(
+    void *address, struct ailo_callback_f8d1d962e687 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_backend_sched_eval_callback_free(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_sched_eval_callback_call(
+    struct ailo_callback_f8d1d962e687 *self,
+    struct ailo_ggml_tensor *argument_0, ailo_bool argument_1, void *argument_2,
+    ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_sched_eval_callback_clear_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+ailo_status ailo_ggml_backend_sched_eval_callback_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+typedef struct ailo_callback_f8d1d962e687
+    *ailo_llama_context_params_cb_eval_callback;
+typedef ailo_callback_f8d1d962e687_fn
+    ailo_llama_context_params_cb_eval_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_context_params_cb_eval_callback_new(
+    ailo_llama_context_params_cb_eval_callback_fn function, void *user_data,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_context_params_cb_eval_callback_from_address(
+    void *address, struct ailo_callback_f8d1d962e687 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_context_params_cb_eval_callback_free(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_context_params_cb_eval_callback_call(
+    struct ailo_callback_f8d1d962e687 *self,
+    struct ailo_ggml_tensor *argument_0, ailo_bool argument_1, void *argument_2,
+    ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_context_params_cb_eval_callback_clear_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+ailo_status ailo_llama_context_params_cb_eval_callback_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+typedef struct ailo_callback_f8d1d962e687
+    *ailo_mtmd_context_params_cb_eval_callback;
+typedef ailo_callback_f8d1d962e687_fn
+    ailo_mtmd_context_params_cb_eval_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_mtmd_context_params_cb_eval_callback_new(
+    ailo_mtmd_context_params_cb_eval_callback_fn function, void *user_data,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_mtmd_context_params_cb_eval_callback_from_address(
+    void *address, struct ailo_callback_f8d1d962e687 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_mtmd_context_params_cb_eval_callback_free(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_mtmd_context_params_cb_eval_callback_call(
+    struct ailo_callback_f8d1d962e687 *self,
+    struct ailo_ggml_tensor *argument_0, ailo_bool argument_1, void *argument_2,
+    ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_mtmd_context_params_cb_eval_callback_clear_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+ailo_status ailo_mtmd_context_params_cb_eval_callback_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+typedef ailo_callback_483f122aa30e_fn ailo_ggml_backend_set_abort_callback_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_set_abort_callback_t_new(
+    ailo_ggml_backend_set_abort_callback_t_fn function, void *user_data,
+    struct ailo_callback_483f122aa30e **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_set_abort_callback_t_from_address(
+    void *address, struct ailo_callback_483f122aa30e **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_backend_set_abort_callback_t_free(
+    struct ailo_callback_483f122aa30e *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_set_abort_callback_t_call(
+    struct ailo_callback_483f122aa30e *self,
+    struct ailo_ggml_backend *argument_0,
+    struct ailo_callback_38eb1918797a *argument_1, void *argument_2,
+    ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_set_abort_callback_t_clear_error(
+    struct ailo_callback_483f122aa30e *self, ailo_error *error);
+ailo_status ailo_ggml_backend_set_abort_callback_t_error(
+    struct ailo_callback_483f122aa30e *self, ailo_error *error);
+typedef ailo_callback_a5b73e2c7b21_fn ailo_ggml_backend_set_n_threads_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_set_n_threads_t_new(
+    ailo_ggml_backend_set_n_threads_t_fn function, void *user_data,
+    struct ailo_callback_a5b73e2c7b21 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_set_n_threads_t_from_address(
+    void *address, struct ailo_callback_a5b73e2c7b21 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_ggml_backend_set_n_threads_t_free(struct ailo_callback_a5b73e2c7b21 *self,
+                                       ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_ggml_backend_set_n_threads_t_call(struct ailo_callback_a5b73e2c7b21 *self,
+                                       struct ailo_ggml_backend *argument_0,
+                                       int argument_1, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_set_n_threads_t_clear_error(
+    struct ailo_callback_a5b73e2c7b21 *self, ailo_error *error);
+ailo_status
+ailo_ggml_backend_set_n_threads_t_error(struct ailo_callback_a5b73e2c7b21 *self,
+                                        ailo_error *error);
+typedef ailo_callback_be60c48b0a98_fn ailo_ggml_backend_split_buffer_type_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_split_buffer_type_t_new(
+    ailo_ggml_backend_split_buffer_type_t_fn function, void *user_data,
+    struct ailo_callback_be60c48b0a98 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_split_buffer_type_t_from_address(
+    void *address, struct ailo_callback_be60c48b0a98 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_backend_split_buffer_type_t_free(
+    struct ailo_callback_be60c48b0a98 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_split_buffer_type_t_call(
+    struct ailo_callback_be60c48b0a98 *self, int argument_0,
+    const float *argument_1, struct ailo_ggml_backend_buffer_type **output,
+    ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_split_buffer_type_t_clear_error(
+    struct ailo_callback_be60c48b0a98 *self, ailo_error *error);
+ailo_status ailo_ggml_backend_split_buffer_type_t_error(
+    struct ailo_callback_be60c48b0a98 *self, ailo_error *error);
+typedef ailo_callback_beb76e4791bb_fn ailo_ggml_custom1_op_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status
+ailo_ggml_custom1_op_t_new(ailo_ggml_custom1_op_t_fn function, void *user_data,
+                           struct ailo_callback_beb76e4791bb **output,
+                           ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status
+ailo_ggml_custom1_op_t_from_address(void *address,
+                                    struct ailo_callback_beb76e4791bb **output,
+                                    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_custom1_op_t_free(struct ailo_callback_beb76e4791bb *self,
+                                        ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_ggml_custom1_op_t_call(struct ailo_callback_beb76e4791bb *self,
+                            struct ailo_ggml_tensor *argument_0,
+                            const struct ailo_ggml_tensor *argument_1,
+                            int argument_2, int argument_3, void *argument_4,
+                            ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_custom1_op_t_clear_error(struct ailo_callback_beb76e4791bb *self,
+                                   ailo_error *error);
+ailo_status
+ailo_ggml_custom1_op_t_error(struct ailo_callback_beb76e4791bb *self,
+                             ailo_error *error);
+typedef ailo_callback_914f5b675579_fn ailo_ggml_custom2_op_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status
+ailo_ggml_custom2_op_t_new(ailo_ggml_custom2_op_t_fn function, void *user_data,
+                           struct ailo_callback_914f5b675579 **output,
+                           ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status
+ailo_ggml_custom2_op_t_from_address(void *address,
+                                    struct ailo_callback_914f5b675579 **output,
+                                    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_custom2_op_t_free(struct ailo_callback_914f5b675579 *self,
+                                        ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_ggml_custom2_op_t_call(struct ailo_callback_914f5b675579 *self,
+                            struct ailo_ggml_tensor *argument_0,
+                            const struct ailo_ggml_tensor *argument_1,
+                            const struct ailo_ggml_tensor *argument_2,
+                            int argument_3, int argument_4, void *argument_5,
+                            ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_custom2_op_t_clear_error(struct ailo_callback_914f5b675579 *self,
+                                   ailo_error *error);
+ailo_status
+ailo_ggml_custom2_op_t_error(struct ailo_callback_914f5b675579 *self,
+                             ailo_error *error);
+typedef ailo_callback_06b320bd6b8e_fn ailo_ggml_custom3_op_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status
+ailo_ggml_custom3_op_t_new(ailo_ggml_custom3_op_t_fn function, void *user_data,
+                           struct ailo_callback_06b320bd6b8e **output,
+                           ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status
+ailo_ggml_custom3_op_t_from_address(void *address,
+                                    struct ailo_callback_06b320bd6b8e **output,
+                                    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_custom3_op_t_free(struct ailo_callback_06b320bd6b8e *self,
+                                        ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_ggml_custom3_op_t_call(struct ailo_callback_06b320bd6b8e *self,
+                            struct ailo_ggml_tensor *argument_0,
+                            const struct ailo_ggml_tensor *argument_1,
+                            const struct ailo_ggml_tensor *argument_2,
+                            const struct ailo_ggml_tensor *argument_3,
+                            int argument_4, int argument_5, void *argument_6,
+                            ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_custom3_op_t_clear_error(struct ailo_callback_06b320bd6b8e *self,
+                                   ailo_error *error);
+ailo_status
+ailo_ggml_custom3_op_t_error(struct ailo_callback_06b320bd6b8e *self,
+                             ailo_error *error);
+typedef ailo_callback_0c00e218a457_fn ailo_ggml_custom_op_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status
+ailo_ggml_custom_op_t_new(ailo_ggml_custom_op_t_fn function, void *user_data,
+                          struct ailo_callback_0c00e218a457 **output,
+                          ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status
+ailo_ggml_custom_op_t_from_address(void *address,
+                                   struct ailo_callback_0c00e218a457 **output,
+                                   ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_custom_op_t_free(struct ailo_callback_0c00e218a457 *self,
+                                       ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_custom_op_t_call(struct ailo_callback_0c00e218a457 *self,
+                                       struct ailo_ggml_tensor *argument_0,
+                                       int argument_1, int argument_2,
+                                       void *argument_3, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_custom_op_t_clear_error(struct ailo_callback_0c00e218a457 *self,
+                                  ailo_error *error);
+ailo_status ailo_ggml_custom_op_t_error(struct ailo_callback_0c00e218a457 *self,
+                                        ailo_error *error);
+typedef ailo_callback_5408ff2d39c6_fn ailo_ggml_from_float_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status
+ailo_ggml_from_float_t_new(ailo_ggml_from_float_t_fn function, void *user_data,
+                           struct ailo_callback_5408ff2d39c6 **output,
+                           ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status
+ailo_ggml_from_float_t_from_address(void *address,
+                                    struct ailo_callback_5408ff2d39c6 **output,
+                                    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_from_float_t_free(struct ailo_callback_5408ff2d39c6 *self,
+                                        ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_from_float_t_call(struct ailo_callback_5408ff2d39c6 *self,
+                                        const float *argument_0,
+                                        void *argument_1, ailo_i64 argument_2,
+                                        ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_from_float_t_clear_error(struct ailo_callback_5408ff2d39c6 *self,
+                                   ailo_error *error);
+ailo_status
+ailo_ggml_from_float_t_error(struct ailo_callback_5408ff2d39c6 *self,
+                             ailo_error *error);
+typedef struct ailo_callback_5408ff2d39c6
+    *ailo_ggml_type_traits_cpu_from_float_callback;
+typedef ailo_callback_5408ff2d39c6_fn
+    ailo_ggml_type_traits_cpu_from_float_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_type_traits_cpu_from_float_callback_new(
+    ailo_ggml_type_traits_cpu_from_float_callback_fn function, void *user_data,
+    struct ailo_callback_5408ff2d39c6 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_type_traits_cpu_from_float_callback_from_address(
+    void *address, struct ailo_callback_5408ff2d39c6 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_type_traits_cpu_from_float_callback_free(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_type_traits_cpu_from_float_callback_call(
+    struct ailo_callback_5408ff2d39c6 *self, const float *argument_0,
+    void *argument_1, ailo_i64 argument_2, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_type_traits_cpu_from_float_callback_clear_error(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error);
+ailo_status ailo_ggml_type_traits_cpu_from_float_callback_error(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error);
+typedef struct ailo_callback_5408ff2d39c6
+    *ailo_ggml_type_traits_from_float_ref_callback;
+typedef ailo_callback_5408ff2d39c6_fn
+    ailo_ggml_type_traits_from_float_ref_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_type_traits_from_float_ref_callback_new(
+    ailo_ggml_type_traits_from_float_ref_callback_fn function, void *user_data,
+    struct ailo_callback_5408ff2d39c6 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_type_traits_from_float_ref_callback_from_address(
+    void *address, struct ailo_callback_5408ff2d39c6 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_type_traits_from_float_ref_callback_free(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_type_traits_from_float_ref_callback_call(
+    struct ailo_callback_5408ff2d39c6 *self, const float *argument_0,
+    void *argument_1, ailo_i64 argument_2, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_type_traits_from_float_ref_callback_clear_error(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error);
+ailo_status ailo_ggml_type_traits_from_float_ref_callback_error(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error);
+typedef ailo_callback_802b44cd03e0_fn ailo_ggml_log_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status
+ailo_ggml_log_callback_new(ailo_ggml_log_callback_fn function, void *user_data,
+                           struct ailo_callback_802b44cd03e0 **output,
+                           ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status
+ailo_ggml_log_callback_from_address(void *address,
+                                    struct ailo_callback_802b44cd03e0 **output,
+                                    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_log_callback_free(struct ailo_callback_802b44cd03e0 *self,
+                                        ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_log_callback_call(struct ailo_callback_802b44cd03e0 *self,
+                                        enum ailo_ggml_log_level argument_0,
+                                        const char *argument_1,
+                                        void *argument_2, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_log_callback_clear_error(struct ailo_callback_802b44cd03e0 *self,
+                                   ailo_error *error);
+ailo_status
+ailo_ggml_log_callback_error(struct ailo_callback_802b44cd03e0 *self,
+                             ailo_error *error);
+typedef ailo_callback_60e200ad9145_fn ailo_ggml_opt_epoch_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_opt_epoch_callback_new(
+    ailo_ggml_opt_epoch_callback_fn function, void *user_data,
+    struct ailo_callback_60e200ad9145 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_opt_epoch_callback_from_address(
+    void *address, struct ailo_callback_60e200ad9145 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_ggml_opt_epoch_callback_free(struct ailo_callback_60e200ad9145 *self,
+                                  ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_opt_epoch_callback_call(
+    struct ailo_callback_60e200ad9145 *self, ailo_bool argument_0,
+    struct ailo_ggml_opt_context *argument_1,
+    struct ailo_ggml_opt_dataset *argument_2,
+    struct ailo_ggml_opt_result *argument_3, ailo_i64 argument_4,
+    ailo_i64 argument_5, ailo_i64 argument_6, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_opt_epoch_callback_clear_error(
+    struct ailo_callback_60e200ad9145 *self, ailo_error *error);
+ailo_status
+ailo_ggml_opt_epoch_callback_error(struct ailo_callback_60e200ad9145 *self,
+                                   ailo_error *error);
+typedef ailo_callback_542e7ac54cdb_fn ailo_ggml_opt_get_optimizer_params_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_opt_get_optimizer_params_new(
+    ailo_ggml_opt_get_optimizer_params_fn function, void *user_data,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_opt_get_optimizer_params_from_address(
+    void *address, struct ailo_callback_542e7ac54cdb **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_ggml_opt_get_optimizer_params_free(struct ailo_callback_542e7ac54cdb *self,
+                                        ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_opt_get_optimizer_params_call(
+    struct ailo_callback_542e7ac54cdb *self, void *argument_0,
+    struct ailo_ggml_opt_optimizer_params **output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_opt_get_optimizer_params_clear_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error);
+ailo_status ailo_ggml_opt_get_optimizer_params_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error);
+typedef struct ailo_callback_542e7ac54cdb
+    *ailo_ggml_opt_params_get_opt_pars_callback;
+typedef ailo_callback_542e7ac54cdb_fn
+    ailo_ggml_opt_params_get_opt_pars_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_opt_params_get_opt_pars_callback_new(
+    ailo_ggml_opt_params_get_opt_pars_callback_fn function, void *user_data,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_opt_params_get_opt_pars_callback_from_address(
+    void *address, struct ailo_callback_542e7ac54cdb **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_opt_params_get_opt_pars_callback_free(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_opt_params_get_opt_pars_callback_call(
+    struct ailo_callback_542e7ac54cdb *self, void *argument_0,
+    struct ailo_ggml_opt_optimizer_params **output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_opt_params_get_opt_pars_callback_clear_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error);
+ailo_status ailo_ggml_opt_params_get_opt_pars_callback_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error);
+typedef struct ailo_callback_542e7ac54cdb
+    *ailo_llama_opt_params_get_opt_pars_callback;
+typedef ailo_callback_542e7ac54cdb_fn
+    ailo_llama_opt_params_get_opt_pars_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_opt_params_get_opt_pars_callback_new(
+    ailo_llama_opt_params_get_opt_pars_callback_fn function, void *user_data,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_opt_params_get_opt_pars_callback_from_address(
+    void *address, struct ailo_callback_542e7ac54cdb **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_opt_params_get_opt_pars_callback_free(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_opt_params_get_opt_pars_callback_call(
+    struct ailo_callback_542e7ac54cdb *self, void *argument_0,
+    struct ailo_ggml_opt_optimizer_params **output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_opt_params_get_opt_pars_callback_clear_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error);
+ailo_status ailo_llama_opt_params_get_opt_pars_callback_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error);
+typedef ailo_callback_2bf828528f60_fn ailo_ggml_to_float_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_to_float_t_new(ailo_ggml_to_float_t_fn function,
+                                     void *user_data,
+                                     struct ailo_callback_2bf828528f60 **output,
+                                     ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status
+ailo_ggml_to_float_t_from_address(void *address,
+                                  struct ailo_callback_2bf828528f60 **output,
+                                  ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_to_float_t_free(struct ailo_callback_2bf828528f60 *self,
+                                      ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_to_float_t_call(struct ailo_callback_2bf828528f60 *self,
+                                      const void *argument_0, float *argument_1,
+                                      ailo_i64 argument_2, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_to_float_t_clear_error(struct ailo_callback_2bf828528f60 *self,
+                                 ailo_error *error);
+ailo_status ailo_ggml_to_float_t_error(struct ailo_callback_2bf828528f60 *self,
+                                       ailo_error *error);
+typedef struct ailo_callback_2bf828528f60
+    *ailo_ggml_type_traits_to_float_callback;
+typedef ailo_callback_2bf828528f60_fn
+    ailo_ggml_type_traits_to_float_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_type_traits_to_float_callback_new(
+    ailo_ggml_type_traits_to_float_callback_fn function, void *user_data,
+    struct ailo_callback_2bf828528f60 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_type_traits_to_float_callback_from_address(
+    void *address, struct ailo_callback_2bf828528f60 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_type_traits_to_float_callback_free(
+    struct ailo_callback_2bf828528f60 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_type_traits_to_float_callback_call(
+    struct ailo_callback_2bf828528f60 *self, const void *argument_0,
+    float *argument_1, ailo_i64 argument_2, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_type_traits_to_float_callback_clear_error(
+    struct ailo_callback_2bf828528f60 *self, ailo_error *error);
+ailo_status ailo_ggml_type_traits_to_float_callback_error(
+    struct ailo_callback_2bf828528f60 *self, ailo_error *error);
+typedef struct ailo_callback_1719fdba8d8f
+    *ailo_ggml_type_traits_cpu_vec_dot_callback;
+typedef ailo_callback_1719fdba8d8f_fn
+    ailo_ggml_type_traits_cpu_vec_dot_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_type_traits_cpu_vec_dot_callback_new(
+    ailo_ggml_type_traits_cpu_vec_dot_callback_fn function, void *user_data,
+    struct ailo_callback_1719fdba8d8f **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_type_traits_cpu_vec_dot_callback_from_address(
+    void *address, struct ailo_callback_1719fdba8d8f **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_type_traits_cpu_vec_dot_callback_free(
+    struct ailo_callback_1719fdba8d8f *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_type_traits_cpu_vec_dot_callback_call(
+    struct ailo_callback_1719fdba8d8f *self, int argument_0, float *argument_1,
+    size_t argument_2, const void *argument_3, size_t argument_4,
+    const void *argument_5, size_t argument_6, int argument_7,
+    ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_type_traits_cpu_vec_dot_callback_clear_error(
+    struct ailo_callback_1719fdba8d8f *self, ailo_error *error);
+ailo_status ailo_ggml_type_traits_cpu_vec_dot_callback_error(
+    struct ailo_callback_1719fdba8d8f *self, ailo_error *error);
+typedef ailo_callback_1719fdba8d8f_fn ailo_ggml_vec_dot_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_vec_dot_t_new(ailo_ggml_vec_dot_t_fn function,
+                                    void *user_data,
+                                    struct ailo_callback_1719fdba8d8f **output,
+                                    ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status
+ailo_ggml_vec_dot_t_from_address(void *address,
+                                 struct ailo_callback_1719fdba8d8f **output,
+                                 ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_vec_dot_t_free(struct ailo_callback_1719fdba8d8f *self,
+                                     ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_vec_dot_t_call(struct ailo_callback_1719fdba8d8f *self,
+                                     int argument_0, float *argument_1,
+                                     size_t argument_2, const void *argument_3,
+                                     size_t argument_4, const void *argument_5,
+                                     size_t argument_6, int argument_7,
+                                     ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_ggml_vec_dot_t_clear_error(struct ailo_callback_1719fdba8d8f *self,
+                                ailo_error *error);
+ailo_status ailo_ggml_vec_dot_t_error(struct ailo_callback_1719fdba8d8f *self,
+                                      ailo_error *error);
+typedef ailo_callback_7ae58ea166a8_fn ailo_gguf_reader_callback_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_gguf_reader_callback_t_new(
+    ailo_gguf_reader_callback_t_fn function, void *user_data,
+    struct ailo_callback_7ae58ea166a8 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_gguf_reader_callback_t_from_address(
+    void *address, struct ailo_callback_7ae58ea166a8 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_gguf_reader_callback_t_free(struct ailo_callback_7ae58ea166a8 *self,
+                                 ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_gguf_reader_callback_t_call(
+    struct ailo_callback_7ae58ea166a8 *self, void *argument_0, void *argument_1,
+    ailo_u64 argument_2, size_t argument_3, size_t *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_gguf_reader_callback_t_clear_error(struct ailo_callback_7ae58ea166a8 *self,
+                                        ailo_error *error);
+ailo_status
+ailo_gguf_reader_callback_t_error(struct ailo_callback_7ae58ea166a8 *self,
+                                  ailo_error *error);
+typedef ailo_callback_e053664ec68a_fn ailo_llama_model_set_tensor_data_t_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_model_set_tensor_data_t_new(
+    ailo_llama_model_set_tensor_data_t_fn function, void *user_data,
+    struct ailo_callback_e053664ec68a **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_model_set_tensor_data_t_from_address(
+    void *address, struct ailo_callback_e053664ec68a **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_llama_model_set_tensor_data_t_free(struct ailo_callback_e053664ec68a *self,
+                                        ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_llama_model_set_tensor_data_t_call(struct ailo_callback_e053664ec68a *self,
+                                        struct ailo_ggml_tensor *argument_0,
+                                        void *argument_1, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_model_set_tensor_data_t_clear_error(
+    struct ailo_callback_e053664ec68a *self, ailo_error *error);
+ailo_status ailo_llama_model_set_tensor_data_t_error(
+    struct ailo_callback_e053664ec68a *self, ailo_error *error);
+typedef ailo_callback_2864ca7faa21_fn ailo_llama_opt_param_filter_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_opt_param_filter_new(
+    ailo_llama_opt_param_filter_fn function, void *user_data,
+    struct ailo_callback_2864ca7faa21 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_opt_param_filter_from_address(
+    void *address, struct ailo_callback_2864ca7faa21 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_llama_opt_param_filter_free(struct ailo_callback_2864ca7faa21 *self,
+                                 ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_llama_opt_param_filter_call(struct ailo_callback_2864ca7faa21 *self,
+                                 const struct ailo_ggml_tensor *argument_0,
+                                 void *argument_1, ailo_bool *output,
+                                 ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_llama_opt_param_filter_clear_error(struct ailo_callback_2864ca7faa21 *self,
+                                        ailo_error *error);
+ailo_status
+ailo_llama_opt_param_filter_error(struct ailo_callback_2864ca7faa21 *self,
+                                  ailo_error *error);
+typedef struct ailo_callback_2864ca7faa21
+    *ailo_llama_opt_params_param_filter_callback;
+typedef ailo_callback_2864ca7faa21_fn
+    ailo_llama_opt_params_param_filter_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_opt_params_param_filter_callback_new(
+    ailo_llama_opt_params_param_filter_callback_fn function, void *user_data,
+    struct ailo_callback_2864ca7faa21 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_opt_params_param_filter_callback_from_address(
+    void *address, struct ailo_callback_2864ca7faa21 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_opt_params_param_filter_callback_free(
+    struct ailo_callback_2864ca7faa21 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_opt_params_param_filter_callback_call(
+    struct ailo_callback_2864ca7faa21 *self,
+    const struct ailo_ggml_tensor *argument_0, void *argument_1,
+    ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_opt_params_param_filter_callback_clear_error(
+    struct ailo_callback_2864ca7faa21 *self, ailo_error *error);
+ailo_status ailo_llama_opt_params_param_filter_callback_error(
+    struct ailo_callback_2864ca7faa21 *self, ailo_error *error);
+typedef struct ailo_callback_5fa34150084a
+    *ailo_llama_model_params_progress_callback_callback;
+typedef ailo_callback_5fa34150084a_fn
+    ailo_llama_model_params_progress_callback_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_model_params_progress_callback_callback_new(
+    ailo_llama_model_params_progress_callback_callback_fn function,
+    void *user_data, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_model_params_progress_callback_callback_from_address(
+    void *address, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_model_params_progress_callback_callback_free(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_model_params_progress_callback_callback_call(
+    struct ailo_callback_5fa34150084a *self, float argument_0, void *argument_1,
+    ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_model_params_progress_callback_callback_clear_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error);
+ailo_status ailo_llama_model_params_progress_callback_callback_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error);
+typedef ailo_callback_5fa34150084a_fn ailo_llama_progress_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_progress_callback_new(
+    ailo_llama_progress_callback_fn function, void *user_data,
+    struct ailo_callback_5fa34150084a **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_progress_callback_from_address(
+    void *address, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_llama_progress_callback_free(struct ailo_callback_5fa34150084a *self,
+                                  ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_llama_progress_callback_call(struct ailo_callback_5fa34150084a *self,
+                                  float argument_0, void *argument_1,
+                                  ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_progress_callback_clear_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error);
+ailo_status
+ailo_llama_progress_callback_error(struct ailo_callback_5fa34150084a *self,
+                                   ailo_error *error);
+typedef struct ailo_callback_5fa34150084a
+    *ailo_mtmd_context_params_progress_callback_callback;
+typedef ailo_callback_5fa34150084a_fn
+    ailo_mtmd_context_params_progress_callback_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_mtmd_context_params_progress_callback_callback_new(
+    ailo_mtmd_context_params_progress_callback_callback_fn function,
+    void *user_data, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_mtmd_context_params_progress_callback_callback_from_address(
+    void *address, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_mtmd_context_params_progress_callback_callback_free(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_mtmd_context_params_progress_callback_callback_call(
+    struct ailo_callback_5fa34150084a *self, float argument_0, void *argument_1,
+    ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_mtmd_context_params_progress_callback_callback_clear_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error);
+ailo_status ailo_mtmd_context_params_progress_callback_callback_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error);
+typedef ailo_callback_5fa34150084a_fn ailo_mtmd_progress_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_mtmd_progress_callback_new(
+    ailo_mtmd_progress_callback_fn function, void *user_data,
+    struct ailo_callback_5fa34150084a **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_mtmd_progress_callback_from_address(
+    void *address, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_mtmd_progress_callback_free(struct ailo_callback_5fa34150084a *self,
+                                 ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_mtmd_progress_callback_call(struct ailo_callback_5fa34150084a *self,
+                                 float argument_0, void *argument_1,
+                                 ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status
+ailo_mtmd_progress_callback_clear_error(struct ailo_callback_5fa34150084a *self,
+                                        ailo_error *error);
+ailo_status
+ailo_mtmd_progress_callback_error(struct ailo_callback_5fa34150084a *self,
+                                  ailo_error *error);
+typedef ailo_callback_06fd6db0a9de_fn ailo_mtmd_bitmap_lazy_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_mtmd_bitmap_lazy_callback_new(
+    ailo_mtmd_bitmap_lazy_callback_fn function, void *user_data,
+    struct ailo_callback_06fd6db0a9de **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_mtmd_bitmap_lazy_callback_from_address(
+    void *address, struct ailo_callback_06fd6db0a9de **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_mtmd_bitmap_lazy_callback_free(struct ailo_callback_06fd6db0a9de *self,
+                                    ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_mtmd_bitmap_lazy_callback_call(
+    struct ailo_callback_06fd6db0a9de *self, size_t argument_0,
+    void *argument_1, struct ailo_storage_struct_mtmd_bitmap *argument_2,
+    char **argument_3, int *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_mtmd_bitmap_lazy_callback_clear_error(
+    struct ailo_callback_06fd6db0a9de *self, ailo_error *error);
+ailo_status
+ailo_mtmd_bitmap_lazy_callback_error(struct ailo_callback_06fd6db0a9de *self,
+                                     ailo_error *error);
+typedef ailo_callback_afd0a9f8fed8_fn ailo_mtmd_helper_post_decode_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_mtmd_helper_post_decode_callback_new(
+    ailo_mtmd_helper_post_decode_callback_fn function, void *user_data,
+    struct ailo_callback_afd0a9f8fed8 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_mtmd_helper_post_decode_callback_from_address(
+    void *address, struct ailo_callback_afd0a9f8fed8 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_mtmd_helper_post_decode_callback_free(
+    struct ailo_callback_afd0a9f8fed8 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_mtmd_helper_post_decode_callback_call(
+    struct ailo_callback_afd0a9f8fed8 *self,
+    const struct ailo_mtmd_helper_embd_batch *argument_0, void *argument_1,
+    ailo_i32 *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_mtmd_helper_post_decode_callback_clear_error(
+    struct ailo_callback_afd0a9f8fed8 *self, ailo_error *error);
+ailo_status ailo_mtmd_helper_post_decode_callback_error(
+    struct ailo_callback_afd0a9f8fed8 *self, ailo_error *error);
+typedef struct ailo_callback_8ad5c8b129df *ailo_llama_sampler_i_name_callback;
+typedef ailo_callback_8ad5c8b129df_fn ailo_llama_sampler_i_name_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_name_callback_new(
+    ailo_llama_sampler_i_name_callback_fn function, void *user_data,
+    struct ailo_callback_8ad5c8b129df **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_name_callback_from_address(
+    void *address, struct ailo_callback_8ad5c8b129df **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_llama_sampler_i_name_callback_free(struct ailo_callback_8ad5c8b129df *self,
+                                        ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_name_callback_call(
+    struct ailo_callback_8ad5c8b129df *self,
+    const struct ailo_llama_sampler *argument_0, const char **output,
+    ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_name_callback_clear_error(
+    struct ailo_callback_8ad5c8b129df *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_name_callback_error(
+    struct ailo_callback_8ad5c8b129df *self, ailo_error *error);
+typedef struct ailo_callback_074319862044 *ailo_llama_sampler_i_accept_callback;
+typedef ailo_callback_074319862044_fn ailo_llama_sampler_i_accept_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_accept_callback_new(
+    ailo_llama_sampler_i_accept_callback_fn function, void *user_data,
+    struct ailo_callback_074319862044 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_accept_callback_from_address(
+    void *address, struct ailo_callback_074319862044 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_accept_callback_free(
+    struct ailo_callback_074319862044 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_accept_callback_call(
+    struct ailo_callback_074319862044 *self,
+    struct ailo_llama_sampler *argument_0, ailo_i32 argument_1,
+    ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_accept_callback_clear_error(
+    struct ailo_callback_074319862044 *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_accept_callback_error(
+    struct ailo_callback_074319862044 *self, ailo_error *error);
+typedef struct ailo_callback_22d5b5dadc59 *ailo_llama_sampler_i_apply_callback;
+typedef ailo_callback_22d5b5dadc59_fn ailo_llama_sampler_i_apply_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_apply_callback_new(
+    ailo_llama_sampler_i_apply_callback_fn function, void *user_data,
+    struct ailo_callback_22d5b5dadc59 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_apply_callback_from_address(
+    void *address, struct ailo_callback_22d5b5dadc59 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_apply_callback_free(
+    struct ailo_callback_22d5b5dadc59 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_apply_callback_call(
+    struct ailo_callback_22d5b5dadc59 *self,
+    struct ailo_llama_sampler *argument_0,
+    struct ailo_llama_token_data_array *argument_1, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_apply_callback_clear_error(
+    struct ailo_callback_22d5b5dadc59 *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_apply_callback_error(
+    struct ailo_callback_22d5b5dadc59 *self, ailo_error *error);
+typedef struct ailo_callback_d4e25f8b4940
+    *ailo_llama_sampler_i_backend_reset_callback;
+typedef ailo_callback_d4e25f8b4940_fn
+    ailo_llama_sampler_i_backend_reset_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_backend_reset_callback_new(
+    ailo_llama_sampler_i_backend_reset_callback_fn function, void *user_data,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_backend_reset_callback_from_address(
+    void *address, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_backend_reset_callback_free(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_backend_reset_callback_call(
+    struct ailo_callback_d4e25f8b4940 *self,
+    struct ailo_llama_sampler *argument_0, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_backend_reset_callback_clear_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_backend_reset_callback_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+typedef struct ailo_callback_d4e25f8b4940
+    *ailo_llama_sampler_i_backend_set_input_callback;
+typedef ailo_callback_d4e25f8b4940_fn
+    ailo_llama_sampler_i_backend_set_input_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_backend_set_input_callback_new(
+    ailo_llama_sampler_i_backend_set_input_callback_fn function,
+    void *user_data, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_backend_set_input_callback_from_address(
+    void *address, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_backend_set_input_callback_free(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_backend_set_input_callback_call(
+    struct ailo_callback_d4e25f8b4940 *self,
+    struct ailo_llama_sampler *argument_0, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_backend_set_input_callback_clear_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_backend_set_input_callback_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+typedef struct ailo_callback_d4e25f8b4940 *ailo_llama_sampler_i_free_callback;
+typedef ailo_callback_d4e25f8b4940_fn ailo_llama_sampler_i_free_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_free_callback_new(
+    ailo_llama_sampler_i_free_callback_fn function, void *user_data,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_free_callback_from_address(
+    void *address, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status
+ailo_llama_sampler_i_free_callback_free(struct ailo_callback_d4e25f8b4940 *self,
+                                        ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status
+ailo_llama_sampler_i_free_callback_call(struct ailo_callback_d4e25f8b4940 *self,
+                                        struct ailo_llama_sampler *argument_0,
+                                        ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_free_callback_clear_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_free_callback_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+typedef struct ailo_callback_d4e25f8b4940 *ailo_llama_sampler_i_reset_callback;
+typedef ailo_callback_d4e25f8b4940_fn ailo_llama_sampler_i_reset_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_reset_callback_new(
+    ailo_llama_sampler_i_reset_callback_fn function, void *user_data,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_reset_callback_from_address(
+    void *address, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_reset_callback_free(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_reset_callback_call(
+    struct ailo_callback_d4e25f8b4940 *self,
+    struct ailo_llama_sampler *argument_0, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_reset_callback_clear_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_reset_callback_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error);
+typedef struct ailo_callback_47277094ea3e *ailo_llama_sampler_i_clone_callback;
+typedef ailo_callback_47277094ea3e_fn ailo_llama_sampler_i_clone_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_clone_callback_new(
+    ailo_llama_sampler_i_clone_callback_fn function, void *user_data,
+    struct ailo_callback_47277094ea3e **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_clone_callback_from_address(
+    void *address, struct ailo_callback_47277094ea3e **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_clone_callback_free(
+    struct ailo_callback_47277094ea3e *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_clone_callback_call(
+    struct ailo_callback_47277094ea3e *self,
+    const struct ailo_llama_sampler *argument_0,
+    struct ailo_llama_sampler **output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_clone_callback_clear_error(
+    struct ailo_callback_47277094ea3e *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_clone_callback_error(
+    struct ailo_callback_47277094ea3e *self, ailo_error *error);
+typedef struct ailo_callback_5b16e27da7ff
+    *ailo_llama_sampler_i_backend_init_callback;
+typedef ailo_callback_5b16e27da7ff_fn
+    ailo_llama_sampler_i_backend_init_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_backend_init_callback_new(
+    ailo_llama_sampler_i_backend_init_callback_fn function, void *user_data,
+    struct ailo_callback_5b16e27da7ff **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_backend_init_callback_from_address(
+    void *address, struct ailo_callback_5b16e27da7ff **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_backend_init_callback_free(
+    struct ailo_callback_5b16e27da7ff *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_backend_init_callback_call(
+    struct ailo_callback_5b16e27da7ff *self,
+    struct ailo_llama_sampler *argument_0,
+    struct ailo_ggml_backend_buffer_type *argument_1, ailo_u32 argument_2,
+    ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_backend_init_callback_clear_error(
+    struct ailo_callback_5b16e27da7ff *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_backend_init_callback_error(
+    struct ailo_callback_5b16e27da7ff *self, ailo_error *error);
+typedef struct ailo_callback_ea33beeaba68
+    *ailo_llama_sampler_i_backend_accept_callback;
+typedef ailo_callback_ea33beeaba68_fn
+    ailo_llama_sampler_i_backend_accept_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_backend_accept_callback_new(
+    ailo_llama_sampler_i_backend_accept_callback_fn function, void *user_data,
+    struct ailo_callback_ea33beeaba68 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_backend_accept_callback_from_address(
+    void *address, struct ailo_callback_ea33beeaba68 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_backend_accept_callback_free(
+    struct ailo_callback_ea33beeaba68 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_backend_accept_callback_call(
+    struct ailo_callback_ea33beeaba68 *self,
+    struct ailo_llama_sampler *argument_0, struct ailo_ggml_context *argument_1,
+    struct ailo_ggml_cgraph *argument_2, struct ailo_ggml_tensor *argument_3,
+    ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_backend_accept_callback_clear_error(
+    struct ailo_callback_ea33beeaba68 *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_backend_accept_callback_error(
+    struct ailo_callback_ea33beeaba68 *self, ailo_error *error);
+typedef struct ailo_callback_42760a748de7
+    *ailo_llama_sampler_i_backend_apply_callback;
+typedef ailo_callback_42760a748de7_fn
+    ailo_llama_sampler_i_backend_apply_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_backend_apply_callback_new(
+    ailo_llama_sampler_i_backend_apply_callback_fn function, void *user_data,
+    struct ailo_callback_42760a748de7 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_backend_apply_callback_from_address(
+    void *address, struct ailo_callback_42760a748de7 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_backend_apply_callback_free(
+    struct ailo_callback_42760a748de7 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_backend_apply_callback_call(
+    struct ailo_callback_42760a748de7 *self,
+    struct ailo_llama_sampler *argument_0, struct ailo_ggml_context *argument_1,
+    struct ailo_ggml_cgraph *argument_2,
+    struct ailo_llama_sampler_data *argument_3, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_backend_apply_callback_clear_error(
+    struct ailo_callback_42760a748de7 *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_backend_apply_callback_error(
+    struct ailo_callback_42760a748de7 *self, ailo_error *error);
+typedef struct ailo_callback_8ddfa7b459eb
+    *ailo_llama_sampler_i_copy_state_callback;
+typedef ailo_callback_8ddfa7b459eb_fn
+    ailo_llama_sampler_i_copy_state_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_llama_sampler_i_copy_state_callback_new(
+    ailo_llama_sampler_i_copy_state_callback_fn function, void *user_data,
+    struct ailo_callback_8ddfa7b459eb **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_llama_sampler_i_copy_state_callback_from_address(
+    void *address, struct ailo_callback_8ddfa7b459eb **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_llama_sampler_i_copy_state_callback_free(
+    struct ailo_callback_8ddfa7b459eb *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_llama_sampler_i_copy_state_callback_call(
+    struct ailo_callback_8ddfa7b459eb *self,
+    const struct ailo_llama_sampler *argument_0,
+    struct ailo_llama_sampler *argument_1, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_llama_sampler_i_copy_state_callback_clear_error(
+    struct ailo_callback_8ddfa7b459eb *self, ailo_error *error);
+ailo_status ailo_llama_sampler_i_copy_state_callback_error(
+    struct ailo_callback_8ddfa7b459eb *self, ailo_error *error);
+typedef struct ailo_callback_38eb1918797a *ailo_ggml_abort_callback;
+typedef struct ailo_callback_4ec5f60f8303 *ailo_ggml_abort_callback_t;
 typedef struct ailo_ggml_backend_buffer *ailo_ggml_backend_buffer_t;
 typedef struct ailo_ggml_backend_buffer_type *ailo_ggml_backend_buffer_type_t;
+typedef struct ailo_callback_beed089dd726
+    *ailo_ggml_backend_comm_allreduce_tensor_t;
+typedef struct ailo_callback_70c0fa845c42 *ailo_ggml_backend_comm_free_t;
+typedef struct ailo_callback_d341a44b8e65 *ailo_ggml_backend_comm_init_t;
+typedef struct ailo_callback_34abb2fc8457
+    *ailo_ggml_backend_dev_get_extra_bufts_t;
 typedef struct ailo_ggml_backend_device *ailo_ggml_backend_dev_t;
+typedef struct ailo_callback_3e7566bc4071 *ailo_ggml_backend_eval_callback;
 typedef struct ailo_ggml_backend_event *ailo_ggml_backend_event_t;
+typedef struct ailo_callback_7ace5c7c16b7 *ailo_ggml_backend_get_features_t;
 typedef void *ailo_ggml_backend_graph_plan_t;
+typedef struct ailo_callback_3f82fde60665
+    *ailo_ggml_backend_meta_get_split_state_t;
 typedef struct ailo_ggml_backend_reg *ailo_ggml_backend_reg_t;
+typedef struct ailo_callback_f8d1d962e687
+    *ailo_ggml_backend_sched_eval_callback;
 typedef struct ailo_ggml_backend_sched *ailo_ggml_backend_sched_t;
+typedef struct ailo_callback_483f122aa30e
+    *ailo_ggml_backend_set_abort_callback_t;
+typedef struct ailo_callback_a5b73e2c7b21 *ailo_ggml_backend_set_n_threads_t;
+typedef struct ailo_callback_be60c48b0a98
+    *ailo_ggml_backend_split_buffer_type_t;
 typedef struct ailo_ggml_backend *ailo_ggml_backend_t;
 typedef struct ailo_ggml_bf16_t ailo_ggml_bf16_t;
+typedef struct ailo_callback_beb76e4791bb *ailo_ggml_custom1_op_t;
+typedef struct ailo_callback_914f5b675579 *ailo_ggml_custom2_op_t;
+typedef struct ailo_callback_06b320bd6b8e *ailo_ggml_custom3_op_t;
+typedef struct ailo_callback_0c00e218a457 *ailo_ggml_custom_op_t;
 typedef ailo_u16 ailo_ggml_fp16_t;
+typedef struct ailo_callback_5408ff2d39c6 *ailo_ggml_from_float_t;
 typedef struct ailo_ggml_gallocr *ailo_ggml_gallocr_t;
 typedef ailo_u8 ailo_ggml_guid[16];
 typedef ailo_ggml_guid *ailo_ggml_guid_t;
+typedef struct ailo_callback_802b44cd03e0 *ailo_ggml_log_callback;
 typedef struct ailo_ggml_opt_context *ailo_ggml_opt_context_t;
 typedef struct ailo_ggml_opt_dataset *ailo_ggml_opt_dataset_t;
+typedef struct ailo_callback_60e200ad9145 *ailo_ggml_opt_epoch_callback;
+typedef struct ailo_callback_542e7ac54cdb *ailo_ggml_opt_get_optimizer_params;
 typedef struct ailo_ggml_opt_result *ailo_ggml_opt_result_t;
 typedef struct ailo_ggml_threadpool *ailo_ggml_threadpool_t;
+typedef struct ailo_callback_2bf828528f60 *ailo_ggml_to_float_t;
+typedef struct ailo_callback_1719fdba8d8f *ailo_ggml_vec_dot_t;
+typedef struct ailo_callback_7ae58ea166a8 *ailo_gguf_reader_callback_t;
 typedef struct ailo_llama_batch ailo_llama_batch;
 typedef struct ailo_llama_chat_message ailo_llama_chat_message;
 typedef struct ailo_llama_logit_bias ailo_llama_logit_bias;
 typedef struct ailo_llama_memory_i *ailo_llama_memory_t;
 typedef struct ailo_llama_model_quantize_params
     ailo_llama_model_quantize_params;
+typedef struct ailo_callback_e053664ec68a *ailo_llama_model_set_tensor_data_t;
+typedef struct ailo_callback_2864ca7faa21 *ailo_llama_opt_param_filter;
 typedef ailo_i32 ailo_llama_pos;
+typedef struct ailo_callback_5fa34150084a *ailo_llama_progress_callback;
 typedef struct ailo_llama_sampler_chain_params ailo_llama_sampler_chain_params;
 typedef void *ailo_llama_sampler_context_t;
 typedef ailo_i32 ailo_llama_seq_id;
@@ -650,15 +2399,19 @@ typedef struct ailo_llama_token_data ailo_llama_token_data;
 typedef struct ailo_llama_token_data_array ailo_llama_token_data_array;
 typedef struct ailo_mtmd_batch ailo_mtmd_batch;
 typedef struct ailo_mtmd_bitmap ailo_mtmd_bitmap;
+typedef struct ailo_callback_06fd6db0a9de *ailo_mtmd_bitmap_lazy_callback;
 typedef struct ailo_mtmd_context ailo_mtmd_context;
 typedef struct ailo_mtmd_helper_gen_audio ailo_mtmd_helper_gen_audio;
 typedef struct ailo_mtmd_helper_init_opt ailo_mtmd_helper_init_opt;
+typedef struct ailo_callback_afd0a9f8fed8
+    *ailo_mtmd_helper_post_decode_callback;
 typedef struct ailo_mtmd_helper_video ailo_mtmd_helper_video;
 typedef struct ailo_mtmd_image_tokens ailo_mtmd_image_tokens;
 typedef struct ailo_mtmd_input_chunk ailo_mtmd_input_chunk;
 typedef struct ailo_mtmd_input_chunks ailo_mtmd_input_chunks;
 typedef struct ailo_mtmd_input_part ailo_mtmd_input_part;
 typedef struct ailo_mtmd_input_text ailo_mtmd_input_text;
+typedef struct ailo_callback_5fa34150084a *ailo_mtmd_progress_callback;
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
 ailo_status
@@ -977,6 +2730,17 @@ ailo_status ailo_ggml_cplan_threadpool_set(struct ailo_ggml_cplan *self,
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
 ailo_status
+ailo_ggml_cplan_abort_callback_get(const struct ailo_ggml_cplan *self,
+                                   struct ailo_callback_38eb1918797a **output,
+                                   ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_ggml_cplan_abort_callback_set(struct ailo_ggml_cplan *self,
+                                   struct ailo_callback_38eb1918797a *value,
+                                   ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
 ailo_ggml_cplan_abort_callback_data_get(const struct ailo_ggml_cplan *self,
                                         void **output, ailo_error *error);
 /** Mutate the native field; referenced pointer owners must remain alive. */
@@ -1195,6 +2959,16 @@ ailo_ggml_opt_params_opt_period_get(const struct ailo_ggml_opt_params *self,
 ailo_status
 ailo_ggml_opt_params_opt_period_set(struct ailo_ggml_opt_params *self,
                                     ailo_i32 value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_ggml_opt_params_get_opt_pars_get(
+    const struct ailo_ggml_opt_params *self,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_ggml_opt_params_get_opt_pars_set(struct ailo_ggml_opt_params *self,
+                                      struct ailo_callback_542e7ac54cdb *value,
+                                      ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
 ailo_status ailo_ggml_opt_params_get_opt_pars_ud_get(
@@ -1520,6 +3294,26 @@ ailo_ggml_type_traits_is_quantized_get(const struct ailo_ggml_type_traits *self,
 ailo_status
 ailo_ggml_type_traits_is_quantized_set(struct ailo_ggml_type_traits *self,
                                        ailo_bool value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_ggml_type_traits_to_float_get(const struct ailo_ggml_type_traits *self,
+                                   struct ailo_callback_2bf828528f60 **output,
+                                   ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_ggml_type_traits_to_float_set(struct ailo_ggml_type_traits *self,
+                                   struct ailo_callback_2bf828528f60 *value,
+                                   ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_ggml_type_traits_from_float_ref_get(
+    const struct ailo_ggml_type_traits *self,
+    struct ailo_callback_5408ff2d39c6 **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_ggml_type_traits_from_float_ref_set(
+    struct ailo_ggml_type_traits *self,
+    struct ailo_callback_5408ff2d39c6 *value, ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
 ailo_status ailo_ggml_type_traits_cpu_array_new(
@@ -1534,6 +3328,25 @@ ailo_ggml_type_traits_cpu_array_free(struct ailo_ggml_type_traits_cpu *self,
 ailo_status ailo_ggml_type_traits_cpu_array_at(
     struct ailo_ggml_type_traits_cpu *self, size_t count, size_t index,
     struct ailo_ggml_type_traits_cpu **output, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_ggml_type_traits_cpu_from_float_get(
+    const struct ailo_ggml_type_traits_cpu *self,
+    struct ailo_callback_5408ff2d39c6 **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_ggml_type_traits_cpu_from_float_set(
+    struct ailo_ggml_type_traits_cpu *self,
+    struct ailo_callback_5408ff2d39c6 *value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_ggml_type_traits_cpu_vec_dot_get(
+    const struct ailo_ggml_type_traits_cpu *self,
+    struct ailo_callback_1719fdba8d8f **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_ggml_type_traits_cpu_vec_dot_set(struct ailo_ggml_type_traits_cpu *self,
+                                      struct ailo_callback_1719fdba8d8f *value,
+                                      ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
 ailo_status ailo_ggml_type_traits_cpu_vec_dot_type_get(
@@ -1885,6 +3698,16 @@ ailo_status ailo_llama_context_params_defrag_thold_set(
     struct ailo_llama_context_params *self, float value, ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
+ailo_status ailo_llama_context_params_cb_eval_get(
+    const struct ailo_llama_context_params *self,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_context_params_cb_eval_set(struct ailo_llama_context_params *self,
+                                      struct ailo_callback_f8d1d962e687 *value,
+                                      ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
 ailo_status ailo_llama_context_params_cb_eval_user_data_get(
     const struct ailo_llama_context_params *self, void **output,
     ailo_error *error);
@@ -1911,6 +3734,15 @@ ailo_status
 ailo_llama_context_params_type_v_set(struct ailo_llama_context_params *self,
                                      enum ailo_ggml_type value,
                                      ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_llama_context_params_abort_callback_get(
+    const struct ailo_llama_context_params *self,
+    struct ailo_callback_38eb1918797a **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_llama_context_params_abort_callback_set(
+    struct ailo_llama_context_params *self,
+    struct ailo_callback_38eb1918797a *value, ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
 ailo_status ailo_llama_context_params_abort_callback_data_get(
@@ -2267,6 +4099,15 @@ ailo_llama_model_params_tensor_split_set(struct ailo_llama_model_params *self,
                                          const float *value, ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
+ailo_status ailo_llama_model_params_progress_callback_get(
+    const struct ailo_llama_model_params *self,
+    struct ailo_callback_5fa34150084a **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_llama_model_params_progress_callback_set(
+    struct ailo_llama_model_params *self,
+    struct ailo_callback_5fa34150084a *value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
 ailo_status ailo_llama_model_params_progress_callback_user_data_get(
     const struct ailo_llama_model_params *self, void **output,
     ailo_error *error);
@@ -2573,12 +4414,32 @@ ailo_llama_opt_params_n_ctx_train_set(struct ailo_llama_opt_params *self,
                                       ailo_u32 value, ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
+ailo_status ailo_llama_opt_params_param_filter_get(
+    const struct ailo_llama_opt_params *self,
+    struct ailo_callback_2864ca7faa21 **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_opt_params_param_filter_set(struct ailo_llama_opt_params *self,
+                                       struct ailo_callback_2864ca7faa21 *value,
+                                       ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
 ailo_status ailo_llama_opt_params_param_filter_ud_get(
     const struct ailo_llama_opt_params *self, void **output, ailo_error *error);
 /** Mutate the native field; referenced pointer owners must remain alive. */
 ailo_status
 ailo_llama_opt_params_param_filter_ud_set(struct ailo_llama_opt_params *self,
                                           void *value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_llama_opt_params_get_opt_pars_get(
+    const struct ailo_llama_opt_params *self,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_opt_params_get_opt_pars_set(struct ailo_llama_opt_params *self,
+                                       struct ailo_callback_542e7ac54cdb *value,
+                                       ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
 ailo_status ailo_llama_opt_params_get_opt_pars_ud_get(
@@ -2826,6 +4687,131 @@ ailo_status ailo_llama_sampler_i_array_at(struct ailo_llama_sampler_i *self,
                                           size_t count, size_t index,
                                           struct ailo_llama_sampler_i **output,
                                           ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_llama_sampler_i_name_get(const struct ailo_llama_sampler_i *self,
+                              struct ailo_callback_8ad5c8b129df **output,
+                              ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_name_set(struct ailo_llama_sampler_i *self,
+                              struct ailo_callback_8ad5c8b129df *value,
+                              ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_llama_sampler_i_accept_get(const struct ailo_llama_sampler_i *self,
+                                struct ailo_callback_074319862044 **output,
+                                ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_accept_set(struct ailo_llama_sampler_i *self,
+                                struct ailo_callback_074319862044 *value,
+                                ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_llama_sampler_i_apply_get(const struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_22d5b5dadc59 **output,
+                               ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_apply_set(struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_22d5b5dadc59 *value,
+                               ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_llama_sampler_i_reset_get(const struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_d4e25f8b4940 **output,
+                               ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_reset_set(struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_d4e25f8b4940 *value,
+                               ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_llama_sampler_i_clone_get(const struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_47277094ea3e **output,
+                               ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_clone_set(struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_47277094ea3e *value,
+                               ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_llama_sampler_i_free_get(const struct ailo_llama_sampler_i *self,
+                              struct ailo_callback_d4e25f8b4940 **output,
+                              ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_free_set(struct ailo_llama_sampler_i *self,
+                              struct ailo_callback_d4e25f8b4940 *value,
+                              ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_llama_sampler_i_backend_init_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_5b16e27da7ff **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_backend_init_set(struct ailo_llama_sampler_i *self,
+                                      struct ailo_callback_5b16e27da7ff *value,
+                                      ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_llama_sampler_i_backend_accept_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_ea33beeaba68 **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_llama_sampler_i_backend_accept_set(
+    struct ailo_llama_sampler_i *self, struct ailo_callback_ea33beeaba68 *value,
+    ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_llama_sampler_i_backend_apply_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_42760a748de7 **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_backend_apply_set(struct ailo_llama_sampler_i *self,
+                                       struct ailo_callback_42760a748de7 *value,
+                                       ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_llama_sampler_i_backend_set_input_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_llama_sampler_i_backend_set_input_set(
+    struct ailo_llama_sampler_i *self, struct ailo_callback_d4e25f8b4940 *value,
+    ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_llama_sampler_i_backend_reset_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_backend_reset_set(struct ailo_llama_sampler_i *self,
+                                       struct ailo_callback_d4e25f8b4940 *value,
+                                       ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_llama_sampler_i_copy_state_get(const struct ailo_llama_sampler_i *self,
+                                    struct ailo_callback_8ddfa7b459eb **output,
+                                    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_llama_sampler_i_copy_state_set(struct ailo_llama_sampler_i *self,
+                                    struct ailo_callback_8ddfa7b459eb *value,
+                                    ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
 ailo_status ailo_llama_sampler_seq_config_array_new(
@@ -3081,6 +5067,16 @@ ailo_status ailo_mtmd_context_params_image_max_tokens_set(
     struct ailo_mtmd_context_params *self, int value, ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_context_params_cb_eval_get(
+    const struct ailo_mtmd_context_params *self,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_mtmd_context_params_cb_eval_set(struct ailo_mtmd_context_params *self,
+                                     struct ailo_callback_f8d1d962e687 *value,
+                                     ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
 ailo_status ailo_mtmd_context_params_cb_eval_user_data_get(
     const struct ailo_mtmd_context_params *self, void **output,
     ailo_error *error);
@@ -3095,6 +5091,15 @@ ailo_status ailo_mtmd_context_params_batch_max_tokens_get(
 /** Mutate the native field; referenced pointer owners must remain alive. */
 ailo_status ailo_mtmd_context_params_batch_max_tokens_set(
     struct ailo_mtmd_context_params *self, ailo_i32 value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_context_params_progress_callback_get(
+    const struct ailo_mtmd_context_params *self,
+    struct ailo_callback_5fa34150084a **output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_context_params_progress_callback_set(
+    struct ailo_mtmd_context_params *self,
+    struct ailo_callback_5fa34150084a *value, ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
 ailo_status ailo_mtmd_context_params_progress_callback_user_data_get(
@@ -4163,6 +6168,14 @@ ailo_status ailo_ggml_backend_cann_reg(struct ailo_ggml_backend_reg **output,
                                        ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_ggml_backend_compare_graph_backend(
+    struct ailo_ggml_backend *argument_0, struct ailo_ggml_backend *argument_1,
+    struct ailo_ggml_cgraph *argument_2,
+    struct ailo_callback_3e7566bc4071 *argument_3, void *argument_4,
+    const struct ailo_storage_const_struct_ggml_tensor *argument_5,
+    size_t argument_6, ailo_bool *output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status
 ailo_ggml_backend_cpu_buffer_from_ptr(void *argument_0, size_t argument_1,
                                       struct ailo_ggml_backend_buffer **output,
@@ -4180,6 +6193,12 @@ ailo_status ailo_ggml_backend_cpu_init(struct ailo_ggml_backend **output,
  * are preserved separately from bridge status. */
 ailo_status ailo_ggml_backend_cpu_reg(struct ailo_ggml_backend_reg **output,
                                       ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_backend_cpu_set_abort_callback(
+    struct ailo_ggml_backend *argument_0,
+    struct ailo_callback_38eb1918797a *argument_1, void *argument_2,
+    ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
@@ -4505,6 +6524,13 @@ ailo_status ailo_ggml_backend_load_all_from_path(const char *argument_0,
                                                  ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_ggml_backend_meta_device(
+    struct ailo_storage_struct_ggml_backend_device *argument_0,
+    size_t argument_1, struct ailo_callback_3f82fde60665 *argument_2,
+    void *argument_3, struct ailo_ggml_backend_device **output,
+    ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status ailo_ggml_backend_meta_split_axis_name(
     enum ailo_ggml_backend_meta_split_axis argument_0, const char **output,
     ailo_error *error);
@@ -4520,6 +6546,12 @@ ailo_status ailo_ggml_backend_metal_init(struct ailo_ggml_backend **output,
  * are preserved separately from bridge status. */
 ailo_status ailo_ggml_backend_metal_reg(struct ailo_ggml_backend_reg **output,
                                         ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_backend_metal_set_abort_callback(
+    struct ailo_ggml_backend *argument_0,
+    struct ailo_callback_38eb1918797a *argument_1, void *argument_2,
+    ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
@@ -4722,6 +6754,12 @@ ailo_ggml_backend_sched_reserve_size(struct ailo_ggml_backend_sched *argument_0,
 ailo_status
 ailo_ggml_backend_sched_reset(struct ailo_ggml_backend_sched *argument_0,
                               ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_backend_sched_set_eval_callback(
+    struct ailo_ggml_backend_sched *argument_0,
+    struct ailo_callback_f8d1d962e687 *argument_1, void *argument_2,
+    ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_ggml_backend_sched_set_tensor_backend(
@@ -5354,6 +7392,22 @@ ailo_status ailo_ggml_cumsum(struct ailo_ggml_context *argument_0,
                              struct ailo_ggml_tensor *argument_1,
                              struct ailo_ggml_tensor **output,
                              ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_custom_4d(
+    struct ailo_ggml_context *argument_0, enum ailo_ggml_type argument_1,
+    ailo_i64 argument_2, ailo_i64 argument_3, ailo_i64 argument_4,
+    ailo_i64 argument_5, struct ailo_storage_struct_ggml_tensor *argument_6,
+    int argument_7, struct ailo_callback_0c00e218a457 *argument_8,
+    int argument_9, void *argument_10, struct ailo_ggml_tensor **output,
+    ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_custom_inplace(
+    struct ailo_ggml_context *argument_0, struct ailo_ggml_tensor *argument_1,
+    struct ailo_storage_struct_ggml_tensor *argument_2, int argument_3,
+    struct ailo_callback_0c00e218a457 *argument_4, int argument_5,
+    void *argument_6, struct ailo_ggml_tensor **output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_ggml_cycles(ailo_i64 *output, ailo_error *error);
@@ -6172,10 +8226,62 @@ ailo_status ailo_ggml_log(struct ailo_ggml_context *argument_0,
                           struct ailo_ggml_tensor **output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_ggml_log_get(struct ailo_callback_802b44cd03e0 **argument_0,
+                              void **argument_1, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status ailo_ggml_log_inplace(struct ailo_ggml_context *argument_0,
                                   struct ailo_ggml_tensor *argument_1,
                                   struct ailo_ggml_tensor **output,
                                   ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_log_set(struct ailo_callback_802b44cd03e0 *argument_0,
+                              void *argument_1, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_map_custom1(struct ailo_ggml_context *argument_0,
+                                  struct ailo_ggml_tensor *argument_1,
+                                  struct ailo_callback_beb76e4791bb *argument_2,
+                                  int argument_3, void *argument_4,
+                                  struct ailo_ggml_tensor **output,
+                                  ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_map_custom1_inplace(
+    struct ailo_ggml_context *argument_0, struct ailo_ggml_tensor *argument_1,
+    struct ailo_callback_beb76e4791bb *argument_2, int argument_3,
+    void *argument_4, struct ailo_ggml_tensor **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_map_custom2(struct ailo_ggml_context *argument_0,
+                                  struct ailo_ggml_tensor *argument_1,
+                                  struct ailo_ggml_tensor *argument_2,
+                                  struct ailo_callback_914f5b675579 *argument_3,
+                                  int argument_4, void *argument_5,
+                                  struct ailo_ggml_tensor **output,
+                                  ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_map_custom2_inplace(
+    struct ailo_ggml_context *argument_0, struct ailo_ggml_tensor *argument_1,
+    struct ailo_ggml_tensor *argument_2,
+    struct ailo_callback_914f5b675579 *argument_3, int argument_4,
+    void *argument_5, struct ailo_ggml_tensor **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_map_custom3(
+    struct ailo_ggml_context *argument_0, struct ailo_ggml_tensor *argument_1,
+    struct ailo_ggml_tensor *argument_2, struct ailo_ggml_tensor *argument_3,
+    struct ailo_callback_06b320bd6b8e *argument_4, int argument_5,
+    void *argument_6, struct ailo_ggml_tensor **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_map_custom3_inplace(
+    struct ailo_ggml_context *argument_0, struct ailo_ggml_tensor *argument_1,
+    struct ailo_ggml_tensor *argument_2, struct ailo_ggml_tensor *argument_3,
+    struct ailo_callback_06b320bd6b8e *argument_4, int argument_5,
+    void *argument_6, struct ailo_ggml_tensor **output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_ggml_mean(struct ailo_ggml_context *argument_0,
@@ -6411,6 +8517,16 @@ ailo_ggml_opt_default_params(struct ailo_ggml_backend_sched *argument_0,
                              ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_ggml_opt_epoch(struct ailo_ggml_opt_context *argument_0,
+                                struct ailo_ggml_opt_dataset *argument_1,
+                                struct ailo_ggml_opt_result *argument_2,
+                                struct ailo_ggml_opt_result *argument_3,
+                                ailo_i64 argument_4,
+                                struct ailo_callback_60e200ad9145 *argument_5,
+                                struct ailo_callback_60e200ad9145 *argument_6,
+                                ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status ailo_ggml_opt_epoch_callback_progress_bar(
     ailo_bool argument_0, struct ailo_ggml_opt_context *argument_1,
     struct ailo_ggml_opt_dataset *argument_2,
@@ -6421,6 +8537,19 @@ ailo_status ailo_ggml_opt_epoch_callback_progress_bar(
 ailo_status ailo_ggml_opt_eval(struct ailo_ggml_opt_context *argument_0,
                                struct ailo_ggml_opt_result *argument_1,
                                ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_opt_fit(struct ailo_ggml_backend_sched *argument_0,
+                              struct ailo_ggml_context *argument_1,
+                              struct ailo_ggml_tensor *argument_2,
+                              struct ailo_ggml_tensor *argument_3,
+                              struct ailo_ggml_opt_dataset *argument_4,
+                              enum ailo_ggml_opt_loss_type argument_5,
+                              enum ailo_ggml_opt_optimizer_type argument_6,
+                              struct ailo_callback_542e7ac54cdb *argument_7,
+                              ailo_i64 argument_8, ailo_i64 argument_9,
+                              float argument_10, ailo_bool argument_11,
+                              ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_ggml_opt_free(struct ailo_ggml_opt_context *argument_0,
@@ -6974,6 +9103,12 @@ ailo_status ailo_ggml_set_2d_inplace(struct ailo_ggml_context *argument_0,
                                      size_t argument_3, size_t argument_4,
                                      struct ailo_ggml_tensor **output,
                                      ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_ggml_set_abort_callback(struct ailo_callback_4ec5f60f8303 *argument_0,
+                             struct ailo_callback_4ec5f60f8303 **output,
+                             ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_ggml_set_f32(struct ailo_ggml_tensor *argument_0,
@@ -7716,6 +9851,13 @@ ailo_gguf_init_from_buffer(const void *argument_0, size_t argument_1,
                            ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_gguf_init_from_callback(
+    struct ailo_callback_7ae58ea166a8 *argument_0, void *argument_1,
+    size_t argument_2, ailo_u64 argument_3,
+    const struct ailo_gguf_init_params *argument_4,
+    struct ailo_gguf_context **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status
 ailo_gguf_init_from_file(const char *argument_0,
                          const struct ailo_gguf_init_params *argument_1,
@@ -8159,6 +10301,14 @@ ailo_status ailo_llama_load_session_file(struct ailo_llama_context *argument_0,
                                          ailo_bool *output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_llama_log_get(struct ailo_callback_802b44cd03e0 **argument_0,
+                               void **argument_1, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_llama_log_set(struct ailo_callback_802b44cd03e0 *argument_0,
+                               void *argument_1, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status ailo_llama_max_devices(size_t *output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
@@ -8268,6 +10418,13 @@ ailo_llama_model_has_decoder(const struct ailo_llama_model *argument_0,
 ailo_status
 ailo_llama_model_has_encoder(const struct ailo_llama_model *argument_0,
                              ailo_bool *output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_llama_model_init_from_user(
+    struct ailo_gguf_context *argument_0,
+    struct ailo_callback_e053664ec68a *argument_1, void *argument_2,
+    const struct ailo_llama_model_params *argument_3,
+    struct ailo_llama_model **output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
@@ -8465,6 +10622,16 @@ ailo_status ailo_llama_new_context_with_model(
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_llama_numa_init(enum ailo_ggml_numa_strategy argument_0,
+                                 ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_llama_opt_epoch(struct ailo_llama_context *argument_0,
+                                 struct ailo_ggml_opt_dataset *argument_1,
+                                 struct ailo_ggml_opt_result *argument_2,
+                                 struct ailo_ggml_opt_result *argument_3,
+                                 ailo_i64 argument_4,
+                                 struct ailo_callback_60e200ad9145 *argument_5,
+                                 struct ailo_callback_60e200ad9145 *argument_6,
                                  ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
@@ -8723,6 +10890,12 @@ ailo_status ailo_llama_save_session_file(struct ailo_llama_context *argument_0,
                                          const ailo_i32 *argument_2,
                                          size_t argument_3, ailo_bool *output,
                                          ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_llama_set_abort_callback(struct ailo_llama_context *argument_0,
+                              struct ailo_callback_38eb1918797a *argument_1,
+                              void *argument_2, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_llama_set_adapter_cvec(struct ailo_llama_context *argument_0,
@@ -9153,6 +11326,13 @@ ailo_status ailo_mtmd_bitmap_init_from_audio(size_t argument_0,
                                              ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status
+ailo_mtmd_bitmap_init_lazy(const struct ailo_mtmd_context *argument_0,
+                           const char *argument_1, void *argument_2,
+                           struct ailo_callback_06fd6db0a9de *argument_3,
+                           struct ailo_mtmd_bitmap **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status ailo_mtmd_bitmap_is_audio(const struct ailo_mtmd_bitmap *argument_0,
                                       ailo_bool *output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
@@ -9254,6 +11434,14 @@ ailo_status ailo_mtmd_helper_bitmap_init_from_file(
     struct ailo_mtmd_helper_bitmap_wrapper **output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_helper_decode_image_chunk(
+    struct ailo_mtmd_context *argument_0, struct ailo_llama_context *argument_1,
+    const struct ailo_mtmd_input_chunk *argument_2, float *argument_3,
+    ailo_i32 argument_4, ailo_i32 argument_5, ailo_i32 argument_6,
+    ailo_i32 *argument_7, struct ailo_callback_afd0a9f8fed8 *argument_8,
+    void *argument_9, ailo_i32 *output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status ailo_mtmd_helper_eval_chunk_single(
     struct ailo_mtmd_context *argument_0, struct ailo_llama_context *argument_1,
     const struct ailo_mtmd_input_chunk *argument_2, ailo_i32 argument_3,
@@ -9325,6 +11513,11 @@ ailo_status ailo_mtmd_helper_image_get_decoder_pos(
 ailo_status
 ailo_mtmd_helper_init_opt_default(struct ailo_mtmd_helper_init_opt **output,
                                   ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_mtmd_helper_log_set(struct ailo_callback_802b44cd03e0 *argument_0,
+                         void *argument_1, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
@@ -9484,6 +11677,10 @@ ailo_status ailo_mtmd_input_chunks_init(struct ailo_mtmd_input_chunks **output,
 ailo_status
 ailo_mtmd_input_chunks_size(const struct ailo_mtmd_input_chunks *argument_0,
                             size_t *output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_log_set(struct ailo_callback_802b44cd03e0 *argument_0,
+                              void *argument_1, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_mtmd_support_audio(const struct ailo_mtmd_context *argument_0,
@@ -9659,6 +11856,31 @@ ailo_status ailo_storage_struct_ggml_tensor_get(
 ailo_status ailo_storage_struct_ggml_tensor_set(
     struct ailo_storage_struct_ggml_tensor *self, size_t count, size_t index,
     struct ailo_ggml_tensor *value, ailo_error *error);
+/** Allocate zero-initialized native-backed elements; caller owns the result and
+ * count. */
+ailo_status ailo_storage_const_struct_ggml_tensor_array_new(
+    size_t count, struct ailo_storage_const_struct_ggml_tensor **output,
+    ailo_error *error);
+/** Release only a facade element allocation or by-value result; NULL is
+ * accepted. */
+ailo_status ailo_storage_const_struct_ggml_tensor_array_free(
+    struct ailo_storage_const_struct_ggml_tensor *self, ailo_error *error);
+/** Borrow an element using the actual caller-declared extent; never free the
+ * element. */
+ailo_status ailo_storage_const_struct_ggml_tensor_array_at(
+    struct ailo_storage_const_struct_ggml_tensor *self, size_t count,
+    size_t index, struct ailo_storage_const_struct_ggml_tensor **output,
+    ailo_error *error);
+/** Read a native-backed element; actual extent and owner lifetime are caller
+ * obligations. */
+ailo_status ailo_storage_const_struct_ggml_tensor_get(
+    const struct ailo_storage_const_struct_ggml_tensor *self, size_t count,
+    size_t index, const struct ailo_ggml_tensor **output, ailo_error *error);
+/** Write an explicitly converted native element within the caller-declared
+ * extent. */
+ailo_status ailo_storage_const_struct_ggml_tensor_set(
+    struct ailo_storage_const_struct_ggml_tensor *self, size_t count,
+    size_t index, const struct ailo_ggml_tensor *value, ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
 ailo_status ailo_storage_struct_ggml_backend_array_new(

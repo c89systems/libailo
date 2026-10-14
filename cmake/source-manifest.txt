@@ -79,10 +79,12 @@ scripts/verify_install_privacy.sh
 scripts/verify_release_artifacts.sh
 scripts/verify_sdk_archive.sh
 scripts/verify_source_archive.sh
+scripts/valgrind-libffi.supp
 scripts/version_parser.sh
 src/ailo_error.c
 src/ailo_backend.cpp
 src/ailo_backend_internal.hpp
+src/ailo_callback_internal.hpp
 src/ailo_client.cpp
 src/ailo_client_internal.hpp
 src/ailo_client_json.cpp
@@ -118,6 +120,8 @@ tests/model_cache.c
 tests/model_download_driver.cpp
 tests/model_fixture.cpp
 tests/native.c
+tests/native_callbacks.cpp
+tests/native_callbacks.c
 tests/native_records.cpp
 tests/native_storage.cpp
 tests/scalar-matrix/CMakeLists.txt

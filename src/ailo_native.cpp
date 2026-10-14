@@ -3,6 +3,7 @@
  * See docs/facade-bindings.md for ownership and bridge semantics. */
 #include "ailo/native.h"
 #include "ailo_backend_internal.hpp"
+#include "ailo_callback_internal.hpp"
 #include "ailo_native_internal.hpp"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -26,6 +27,6414 @@
 #include "include/llama.h"
 #include "tools/mtmd/mtmd-helper.h"
 #include "tools/mtmd/mtmd.h"
+using ailo_callback_38eb1918797a_native = bool (*)(void *);
+struct ailo_callback_38eb1918797a {
+  ailo_callback_38eb1918797a_native target = nullptr;
+  ailo_callback_38eb1918797a_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_4ec5f60f8303_native = void (*)(const char *);
+struct ailo_callback_4ec5f60f8303 {
+  ailo_callback_4ec5f60f8303_native target = nullptr;
+  ailo_callback_4ec5f60f8303_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_beed089dd726_native = bool (*)(void *,
+                                                   struct ggml_tensor **);
+struct ailo_callback_beed089dd726 {
+  ailo_callback_beed089dd726_native target = nullptr;
+  ailo_callback_beed089dd726_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_70c0fa845c42_native = void (*)(void *);
+struct ailo_callback_70c0fa845c42 {
+  ailo_callback_70c0fa845c42_native target = nullptr;
+  ailo_callback_70c0fa845c42_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_d341a44b8e65_native = void *(*)(struct ggml_backend **,
+                                                    size_t);
+struct ailo_callback_d341a44b8e65 {
+  ailo_callback_d341a44b8e65_native target = nullptr;
+  ailo_callback_d341a44b8e65_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_34abb2fc8457_native =
+    struct ggml_backend_buffer_type **(*)(struct ggml_backend_device *);
+struct ailo_callback_34abb2fc8457 {
+  ailo_callback_34abb2fc8457_native target = nullptr;
+  ailo_callback_34abb2fc8457_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_3e7566bc4071_native = bool (*)(int, struct ggml_tensor *,
+                                                   struct ggml_tensor *,
+                                                   void *);
+struct ailo_callback_3e7566bc4071 {
+  ailo_callback_3e7566bc4071_native target = nullptr;
+  ailo_callback_3e7566bc4071_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_7ace5c7c16b7_native =
+    struct ggml_backend_feature *(*)(struct ggml_backend_reg *);
+struct ailo_callback_7ace5c7c16b7 {
+  ailo_callback_7ace5c7c16b7_native target = nullptr;
+  ailo_callback_7ace5c7c16b7_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_3f82fde60665_native =
+    struct ggml_backend_meta_split_state (*)(const struct ggml_tensor *,
+                                             void *);
+struct ailo_callback_3f82fde60665 {
+  ailo_callback_3f82fde60665_native target = nullptr;
+  ailo_callback_3f82fde60665_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_f8d1d962e687_native = bool (*)(struct ggml_tensor *, bool,
+                                                   void *);
+struct ailo_callback_f8d1d962e687 {
+  ailo_callback_f8d1d962e687_native target = nullptr;
+  ailo_callback_f8d1d962e687_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_483f122aa30e_native = void (*)(struct ggml_backend *,
+                                                   bool (*)(void *), void *);
+struct ailo_callback_483f122aa30e {
+  ailo_callback_483f122aa30e_native target = nullptr;
+  ailo_callback_483f122aa30e_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_a5b73e2c7b21_native = void (*)(struct ggml_backend *, int);
+struct ailo_callback_a5b73e2c7b21 {
+  ailo_callback_a5b73e2c7b21_native target = nullptr;
+  ailo_callback_a5b73e2c7b21_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_be60c48b0a98_native =
+    struct ggml_backend_buffer_type *(*)(int, const float *);
+struct ailo_callback_be60c48b0a98 {
+  ailo_callback_be60c48b0a98_native target = nullptr;
+  ailo_callback_be60c48b0a98_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_beb76e4791bb_native = void (*)(struct ggml_tensor *,
+                                                   const struct ggml_tensor *,
+                                                   int, int, void *);
+struct ailo_callback_beb76e4791bb {
+  ailo_callback_beb76e4791bb_native target = nullptr;
+  ailo_callback_beb76e4791bb_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_914f5b675579_native = void (*)(struct ggml_tensor *,
+                                                   const struct ggml_tensor *,
+                                                   const struct ggml_tensor *,
+                                                   int, int, void *);
+struct ailo_callback_914f5b675579 {
+  ailo_callback_914f5b675579_native target = nullptr;
+  ailo_callback_914f5b675579_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_06b320bd6b8e_native = void (*)(struct ggml_tensor *,
+                                                   const struct ggml_tensor *,
+                                                   const struct ggml_tensor *,
+                                                   const struct ggml_tensor *,
+                                                   int, int, void *);
+struct ailo_callback_06b320bd6b8e {
+  ailo_callback_06b320bd6b8e_native target = nullptr;
+  ailo_callback_06b320bd6b8e_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_0c00e218a457_native = void (*)(struct ggml_tensor *, int,
+                                                   int, void *);
+struct ailo_callback_0c00e218a457 {
+  ailo_callback_0c00e218a457_native target = nullptr;
+  ailo_callback_0c00e218a457_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_5408ff2d39c6_native = void (*)(const float *, void *,
+                                                   int64_t);
+struct ailo_callback_5408ff2d39c6 {
+  ailo_callback_5408ff2d39c6_native target = nullptr;
+  ailo_callback_5408ff2d39c6_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_802b44cd03e0_native = void (*)(enum ggml_log_level,
+                                                   const char *, void *);
+struct ailo_callback_802b44cd03e0 {
+  ailo_callback_802b44cd03e0_native target = nullptr;
+  ailo_callback_802b44cd03e0_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_60e200ad9145_native = void (*)(bool,
+                                                   struct ggml_opt_context *,
+                                                   struct ggml_opt_dataset *,
+                                                   struct ggml_opt_result *,
+                                                   int64_t, int64_t, int64_t);
+struct ailo_callback_60e200ad9145 {
+  ailo_callback_60e200ad9145_native target = nullptr;
+  ailo_callback_60e200ad9145_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_542e7ac54cdb_native =
+    struct ggml_opt_optimizer_params (*)(void *);
+struct ailo_callback_542e7ac54cdb {
+  ailo_callback_542e7ac54cdb_native target = nullptr;
+  ailo_callback_542e7ac54cdb_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_2bf828528f60_native = void (*)(const void *, float *,
+                                                   int64_t);
+struct ailo_callback_2bf828528f60 {
+  ailo_callback_2bf828528f60_native target = nullptr;
+  ailo_callback_2bf828528f60_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_1719fdba8d8f_native = void (*)(int, float *, size_t,
+                                                   const void *, size_t,
+                                                   const void *, size_t, int);
+struct ailo_callback_1719fdba8d8f {
+  ailo_callback_1719fdba8d8f_native target = nullptr;
+  ailo_callback_1719fdba8d8f_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_7ae58ea166a8_native = size_t (*)(void *, void *, uint64_t,
+                                                     size_t);
+struct ailo_callback_7ae58ea166a8 {
+  ailo_callback_7ae58ea166a8_native target = nullptr;
+  ailo_callback_7ae58ea166a8_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_e053664ec68a_native = void (*)(struct ggml_tensor *,
+                                                   void *);
+struct ailo_callback_e053664ec68a {
+  ailo_callback_e053664ec68a_native target = nullptr;
+  ailo_callback_e053664ec68a_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_2864ca7faa21_native = bool (*)(const struct ggml_tensor *,
+                                                   void *);
+struct ailo_callback_2864ca7faa21 {
+  ailo_callback_2864ca7faa21_native target = nullptr;
+  ailo_callback_2864ca7faa21_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_5fa34150084a_native = bool (*)(float, void *);
+struct ailo_callback_5fa34150084a {
+  ailo_callback_5fa34150084a_native target = nullptr;
+  ailo_callback_5fa34150084a_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_06fd6db0a9de_native = int (*)(size_t, void *,
+                                                  struct mtmd_bitmap **,
+                                                  char **);
+struct ailo_callback_06fd6db0a9de {
+  ailo_callback_06fd6db0a9de_native target = nullptr;
+  ailo_callback_06fd6db0a9de_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_afd0a9f8fed8_native =
+    int32_t (*)(const struct mtmd_helper_embd_batch *, void *);
+struct ailo_callback_afd0a9f8fed8 {
+  ailo_callback_afd0a9f8fed8_native target = nullptr;
+  ailo_callback_afd0a9f8fed8_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_8ad5c8b129df_native =
+    const char *(*)(const struct llama_sampler *);
+struct ailo_callback_8ad5c8b129df {
+  ailo_callback_8ad5c8b129df_native target = nullptr;
+  ailo_callback_8ad5c8b129df_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_074319862044_native = void (*)(struct llama_sampler *,
+                                                   int32_t);
+struct ailo_callback_074319862044 {
+  ailo_callback_074319862044_native target = nullptr;
+  ailo_callback_074319862044_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_22d5b5dadc59_native =
+    void (*)(struct llama_sampler *, struct llama_token_data_array *);
+struct ailo_callback_22d5b5dadc59 {
+  ailo_callback_22d5b5dadc59_native target = nullptr;
+  ailo_callback_22d5b5dadc59_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_d4e25f8b4940_native = void (*)(struct llama_sampler *);
+struct ailo_callback_d4e25f8b4940 {
+  ailo_callback_d4e25f8b4940_native target = nullptr;
+  ailo_callback_d4e25f8b4940_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_47277094ea3e_native =
+    struct llama_sampler *(*)(const struct llama_sampler *);
+struct ailo_callback_47277094ea3e {
+  ailo_callback_47277094ea3e_native target = nullptr;
+  ailo_callback_47277094ea3e_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_5b16e27da7ff_native = bool (*)(
+    struct llama_sampler *, struct ggml_backend_buffer_type *, uint32_t);
+struct ailo_callback_5b16e27da7ff {
+  ailo_callback_5b16e27da7ff_native target = nullptr;
+  ailo_callback_5b16e27da7ff_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_ea33beeaba68_native = void (*)(struct llama_sampler *,
+                                                   struct ggml_context *,
+                                                   struct ggml_cgraph *,
+                                                   struct ggml_tensor *);
+struct ailo_callback_ea33beeaba68 {
+  ailo_callback_ea33beeaba68_native target = nullptr;
+  ailo_callback_ea33beeaba68_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_42760a748de7_native = void (*)(struct llama_sampler *,
+                                                   struct ggml_context *,
+                                                   struct ggml_cgraph *,
+                                                   struct llama_sampler_data *);
+struct ailo_callback_42760a748de7 {
+  ailo_callback_42760a748de7_native target = nullptr;
+  ailo_callback_42760a748de7_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+using ailo_callback_8ddfa7b459eb_native = void (*)(const struct llama_sampler *,
+                                                   struct llama_sampler *);
+struct ailo_callback_8ddfa7b459eb {
+  ailo_callback_8ddfa7b459eb_native target = nullptr;
+  ailo_callback_8ddfa7b459eb_fn function = nullptr;
+  void *user = nullptr;
+  ailo::detail::callback_core core;
+};
+static ailo_callback_38eb1918797a *
+ailo_callback_38eb1918797a_view(ailo_callback_38eb1918797a_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_38eb1918797a> view(
+      new ailo_callback_38eb1918797a);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_4ec5f60f8303 *
+ailo_callback_4ec5f60f8303_view(ailo_callback_4ec5f60f8303_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_4ec5f60f8303> view(
+      new ailo_callback_4ec5f60f8303);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_beed089dd726 *
+ailo_callback_beed089dd726_view(ailo_callback_beed089dd726_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_beed089dd726> view(
+      new ailo_callback_beed089dd726);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_70c0fa845c42 *
+ailo_callback_70c0fa845c42_view(ailo_callback_70c0fa845c42_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_70c0fa845c42> view(
+      new ailo_callback_70c0fa845c42);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_d341a44b8e65 *
+ailo_callback_d341a44b8e65_view(ailo_callback_d341a44b8e65_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_d341a44b8e65> view(
+      new ailo_callback_d341a44b8e65);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_34abb2fc8457 *
+ailo_callback_34abb2fc8457_view(ailo_callback_34abb2fc8457_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_34abb2fc8457> view(
+      new ailo_callback_34abb2fc8457);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_3e7566bc4071 *
+ailo_callback_3e7566bc4071_view(ailo_callback_3e7566bc4071_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_3e7566bc4071> view(
+      new ailo_callback_3e7566bc4071);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_7ace5c7c16b7 *
+ailo_callback_7ace5c7c16b7_view(ailo_callback_7ace5c7c16b7_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_7ace5c7c16b7> view(
+      new ailo_callback_7ace5c7c16b7);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_3f82fde60665 *
+ailo_callback_3f82fde60665_view(ailo_callback_3f82fde60665_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_3f82fde60665> view(
+      new ailo_callback_3f82fde60665);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_f8d1d962e687 *
+ailo_callback_f8d1d962e687_view(ailo_callback_f8d1d962e687_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_f8d1d962e687> view(
+      new ailo_callback_f8d1d962e687);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_483f122aa30e *
+ailo_callback_483f122aa30e_view(ailo_callback_483f122aa30e_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_483f122aa30e> view(
+      new ailo_callback_483f122aa30e);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_a5b73e2c7b21 *
+ailo_callback_a5b73e2c7b21_view(ailo_callback_a5b73e2c7b21_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_a5b73e2c7b21> view(
+      new ailo_callback_a5b73e2c7b21);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_be60c48b0a98 *
+ailo_callback_be60c48b0a98_view(ailo_callback_be60c48b0a98_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_be60c48b0a98> view(
+      new ailo_callback_be60c48b0a98);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_beb76e4791bb *
+ailo_callback_beb76e4791bb_view(ailo_callback_beb76e4791bb_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_beb76e4791bb> view(
+      new ailo_callback_beb76e4791bb);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_914f5b675579 *
+ailo_callback_914f5b675579_view(ailo_callback_914f5b675579_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_914f5b675579> view(
+      new ailo_callback_914f5b675579);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_06b320bd6b8e *
+ailo_callback_06b320bd6b8e_view(ailo_callback_06b320bd6b8e_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_06b320bd6b8e> view(
+      new ailo_callback_06b320bd6b8e);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_0c00e218a457 *
+ailo_callback_0c00e218a457_view(ailo_callback_0c00e218a457_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_0c00e218a457> view(
+      new ailo_callback_0c00e218a457);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_5408ff2d39c6 *
+ailo_callback_5408ff2d39c6_view(ailo_callback_5408ff2d39c6_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_5408ff2d39c6> view(
+      new ailo_callback_5408ff2d39c6);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_802b44cd03e0 *
+ailo_callback_802b44cd03e0_view(ailo_callback_802b44cd03e0_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_802b44cd03e0> view(
+      new ailo_callback_802b44cd03e0);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_60e200ad9145 *
+ailo_callback_60e200ad9145_view(ailo_callback_60e200ad9145_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_60e200ad9145> view(
+      new ailo_callback_60e200ad9145);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_542e7ac54cdb *
+ailo_callback_542e7ac54cdb_view(ailo_callback_542e7ac54cdb_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_542e7ac54cdb> view(
+      new ailo_callback_542e7ac54cdb);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_2bf828528f60 *
+ailo_callback_2bf828528f60_view(ailo_callback_2bf828528f60_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_2bf828528f60> view(
+      new ailo_callback_2bf828528f60);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_1719fdba8d8f *
+ailo_callback_1719fdba8d8f_view(ailo_callback_1719fdba8d8f_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_1719fdba8d8f> view(
+      new ailo_callback_1719fdba8d8f);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_7ae58ea166a8 *
+ailo_callback_7ae58ea166a8_view(ailo_callback_7ae58ea166a8_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_7ae58ea166a8> view(
+      new ailo_callback_7ae58ea166a8);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_e053664ec68a *
+ailo_callback_e053664ec68a_view(ailo_callback_e053664ec68a_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_e053664ec68a> view(
+      new ailo_callback_e053664ec68a);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_2864ca7faa21 *
+ailo_callback_2864ca7faa21_view(ailo_callback_2864ca7faa21_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_2864ca7faa21> view(
+      new ailo_callback_2864ca7faa21);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_5fa34150084a *
+ailo_callback_5fa34150084a_view(ailo_callback_5fa34150084a_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_5fa34150084a> view(
+      new ailo_callback_5fa34150084a);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_06fd6db0a9de *
+ailo_callback_06fd6db0a9de_view(ailo_callback_06fd6db0a9de_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_06fd6db0a9de> view(
+      new ailo_callback_06fd6db0a9de);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_afd0a9f8fed8 *
+ailo_callback_afd0a9f8fed8_view(ailo_callback_afd0a9f8fed8_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_afd0a9f8fed8> view(
+      new ailo_callback_afd0a9f8fed8);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_8ad5c8b129df *
+ailo_callback_8ad5c8b129df_view(ailo_callback_8ad5c8b129df_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_8ad5c8b129df> view(
+      new ailo_callback_8ad5c8b129df);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_074319862044 *
+ailo_callback_074319862044_view(ailo_callback_074319862044_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_074319862044> view(
+      new ailo_callback_074319862044);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_22d5b5dadc59 *
+ailo_callback_22d5b5dadc59_view(ailo_callback_22d5b5dadc59_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_22d5b5dadc59> view(
+      new ailo_callback_22d5b5dadc59);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_d4e25f8b4940 *
+ailo_callback_d4e25f8b4940_view(ailo_callback_d4e25f8b4940_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_d4e25f8b4940> view(
+      new ailo_callback_d4e25f8b4940);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_47277094ea3e *
+ailo_callback_47277094ea3e_view(ailo_callback_47277094ea3e_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_47277094ea3e> view(
+      new ailo_callback_47277094ea3e);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_5b16e27da7ff *
+ailo_callback_5b16e27da7ff_view(ailo_callback_5b16e27da7ff_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_5b16e27da7ff> view(
+      new ailo_callback_5b16e27da7ff);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_ea33beeaba68 *
+ailo_callback_ea33beeaba68_view(ailo_callback_ea33beeaba68_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_ea33beeaba68> view(
+      new ailo_callback_ea33beeaba68);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_42760a748de7 *
+ailo_callback_42760a748de7_view(ailo_callback_42760a748de7_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_42760a748de7> view(
+      new ailo_callback_42760a748de7);
+  view->target = target;
+  return view.release();
+}
+static ailo_callback_8ddfa7b459eb *
+ailo_callback_8ddfa7b459eb_view(ailo_callback_8ddfa7b459eb_native target) {
+  if (!target)
+    return nullptr;
+  std::unique_ptr<ailo_callback_8ddfa7b459eb> view(
+      new ailo_callback_8ddfa7b459eb);
+  view->target = target;
+  return view.release();
+}
+static void ailo_callback_38eb1918797a_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_38eb1918797a *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = void *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    auto output = self.function(static_cast<void *>(value_0), self.user);
+    ailo::detail::ffi_store(result, (output != 0));
+  } catch (...) {
+    self.core.failed();
+    ailo::detail::ffi_store(result, true);
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_new(ailo_ggml_abort_callback_fn function,
+                             void *user_data,
+                             struct ailo_callback_38eb1918797a **output,
+                             ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_38eb1918797a> result(
+        new ailo_callback_38eb1918797a);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_38eb1918797a_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_from_address(
+    void *address, struct ailo_callback_38eb1918797a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_38eb1918797a_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_38eb1918797a_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_free(struct ailo_callback_38eb1918797a *self,
+                              ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_call(struct ailo_callback_38eb1918797a *self,
+                              void *argument_0, ailo_bool *output,
+                              ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output =
+        static_cast<ailo_bool>(self->target(static_cast<void *>(argument_0)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_clear_error(struct ailo_callback_38eb1918797a *self,
+                                     ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_error(struct ailo_callback_38eb1918797a *self,
+                               ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_cplan_abort_callback_callback_new(
+    ailo_ggml_cplan_abort_callback_callback_fn function, void *user_data,
+    struct ailo_callback_38eb1918797a **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_38eb1918797a> result(
+        new ailo_callback_38eb1918797a);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_38eb1918797a_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_cplan_abort_callback_callback_from_address(
+    void *address, struct ailo_callback_38eb1918797a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_38eb1918797a_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_38eb1918797a_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_cplan_abort_callback_callback_free(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_cplan_abort_callback_callback_call(
+    struct ailo_callback_38eb1918797a *self, void *argument_0,
+    ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output =
+        static_cast<ailo_bool>(self->target(static_cast<void *>(argument_0)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_cplan_abort_callback_callback_clear_error(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_cplan_abort_callback_callback_error(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_abort_callback_callback_new(
+    ailo_llama_context_params_abort_callback_callback_fn function,
+    void *user_data, struct ailo_callback_38eb1918797a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_38eb1918797a> result(
+        new ailo_callback_38eb1918797a);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_38eb1918797a_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_abort_callback_callback_from_address(
+    void *address, struct ailo_callback_38eb1918797a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_38eb1918797a_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_38eb1918797a_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_abort_callback_callback_free(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_abort_callback_callback_call(
+    struct ailo_callback_38eb1918797a *self, void *argument_0,
+    ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output =
+        static_cast<ailo_bool>(self->target(static_cast<void *>(argument_0)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_abort_callback_callback_clear_error(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_abort_callback_callback_error(
+    struct ailo_callback_38eb1918797a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_4ec5f60f8303_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_4ec5f60f8303 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = const char *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    self.function(static_cast<const char *>(value_0), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_t_new(ailo_ggml_abort_callback_t_fn function,
+                               void *user_data,
+                               struct ailo_callback_4ec5f60f8303 **output,
+                               ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_4ec5f60f8303> result(
+        new ailo_callback_4ec5f60f8303);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<const char *>()},
+                      ailo_callback_4ec5f60f8303_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_t_from_address(
+    void *address, struct ailo_callback_4ec5f60f8303 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_4ec5f60f8303_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_4ec5f60f8303_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_t_free(struct ailo_callback_4ec5f60f8303 *self,
+                                ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_t_call(struct ailo_callback_4ec5f60f8303 *self,
+                                const char *argument_0, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->target(static_cast<const char *>(argument_0)); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_t_clear_error(struct ailo_callback_4ec5f60f8303 *self,
+                                       ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_abort_callback_t_error(struct ailo_callback_4ec5f60f8303 *self,
+                                 ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_beed089dd726_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_beed089dd726 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = void *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = struct ggml_tensor **;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    auto output = self.function(
+        static_cast<void *>(value_0),
+        reinterpret_cast<struct ailo_storage_struct_ggml_tensor *>(value_1),
+        self.user);
+    ailo::detail::ffi_store(result, (output != 0));
+  } catch (...) {
+    self.core.failed();
+    using result_type = bool;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_allreduce_tensor_t_new(
+    ailo_ggml_backend_comm_allreduce_tensor_t_fn function, void *user_data,
+    struct ailo_callback_beed089dd726 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_beed089dd726> result(
+        new ailo_callback_beed089dd726);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<void *>(),
+                       ailo::detail::ffi_scalar<struct ggml_tensor **>()},
+                      ailo_callback_beed089dd726_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_allreduce_tensor_t_from_address(
+    void *address, struct ailo_callback_beed089dd726 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_beed089dd726_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_beed089dd726_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_allreduce_tensor_t_free(
+    struct ailo_callback_beed089dd726 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_allreduce_tensor_t_call(
+    struct ailo_callback_beed089dd726 *self, void *argument_0,
+    struct ailo_storage_struct_ggml_tensor *argument_1, ailo_bool *output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(
+        self->target(static_cast<void *>(argument_0),
+                     reinterpret_cast<struct ggml_tensor **>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_allreduce_tensor_t_clear_error(
+    struct ailo_callback_beed089dd726 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_allreduce_tensor_t_error(
+    struct ailo_callback_beed089dd726 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_70c0fa845c42_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_70c0fa845c42 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = void *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    self.function(static_cast<void *>(value_0), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_free_t_new(ailo_ggml_backend_comm_free_t_fn function,
+                                  void *user_data,
+                                  struct ailo_callback_70c0fa845c42 **output,
+                                  ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_70c0fa845c42> result(
+        new ailo_callback_70c0fa845c42);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_70c0fa845c42_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_free_t_from_address(
+    void *address, struct ailo_callback_70c0fa845c42 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_70c0fa845c42_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_70c0fa845c42_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_free_t_free(struct ailo_callback_70c0fa845c42 *self,
+                                   ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_free_t_call(struct ailo_callback_70c0fa845c42 *self,
+                                   void *argument_0, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->target(static_cast<void *>(argument_0)); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_free_t_clear_error(
+    struct ailo_callback_70c0fa845c42 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_free_t_error(struct ailo_callback_70c0fa845c42 *self,
+                                    ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_d341a44b8e65_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_d341a44b8e65 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_backend **;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = size_t;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    auto output = self.function(
+        reinterpret_cast<struct ailo_storage_struct_ggml_backend *>(value_0),
+        static_cast<size_t>(value_1), self.user);
+    ailo::detail::ffi_store(result, static_cast<void *>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = void *;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_init_t_new(ailo_ggml_backend_comm_init_t_fn function,
+                                  void *user_data,
+                                  struct ailo_callback_d341a44b8e65 **output,
+                                  ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_d341a44b8e65> result(
+        new ailo_callback_d341a44b8e65);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void *>(),
+                      {ailo::detail::ffi_scalar<struct ggml_backend **>(),
+                       ailo::detail::ffi_scalar<size_t>()},
+                      ailo_callback_d341a44b8e65_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(void *))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_init_t_from_address(
+    void *address, struct ailo_callback_d341a44b8e65 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_d341a44b8e65_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_d341a44b8e65_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_init_t_free(struct ailo_callback_d341a44b8e65 *self,
+                                   ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_init_t_call(
+    struct ailo_callback_d341a44b8e65 *self,
+    struct ailo_storage_struct_ggml_backend *argument_0, size_t argument_1,
+    void **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<void *>(
+        self->target(reinterpret_cast<struct ggml_backend **>(argument_0),
+                     static_cast<size_t>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_init_t_clear_error(
+    struct ailo_callback_d341a44b8e65 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_comm_init_t_error(struct ailo_callback_d341a44b8e65 *self,
+                                    ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_34abb2fc8457_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_34abb2fc8457 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_backend_device *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    auto output = self.function(
+        reinterpret_cast<struct ailo_ggml_backend_device *>(value_0),
+        self.user);
+    ailo::detail::ffi_store(
+        result, reinterpret_cast<struct ggml_backend_buffer_type **>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = struct ggml_backend_buffer_type **;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_dev_get_extra_bufts_t_new(
+    ailo_ggml_backend_dev_get_extra_bufts_t_fn function, void *user_data,
+    struct ailo_callback_34abb2fc8457 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_34abb2fc8457> result(
+        new ailo_callback_34abb2fc8457);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<struct ggml_backend_buffer_type **>(),
+        {ailo::detail::ffi_scalar<struct ggml_backend_device *>()},
+        ailo_callback_34abb2fc8457_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(struct ggml_backend_buffer_type **))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_dev_get_extra_bufts_t_from_address(
+    void *address, struct ailo_callback_34abb2fc8457 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_34abb2fc8457_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_34abb2fc8457_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_dev_get_extra_bufts_t_free(
+    struct ailo_callback_34abb2fc8457 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_dev_get_extra_bufts_t_call(
+    struct ailo_callback_34abb2fc8457 *self,
+    struct ailo_ggml_backend_device *argument_0,
+    struct ailo_storage_struct_ggml_backend_buffer_type **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output =
+        reinterpret_cast<struct ailo_storage_struct_ggml_backend_buffer_type *>(
+            self->target(
+                reinterpret_cast<struct ggml_backend_device *>(argument_0)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_dev_get_extra_bufts_t_clear_error(
+    struct ailo_callback_34abb2fc8457 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_dev_get_extra_bufts_t_error(
+    struct ailo_callback_34abb2fc8457 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_3e7566bc4071_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_3e7566bc4071 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = int;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = struct ggml_tensor *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = struct ggml_tensor *;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = void *;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    auto output =
+        self.function(static_cast<int>(value_0),
+                      reinterpret_cast<struct ailo_ggml_tensor *>(value_1),
+                      reinterpret_cast<struct ailo_ggml_tensor *>(value_2),
+                      static_cast<void *>(value_3), self.user);
+    ailo::detail::ffi_store(result, (output != 0));
+  } catch (...) {
+    self.core.failed();
+    using result_type = bool;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_eval_callback_new(ailo_ggml_backend_eval_callback_fn function,
+                                    void *user_data,
+                                    struct ailo_callback_3e7566bc4071 **output,
+                                    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_3e7566bc4071> result(
+        new ailo_callback_3e7566bc4071);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<int>(),
+                       ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_3e7566bc4071_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_eval_callback_from_address(
+    void *address, struct ailo_callback_3e7566bc4071 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_3e7566bc4071_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_3e7566bc4071_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_eval_callback_free(struct ailo_callback_3e7566bc4071 *self,
+                                     ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_eval_callback_call(struct ailo_callback_3e7566bc4071 *self,
+                                     int argument_0,
+                                     struct ailo_ggml_tensor *argument_1,
+                                     struct ailo_ggml_tensor *argument_2,
+                                     void *argument_3, ailo_bool *output,
+                                     ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(
+        self->target(static_cast<int>(argument_0),
+                     reinterpret_cast<struct ggml_tensor *>(argument_1),
+                     reinterpret_cast<struct ggml_tensor *>(argument_2),
+                     static_cast<void *>(argument_3)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_eval_callback_clear_error(
+    struct ailo_callback_3e7566bc4071 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_eval_callback_error(struct ailo_callback_3e7566bc4071 *self,
+                                      ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_7ace5c7c16b7_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_7ace5c7c16b7 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_backend_reg *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    auto output = self.function(
+        reinterpret_cast<struct ailo_ggml_backend_reg *>(value_0), self.user);
+    ailo::detail::ffi_store(
+        result, reinterpret_cast<struct ggml_backend_feature *>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = struct ggml_backend_feature *;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_get_features_t_new(
+    ailo_ggml_backend_get_features_t_fn function, void *user_data,
+    struct ailo_callback_7ace5c7c16b7 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_7ace5c7c16b7> result(
+        new ailo_callback_7ace5c7c16b7);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<struct ggml_backend_feature *>(),
+                      {ailo::detail::ffi_scalar<struct ggml_backend_reg *>()},
+                      ailo_callback_7ace5c7c16b7_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(struct ggml_backend_feature *))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_get_features_t_from_address(
+    void *address, struct ailo_callback_7ace5c7c16b7 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_7ace5c7c16b7_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_7ace5c7c16b7_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_get_features_t_free(struct ailo_callback_7ace5c7c16b7 *self,
+                                      ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_get_features_t_call(struct ailo_callback_7ace5c7c16b7 *self,
+                                      struct ailo_ggml_backend_reg *argument_0,
+                                      struct ailo_ggml_backend_feature **output,
+                                      ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_ggml_backend_feature *>(
+        self->target(reinterpret_cast<struct ggml_backend_reg *>(argument_0)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_get_features_t_clear_error(
+    struct ailo_callback_7ace5c7c16b7 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_get_features_t_error(struct ailo_callback_7ace5c7c16b7 *self,
+                                       ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_3f82fde60665_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_3f82fde60665 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = const struct ggml_tensor *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = void *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    auto output = self.function(
+        reinterpret_cast<const struct ailo_ggml_tensor *>(value_0),
+        static_cast<void *>(value_1), self.user);
+    if (!output)
+      throw std::runtime_error("Callback returned a missing record");
+    ailo::detail::ffi_store(
+        result, *reinterpret_cast<const struct ggml_backend_meta_split_state *>(
+                    output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = struct ggml_backend_meta_split_state;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_meta_get_split_state_t_new(
+    ailo_ggml_backend_meta_get_split_state_t_fn function, void *user_data,
+    struct ailo_callback_3f82fde60665 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_3f82fde60665> result(
+        new ailo_callback_3f82fde60665);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        self.core.layout.aggregate(
+            {ailo::detail::ffi_scalar<enum ggml_backend_meta_split_axis>(),
+             self.core.layout.aggregate(std::vector<ffi_type *>(
+                 256, ailo::detail::ffi_scalar<int64_t>())),
+             self.core.layout.aggregate(std::vector<ffi_type *>(
+                 16, ailo::detail::ffi_scalar<uint32_t>())),
+             ailo::detail::ffi_scalar<uint32_t>()}),
+        {ailo::detail::ffi_scalar<const struct ggml_tensor *>(),
+         ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_3f82fde60665_dispatch, &self);
+    if (self.core.cif.rtype->size !=
+        sizeof(struct ggml_backend_meta_split_state))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_meta_get_split_state_t_from_address(
+    void *address, struct ailo_callback_3f82fde60665 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_3f82fde60665_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_3f82fde60665_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_meta_get_split_state_t_free(
+    struct ailo_callback_3f82fde60665 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_meta_get_split_state_t_call(
+    struct ailo_callback_3f82fde60665 *self,
+    const struct ailo_ggml_tensor *argument_0, void *argument_1,
+    struct ailo_ggml_backend_meta_split_state **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<struct ggml_backend_meta_split_state[]> result(
+        new struct ggml_backend_meta_split_state[1]());
+    result[0] =
+        self->target(reinterpret_cast<const struct ggml_tensor *>(argument_0),
+                     static_cast<void *>(argument_1));
+    *output = reinterpret_cast<struct ailo_ggml_backend_meta_split_state *>(
+        result.release());
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_meta_get_split_state_t_clear_error(
+    struct ailo_callback_3f82fde60665 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_meta_get_split_state_t_error(
+    struct ailo_callback_3f82fde60665 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_f8d1d962e687_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_f8d1d962e687 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_tensor *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = bool;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = void *;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    auto output =
+        self.function(reinterpret_cast<struct ailo_ggml_tensor *>(value_0),
+                      static_cast<ailo_bool>(value_1),
+                      static_cast<void *>(value_2), self.user);
+    ailo::detail::ffi_store(result, (output != 0));
+  } catch (...) {
+    self.core.failed();
+    using result_type = bool;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_sched_eval_callback_new(
+    ailo_ggml_backend_sched_eval_callback_fn function, void *user_data,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_f8d1d962e687> result(
+        new ailo_callback_f8d1d962e687);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<bool>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_f8d1d962e687_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_sched_eval_callback_from_address(
+    void *address, struct ailo_callback_f8d1d962e687 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_f8d1d962e687_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_f8d1d962e687_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_sched_eval_callback_free(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_sched_eval_callback_call(
+    struct ailo_callback_f8d1d962e687 *self,
+    struct ailo_ggml_tensor *argument_0, ailo_bool argument_1, void *argument_2,
+    ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(
+        self->target(reinterpret_cast<struct ggml_tensor *>(argument_0),
+                     (argument_1 != 0), static_cast<void *>(argument_2)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_sched_eval_callback_clear_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_sched_eval_callback_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_cb_eval_callback_new(
+    ailo_llama_context_params_cb_eval_callback_fn function, void *user_data,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_f8d1d962e687> result(
+        new ailo_callback_f8d1d962e687);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<bool>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_f8d1d962e687_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_cb_eval_callback_from_address(
+    void *address, struct ailo_callback_f8d1d962e687 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_f8d1d962e687_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_f8d1d962e687_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_cb_eval_callback_free(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_cb_eval_callback_call(
+    struct ailo_callback_f8d1d962e687 *self,
+    struct ailo_ggml_tensor *argument_0, ailo_bool argument_1, void *argument_2,
+    ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(
+        self->target(reinterpret_cast<struct ggml_tensor *>(argument_0),
+                     (argument_1 != 0), static_cast<void *>(argument_2)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_cb_eval_callback_clear_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_cb_eval_callback_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_cb_eval_callback_new(
+    ailo_mtmd_context_params_cb_eval_callback_fn function, void *user_data,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_f8d1d962e687> result(
+        new ailo_callback_f8d1d962e687);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<bool>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_f8d1d962e687_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_cb_eval_callback_from_address(
+    void *address, struct ailo_callback_f8d1d962e687 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_f8d1d962e687_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_f8d1d962e687_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_cb_eval_callback_free(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_cb_eval_callback_call(
+    struct ailo_callback_f8d1d962e687 *self,
+    struct ailo_ggml_tensor *argument_0, ailo_bool argument_1, void *argument_2,
+    ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(
+        self->target(reinterpret_cast<struct ggml_tensor *>(argument_0),
+                     (argument_1 != 0), static_cast<void *>(argument_2)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_cb_eval_callback_clear_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_cb_eval_callback_error(
+    struct ailo_callback_f8d1d962e687 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_483f122aa30e_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_483f122aa30e *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_backend *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = ailo_callback_38eb1918797a_native;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    ailo_callback_38eb1918797a view_1;
+    view_1.target = value_1;
+    using type_2 = void *;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    self.function(reinterpret_cast<struct ailo_ggml_backend *>(value_0),
+                  value_1 ? &view_1 : nullptr, static_cast<void *>(value_2),
+                  self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_abort_callback_t_new(
+    ailo_ggml_backend_set_abort_callback_t_fn function, void *user_data,
+    struct ailo_callback_483f122aa30e **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_483f122aa30e> result(
+        new ailo_callback_483f122aa30e);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<void>(),
+        {ailo::detail::ffi_scalar<struct ggml_backend *>(),
+         ailo::detail::ffi_scalar<ailo_callback_38eb1918797a_native>(),
+         ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_483f122aa30e_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_abort_callback_t_from_address(
+    void *address, struct ailo_callback_483f122aa30e **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_483f122aa30e_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_483f122aa30e_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_abort_callback_t_free(
+    struct ailo_callback_483f122aa30e *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_abort_callback_t_call(
+    struct ailo_callback_483f122aa30e *self,
+    struct ailo_ggml_backend *argument_0,
+    struct ailo_callback_38eb1918797a *argument_1, void *argument_2,
+    ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct ggml_backend *>(argument_0),
+                 (argument_1 ? argument_1->target : nullptr),
+                 static_cast<void *>(argument_2));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_abort_callback_t_clear_error(
+    struct ailo_callback_483f122aa30e *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_abort_callback_t_error(
+    struct ailo_callback_483f122aa30e *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_a5b73e2c7b21_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_a5b73e2c7b21 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_backend *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = int;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    self.function(reinterpret_cast<struct ailo_ggml_backend *>(value_0),
+                  static_cast<int>(value_1), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_n_threads_t_new(
+    ailo_ggml_backend_set_n_threads_t_fn function, void *user_data,
+    struct ailo_callback_a5b73e2c7b21 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_a5b73e2c7b21> result(
+        new ailo_callback_a5b73e2c7b21);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct ggml_backend *>(),
+                       ailo::detail::ffi_scalar<int>()},
+                      ailo_callback_a5b73e2c7b21_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_n_threads_t_from_address(
+    void *address, struct ailo_callback_a5b73e2c7b21 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_a5b73e2c7b21_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_a5b73e2c7b21_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_n_threads_t_free(struct ailo_callback_a5b73e2c7b21 *self,
+                                       ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_n_threads_t_call(struct ailo_callback_a5b73e2c7b21 *self,
+                                       struct ailo_ggml_backend *argument_0,
+                                       int argument_1, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct ggml_backend *>(argument_0),
+                 static_cast<int>(argument_1));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_n_threads_t_clear_error(
+    struct ailo_callback_a5b73e2c7b21 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_set_n_threads_t_error(struct ailo_callback_a5b73e2c7b21 *self,
+                                        ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_be60c48b0a98_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_be60c48b0a98 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = int;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = const float *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    auto output = self.function(static_cast<int>(value_0),
+                                static_cast<const float *>(value_1), self.user);
+    ailo::detail::ffi_store(
+        result, reinterpret_cast<struct ggml_backend_buffer_type *>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = struct ggml_backend_buffer_type *;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_split_buffer_type_t_new(
+    ailo_ggml_backend_split_buffer_type_t_fn function, void *user_data,
+    struct ailo_callback_be60c48b0a98 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_be60c48b0a98> result(
+        new ailo_callback_be60c48b0a98);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<struct ggml_backend_buffer_type *>(),
+        {ailo::detail::ffi_scalar<int>(),
+         ailo::detail::ffi_scalar<const float *>()},
+        ailo_callback_be60c48b0a98_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(struct ggml_backend_buffer_type *))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_split_buffer_type_t_from_address(
+    void *address, struct ailo_callback_be60c48b0a98 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_be60c48b0a98_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_be60c48b0a98_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_split_buffer_type_t_free(
+    struct ailo_callback_be60c48b0a98 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_split_buffer_type_t_call(
+    struct ailo_callback_be60c48b0a98 *self, int argument_0,
+    const float *argument_1, struct ailo_ggml_backend_buffer_type **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_ggml_backend_buffer_type *>(
+        self->target(static_cast<int>(argument_0),
+                     static_cast<const float *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_split_buffer_type_t_clear_error(
+    struct ailo_callback_be60c48b0a98 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_split_buffer_type_t_error(
+    struct ailo_callback_be60c48b0a98 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_beb76e4791bb_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_beb76e4791bb *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_tensor *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = const struct ggml_tensor *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = int;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = int;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    using type_4 = void *;
+    auto value_4 = *static_cast<type_4 *>(arguments[4]);
+    self.function(reinterpret_cast<struct ailo_ggml_tensor *>(value_0),
+                  reinterpret_cast<const struct ailo_ggml_tensor *>(value_1),
+                  static_cast<int>(value_2), static_cast<int>(value_3),
+                  static_cast<void *>(value_4), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom1_op_t_new(ailo_ggml_custom1_op_t_fn function, void *user_data,
+                           struct ailo_callback_beb76e4791bb **output,
+                           ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_beb76e4791bb> result(
+        new ailo_callback_beb76e4791bb);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<const struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<int>(),
+                       ailo::detail::ffi_scalar<int>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_beb76e4791bb_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom1_op_t_from_address(void *address,
+                                    struct ailo_callback_beb76e4791bb **output,
+                                    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_beb76e4791bb_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_beb76e4791bb_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom1_op_t_free(struct ailo_callback_beb76e4791bb *self,
+                            ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom1_op_t_call(struct ailo_callback_beb76e4791bb *self,
+                            struct ailo_ggml_tensor *argument_0,
+                            const struct ailo_ggml_tensor *argument_1,
+                            int argument_2, int argument_3, void *argument_4,
+                            ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct ggml_tensor *>(argument_0),
+                 reinterpret_cast<const struct ggml_tensor *>(argument_1),
+                 static_cast<int>(argument_2), static_cast<int>(argument_3),
+                 static_cast<void *>(argument_4));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom1_op_t_clear_error(struct ailo_callback_beb76e4791bb *self,
+                                   ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom1_op_t_error(struct ailo_callback_beb76e4791bb *self,
+                             ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_914f5b675579_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_914f5b675579 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_tensor *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = const struct ggml_tensor *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = const struct ggml_tensor *;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = int;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    using type_4 = int;
+    auto value_4 = *static_cast<type_4 *>(arguments[4]);
+    using type_5 = void *;
+    auto value_5 = *static_cast<type_5 *>(arguments[5]);
+    self.function(reinterpret_cast<struct ailo_ggml_tensor *>(value_0),
+                  reinterpret_cast<const struct ailo_ggml_tensor *>(value_1),
+                  reinterpret_cast<const struct ailo_ggml_tensor *>(value_2),
+                  static_cast<int>(value_3), static_cast<int>(value_4),
+                  static_cast<void *>(value_5), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom2_op_t_new(ailo_ggml_custom2_op_t_fn function, void *user_data,
+                           struct ailo_callback_914f5b675579 **output,
+                           ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_914f5b675579> result(
+        new ailo_callback_914f5b675579);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<const struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<const struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<int>(),
+                       ailo::detail::ffi_scalar<int>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_914f5b675579_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom2_op_t_from_address(void *address,
+                                    struct ailo_callback_914f5b675579 **output,
+                                    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_914f5b675579_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_914f5b675579_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom2_op_t_free(struct ailo_callback_914f5b675579 *self,
+                            ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom2_op_t_call(struct ailo_callback_914f5b675579 *self,
+                            struct ailo_ggml_tensor *argument_0,
+                            const struct ailo_ggml_tensor *argument_1,
+                            const struct ailo_ggml_tensor *argument_2,
+                            int argument_3, int argument_4, void *argument_5,
+                            ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct ggml_tensor *>(argument_0),
+                 reinterpret_cast<const struct ggml_tensor *>(argument_1),
+                 reinterpret_cast<const struct ggml_tensor *>(argument_2),
+                 static_cast<int>(argument_3), static_cast<int>(argument_4),
+                 static_cast<void *>(argument_5));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom2_op_t_clear_error(struct ailo_callback_914f5b675579 *self,
+                                   ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom2_op_t_error(struct ailo_callback_914f5b675579 *self,
+                             ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_06b320bd6b8e_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_06b320bd6b8e *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_tensor *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = const struct ggml_tensor *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = const struct ggml_tensor *;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = const struct ggml_tensor *;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    using type_4 = int;
+    auto value_4 = *static_cast<type_4 *>(arguments[4]);
+    using type_5 = int;
+    auto value_5 = *static_cast<type_5 *>(arguments[5]);
+    using type_6 = void *;
+    auto value_6 = *static_cast<type_6 *>(arguments[6]);
+    self.function(reinterpret_cast<struct ailo_ggml_tensor *>(value_0),
+                  reinterpret_cast<const struct ailo_ggml_tensor *>(value_1),
+                  reinterpret_cast<const struct ailo_ggml_tensor *>(value_2),
+                  reinterpret_cast<const struct ailo_ggml_tensor *>(value_3),
+                  static_cast<int>(value_4), static_cast<int>(value_5),
+                  static_cast<void *>(value_6), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom3_op_t_new(ailo_ggml_custom3_op_t_fn function, void *user_data,
+                           struct ailo_callback_06b320bd6b8e **output,
+                           ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_06b320bd6b8e> result(
+        new ailo_callback_06b320bd6b8e);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<const struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<const struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<const struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<int>(),
+                       ailo::detail::ffi_scalar<int>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_06b320bd6b8e_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom3_op_t_from_address(void *address,
+                                    struct ailo_callback_06b320bd6b8e **output,
+                                    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_06b320bd6b8e_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_06b320bd6b8e_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom3_op_t_free(struct ailo_callback_06b320bd6b8e *self,
+                            ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom3_op_t_call(struct ailo_callback_06b320bd6b8e *self,
+                            struct ailo_ggml_tensor *argument_0,
+                            const struct ailo_ggml_tensor *argument_1,
+                            const struct ailo_ggml_tensor *argument_2,
+                            const struct ailo_ggml_tensor *argument_3,
+                            int argument_4, int argument_5, void *argument_6,
+                            ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct ggml_tensor *>(argument_0),
+                 reinterpret_cast<const struct ggml_tensor *>(argument_1),
+                 reinterpret_cast<const struct ggml_tensor *>(argument_2),
+                 reinterpret_cast<const struct ggml_tensor *>(argument_3),
+                 static_cast<int>(argument_4), static_cast<int>(argument_5),
+                 static_cast<void *>(argument_6));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom3_op_t_clear_error(struct ailo_callback_06b320bd6b8e *self,
+                                   ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom3_op_t_error(struct ailo_callback_06b320bd6b8e *self,
+                             ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_0c00e218a457_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_0c00e218a457 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_tensor *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = int;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = int;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = void *;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    self.function(reinterpret_cast<struct ailo_ggml_tensor *>(value_0),
+                  static_cast<int>(value_1), static_cast<int>(value_2),
+                  static_cast<void *>(value_3), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom_op_t_new(ailo_ggml_custom_op_t_fn function, void *user_data,
+                          struct ailo_callback_0c00e218a457 **output,
+                          ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_0c00e218a457> result(
+        new ailo_callback_0c00e218a457);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<int>(),
+                       ailo::detail::ffi_scalar<int>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_0c00e218a457_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom_op_t_from_address(void *address,
+                                   struct ailo_callback_0c00e218a457 **output,
+                                   ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_0c00e218a457_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_0c00e218a457_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom_op_t_free(struct ailo_callback_0c00e218a457 *self,
+                           ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom_op_t_call(struct ailo_callback_0c00e218a457 *self,
+                           struct ailo_ggml_tensor *argument_0, int argument_1,
+                           int argument_2, void *argument_3,
+                           ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct ggml_tensor *>(argument_0),
+                 static_cast<int>(argument_1), static_cast<int>(argument_2),
+                 static_cast<void *>(argument_3));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom_op_t_clear_error(struct ailo_callback_0c00e218a457 *self,
+                                  ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom_op_t_error(struct ailo_callback_0c00e218a457 *self,
+                            ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_5408ff2d39c6_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_5408ff2d39c6 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = const float *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = void *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = int64_t;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    self.function(static_cast<const float *>(value_0),
+                  static_cast<void *>(value_1),
+                  ailo::detail::from_signed(value_2), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_from_float_t_new(ailo_ggml_from_float_t_fn function, void *user_data,
+                           struct ailo_callback_5408ff2d39c6 **output,
+                           ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_5408ff2d39c6> result(
+        new ailo_callback_5408ff2d39c6);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<const float *>(),
+                       ailo::detail::ffi_scalar<void *>(),
+                       ailo::detail::ffi_scalar<int64_t>()},
+                      ailo_callback_5408ff2d39c6_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_from_float_t_from_address(void *address,
+                                    struct ailo_callback_5408ff2d39c6 **output,
+                                    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_5408ff2d39c6_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_5408ff2d39c6_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_from_float_t_free(struct ailo_callback_5408ff2d39c6 *self,
+                            ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_from_float_t_call(struct ailo_callback_5408ff2d39c6 *self,
+                            const float *argument_0, void *argument_1,
+                            ailo_i64 argument_2, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(static_cast<const float *>(argument_0),
+                 static_cast<void *>(argument_1),
+                 ailo::detail::to_native(argument_2));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_from_float_t_clear_error(struct ailo_callback_5408ff2d39c6 *self,
+                                   ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_from_float_t_error(struct ailo_callback_5408ff2d39c6 *self,
+                             ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_from_float_callback_new(
+    ailo_ggml_type_traits_cpu_from_float_callback_fn function, void *user_data,
+    struct ailo_callback_5408ff2d39c6 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_5408ff2d39c6> result(
+        new ailo_callback_5408ff2d39c6);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<const float *>(),
+                       ailo::detail::ffi_scalar<void *>(),
+                       ailo::detail::ffi_scalar<int64_t>()},
+                      ailo_callback_5408ff2d39c6_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_from_float_callback_from_address(
+    void *address, struct ailo_callback_5408ff2d39c6 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_5408ff2d39c6_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_5408ff2d39c6_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_from_float_callback_free(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_from_float_callback_call(
+    struct ailo_callback_5408ff2d39c6 *self, const float *argument_0,
+    void *argument_1, ailo_i64 argument_2, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(static_cast<const float *>(argument_0),
+                 static_cast<void *>(argument_1),
+                 ailo::detail::to_native(argument_2));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_from_float_callback_clear_error(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_from_float_callback_error(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_from_float_ref_callback_new(
+    ailo_ggml_type_traits_from_float_ref_callback_fn function, void *user_data,
+    struct ailo_callback_5408ff2d39c6 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_5408ff2d39c6> result(
+        new ailo_callback_5408ff2d39c6);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<const float *>(),
+                       ailo::detail::ffi_scalar<void *>(),
+                       ailo::detail::ffi_scalar<int64_t>()},
+                      ailo_callback_5408ff2d39c6_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_from_float_ref_callback_from_address(
+    void *address, struct ailo_callback_5408ff2d39c6 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_5408ff2d39c6_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_5408ff2d39c6_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_from_float_ref_callback_free(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_from_float_ref_callback_call(
+    struct ailo_callback_5408ff2d39c6 *self, const float *argument_0,
+    void *argument_1, ailo_i64 argument_2, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(static_cast<const float *>(argument_0),
+                 static_cast<void *>(argument_1),
+                 ailo::detail::to_native(argument_2));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_from_float_ref_callback_clear_error(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_from_float_ref_callback_error(
+    struct ailo_callback_5408ff2d39c6 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_802b44cd03e0_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_802b44cd03e0 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = enum ggml_log_level;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = const char *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = void *;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    self.function(static_cast<enum ailo_ggml_log_level>(value_0),
+                  static_cast<const char *>(value_1),
+                  static_cast<void *>(value_2), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_log_callback_new(ailo_ggml_log_callback_fn function, void *user_data,
+                           struct ailo_callback_802b44cd03e0 **output,
+                           ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_802b44cd03e0> result(
+        new ailo_callback_802b44cd03e0);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<enum ggml_log_level>(),
+                       ailo::detail::ffi_scalar<const char *>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_802b44cd03e0_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_log_callback_from_address(void *address,
+                                    struct ailo_callback_802b44cd03e0 **output,
+                                    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_802b44cd03e0_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_802b44cd03e0_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_log_callback_free(struct ailo_callback_802b44cd03e0 *self,
+                            ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_log_callback_call(struct ailo_callback_802b44cd03e0 *self,
+                            enum ailo_ggml_log_level argument_0,
+                            const char *argument_1, void *argument_2,
+                            ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(static_cast<enum ggml_log_level>(argument_0),
+                 static_cast<const char *>(argument_1),
+                 static_cast<void *>(argument_2));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_log_callback_clear_error(struct ailo_callback_802b44cd03e0 *self,
+                                   ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_log_callback_error(struct ailo_callback_802b44cd03e0 *self,
+                             ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_60e200ad9145_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_60e200ad9145 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = bool;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = struct ggml_opt_context *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = struct ggml_opt_dataset *;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = struct ggml_opt_result *;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    using type_4 = int64_t;
+    auto value_4 = *static_cast<type_4 *>(arguments[4]);
+    using type_5 = int64_t;
+    auto value_5 = *static_cast<type_5 *>(arguments[5]);
+    using type_6 = int64_t;
+    auto value_6 = *static_cast<type_6 *>(arguments[6]);
+    self.function(static_cast<ailo_bool>(value_0),
+                  reinterpret_cast<struct ailo_ggml_opt_context *>(value_1),
+                  reinterpret_cast<struct ailo_ggml_opt_dataset *>(value_2),
+                  reinterpret_cast<struct ailo_ggml_opt_result *>(value_3),
+                  ailo::detail::from_signed(value_4),
+                  ailo::detail::from_signed(value_5),
+                  ailo::detail::from_signed(value_6), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_epoch_callback_new(ailo_ggml_opt_epoch_callback_fn function,
+                                 void *user_data,
+                                 struct ailo_callback_60e200ad9145 **output,
+                                 ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_60e200ad9145> result(
+        new ailo_callback_60e200ad9145);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<bool>(),
+                       ailo::detail::ffi_scalar<struct ggml_opt_context *>(),
+                       ailo::detail::ffi_scalar<struct ggml_opt_dataset *>(),
+                       ailo::detail::ffi_scalar<struct ggml_opt_result *>(),
+                       ailo::detail::ffi_scalar<int64_t>(),
+                       ailo::detail::ffi_scalar<int64_t>(),
+                       ailo::detail::ffi_scalar<int64_t>()},
+                      ailo_callback_60e200ad9145_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_epoch_callback_from_address(
+    void *address, struct ailo_callback_60e200ad9145 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_60e200ad9145_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_60e200ad9145_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_epoch_callback_free(struct ailo_callback_60e200ad9145 *self,
+                                  ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_epoch_callback_call(struct ailo_callback_60e200ad9145 *self,
+                                  ailo_bool argument_0,
+                                  struct ailo_ggml_opt_context *argument_1,
+                                  struct ailo_ggml_opt_dataset *argument_2,
+                                  struct ailo_ggml_opt_result *argument_3,
+                                  ailo_i64 argument_4, ailo_i64 argument_5,
+                                  ailo_i64 argument_6, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target((argument_0 != 0),
+                 reinterpret_cast<struct ggml_opt_context *>(argument_1),
+                 reinterpret_cast<struct ggml_opt_dataset *>(argument_2),
+                 reinterpret_cast<struct ggml_opt_result *>(argument_3),
+                 ailo::detail::to_native(argument_4),
+                 ailo::detail::to_native(argument_5),
+                 ailo::detail::to_native(argument_6));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_epoch_callback_clear_error(
+    struct ailo_callback_60e200ad9145 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_epoch_callback_error(struct ailo_callback_60e200ad9145 *self,
+                                   ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_542e7ac54cdb_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_542e7ac54cdb *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = void *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    auto output = self.function(static_cast<void *>(value_0), self.user);
+    if (!output)
+      throw std::runtime_error("Callback returned a missing record");
+    ailo::detail::ffi_store(
+        result,
+        *reinterpret_cast<const struct ggml_opt_optimizer_params *>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = struct ggml_opt_optimizer_params;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_get_optimizer_params_new(
+    ailo_ggml_opt_get_optimizer_params_fn function, void *user_data,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_542e7ac54cdb> result(
+        new ailo_callback_542e7ac54cdb);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        self.core.layout.aggregate(
+            {self.core.layout.aggregate({ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>()}),
+             self.core.layout.aggregate({ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>()})}),
+        {ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_542e7ac54cdb_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(struct ggml_opt_optimizer_params))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_get_optimizer_params_from_address(
+    void *address, struct ailo_callback_542e7ac54cdb **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_542e7ac54cdb_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_542e7ac54cdb_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_get_optimizer_params_free(struct ailo_callback_542e7ac54cdb *self,
+                                        ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_get_optimizer_params_call(
+    struct ailo_callback_542e7ac54cdb *self, void *argument_0,
+    struct ailo_ggml_opt_optimizer_params **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<struct ggml_opt_optimizer_params[]> result(
+        new struct ggml_opt_optimizer_params[1]());
+    result[0] = self->target(static_cast<void *>(argument_0));
+    *output = reinterpret_cast<struct ailo_ggml_opt_optimizer_params *>(
+        result.release());
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_get_optimizer_params_clear_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_get_optimizer_params_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_params_get_opt_pars_callback_new(
+    ailo_ggml_opt_params_get_opt_pars_callback_fn function, void *user_data,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_542e7ac54cdb> result(
+        new ailo_callback_542e7ac54cdb);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        self.core.layout.aggregate(
+            {self.core.layout.aggregate({ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>()}),
+             self.core.layout.aggregate({ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>()})}),
+        {ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_542e7ac54cdb_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(struct ggml_opt_optimizer_params))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_params_get_opt_pars_callback_from_address(
+    void *address, struct ailo_callback_542e7ac54cdb **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_542e7ac54cdb_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_542e7ac54cdb_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_params_get_opt_pars_callback_free(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_params_get_opt_pars_callback_call(
+    struct ailo_callback_542e7ac54cdb *self, void *argument_0,
+    struct ailo_ggml_opt_optimizer_params **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<struct ggml_opt_optimizer_params[]> result(
+        new struct ggml_opt_optimizer_params[1]());
+    result[0] = self->target(static_cast<void *>(argument_0));
+    *output = reinterpret_cast<struct ailo_ggml_opt_optimizer_params *>(
+        result.release());
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_params_get_opt_pars_callback_clear_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_params_get_opt_pars_callback_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_get_opt_pars_callback_new(
+    ailo_llama_opt_params_get_opt_pars_callback_fn function, void *user_data,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_542e7ac54cdb> result(
+        new ailo_callback_542e7ac54cdb);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        self.core.layout.aggregate(
+            {self.core.layout.aggregate({ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>()}),
+             self.core.layout.aggregate({ailo::detail::ffi_scalar<float>(),
+                                         ailo::detail::ffi_scalar<float>()})}),
+        {ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_542e7ac54cdb_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(struct ggml_opt_optimizer_params))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_get_opt_pars_callback_from_address(
+    void *address, struct ailo_callback_542e7ac54cdb **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_542e7ac54cdb_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_542e7ac54cdb_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_get_opt_pars_callback_free(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_get_opt_pars_callback_call(
+    struct ailo_callback_542e7ac54cdb *self, void *argument_0,
+    struct ailo_ggml_opt_optimizer_params **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<struct ggml_opt_optimizer_params[]> result(
+        new struct ggml_opt_optimizer_params[1]());
+    result[0] = self->target(static_cast<void *>(argument_0));
+    *output = reinterpret_cast<struct ailo_ggml_opt_optimizer_params *>(
+        result.release());
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_get_opt_pars_callback_clear_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_get_opt_pars_callback_error(
+    struct ailo_callback_542e7ac54cdb *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_2bf828528f60_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_2bf828528f60 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = const void *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = float *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = int64_t;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    self.function(static_cast<const void *>(value_0),
+                  static_cast<float *>(value_1),
+                  ailo::detail::from_signed(value_2), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_to_float_t_new(ailo_ggml_to_float_t_fn function, void *user_data,
+                         struct ailo_callback_2bf828528f60 **output,
+                         ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_2bf828528f60> result(
+        new ailo_callback_2bf828528f60);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<const void *>(),
+                       ailo::detail::ffi_scalar<float *>(),
+                       ailo::detail::ffi_scalar<int64_t>()},
+                      ailo_callback_2bf828528f60_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_to_float_t_from_address(void *address,
+                                  struct ailo_callback_2bf828528f60 **output,
+                                  ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_2bf828528f60_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_2bf828528f60_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_to_float_t_free(struct ailo_callback_2bf828528f60 *self,
+                          ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_to_float_t_call(struct ailo_callback_2bf828528f60 *self,
+                          const void *argument_0, float *argument_1,
+                          ailo_i64 argument_2, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(static_cast<const void *>(argument_0),
+                 static_cast<float *>(argument_1),
+                 ailo::detail::to_native(argument_2));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_to_float_t_clear_error(struct ailo_callback_2bf828528f60 *self,
+                                 ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_to_float_t_error(struct ailo_callback_2bf828528f60 *self,
+                           ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_to_float_callback_new(
+    ailo_ggml_type_traits_to_float_callback_fn function, void *user_data,
+    struct ailo_callback_2bf828528f60 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_2bf828528f60> result(
+        new ailo_callback_2bf828528f60);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<const void *>(),
+                       ailo::detail::ffi_scalar<float *>(),
+                       ailo::detail::ffi_scalar<int64_t>()},
+                      ailo_callback_2bf828528f60_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_to_float_callback_from_address(
+    void *address, struct ailo_callback_2bf828528f60 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_2bf828528f60_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_2bf828528f60_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_to_float_callback_free(
+    struct ailo_callback_2bf828528f60 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_to_float_callback_call(
+    struct ailo_callback_2bf828528f60 *self, const void *argument_0,
+    float *argument_1, ailo_i64 argument_2, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(static_cast<const void *>(argument_0),
+                 static_cast<float *>(argument_1),
+                 ailo::detail::to_native(argument_2));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_to_float_callback_clear_error(
+    struct ailo_callback_2bf828528f60 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_to_float_callback_error(
+    struct ailo_callback_2bf828528f60 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_1719fdba8d8f_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_1719fdba8d8f *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = int;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = float *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = size_t;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = const void *;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    using type_4 = size_t;
+    auto value_4 = *static_cast<type_4 *>(arguments[4]);
+    using type_5 = const void *;
+    auto value_5 = *static_cast<type_5 *>(arguments[5]);
+    using type_6 = size_t;
+    auto value_6 = *static_cast<type_6 *>(arguments[6]);
+    using type_7 = int;
+    auto value_7 = *static_cast<type_7 *>(arguments[7]);
+    self.function(
+        static_cast<int>(value_0), static_cast<float *>(value_1),
+        static_cast<size_t>(value_2), static_cast<const void *>(value_3),
+        static_cast<size_t>(value_4), static_cast<const void *>(value_5),
+        static_cast<size_t>(value_6), static_cast<int>(value_7), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_vec_dot_callback_new(
+    ailo_ggml_type_traits_cpu_vec_dot_callback_fn function, void *user_data,
+    struct ailo_callback_1719fdba8d8f **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_1719fdba8d8f> result(
+        new ailo_callback_1719fdba8d8f);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<void>(),
+        {ailo::detail::ffi_scalar<int>(), ailo::detail::ffi_scalar<float *>(),
+         ailo::detail::ffi_scalar<size_t>(),
+         ailo::detail::ffi_scalar<const void *>(),
+         ailo::detail::ffi_scalar<size_t>(),
+         ailo::detail::ffi_scalar<const void *>(),
+         ailo::detail::ffi_scalar<size_t>(), ailo::detail::ffi_scalar<int>()},
+        ailo_callback_1719fdba8d8f_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_vec_dot_callback_from_address(
+    void *address, struct ailo_callback_1719fdba8d8f **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_1719fdba8d8f_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_1719fdba8d8f_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_vec_dot_callback_free(
+    struct ailo_callback_1719fdba8d8f *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_vec_dot_callback_call(
+    struct ailo_callback_1719fdba8d8f *self, int argument_0, float *argument_1,
+    size_t argument_2, const void *argument_3, size_t argument_4,
+    const void *argument_5, size_t argument_6, int argument_7,
+    ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(
+        static_cast<int>(argument_0), static_cast<float *>(argument_1),
+        static_cast<size_t>(argument_2), static_cast<const void *>(argument_3),
+        static_cast<size_t>(argument_4), static_cast<const void *>(argument_5),
+        static_cast<size_t>(argument_6), static_cast<int>(argument_7));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_vec_dot_callback_clear_error(
+    struct ailo_callback_1719fdba8d8f *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_vec_dot_callback_error(
+    struct ailo_callback_1719fdba8d8f *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_vec_dot_t_new(ailo_ggml_vec_dot_t_fn function, void *user_data,
+                        struct ailo_callback_1719fdba8d8f **output,
+                        ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_1719fdba8d8f> result(
+        new ailo_callback_1719fdba8d8f);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<void>(),
+        {ailo::detail::ffi_scalar<int>(), ailo::detail::ffi_scalar<float *>(),
+         ailo::detail::ffi_scalar<size_t>(),
+         ailo::detail::ffi_scalar<const void *>(),
+         ailo::detail::ffi_scalar<size_t>(),
+         ailo::detail::ffi_scalar<const void *>(),
+         ailo::detail::ffi_scalar<size_t>(), ailo::detail::ffi_scalar<int>()},
+        ailo_callback_1719fdba8d8f_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_vec_dot_t_from_address(void *address,
+                                 struct ailo_callback_1719fdba8d8f **output,
+                                 ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_1719fdba8d8f_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_1719fdba8d8f_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_vec_dot_t_free(struct ailo_callback_1719fdba8d8f *self,
+                         ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_vec_dot_t_call(struct ailo_callback_1719fdba8d8f *self,
+                         int argument_0, float *argument_1, size_t argument_2,
+                         const void *argument_3, size_t argument_4,
+                         const void *argument_5, size_t argument_6,
+                         int argument_7, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(
+        static_cast<int>(argument_0), static_cast<float *>(argument_1),
+        static_cast<size_t>(argument_2), static_cast<const void *>(argument_3),
+        static_cast<size_t>(argument_4), static_cast<const void *>(argument_5),
+        static_cast<size_t>(argument_6), static_cast<int>(argument_7));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_vec_dot_t_clear_error(struct ailo_callback_1719fdba8d8f *self,
+                                ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_vec_dot_t_error(struct ailo_callback_1719fdba8d8f *self,
+                          ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_7ae58ea166a8_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_7ae58ea166a8 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = void *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = void *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = uint64_t;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = size_t;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    auto output = self.function(static_cast<void *>(value_0),
+                                static_cast<void *>(value_1),
+                                ailo::detail::from_unsigned(value_2),
+                                static_cast<size_t>(value_3), self.user);
+    ailo::detail::ffi_store(result, static_cast<size_t>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = size_t;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_gguf_reader_callback_t_new(ailo_gguf_reader_callback_t_fn function,
+                                void *user_data,
+                                struct ailo_callback_7ae58ea166a8 **output,
+                                ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_7ae58ea166a8> result(
+        new ailo_callback_7ae58ea166a8);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<size_t>(),
+                      {ailo::detail::ffi_scalar<void *>(),
+                       ailo::detail::ffi_scalar<void *>(),
+                       ailo::detail::ffi_scalar<uint64_t>(),
+                       ailo::detail::ffi_scalar<size_t>()},
+                      ailo_callback_7ae58ea166a8_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(size_t))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_gguf_reader_callback_t_from_address(
+    void *address, struct ailo_callback_7ae58ea166a8 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_7ae58ea166a8_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_7ae58ea166a8_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_gguf_reader_callback_t_free(struct ailo_callback_7ae58ea166a8 *self,
+                                 ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_gguf_reader_callback_t_call(struct ailo_callback_7ae58ea166a8 *self,
+                                 void *argument_0, void *argument_1,
+                                 ailo_u64 argument_2, size_t argument_3,
+                                 size_t *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<size_t>(self->target(
+        static_cast<void *>(argument_0), static_cast<void *>(argument_1),
+        ailo::detail::to_native(argument_2), static_cast<size_t>(argument_3)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_gguf_reader_callback_t_clear_error(struct ailo_callback_7ae58ea166a8 *self,
+                                        ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_gguf_reader_callback_t_error(struct ailo_callback_7ae58ea166a8 *self,
+                                  ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_e053664ec68a_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_e053664ec68a *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct ggml_tensor *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = void *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    self.function(reinterpret_cast<struct ailo_ggml_tensor *>(value_0),
+                  static_cast<void *>(value_1), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_set_tensor_data_t_new(
+    ailo_llama_model_set_tensor_data_t_fn function, void *user_data,
+    struct ailo_callback_e053664ec68a **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_e053664ec68a> result(
+        new ailo_callback_e053664ec68a);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_e053664ec68a_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_set_tensor_data_t_from_address(
+    void *address, struct ailo_callback_e053664ec68a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_e053664ec68a_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_e053664ec68a_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_set_tensor_data_t_free(struct ailo_callback_e053664ec68a *self,
+                                        ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_set_tensor_data_t_call(struct ailo_callback_e053664ec68a *self,
+                                        struct ailo_ggml_tensor *argument_0,
+                                        void *argument_1, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct ggml_tensor *>(argument_0),
+                 static_cast<void *>(argument_1));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_set_tensor_data_t_clear_error(
+    struct ailo_callback_e053664ec68a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_set_tensor_data_t_error(
+    struct ailo_callback_e053664ec68a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_2864ca7faa21_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_2864ca7faa21 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = const struct ggml_tensor *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = void *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    auto output = self.function(
+        reinterpret_cast<const struct ailo_ggml_tensor *>(value_0),
+        static_cast<void *>(value_1), self.user);
+    ailo::detail::ffi_store(result, (output != 0));
+  } catch (...) {
+    self.core.failed();
+    using result_type = bool;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_param_filter_new(ailo_llama_opt_param_filter_fn function,
+                                void *user_data,
+                                struct ailo_callback_2864ca7faa21 **output,
+                                ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_2864ca7faa21> result(
+        new ailo_callback_2864ca7faa21);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<const struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_2864ca7faa21_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_param_filter_from_address(
+    void *address, struct ailo_callback_2864ca7faa21 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_2864ca7faa21_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_2864ca7faa21_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_param_filter_free(struct ailo_callback_2864ca7faa21 *self,
+                                 ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_param_filter_call(struct ailo_callback_2864ca7faa21 *self,
+                                 const struct ailo_ggml_tensor *argument_0,
+                                 void *argument_1, ailo_bool *output,
+                                 ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(
+        self->target(reinterpret_cast<const struct ggml_tensor *>(argument_0),
+                     static_cast<void *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_param_filter_clear_error(struct ailo_callback_2864ca7faa21 *self,
+                                        ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_param_filter_error(struct ailo_callback_2864ca7faa21 *self,
+                                  ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_param_filter_callback_new(
+    ailo_llama_opt_params_param_filter_callback_fn function, void *user_data,
+    struct ailo_callback_2864ca7faa21 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_2864ca7faa21> result(
+        new ailo_callback_2864ca7faa21);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<bool>(),
+                      {ailo::detail::ffi_scalar<const struct ggml_tensor *>(),
+                       ailo::detail::ffi_scalar<void *>()},
+                      ailo_callback_2864ca7faa21_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_param_filter_callback_from_address(
+    void *address, struct ailo_callback_2864ca7faa21 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_2864ca7faa21_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_2864ca7faa21_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_param_filter_callback_free(
+    struct ailo_callback_2864ca7faa21 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_param_filter_callback_call(
+    struct ailo_callback_2864ca7faa21 *self,
+    const struct ailo_ggml_tensor *argument_0, void *argument_1,
+    ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(
+        self->target(reinterpret_cast<const struct ggml_tensor *>(argument_0),
+                     static_cast<void *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_param_filter_callback_clear_error(
+    struct ailo_callback_2864ca7faa21 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_param_filter_callback_error(
+    struct ailo_callback_2864ca7faa21 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_5fa34150084a_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_5fa34150084a *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = float;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = void *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    auto output = self.function(static_cast<float>(value_0),
+                                static_cast<void *>(value_1), self.user);
+    ailo::detail::ffi_store(result, (output != 0));
+  } catch (...) {
+    self.core.failed();
+    using result_type = bool;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_params_progress_callback_callback_new(
+    ailo_llama_model_params_progress_callback_callback_fn function,
+    void *user_data, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_5fa34150084a> result(
+        new ailo_callback_5fa34150084a);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<bool>(),
+        {ailo::detail::ffi_scalar<float>(), ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_5fa34150084a_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_params_progress_callback_callback_from_address(
+    void *address, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_5fa34150084a_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_5fa34150084a_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_params_progress_callback_callback_free(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_params_progress_callback_callback_call(
+    struct ailo_callback_5fa34150084a *self, float argument_0, void *argument_1,
+    ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(self->target(
+        static_cast<float>(argument_0), static_cast<void *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_params_progress_callback_callback_clear_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_params_progress_callback_callback_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_progress_callback_new(ailo_llama_progress_callback_fn function,
+                                 void *user_data,
+                                 struct ailo_callback_5fa34150084a **output,
+                                 ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_5fa34150084a> result(
+        new ailo_callback_5fa34150084a);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<bool>(),
+        {ailo::detail::ffi_scalar<float>(), ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_5fa34150084a_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_progress_callback_from_address(
+    void *address, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_5fa34150084a_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_5fa34150084a_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_progress_callback_free(struct ailo_callback_5fa34150084a *self,
+                                  ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_progress_callback_call(struct ailo_callback_5fa34150084a *self,
+                                  float argument_0, void *argument_1,
+                                  ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(self->target(
+        static_cast<float>(argument_0), static_cast<void *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_progress_callback_clear_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_progress_callback_error(struct ailo_callback_5fa34150084a *self,
+                                   ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_progress_callback_callback_new(
+    ailo_mtmd_context_params_progress_callback_callback_fn function,
+    void *user_data, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_5fa34150084a> result(
+        new ailo_callback_5fa34150084a);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<bool>(),
+        {ailo::detail::ffi_scalar<float>(), ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_5fa34150084a_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_progress_callback_callback_from_address(
+    void *address, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_5fa34150084a_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_5fa34150084a_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_progress_callback_callback_free(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_progress_callback_callback_call(
+    struct ailo_callback_5fa34150084a *self, float argument_0, void *argument_1,
+    ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(self->target(
+        static_cast<float>(argument_0), static_cast<void *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_progress_callback_callback_clear_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_progress_callback_callback_error(
+    struct ailo_callback_5fa34150084a *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_progress_callback_new(ailo_mtmd_progress_callback_fn function,
+                                void *user_data,
+                                struct ailo_callback_5fa34150084a **output,
+                                ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_5fa34150084a> result(
+        new ailo_callback_5fa34150084a);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<bool>(),
+        {ailo::detail::ffi_scalar<float>(), ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_5fa34150084a_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_progress_callback_from_address(
+    void *address, struct ailo_callback_5fa34150084a **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_5fa34150084a_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_5fa34150084a_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_progress_callback_free(struct ailo_callback_5fa34150084a *self,
+                                 ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_progress_callback_call(struct ailo_callback_5fa34150084a *self,
+                                 float argument_0, void *argument_1,
+                                 ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(self->target(
+        static_cast<float>(argument_0), static_cast<void *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_progress_callback_clear_error(struct ailo_callback_5fa34150084a *self,
+                                        ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_progress_callback_error(struct ailo_callback_5fa34150084a *self,
+                                  ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_06fd6db0a9de_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_06fd6db0a9de *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = size_t;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = void *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = struct mtmd_bitmap **;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = char **;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    auto output = self.function(
+        static_cast<size_t>(value_0), static_cast<void *>(value_1),
+        reinterpret_cast<struct ailo_storage_struct_mtmd_bitmap *>(value_2),
+        static_cast<char **>(value_3), self.user);
+    ailo::detail::ffi_store(result, static_cast<int>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = int;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_bitmap_lazy_callback_new(ailo_mtmd_bitmap_lazy_callback_fn function,
+                                   void *user_data,
+                                   struct ailo_callback_06fd6db0a9de **output,
+                                   ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_06fd6db0a9de> result(
+        new ailo_callback_06fd6db0a9de);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<int>(),
+                      {ailo::detail::ffi_scalar<size_t>(),
+                       ailo::detail::ffi_scalar<void *>(),
+                       ailo::detail::ffi_scalar<struct mtmd_bitmap **>(),
+                       ailo::detail::ffi_scalar<char **>()},
+                      ailo_callback_06fd6db0a9de_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(int))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_bitmap_lazy_callback_from_address(
+    void *address, struct ailo_callback_06fd6db0a9de **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_06fd6db0a9de_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_06fd6db0a9de_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_bitmap_lazy_callback_free(struct ailo_callback_06fd6db0a9de *self,
+                                    ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_bitmap_lazy_callback_call(
+    struct ailo_callback_06fd6db0a9de *self, size_t argument_0,
+    void *argument_1, struct ailo_storage_struct_mtmd_bitmap *argument_2,
+    char **argument_3, int *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<int>(self->target(
+        static_cast<size_t>(argument_0), static_cast<void *>(argument_1),
+        reinterpret_cast<struct mtmd_bitmap **>(argument_2),
+        static_cast<char **>(argument_3)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_bitmap_lazy_callback_clear_error(
+    struct ailo_callback_06fd6db0a9de *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_bitmap_lazy_callback_error(struct ailo_callback_06fd6db0a9de *self,
+                                     ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_afd0a9f8fed8_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_afd0a9f8fed8 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = const struct mtmd_helper_embd_batch *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = void *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    auto output = self.function(
+        reinterpret_cast<const struct ailo_mtmd_helper_embd_batch *>(value_0),
+        static_cast<void *>(value_1), self.user);
+    ailo::detail::ffi_store(result, static_cast<int32_t>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = int32_t;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_helper_post_decode_callback_new(
+    ailo_mtmd_helper_post_decode_callback_fn function, void *user_data,
+    struct ailo_callback_afd0a9f8fed8 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_afd0a9f8fed8> result(
+        new ailo_callback_afd0a9f8fed8);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<int32_t>(),
+        {ailo::detail::ffi_scalar<const struct mtmd_helper_embd_batch *>(),
+         ailo::detail::ffi_scalar<void *>()},
+        ailo_callback_afd0a9f8fed8_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(int32_t))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_helper_post_decode_callback_from_address(
+    void *address, struct ailo_callback_afd0a9f8fed8 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_afd0a9f8fed8_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_afd0a9f8fed8_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_helper_post_decode_callback_free(
+    struct ailo_callback_afd0a9f8fed8 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_helper_post_decode_callback_call(
+    struct ailo_callback_afd0a9f8fed8 *self,
+    const struct ailo_mtmd_helper_embd_batch *argument_0, void *argument_1,
+    ailo_i32 *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_i32>(self->target(
+        reinterpret_cast<const struct mtmd_helper_embd_batch *>(argument_0),
+        static_cast<void *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_helper_post_decode_callback_clear_error(
+    struct ailo_callback_afd0a9f8fed8 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_helper_post_decode_callback_error(
+    struct ailo_callback_afd0a9f8fed8 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_8ad5c8b129df_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_8ad5c8b129df *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = const struct llama_sampler *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    auto output = self.function(
+        reinterpret_cast<const struct ailo_llama_sampler *>(value_0),
+        self.user);
+    ailo::detail::ffi_store(result, static_cast<const char *>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = const char *;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_name_callback_new(
+    ailo_llama_sampler_i_name_callback_fn function, void *user_data,
+    struct ailo_callback_8ad5c8b129df **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_8ad5c8b129df> result(
+        new ailo_callback_8ad5c8b129df);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<const char *>(),
+        {ailo::detail::ffi_scalar<const struct llama_sampler *>()},
+        ailo_callback_8ad5c8b129df_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(const char *))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_name_callback_from_address(
+    void *address, struct ailo_callback_8ad5c8b129df **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_8ad5c8b129df_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_8ad5c8b129df_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_name_callback_free(struct ailo_callback_8ad5c8b129df *self,
+                                        ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_name_callback_call(
+    struct ailo_callback_8ad5c8b129df *self,
+    const struct ailo_llama_sampler *argument_0, const char **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<const char *>(self->target(
+        reinterpret_cast<const struct llama_sampler *>(argument_0)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_name_callback_clear_error(
+    struct ailo_callback_8ad5c8b129df *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_name_callback_error(
+    struct ailo_callback_8ad5c8b129df *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_074319862044_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_074319862044 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct llama_sampler *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = int32_t;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    self.function(reinterpret_cast<struct ailo_llama_sampler *>(value_0),
+                  static_cast<ailo_i32>(value_1), self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_accept_callback_new(
+    ailo_llama_sampler_i_accept_callback_fn function, void *user_data,
+    struct ailo_callback_074319862044 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_074319862044> result(
+        new ailo_callback_074319862044);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct llama_sampler *>(),
+                       ailo::detail::ffi_scalar<int32_t>()},
+                      ailo_callback_074319862044_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_accept_callback_from_address(
+    void *address, struct ailo_callback_074319862044 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_074319862044_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_074319862044_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_accept_callback_free(
+    struct ailo_callback_074319862044 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_accept_callback_call(
+    struct ailo_callback_074319862044 *self,
+    struct ailo_llama_sampler *argument_0, ailo_i32 argument_1,
+    ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct llama_sampler *>(argument_0),
+                 static_cast<int32_t>(argument_1));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_accept_callback_clear_error(
+    struct ailo_callback_074319862044 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_accept_callback_error(
+    struct ailo_callback_074319862044 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_22d5b5dadc59_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_22d5b5dadc59 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct llama_sampler *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = struct llama_token_data_array *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    self.function(
+        reinterpret_cast<struct ailo_llama_sampler *>(value_0),
+        reinterpret_cast<struct ailo_llama_token_data_array *>(value_1),
+        self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_apply_callback_new(
+    ailo_llama_sampler_i_apply_callback_fn function, void *user_data,
+    struct ailo_callback_22d5b5dadc59 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_22d5b5dadc59> result(
+        new ailo_callback_22d5b5dadc59);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<void>(),
+        {ailo::detail::ffi_scalar<struct llama_sampler *>(),
+         ailo::detail::ffi_scalar<struct llama_token_data_array *>()},
+        ailo_callback_22d5b5dadc59_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_apply_callback_from_address(
+    void *address, struct ailo_callback_22d5b5dadc59 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_22d5b5dadc59_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_22d5b5dadc59_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_apply_callback_free(
+    struct ailo_callback_22d5b5dadc59 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_apply_callback_call(
+    struct ailo_callback_22d5b5dadc59 *self,
+    struct ailo_llama_sampler *argument_0,
+    struct ailo_llama_token_data_array *argument_1, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct llama_sampler *>(argument_0),
+                 reinterpret_cast<struct llama_token_data_array *>(argument_1));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_apply_callback_clear_error(
+    struct ailo_callback_22d5b5dadc59 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_apply_callback_error(
+    struct ailo_callback_22d5b5dadc59 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_d4e25f8b4940_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_d4e25f8b4940 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct llama_sampler *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    self.function(reinterpret_cast<struct ailo_llama_sampler *>(value_0),
+                  self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_reset_callback_new(
+    ailo_llama_sampler_i_backend_reset_callback_fn function, void *user_data,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_d4e25f8b4940> result(
+        new ailo_callback_d4e25f8b4940);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct llama_sampler *>()},
+                      ailo_callback_d4e25f8b4940_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_reset_callback_from_address(
+    void *address, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_d4e25f8b4940_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_d4e25f8b4940_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_reset_callback_free(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_reset_callback_call(
+    struct ailo_callback_d4e25f8b4940 *self,
+    struct ailo_llama_sampler *argument_0, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct llama_sampler *>(argument_0));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_reset_callback_clear_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_reset_callback_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_set_input_callback_new(
+    ailo_llama_sampler_i_backend_set_input_callback_fn function,
+    void *user_data, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_d4e25f8b4940> result(
+        new ailo_callback_d4e25f8b4940);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct llama_sampler *>()},
+                      ailo_callback_d4e25f8b4940_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_set_input_callback_from_address(
+    void *address, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_d4e25f8b4940_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_d4e25f8b4940_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_set_input_callback_free(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_set_input_callback_call(
+    struct ailo_callback_d4e25f8b4940 *self,
+    struct ailo_llama_sampler *argument_0, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct llama_sampler *>(argument_0));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_set_input_callback_clear_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_set_input_callback_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_free_callback_new(
+    ailo_llama_sampler_i_free_callback_fn function, void *user_data,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_d4e25f8b4940> result(
+        new ailo_callback_d4e25f8b4940);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct llama_sampler *>()},
+                      ailo_callback_d4e25f8b4940_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_free_callback_from_address(
+    void *address, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_d4e25f8b4940_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_d4e25f8b4940_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_free_callback_free(struct ailo_callback_d4e25f8b4940 *self,
+                                        ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_free_callback_call(struct ailo_callback_d4e25f8b4940 *self,
+                                        struct ailo_llama_sampler *argument_0,
+                                        ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct llama_sampler *>(argument_0));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_free_callback_clear_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_free_callback_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_reset_callback_new(
+    ailo_llama_sampler_i_reset_callback_fn function, void *user_data,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_d4e25f8b4940> result(
+        new ailo_callback_d4e25f8b4940);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct llama_sampler *>()},
+                      ailo_callback_d4e25f8b4940_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_reset_callback_from_address(
+    void *address, struct ailo_callback_d4e25f8b4940 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_d4e25f8b4940_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_d4e25f8b4940_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_reset_callback_free(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_reset_callback_call(
+    struct ailo_callback_d4e25f8b4940 *self,
+    struct ailo_llama_sampler *argument_0, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct llama_sampler *>(argument_0));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_reset_callback_clear_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_reset_callback_error(
+    struct ailo_callback_d4e25f8b4940 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_47277094ea3e_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_47277094ea3e *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = const struct llama_sampler *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    auto output = self.function(
+        reinterpret_cast<const struct ailo_llama_sampler *>(value_0),
+        self.user);
+    ailo::detail::ffi_store(result,
+                            reinterpret_cast<struct llama_sampler *>(output));
+  } catch (...) {
+    self.core.failed();
+    using result_type = struct llama_sampler *;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_clone_callback_new(
+    ailo_llama_sampler_i_clone_callback_fn function, void *user_data,
+    struct ailo_callback_47277094ea3e **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_47277094ea3e> result(
+        new ailo_callback_47277094ea3e);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<struct llama_sampler *>(),
+        {ailo::detail::ffi_scalar<const struct llama_sampler *>()},
+        ailo_callback_47277094ea3e_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(struct llama_sampler *))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_clone_callback_from_address(
+    void *address, struct ailo_callback_47277094ea3e **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_47277094ea3e_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_47277094ea3e_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_clone_callback_free(
+    struct ailo_callback_47277094ea3e *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_clone_callback_call(
+    struct ailo_callback_47277094ea3e *self,
+    const struct ailo_llama_sampler *argument_0,
+    struct ailo_llama_sampler **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_llama_sampler *>(self->target(
+        reinterpret_cast<const struct llama_sampler *>(argument_0)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_clone_callback_clear_error(
+    struct ailo_callback_47277094ea3e *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_clone_callback_error(
+    struct ailo_callback_47277094ea3e *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_5b16e27da7ff_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_5b16e27da7ff *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct llama_sampler *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = struct ggml_backend_buffer_type *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = uint32_t;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    auto output = self.function(
+        reinterpret_cast<struct ailo_llama_sampler *>(value_0),
+        reinterpret_cast<struct ailo_ggml_backend_buffer_type *>(value_1),
+        static_cast<ailo_u32>(value_2), self.user);
+    ailo::detail::ffi_store(result, (output != 0));
+  } catch (...) {
+    self.core.failed();
+    using result_type = bool;
+    ailo::detail::ffi_store(result, result_type{});
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_init_callback_new(
+    ailo_llama_sampler_i_backend_init_callback_fn function, void *user_data,
+    struct ailo_callback_5b16e27da7ff **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_5b16e27da7ff> result(
+        new ailo_callback_5b16e27da7ff);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(
+        ailo::detail::ffi_scalar<bool>(),
+        {ailo::detail::ffi_scalar<struct llama_sampler *>(),
+         ailo::detail::ffi_scalar<struct ggml_backend_buffer_type *>(),
+         ailo::detail::ffi_scalar<uint32_t>()},
+        ailo_callback_5b16e27da7ff_dispatch, &self);
+    if (self.core.cif.rtype->size != sizeof(bool))
+      throw std::runtime_error("Callback ABI result size differs");
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_init_callback_from_address(
+    void *address, struct ailo_callback_5b16e27da7ff **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_5b16e27da7ff_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_5b16e27da7ff_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_init_callback_free(
+    struct ailo_callback_5b16e27da7ff *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_init_callback_call(
+    struct ailo_callback_5b16e27da7ff *self,
+    struct ailo_llama_sampler *argument_0,
+    struct ailo_ggml_backend_buffer_type *argument_1, ailo_u32 argument_2,
+    ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(self->target(
+        reinterpret_cast<struct llama_sampler *>(argument_0),
+        reinterpret_cast<struct ggml_backend_buffer_type *>(argument_1),
+        static_cast<uint32_t>(argument_2)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_init_callback_clear_error(
+    struct ailo_callback_5b16e27da7ff *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_init_callback_error(
+    struct ailo_callback_5b16e27da7ff *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_ea33beeaba68_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_ea33beeaba68 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct llama_sampler *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = struct ggml_context *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = struct ggml_cgraph *;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = struct ggml_tensor *;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    self.function(reinterpret_cast<struct ailo_llama_sampler *>(value_0),
+                  reinterpret_cast<struct ailo_ggml_context *>(value_1),
+                  reinterpret_cast<struct ailo_ggml_cgraph *>(value_2),
+                  reinterpret_cast<struct ailo_ggml_tensor *>(value_3),
+                  self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_accept_callback_new(
+    ailo_llama_sampler_i_backend_accept_callback_fn function, void *user_data,
+    struct ailo_callback_ea33beeaba68 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_ea33beeaba68> result(
+        new ailo_callback_ea33beeaba68);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct llama_sampler *>(),
+                       ailo::detail::ffi_scalar<struct ggml_context *>(),
+                       ailo::detail::ffi_scalar<struct ggml_cgraph *>(),
+                       ailo::detail::ffi_scalar<struct ggml_tensor *>()},
+                      ailo_callback_ea33beeaba68_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_accept_callback_from_address(
+    void *address, struct ailo_callback_ea33beeaba68 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_ea33beeaba68_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_ea33beeaba68_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_accept_callback_free(
+    struct ailo_callback_ea33beeaba68 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_accept_callback_call(
+    struct ailo_callback_ea33beeaba68 *self,
+    struct ailo_llama_sampler *argument_0, struct ailo_ggml_context *argument_1,
+    struct ailo_ggml_cgraph *argument_2, struct ailo_ggml_tensor *argument_3,
+    ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct llama_sampler *>(argument_0),
+                 reinterpret_cast<struct ggml_context *>(argument_1),
+                 reinterpret_cast<struct ggml_cgraph *>(argument_2),
+                 reinterpret_cast<struct ggml_tensor *>(argument_3));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_accept_callback_clear_error(
+    struct ailo_callback_ea33beeaba68 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_accept_callback_error(
+    struct ailo_callback_ea33beeaba68 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_42760a748de7_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_42760a748de7 *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = struct llama_sampler *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = struct ggml_context *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    using type_2 = struct ggml_cgraph *;
+    auto value_2 = *static_cast<type_2 *>(arguments[2]);
+    using type_3 = struct llama_sampler_data *;
+    auto value_3 = *static_cast<type_3 *>(arguments[3]);
+    self.function(reinterpret_cast<struct ailo_llama_sampler *>(value_0),
+                  reinterpret_cast<struct ailo_ggml_context *>(value_1),
+                  reinterpret_cast<struct ailo_ggml_cgraph *>(value_2),
+                  reinterpret_cast<struct ailo_llama_sampler_data *>(value_3),
+                  self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_apply_callback_new(
+    ailo_llama_sampler_i_backend_apply_callback_fn function, void *user_data,
+    struct ailo_callback_42760a748de7 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_42760a748de7> result(
+        new ailo_callback_42760a748de7);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<struct llama_sampler *>(),
+                       ailo::detail::ffi_scalar<struct ggml_context *>(),
+                       ailo::detail::ffi_scalar<struct ggml_cgraph *>(),
+                       ailo::detail::ffi_scalar<struct llama_sampler_data *>()},
+                      ailo_callback_42760a748de7_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_apply_callback_from_address(
+    void *address, struct ailo_callback_42760a748de7 **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_42760a748de7_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_42760a748de7_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_apply_callback_free(
+    struct ailo_callback_42760a748de7 *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_apply_callback_call(
+    struct ailo_callback_42760a748de7 *self,
+    struct ailo_llama_sampler *argument_0, struct ailo_ggml_context *argument_1,
+    struct ailo_ggml_cgraph *argument_2,
+    struct ailo_llama_sampler_data *argument_3, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<struct llama_sampler *>(argument_0),
+                 reinterpret_cast<struct ggml_context *>(argument_1),
+                 reinterpret_cast<struct ggml_cgraph *>(argument_2),
+                 reinterpret_cast<struct llama_sampler_data *>(argument_3));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_apply_callback_clear_error(
+    struct ailo_callback_42760a748de7 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_apply_callback_error(
+    struct ailo_callback_42760a748de7 *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
+static void ailo_callback_8ddfa7b459eb_dispatch(ffi_cif *, void *result,
+                                                void **arguments,
+                                                void *data) noexcept {
+  auto &self = *static_cast<ailo_callback_8ddfa7b459eb *>(data);
+  (void)result;
+  (void)arguments;
+  try {
+    using type_0 = const struct llama_sampler *;
+    auto value_0 = *static_cast<type_0 *>(arguments[0]);
+    using type_1 = struct llama_sampler *;
+    auto value_1 = *static_cast<type_1 *>(arguments[1]);
+    self.function(reinterpret_cast<const struct ailo_llama_sampler *>(value_0),
+                  reinterpret_cast<struct ailo_llama_sampler *>(value_1),
+                  self.user);
+  } catch (...) {
+    self.core.failed();
+  }
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_copy_state_callback_new(
+    ailo_llama_sampler_i_copy_state_callback_fn function, void *user_data,
+    struct ailo_callback_8ddfa7b459eb **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!function)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    std::unique_ptr<ailo_callback_8ddfa7b459eb> result(
+        new ailo_callback_8ddfa7b459eb);
+    result->function = function;
+    result->user = user_data;
+    auto &self = *result;
+    self.core.prepare(ailo::detail::ffi_scalar<void>(),
+                      {ailo::detail::ffi_scalar<const struct llama_sampler *>(),
+                       ailo::detail::ffi_scalar<struct llama_sampler *>()},
+                      ailo_callback_8ddfa7b459eb_dispatch, &self);
+    static_assert(sizeof(self.target) == sizeof(self.core.entry),
+                  "Unsupported native code pointer ABI");
+    std::memcpy(&self.target, &self.core.entry, sizeof(self.target));
+    *output = result.release();
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_copy_state_callback_from_address(
+    void *address, struct ailo_callback_8ddfa7b459eb **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (address) {
+      ailo_callback_8ddfa7b459eb_native target;
+      static_assert(sizeof(target) == sizeof(address),
+                    "Unsupported code pointer ABI");
+      std::memcpy(&target, &address, sizeof(target));
+      *output = ailo_callback_8ddfa7b459eb_view(target);
+    }
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_copy_state_callback_free(
+    struct ailo_callback_8ddfa7b459eb *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() { delete self; });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_copy_state_callback_call(
+    struct ailo_callback_8ddfa7b459eb *self,
+    const struct ailo_llama_sampler *argument_0,
+    struct ailo_llama_sampler *argument_1, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    self->target(reinterpret_cast<const struct llama_sampler *>(argument_0),
+                 reinterpret_cast<struct llama_sampler *>(argument_1));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_copy_state_callback_clear_error(
+    struct ailo_callback_8ddfa7b459eb *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(
+      error, [&]() { self->core.error.store(AILO_OK); });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_copy_state_callback_error(
+    struct ailo_callback_8ddfa7b459eb *self, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required");
+  const auto status = self->core.error.load();
+  return ailo_error_set(error, status,
+                        status == AILO_OK
+                            ? ""
+                            : "Native callback raised an exception or returned "
+                              "an invalid result");
+}
 static_assert(static_cast<int>(GGML_BACKEND_BUFFER_USAGE_ANY) == 0,
               "Native enum drift");
 static_assert(static_cast<int>(GGML_BACKEND_BUFFER_USAGE_WEIGHTS) == 1,
@@ -1675,6 +8084,34 @@ ailo_ggml_cplan_threadpool_set(struct ailo_ggml_cplan *self,
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_cplan_abort_callback_get(const struct ailo_ggml_cplan *self,
+                                   struct ailo_callback_38eb1918797a **output,
+                                   ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_38eb1918797a_view(
+        reinterpret_cast<const struct ggml_cplan *>(self)->abort_callback);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_cplan_abort_callback_set(struct ailo_ggml_cplan *self,
+                                   struct ailo_callback_38eb1918797a *value,
+                                   ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct ggml_cplan *>(self)->abort_callback =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_ggml_cplan_abort_callback_data_get(const struct ailo_ggml_cplan *self,
                                         void **output, ailo_error *error) {
   if (!output)
@@ -2325,6 +8762,34 @@ ailo_ggml_opt_params_opt_period_set(struct ailo_ggml_opt_params *self,
   return ailo::detail::native_boundary(error, [&]() {
     reinterpret_cast<struct ggml_opt_params *>(self)->opt_period =
         static_cast<int32_t>(value);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_params_get_opt_pars_get(
+    const struct ailo_ggml_opt_params *self,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_542e7ac54cdb_view(
+        reinterpret_cast<const struct ggml_opt_params *>(self)->get_opt_pars);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_params_get_opt_pars_set(struct ailo_ggml_opt_params *self,
+                                      struct ailo_callback_542e7ac54cdb *value,
+                                      ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct ggml_opt_params *>(self)->get_opt_pars =
+        (value ? value->target : nullptr);
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -3350,6 +9815,63 @@ ailo_ggml_type_traits_is_quantized_set(struct ailo_ggml_type_traits *self,
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_to_float_get(const struct ailo_ggml_type_traits *self,
+                                   struct ailo_callback_2bf828528f60 **output,
+                                   ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_2bf828528f60_view(
+        reinterpret_cast<const struct ggml_type_traits *>(self)->to_float);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_to_float_set(struct ailo_ggml_type_traits *self,
+                                   struct ailo_callback_2bf828528f60 *value,
+                                   ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct ggml_type_traits *>(self)->to_float =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_from_float_ref_get(
+    const struct ailo_ggml_type_traits *self,
+    struct ailo_callback_5408ff2d39c6 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_5408ff2d39c6_view(
+        reinterpret_cast<const struct ggml_type_traits *>(self)
+            ->from_float_ref);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_from_float_ref_set(
+    struct ailo_ggml_type_traits *self,
+    struct ailo_callback_5408ff2d39c6 *value, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct ggml_type_traits *>(self)->from_float_ref =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_ggml_type_traits_cpu_array_new(size_t count,
                                     struct ailo_ggml_type_traits_cpu **output,
                                     ailo_error *error) {
@@ -3390,6 +9912,63 @@ ailo_ggml_type_traits_cpu_array_at(struct ailo_ggml_type_traits_cpu *self,
       throw ailo::detail::native_range();
     *output = reinterpret_cast<struct ailo_ggml_type_traits_cpu *>(
         reinterpret_cast<struct ggml_type_traits_cpu *>(self) + index);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_from_float_get(
+    const struct ailo_ggml_type_traits_cpu *self,
+    struct ailo_callback_5408ff2d39c6 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_5408ff2d39c6_view(
+        reinterpret_cast<const struct ggml_type_traits_cpu *>(self)
+            ->from_float);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_from_float_set(
+    struct ailo_ggml_type_traits_cpu *self,
+    struct ailo_callback_5408ff2d39c6 *value, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct ggml_type_traits_cpu *>(self)->from_float =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_vec_dot_get(
+    const struct ailo_ggml_type_traits_cpu *self,
+    struct ailo_callback_1719fdba8d8f **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_1719fdba8d8f_view(
+        reinterpret_cast<const struct ggml_type_traits_cpu *>(self)->vec_dot);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_type_traits_cpu_vec_dot_set(struct ailo_ggml_type_traits_cpu *self,
+                                      struct ailo_callback_1719fdba8d8f *value,
+                                      ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct ggml_type_traits_cpu *>(self)->vec_dot =
+        (value ? value->target : nullptr);
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -4518,6 +11097,34 @@ ailo_llama_context_params_defrag_thold_set(
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_cb_eval_get(
+    const struct ailo_llama_context_params *self,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_f8d1d962e687_view(
+        reinterpret_cast<const struct llama_context_params *>(self)->cb_eval);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_cb_eval_set(struct ailo_llama_context_params *self,
+                                      struct ailo_callback_f8d1d962e687 *value,
+                                      ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_context_params *>(self)->cb_eval =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_llama_context_params_cb_eval_user_data_get(
     const struct ailo_llama_context_params *self, void **output,
     ailo_error *error) {
@@ -4599,6 +11206,35 @@ ailo_llama_context_params_type_v_set(struct ailo_llama_context_params *self,
   return ailo::detail::native_boundary(error, [&]() {
     reinterpret_cast<struct llama_context_params *>(self)->type_v =
         static_cast<enum ggml_type>(value);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_abort_callback_get(
+    const struct ailo_llama_context_params *self,
+    struct ailo_callback_38eb1918797a **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_38eb1918797a_view(
+        reinterpret_cast<const struct llama_context_params *>(self)
+            ->abort_callback);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_context_params_abort_callback_set(
+    struct ailo_llama_context_params *self,
+    struct ailo_callback_38eb1918797a *value, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_context_params *>(self)->abort_callback =
+        (value ? value->target : nullptr);
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -5715,6 +12351,35 @@ ailo_llama_model_params_tensor_split_set(struct ailo_llama_model_params *self,
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_params_progress_callback_get(
+    const struct ailo_llama_model_params *self,
+    struct ailo_callback_5fa34150084a **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_5fa34150084a_view(
+        reinterpret_cast<const struct llama_model_params *>(self)
+            ->progress_callback);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_params_progress_callback_set(
+    struct ailo_llama_model_params *self,
+    struct ailo_callback_5fa34150084a *value, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_model_params *>(self)->progress_callback =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_llama_model_params_progress_callback_user_data_get(
     const struct ailo_llama_model_params *self, void **output,
     ailo_error *error) {
@@ -6681,6 +13346,34 @@ ailo_llama_opt_params_n_ctx_train_set(struct ailo_llama_opt_params *self,
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_param_filter_get(
+    const struct ailo_llama_opt_params *self,
+    struct ailo_callback_2864ca7faa21 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_2864ca7faa21_view(
+        reinterpret_cast<const struct llama_opt_params *>(self)->param_filter);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_param_filter_set(struct ailo_llama_opt_params *self,
+                                       struct ailo_callback_2864ca7faa21 *value,
+                                       ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_opt_params *>(self)->param_filter =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_llama_opt_params_param_filter_ud_get(
     const struct ailo_llama_opt_params *self, void **output,
     ailo_error *error) {
@@ -6706,6 +13399,34 @@ ailo_llama_opt_params_param_filter_ud_set(struct ailo_llama_opt_params *self,
   return ailo::detail::native_boundary(error, [&]() {
     reinterpret_cast<struct llama_opt_params *>(self)->param_filter_ud =
         static_cast<void *>(value);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_get_opt_pars_get(
+    const struct ailo_llama_opt_params *self,
+    struct ailo_callback_542e7ac54cdb **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_542e7ac54cdb_view(
+        reinterpret_cast<const struct llama_opt_params *>(self)->get_opt_pars);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_params_get_opt_pars_set(struct ailo_llama_opt_params *self,
+                                       struct ailo_callback_542e7ac54cdb *value,
+                                       ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_opt_params *>(self)->get_opt_pars =
+        (value ? value->target : nullptr);
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -7471,6 +14192,343 @@ ailo_llama_sampler_i_array_at(struct ailo_llama_sampler_i *self, size_t count,
       throw ailo::detail::native_range();
     *output = reinterpret_cast<struct ailo_llama_sampler_i *>(
         reinterpret_cast<struct llama_sampler_i *>(self) + index);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_name_get(const struct ailo_llama_sampler_i *self,
+                              struct ailo_callback_8ad5c8b129df **output,
+                              ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_8ad5c8b129df_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->name);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_name_set(struct ailo_llama_sampler_i *self,
+                              struct ailo_callback_8ad5c8b129df *value,
+                              ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->name =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_accept_get(const struct ailo_llama_sampler_i *self,
+                                struct ailo_callback_074319862044 **output,
+                                ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_074319862044_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->accept);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_accept_set(struct ailo_llama_sampler_i *self,
+                                struct ailo_callback_074319862044 *value,
+                                ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->accept =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_apply_get(const struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_22d5b5dadc59 **output,
+                               ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_22d5b5dadc59_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->apply);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_apply_set(struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_22d5b5dadc59 *value,
+                               ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->apply =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_reset_get(const struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_d4e25f8b4940 **output,
+                               ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_d4e25f8b4940_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->reset);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_reset_set(struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_d4e25f8b4940 *value,
+                               ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->reset =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_clone_get(const struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_47277094ea3e **output,
+                               ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_47277094ea3e_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->clone);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_clone_set(struct ailo_llama_sampler_i *self,
+                               struct ailo_callback_47277094ea3e *value,
+                               ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->clone =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_free_get(const struct ailo_llama_sampler_i *self,
+                              struct ailo_callback_d4e25f8b4940 **output,
+                              ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_d4e25f8b4940_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->free);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_free_set(struct ailo_llama_sampler_i *self,
+                              struct ailo_callback_d4e25f8b4940 *value,
+                              ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->free =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_init_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_5b16e27da7ff **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_5b16e27da7ff_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->backend_init);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_init_set(struct ailo_llama_sampler_i *self,
+                                      struct ailo_callback_5b16e27da7ff *value,
+                                      ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->backend_init =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_accept_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_ea33beeaba68 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_ea33beeaba68_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->backend_accept);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_accept_set(
+    struct ailo_llama_sampler_i *self, struct ailo_callback_ea33beeaba68 *value,
+    ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->backend_accept =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_apply_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_42760a748de7 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_42760a748de7_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->backend_apply);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_apply_set(struct ailo_llama_sampler_i *self,
+                                       struct ailo_callback_42760a748de7 *value,
+                                       ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->backend_apply =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_set_input_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_d4e25f8b4940_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)
+            ->backend_set_input);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_set_input_set(
+    struct ailo_llama_sampler_i *self, struct ailo_callback_d4e25f8b4940 *value,
+    ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->backend_set_input =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_reset_get(
+    const struct ailo_llama_sampler_i *self,
+    struct ailo_callback_d4e25f8b4940 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_d4e25f8b4940_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->backend_reset);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_backend_reset_set(struct ailo_llama_sampler_i *self,
+                                       struct ailo_callback_d4e25f8b4940 *value,
+                                       ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->backend_reset =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_copy_state_get(const struct ailo_llama_sampler_i *self,
+                                    struct ailo_callback_8ddfa7b459eb **output,
+                                    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_8ddfa7b459eb_view(
+        reinterpret_cast<const struct llama_sampler_i *>(self)->copy_state);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_sampler_i_copy_state_set(struct ailo_llama_sampler_i *self,
+                                    struct ailo_callback_8ddfa7b459eb *value,
+                                    ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct llama_sampler_i *>(self)->copy_state =
+        (value ? value->target : nullptr);
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -8257,6 +15315,34 @@ ailo_mtmd_context_params_image_max_tokens_set(
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_cb_eval_get(
+    const struct ailo_mtmd_context_params *self,
+    struct ailo_callback_f8d1d962e687 **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_f8d1d962e687_view(
+        reinterpret_cast<const struct mtmd_context_params *>(self)->cb_eval);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_cb_eval_set(struct ailo_mtmd_context_params *self,
+                                     struct ailo_callback_f8d1d962e687 *value,
+                                     ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct mtmd_context_params *>(self)->cb_eval =
+        (value ? value->target : nullptr);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_mtmd_context_params_cb_eval_user_data_get(
     const struct ailo_mtmd_context_params *self, void **output,
     ailo_error *error) {
@@ -8310,6 +15396,35 @@ ailo_mtmd_context_params_batch_max_tokens_set(
   return ailo::detail::native_boundary(error, [&]() {
     reinterpret_cast<struct mtmd_context_params *>(self)->batch_max_tokens =
         static_cast<int32_t>(value);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_progress_callback_get(
+    const struct ailo_mtmd_context_params *self,
+    struct ailo_callback_5fa34150084a **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_5fa34150084a_view(
+        reinterpret_cast<const struct mtmd_context_params *>(self)
+            ->progress_callback);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_context_params_progress_callback_set(
+    struct ailo_mtmd_context_params *self,
+    struct ailo_callback_5fa34150084a *value, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    reinterpret_cast<struct mtmd_context_params *>(self)->progress_callback =
+        (value ? value->target : nullptr);
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -11501,6 +18616,28 @@ throw ailo::detail::native_unsupported();
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_compare_graph_backend(
+    struct ailo_ggml_backend *argument_0, struct ailo_ggml_backend *argument_1,
+    struct ailo_ggml_cgraph *argument_2,
+    struct ailo_callback_3e7566bc4071 *argument_3, void *argument_4,
+    const struct ailo_storage_const_struct_ggml_tensor *argument_5,
+    size_t argument_6, ailo_bool *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_bool>(ggml_backend_compare_graph_backend(
+        reinterpret_cast<struct ggml_backend *>(argument_0),
+        reinterpret_cast<struct ggml_backend *>(argument_1),
+        reinterpret_cast<struct ggml_cgraph *>(argument_2),
+        (argument_3 ? argument_3->target : nullptr),
+        static_cast<void *>(argument_4),
+        reinterpret_cast<const struct ggml_tensor *const *>(argument_5),
+        static_cast<size_t>(argument_6)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_ggml_backend_cpu_buffer_from_ptr(void *argument_0, size_t argument_1,
                                       struct ailo_ggml_backend_buffer **output,
                                       ailo_error *error) {
@@ -11548,6 +18685,18 @@ ailo_ggml_backend_cpu_reg(struct ailo_ggml_backend_reg **output,
   return ailo::detail::native_boundary(error, [&]() {
     *output = reinterpret_cast<struct ailo_ggml_backend_reg *>(
         ggml_backend_cpu_reg());
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_cpu_set_abort_callback(
+    struct ailo_ggml_backend *argument_0,
+    struct ailo_callback_38eb1918797a *argument_1, void *argument_2,
+    ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    ggml_backend_cpu_set_abort_callback(
+        reinterpret_cast<struct ggml_backend *>(argument_0),
+        (argument_1 ? argument_1->target : nullptr),
+        static_cast<void *>(argument_2));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -12434,6 +19583,25 @@ ailo_ggml_backend_load_all_from_path(const char *argument_0,
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_meta_device(
+    struct ailo_storage_struct_ggml_backend_device *argument_0,
+    size_t argument_1, struct ailo_callback_3f82fde60665 *argument_2,
+    void *argument_3, struct ailo_ggml_backend_device **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_ggml_backend_device *>(
+        ggml_backend_meta_device(
+            reinterpret_cast<struct ggml_backend_device **>(argument_0),
+            static_cast<size_t>(argument_1),
+            (argument_2 ? argument_2->target : nullptr),
+            static_cast<void *>(argument_3)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_ggml_backend_meta_split_axis_name(
     enum ailo_ggml_backend_meta_split_axis argument_0, const char **output,
     ailo_error *error) {
@@ -12486,6 +19654,25 @@ ailo_ggml_backend_metal_reg(struct ailo_ggml_backend_reg **output,
 #if defined(AILO_NATIVE_METAL)
     *output = reinterpret_cast<struct ailo_ggml_backend_reg *>(
         ggml_backend_metal_reg());
+#else
+throw ailo::detail::native_unsupported();
+#endif
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_metal_set_abort_callback(
+    struct ailo_ggml_backend *argument_0,
+    struct ailo_callback_38eb1918797a *argument_1, void *argument_2,
+    ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    (void)argument_0;
+    (void)argument_1;
+    (void)argument_2;
+#if defined(AILO_NATIVE_METAL)
+    ggml_backend_metal_set_abort_callback(
+        reinterpret_cast<struct ggml_backend *>(argument_0),
+        (argument_1 ? argument_1->target : nullptr),
+        static_cast<void *>(argument_2));
 #else
 throw ailo::detail::native_unsupported();
 #endif
@@ -13057,6 +20244,18 @@ ailo_ggml_backend_sched_reset(struct ailo_ggml_backend_sched *argument_0,
   return ailo::detail::native_boundary(error, [&]() {
     ggml_backend_sched_reset(
         reinterpret_cast<struct ggml_backend_sched *>(argument_0));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_backend_sched_set_eval_callback(
+    struct ailo_ggml_backend_sched *argument_0,
+    struct ailo_callback_f8d1d962e687 *argument_1, void *argument_2,
+    ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    ggml_backend_sched_set_eval_callback(
+        reinterpret_cast<struct ggml_backend_sched *>(argument_0),
+        (argument_1 ? argument_1->target : nullptr),
+        static_cast<void *>(argument_2));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -14712,6 +21911,56 @@ extern "C" __attribute__((visibility("default"))) ailo_status ailo_ggml_cumsum(
     *output = reinterpret_cast<struct ailo_ggml_tensor *>(
         ggml_cumsum(reinterpret_cast<struct ggml_context *>(argument_0),
                     reinterpret_cast<struct ggml_tensor *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom_4d(struct ailo_ggml_context *argument_0,
+                    enum ailo_ggml_type argument_1, ailo_i64 argument_2,
+                    ailo_i64 argument_3, ailo_i64 argument_4,
+                    ailo_i64 argument_5,
+                    struct ailo_storage_struct_ggml_tensor *argument_6,
+                    int argument_7,
+                    struct ailo_callback_0c00e218a457 *argument_8,
+                    int argument_9, void *argument_10,
+                    struct ailo_ggml_tensor **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_ggml_tensor *>(ggml_custom_4d(
+        reinterpret_cast<struct ggml_context *>(argument_0),
+        static_cast<enum ggml_type>(argument_1),
+        ailo::detail::to_native(argument_2),
+        ailo::detail::to_native(argument_3),
+        ailo::detail::to_native(argument_4),
+        ailo::detail::to_native(argument_5),
+        reinterpret_cast<struct ggml_tensor **>(argument_6),
+        static_cast<int>(argument_7),
+        (argument_8 ? argument_8->target : nullptr),
+        static_cast<int>(argument_9), static_cast<void *>(argument_10)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_custom_inplace(struct ailo_ggml_context *argument_0,
+                         struct ailo_ggml_tensor *argument_1,
+                         struct ailo_storage_struct_ggml_tensor *argument_2,
+                         int argument_3,
+                         struct ailo_callback_0c00e218a457 *argument_4,
+                         int argument_5, void *argument_6,
+                         struct ailo_ggml_tensor **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_ggml_tensor *>(ggml_custom_inplace(
+        reinterpret_cast<struct ggml_context *>(argument_0),
+        reinterpret_cast<struct ggml_tensor *>(argument_1),
+        reinterpret_cast<struct ggml_tensor **>(argument_2),
+        static_cast<int>(argument_3),
+        (argument_4 ? argument_4->target : nullptr),
+        static_cast<int>(argument_5), static_cast<void *>(argument_6)));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -16721,6 +23970,20 @@ extern "C" __attribute__((visibility("default"))) ailo_status ailo_ggml_log(
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_log_get(struct ailo_callback_802b44cd03e0 **argument_0,
+                  void **argument_1, ailo_error *error) {
+  if (argument_0)
+    *argument_0 = nullptr;
+  if (!argument_0)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    ailo_callback_802b44cd03e0_native callback_0 = nullptr;
+    ggml_log_get(&callback_0, static_cast<void **>(argument_1));
+    *argument_0 = ailo_callback_802b44cd03e0_view(callback_0);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_ggml_log_inplace(struct ailo_ggml_context *argument_0,
                       struct ailo_ggml_tensor *argument_1,
                       struct ailo_ggml_tensor **output, ailo_error *error) {
@@ -16732,6 +23995,137 @@ ailo_ggml_log_inplace(struct ailo_ggml_context *argument_0,
     *output = reinterpret_cast<struct ailo_ggml_tensor *>(
         ggml_log_inplace(reinterpret_cast<struct ggml_context *>(argument_0),
                          reinterpret_cast<struct ggml_tensor *>(argument_1)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_log_set(struct ailo_callback_802b44cd03e0 *argument_0,
+                  void *argument_1, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    ggml_log_set((argument_0 ? argument_0->target : nullptr),
+                 static_cast<void *>(argument_1));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_map_custom1(struct ailo_ggml_context *argument_0,
+                      struct ailo_ggml_tensor *argument_1,
+                      struct ailo_callback_beb76e4791bb *argument_2,
+                      int argument_3, void *argument_4,
+                      struct ailo_ggml_tensor **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_ggml_tensor *>(ggml_map_custom1(
+        reinterpret_cast<struct ggml_context *>(argument_0),
+        reinterpret_cast<struct ggml_tensor *>(argument_1),
+        (argument_2 ? argument_2->target : nullptr),
+        static_cast<int>(argument_3), static_cast<void *>(argument_4)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_map_custom1_inplace(struct ailo_ggml_context *argument_0,
+                              struct ailo_ggml_tensor *argument_1,
+                              struct ailo_callback_beb76e4791bb *argument_2,
+                              int argument_3, void *argument_4,
+                              struct ailo_ggml_tensor **output,
+                              ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output =
+        reinterpret_cast<struct ailo_ggml_tensor *>(ggml_map_custom1_inplace(
+            reinterpret_cast<struct ggml_context *>(argument_0),
+            reinterpret_cast<struct ggml_tensor *>(argument_1),
+            (argument_2 ? argument_2->target : nullptr),
+            static_cast<int>(argument_3), static_cast<void *>(argument_4)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_map_custom2(struct ailo_ggml_context *argument_0,
+                      struct ailo_ggml_tensor *argument_1,
+                      struct ailo_ggml_tensor *argument_2,
+                      struct ailo_callback_914f5b675579 *argument_3,
+                      int argument_4, void *argument_5,
+                      struct ailo_ggml_tensor **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_ggml_tensor *>(ggml_map_custom2(
+        reinterpret_cast<struct ggml_context *>(argument_0),
+        reinterpret_cast<struct ggml_tensor *>(argument_1),
+        reinterpret_cast<struct ggml_tensor *>(argument_2),
+        (argument_3 ? argument_3->target : nullptr),
+        static_cast<int>(argument_4), static_cast<void *>(argument_5)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_map_custom2_inplace(struct ailo_ggml_context *argument_0,
+                              struct ailo_ggml_tensor *argument_1,
+                              struct ailo_ggml_tensor *argument_2,
+                              struct ailo_callback_914f5b675579 *argument_3,
+                              int argument_4, void *argument_5,
+                              struct ailo_ggml_tensor **output,
+                              ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output =
+        reinterpret_cast<struct ailo_ggml_tensor *>(ggml_map_custom2_inplace(
+            reinterpret_cast<struct ggml_context *>(argument_0),
+            reinterpret_cast<struct ggml_tensor *>(argument_1),
+            reinterpret_cast<struct ggml_tensor *>(argument_2),
+            (argument_3 ? argument_3->target : nullptr),
+            static_cast<int>(argument_4), static_cast<void *>(argument_5)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_map_custom3(struct ailo_ggml_context *argument_0,
+                      struct ailo_ggml_tensor *argument_1,
+                      struct ailo_ggml_tensor *argument_2,
+                      struct ailo_ggml_tensor *argument_3,
+                      struct ailo_callback_06b320bd6b8e *argument_4,
+                      int argument_5, void *argument_6,
+                      struct ailo_ggml_tensor **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_ggml_tensor *>(ggml_map_custom3(
+        reinterpret_cast<struct ggml_context *>(argument_0),
+        reinterpret_cast<struct ggml_tensor *>(argument_1),
+        reinterpret_cast<struct ggml_tensor *>(argument_2),
+        reinterpret_cast<struct ggml_tensor *>(argument_3),
+        (argument_4 ? argument_4->target : nullptr),
+        static_cast<int>(argument_5), static_cast<void *>(argument_6)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_map_custom3_inplace(
+    struct ailo_ggml_context *argument_0, struct ailo_ggml_tensor *argument_1,
+    struct ailo_ggml_tensor *argument_2, struct ailo_ggml_tensor *argument_3,
+    struct ailo_callback_06b320bd6b8e *argument_4, int argument_5,
+    void *argument_6, struct ailo_ggml_tensor **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output =
+        reinterpret_cast<struct ailo_ggml_tensor *>(ggml_map_custom3_inplace(
+            reinterpret_cast<struct ggml_context *>(argument_0),
+            reinterpret_cast<struct ggml_tensor *>(argument_1),
+            reinterpret_cast<struct ggml_tensor *>(argument_2),
+            reinterpret_cast<struct ggml_tensor *>(argument_3),
+            (argument_4 ? argument_4->target : nullptr),
+            static_cast<int>(argument_5), static_cast<void *>(argument_6)));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status ailo_ggml_mean(
@@ -17282,6 +24676,25 @@ ailo_ggml_opt_default_params(struct ailo_ggml_backend_sched *argument_0,
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_opt_epoch(struct ailo_ggml_opt_context *argument_0,
+                    struct ailo_ggml_opt_dataset *argument_1,
+                    struct ailo_ggml_opt_result *argument_2,
+                    struct ailo_ggml_opt_result *argument_3,
+                    ailo_i64 argument_4,
+                    struct ailo_callback_60e200ad9145 *argument_5,
+                    struct ailo_callback_60e200ad9145 *argument_6,
+                    ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    ggml_opt_epoch(reinterpret_cast<struct ggml_opt_context *>(argument_0),
+                   reinterpret_cast<struct ggml_opt_dataset *>(argument_1),
+                   reinterpret_cast<struct ggml_opt_result *>(argument_2),
+                   reinterpret_cast<struct ggml_opt_result *>(argument_3),
+                   ailo::detail::to_native(argument_4),
+                   (argument_5 ? argument_5->target : nullptr),
+                   (argument_6 ? argument_6->target : nullptr));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_ggml_opt_epoch_callback_progress_bar(
     ailo_bool argument_0, struct ailo_ggml_opt_context *argument_1,
     struct ailo_ggml_opt_dataset *argument_2,
@@ -17304,6 +24717,30 @@ ailo_ggml_opt_eval(struct ailo_ggml_opt_context *argument_0,
   return ailo::detail::native_boundary(error, [&]() {
     ggml_opt_eval(reinterpret_cast<struct ggml_opt_context *>(argument_0),
                   reinterpret_cast<struct ggml_opt_result *>(argument_1));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status ailo_ggml_opt_fit(
+    struct ailo_ggml_backend_sched *argument_0,
+    struct ailo_ggml_context *argument_1, struct ailo_ggml_tensor *argument_2,
+    struct ailo_ggml_tensor *argument_3,
+    struct ailo_ggml_opt_dataset *argument_4,
+    enum ailo_ggml_opt_loss_type argument_5,
+    enum ailo_ggml_opt_optimizer_type argument_6,
+    struct ailo_callback_542e7ac54cdb *argument_7, ailo_i64 argument_8,
+    ailo_i64 argument_9, float argument_10, ailo_bool argument_11,
+    ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    ggml_opt_fit(reinterpret_cast<struct ggml_backend_sched *>(argument_0),
+                 reinterpret_cast<struct ggml_context *>(argument_1),
+                 reinterpret_cast<struct ggml_tensor *>(argument_2),
+                 reinterpret_cast<struct ggml_tensor *>(argument_3),
+                 reinterpret_cast<struct ggml_opt_dataset *>(argument_4),
+                 static_cast<enum ggml_opt_loss_type>(argument_5),
+                 static_cast<enum ggml_opt_optimizer_type>(argument_6),
+                 (argument_7 ? argument_7->target : nullptr),
+                 ailo::detail::to_native(argument_8),
+                 ailo::detail::to_native(argument_9),
+                 static_cast<float>(argument_10), (argument_11 != 0));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -18637,6 +26074,19 @@ ailo_ggml_set_2d_inplace(struct ailo_ggml_context *argument_0,
         reinterpret_cast<struct ggml_tensor *>(argument_1),
         reinterpret_cast<struct ggml_tensor *>(argument_2),
         static_cast<size_t>(argument_3), static_cast<size_t>(argument_4)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_ggml_set_abort_callback(struct ailo_callback_4ec5f60f8303 *argument_0,
+                             struct ailo_callback_4ec5f60f8303 **output,
+                             ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = ailo_callback_4ec5f60f8303_view(
+        ggml_set_abort_callback((argument_0 ? argument_0->target : nullptr)));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -20408,6 +27858,29 @@ ailo_gguf_init_from_buffer(const void *argument_0, size_t argument_1,
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_gguf_init_from_callback(struct ailo_callback_7ae58ea166a8 *argument_0,
+                             void *argument_1, size_t argument_2,
+                             ailo_u64 argument_3,
+                             const struct ailo_gguf_init_params *argument_4,
+                             struct ailo_gguf_context **output,
+                             ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!argument_4)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output =
+        reinterpret_cast<struct ailo_gguf_context *>(gguf_init_from_callback(
+            (argument_0 ? argument_0->target : nullptr),
+            static_cast<void *>(argument_1), static_cast<size_t>(argument_2),
+            ailo::detail::to_native(argument_3),
+            *reinterpret_cast<const struct gguf_init_params *>(argument_4)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_gguf_init_from_file(const char *argument_0,
                          const struct ailo_gguf_init_params *argument_1,
                          struct ailo_gguf_context **output, ailo_error *error) {
@@ -21502,6 +28975,28 @@ ailo_llama_load_session_file(struct ailo_llama_context *argument_0,
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_log_get(struct ailo_callback_802b44cd03e0 **argument_0,
+                   void **argument_1, ailo_error *error) {
+  if (argument_0)
+    *argument_0 = nullptr;
+  if (!argument_0)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    ailo_callback_802b44cd03e0_native callback_0 = nullptr;
+    llama_log_get(&callback_0, static_cast<void **>(argument_1));
+    *argument_0 = ailo_callback_802b44cd03e0_view(callback_0);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_log_set(struct ailo_callback_802b44cd03e0 *argument_0,
+                   void *argument_1, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    llama_log_set((argument_0 ? argument_0->target : nullptr),
+                  static_cast<void *>(argument_1));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_llama_max_devices(size_t *output, ailo_error *error) {
   if (!output)
     return ailo_error_set(error, AILO_INVALID_ARGUMENT,
@@ -21761,6 +29256,28 @@ ailo_llama_model_has_encoder(const struct ailo_llama_model *argument_0,
   return ailo::detail::native_boundary(error, [&]() {
     *output = static_cast<ailo_bool>(llama_model_has_encoder(
         reinterpret_cast<const struct llama_model *>(argument_0)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_model_init_from_user(
+    struct ailo_gguf_context *argument_0,
+    struct ailo_callback_e053664ec68a *argument_1, void *argument_2,
+    const struct ailo_llama_model_params *argument_3,
+    struct ailo_llama_model **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!argument_3)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    *output =
+        reinterpret_cast<struct ailo_llama_model *>(llama_model_init_from_user(
+            reinterpret_cast<struct gguf_context *>(argument_0),
+            (argument_1 ? argument_1->target : nullptr),
+            static_cast<void *>(argument_2),
+            *reinterpret_cast<const struct llama_model_params *>(argument_3)));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -22318,6 +29835,25 @@ ailo_llama_numa_init(enum ailo_ggml_numa_strategy argument_0,
                      ailo_error *error) {
   return ailo::detail::native_boundary(error, [&]() {
     llama_numa_init(static_cast<enum ggml_numa_strategy>(argument_0));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_opt_epoch(struct ailo_llama_context *argument_0,
+                     struct ailo_ggml_opt_dataset *argument_1,
+                     struct ailo_ggml_opt_result *argument_2,
+                     struct ailo_ggml_opt_result *argument_3,
+                     ailo_i64 argument_4,
+                     struct ailo_callback_60e200ad9145 *argument_5,
+                     struct ailo_callback_60e200ad9145 *argument_6,
+                     ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    llama_opt_epoch(reinterpret_cast<struct llama_context *>(argument_0),
+                    reinterpret_cast<struct ggml_opt_dataset *>(argument_1),
+                    reinterpret_cast<struct ggml_opt_result *>(argument_2),
+                    reinterpret_cast<struct ggml_opt_result *>(argument_3),
+                    ailo::detail::to_native(argument_4),
+                    (argument_5 ? argument_5->target : nullptr),
+                    (argument_6 ? argument_6->target : nullptr));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -22984,6 +30520,17 @@ ailo_llama_save_session_file(struct ailo_llama_context *argument_0,
         static_cast<const char *>(argument_1),
         static_cast<const int32_t *>(argument_2),
         static_cast<size_t>(argument_3)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_llama_set_abort_callback(struct ailo_llama_context *argument_0,
+                              struct ailo_callback_38eb1918797a *argument_1,
+                              void *argument_2, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    llama_set_abort_callback(
+        reinterpret_cast<struct llama_context *>(argument_0),
+        (argument_1 ? argument_1->target : nullptr),
+        static_cast<void *>(argument_2));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -24113,6 +31660,23 @@ ailo_mtmd_bitmap_init_from_audio(size_t argument_0, const float *argument_1,
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_bitmap_init_lazy(const struct ailo_mtmd_context *argument_0,
+                           const char *argument_1, void *argument_2,
+                           struct ailo_callback_06fd6db0a9de *argument_3,
+                           struct ailo_mtmd_bitmap **output,
+                           ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = reinterpret_cast<struct ailo_mtmd_bitmap *>(mtmd_bitmap_init_lazy(
+        reinterpret_cast<const struct mtmd_context *>(argument_0),
+        static_cast<const char *>(argument_1), static_cast<void *>(argument_2),
+        (argument_3 ? argument_3->target : nullptr)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_mtmd_bitmap_is_audio(const struct ailo_mtmd_bitmap *argument_0,
                           ailo_bool *output, ailo_error *error) {
   if (!output)
@@ -24393,6 +31957,29 @@ ailo_mtmd_helper_bitmap_init_from_file(
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_helper_decode_image_chunk(
+    struct ailo_mtmd_context *argument_0, struct ailo_llama_context *argument_1,
+    const struct ailo_mtmd_input_chunk *argument_2, float *argument_3,
+    ailo_i32 argument_4, ailo_i32 argument_5, ailo_i32 argument_6,
+    ailo_i32 *argument_7, struct ailo_callback_afd0a9f8fed8 *argument_8,
+    void *argument_9, ailo_i32 *output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    *output = static_cast<ailo_i32>(mtmd_helper_decode_image_chunk(
+        reinterpret_cast<struct mtmd_context *>(argument_0),
+        reinterpret_cast<struct llama_context *>(argument_1),
+        reinterpret_cast<const struct mtmd_input_chunk *>(argument_2),
+        static_cast<float *>(argument_3), static_cast<int32_t>(argument_4),
+        static_cast<int32_t>(argument_5), static_cast<int32_t>(argument_6),
+        static_cast<int32_t *>(argument_7),
+        (argument_8 ? argument_8->target : nullptr),
+        static_cast<void *>(argument_9)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_mtmd_helper_eval_chunk_single(
     struct ailo_mtmd_context *argument_0, struct ailo_llama_context *argument_1,
     const struct ailo_mtmd_input_chunk *argument_2, ailo_i32 argument_3,
@@ -24581,6 +32168,14 @@ ailo_mtmd_helper_init_opt_default(struct ailo_mtmd_helper_init_opt **output,
     result[0] = mtmd_helper_init_opt_default();
     *output =
         reinterpret_cast<struct ailo_mtmd_helper_init_opt *>(result.release());
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_helper_log_set(struct ailo_callback_802b44cd03e0 *argument_0,
+                         void *argument_1, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    mtmd_helper_log_set((argument_0 ? argument_0->target : nullptr),
+                        static_cast<void *>(argument_1));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -25000,6 +32595,14 @@ ailo_mtmd_input_chunks_size(const struct ailo_mtmd_input_chunks *argument_0,
   return ailo::detail::native_boundary(error, [&]() {
     *output = static_cast<size_t>(mtmd_input_chunks_size(
         reinterpret_cast<const struct mtmd_input_chunks *>(argument_0)));
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_mtmd_log_set(struct ailo_callback_802b44cd03e0 *argument_0,
+                  void *argument_1, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    mtmd_log_set((argument_0 ? argument_0->target : nullptr),
+                 static_cast<void *>(argument_1));
   });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
@@ -25532,6 +33135,88 @@ ailo_storage_struct_ggml_tensor_set(
       throw ailo::detail::native_range();
     reinterpret_cast<ailo_storage_struct_ggml_tensor_element *>(self)[index] =
         reinterpret_cast<struct ggml_tensor *>(value);
+  });
+}
+using ailo_storage_const_struct_ggml_tensor_element =
+    const struct ggml_tensor *;
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_storage_const_struct_ggml_tensor_array_new(
+    size_t count, struct ailo_storage_const_struct_ggml_tensor **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  return ailo::detail::native_boundary(error, [&]() {
+    if (count > static_cast<size_t>(std::numeric_limits<ptrdiff_t>::max()) /
+                    sizeof(ailo_storage_const_struct_ggml_tensor_element))
+      throw ailo::detail::native_range();
+    if (count)
+      *output =
+          reinterpret_cast<struct ailo_storage_const_struct_ggml_tensor *>(
+              new ailo_storage_const_struct_ggml_tensor_element[count]());
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_storage_const_struct_ggml_tensor_array_free(
+    struct ailo_storage_const_struct_ggml_tensor *self, ailo_error *error) {
+  return ailo::detail::native_boundary(error, [&]() {
+    delete[] reinterpret_cast<ailo_storage_const_struct_ggml_tensor_element *>(
+        self);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_storage_const_struct_ggml_tensor_array_at(
+    struct ailo_storage_const_struct_ggml_tensor *self, size_t count,
+    size_t index, struct ailo_storage_const_struct_ggml_tensor **output,
+    ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    if (index >= count)
+      throw ailo::detail::native_range();
+    *output = reinterpret_cast<struct ailo_storage_const_struct_ggml_tensor *>(
+        reinterpret_cast<ailo_storage_const_struct_ggml_tensor_element *>(
+            self) +
+        index);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_storage_const_struct_ggml_tensor_get(
+    const struct ailo_storage_const_struct_ggml_tensor *self, size_t count,
+    size_t index, const struct ailo_ggml_tensor **output, ailo_error *error) {
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Result output is required");
+  *output = {};
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    if (index >= count)
+      throw ailo::detail::native_range();
+    *output = reinterpret_cast<const struct ailo_ggml_tensor *>(
+        reinterpret_cast<const ailo_storage_const_struct_ggml_tensor_element *>(
+            self)[index]);
+  });
+}
+extern "C" __attribute__((visibility("default"))) ailo_status
+ailo_storage_const_struct_ggml_tensor_set(
+    struct ailo_storage_const_struct_ggml_tensor *self, size_t count,
+    size_t index, const struct ailo_ggml_tensor *value, ailo_error *error) {
+  if (!self)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Native-backed record or storage is required");
+  return ailo::detail::native_boundary(error, [&]() {
+    if (index >= count)
+      throw ailo::detail::native_range();
+    reinterpret_cast<ailo_storage_const_struct_ggml_tensor_element *>(
+        self)[index] = reinterpret_cast<const struct ggml_tensor *>(value);
   });
 }
 using ailo_storage_struct_ggml_backend_element = struct ggml_backend *;

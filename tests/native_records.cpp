@@ -27,6 +27,17 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <type_traits>
+static int callback_tag = 0;
+template <typename Signature, int Tag> struct field_callback;
+template <int Tag, typename R, typename... Args>
+struct field_callback<R (*)(Args...), Tag> {
+  static R call(Args...) {
+    callback_tag = Tag;
+    if constexpr (!std::is_void_v<R>)
+      return R{};
+  }
+};
 #define CHECK(x)                                                               \
   do {                                                                         \
     if (!(x)) {                                                                \
@@ -445,6 +456,37 @@ int main() {
       ++tested;
     }
     {
+      struct ailo_callback_38eb1918797a *value = nullptr;
+      struct ailo_callback_38eb1918797a *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->abort_callback), 1>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_abort_callback_from_address(entry, &value, &error) ==
+            AILO_OK);
+      CHECK(ailo_ggml_cplan_abort_callback_set(self, value, &error) == AILO_OK);
+      CHECK(native->abort_callback == procedure);
+      CHECK(ailo_ggml_cplan_abort_callback_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = void *;
+      argument_type_0 argument_0{};
+      using callback_result_type = ailo_bool;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_abort_callback_call(result, argument_0, &callback_result,
+                                          &error) == AILO_OK);
+      CHECK(callback_tag == 1);
+      CHECK(ailo_ggml_cplan_abort_callback_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->abort_callback);
+      CHECK(ailo_ggml_abort_callback_free(value, &error) == AILO_OK);
+      CHECK(ailo_ggml_abort_callback_free(result, &error) == AILO_OK);
+      ++tested;
+    }
+    {
       void *value = reinterpret_cast<void *>(address);
       void *result = {};
       CHECK(ailo_ggml_cplan_abort_callback_data_set(self, value, &error) ==
@@ -705,6 +747,39 @@ int main() {
             AILO_OK);
       CHECK(result == value);
       CHECK(native->opt_period == static_cast<int32_t>(value));
+      ++tested;
+    }
+    {
+      struct ailo_callback_542e7ac54cdb *value = nullptr;
+      struct ailo_callback_542e7ac54cdb *result = nullptr;
+      auto procedure = &field_callback<decltype(native->get_opt_pars), 2>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_opt_get_optimizer_params_from_address(entry, &value,
+                                                            &error) == AILO_OK);
+      CHECK(ailo_ggml_opt_params_get_opt_pars_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->get_opt_pars == procedure);
+      CHECK(ailo_ggml_opt_params_get_opt_pars_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = void *;
+      argument_type_0 argument_0{};
+      using callback_result_type = struct ailo_ggml_opt_optimizer_params *;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_opt_get_optimizer_params_call(
+                result, argument_0, &callback_result, &error) == AILO_OK);
+      CHECK(callback_tag == 2);
+      CHECK(ailo_ggml_opt_optimizer_params_array_free(callback_result,
+                                                      &error) == AILO_OK);
+      CHECK(ailo_ggml_opt_params_get_opt_pars_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->get_opt_pars);
+      CHECK(ailo_ggml_opt_get_optimizer_params_free(value, &error) == AILO_OK);
+      CHECK(ailo_ggml_opt_get_optimizer_params_free(result, &error) == AILO_OK);
       ++tested;
     }
     {
@@ -1104,6 +1179,72 @@ int main() {
       CHECK(result == 1 && native->is_quantized);
       ++tested;
     }
+    {
+      struct ailo_callback_2bf828528f60 *value = nullptr;
+      struct ailo_callback_2bf828528f60 *result = nullptr;
+      auto procedure = &field_callback<decltype(native->to_float), 3>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_to_float_t_from_address(entry, &value, &error) ==
+            AILO_OK);
+      CHECK(ailo_ggml_type_traits_to_float_set(self, value, &error) == AILO_OK);
+      CHECK(native->to_float == procedure);
+      CHECK(ailo_ggml_type_traits_to_float_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = const void *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = float *;
+      argument_type_1 argument_1{};
+      using argument_type_2 = ailo_i64;
+      argument_type_2 argument_2{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_to_float_t_call(result, argument_0, argument_1,
+                                      argument_2, &error) == AILO_OK);
+      CHECK(callback_tag == 3);
+      CHECK(ailo_ggml_type_traits_to_float_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->to_float);
+      CHECK(ailo_ggml_to_float_t_free(value, &error) == AILO_OK);
+      CHECK(ailo_ggml_to_float_t_free(result, &error) == AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_5408ff2d39c6 *value = nullptr;
+      struct ailo_callback_5408ff2d39c6 *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->from_float_ref), 4>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_from_float_t_from_address(entry, &value, &error) ==
+            AILO_OK);
+      CHECK(ailo_ggml_type_traits_from_float_ref_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->from_float_ref == procedure);
+      CHECK(ailo_ggml_type_traits_from_float_ref_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = const float *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = void *;
+      argument_type_1 argument_1{};
+      using argument_type_2 = ailo_i64;
+      argument_type_2 argument_2{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_from_float_t_call(result, argument_0, argument_1,
+                                        argument_2, &error) == AILO_OK);
+      CHECK(callback_tag == 4);
+      CHECK(ailo_ggml_type_traits_from_float_ref_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->from_float_ref);
+      CHECK(ailo_ggml_from_float_t_free(value, &error) == AILO_OK);
+      CHECK(ailo_ggml_from_float_t_free(result, &error) == AILO_OK);
+      ++tested;
+    }
     struct ailo_ggml_type_traits *element = nullptr;
     CHECK(ailo_ggml_type_traits_array_at(self, 2, 1, &element, &error) ==
           AILO_OK);
@@ -1124,6 +1265,86 @@ int main() {
           self);
     auto native = reinterpret_cast<struct ggml_type_traits_cpu *>(self);
     (void)native;
+    {
+      struct ailo_callback_5408ff2d39c6 *value = nullptr;
+      struct ailo_callback_5408ff2d39c6 *result = nullptr;
+      auto procedure = &field_callback<decltype(native->from_float), 5>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_from_float_t_from_address(entry, &value, &error) ==
+            AILO_OK);
+      CHECK(ailo_ggml_type_traits_cpu_from_float_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->from_float == procedure);
+      CHECK(ailo_ggml_type_traits_cpu_from_float_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = const float *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = void *;
+      argument_type_1 argument_1{};
+      using argument_type_2 = ailo_i64;
+      argument_type_2 argument_2{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_from_float_t_call(result, argument_0, argument_1,
+                                        argument_2, &error) == AILO_OK);
+      CHECK(callback_tag == 5);
+      CHECK(ailo_ggml_type_traits_cpu_from_float_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->from_float);
+      CHECK(ailo_ggml_from_float_t_free(value, &error) == AILO_OK);
+      CHECK(ailo_ggml_from_float_t_free(result, &error) == AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_1719fdba8d8f *value = nullptr;
+      struct ailo_callback_1719fdba8d8f *result = nullptr;
+      auto procedure = &field_callback<decltype(native->vec_dot), 6>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_type_traits_cpu_vec_dot_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_ggml_type_traits_cpu_vec_dot_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->vec_dot == procedure);
+      CHECK(ailo_ggml_type_traits_cpu_vec_dot_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = int;
+      argument_type_0 argument_0{};
+      using argument_type_1 = float *;
+      argument_type_1 argument_1{};
+      using argument_type_2 = size_t;
+      argument_type_2 argument_2{};
+      using argument_type_3 = const void *;
+      argument_type_3 argument_3{};
+      using argument_type_4 = size_t;
+      argument_type_4 argument_4{};
+      using argument_type_5 = const void *;
+      argument_type_5 argument_5{};
+      using argument_type_6 = size_t;
+      argument_type_6 argument_6{};
+      using argument_type_7 = int;
+      argument_type_7 argument_7{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_type_traits_cpu_vec_dot_callback_call(
+                result, argument_0, argument_1, argument_2, argument_3,
+                argument_4, argument_5, argument_6, argument_7,
+                &error) == AILO_OK);
+      CHECK(callback_tag == 6);
+      CHECK(ailo_ggml_type_traits_cpu_vec_dot_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->vec_dot);
+      CHECK(ailo_ggml_type_traits_cpu_vec_dot_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_ggml_type_traits_cpu_vec_dot_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
     {
       enum ailo_ggml_type value = AILO_GGML_TYPE_F32;
       enum ailo_ggml_type result = {};
@@ -1574,6 +1795,44 @@ int main() {
       ++tested;
     }
     {
+      struct ailo_callback_f8d1d962e687 *value = nullptr;
+      struct ailo_callback_f8d1d962e687 *result = nullptr;
+      auto procedure = &field_callback<decltype(native->cb_eval), 7>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_backend_sched_eval_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_context_params_cb_eval_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->cb_eval == procedure);
+      CHECK(ailo_llama_context_params_cb_eval_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_ggml_tensor *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = ailo_bool;
+      argument_type_1 argument_1{};
+      using argument_type_2 = void *;
+      argument_type_2 argument_2{};
+      using callback_result_type = ailo_bool;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_backend_sched_eval_callback_call(
+                result, argument_0, argument_1, argument_2, &callback_result,
+                &error) == AILO_OK);
+      CHECK(callback_tag == 7);
+      CHECK(ailo_llama_context_params_cb_eval_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->cb_eval);
+      CHECK(ailo_ggml_backend_sched_eval_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_ggml_backend_sched_eval_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
       void *value = reinterpret_cast<void *>(address);
       void *result = {};
       CHECK(ailo_llama_context_params_cb_eval_user_data_set(self, value,
@@ -1604,6 +1863,38 @@ int main() {
             AILO_OK);
       CHECK(result == value);
       CHECK(native->type_v == static_cast<enum ggml_type>(value));
+      ++tested;
+    }
+    {
+      struct ailo_callback_38eb1918797a *value = nullptr;
+      struct ailo_callback_38eb1918797a *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->abort_callback), 8>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_abort_callback_from_address(entry, &value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_context_params_abort_callback_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->abort_callback == procedure);
+      CHECK(ailo_llama_context_params_abort_callback_get(self, &result,
+                                                         &error) == AILO_OK &&
+            result);
+      using argument_type_0 = void *;
+      argument_type_0 argument_0{};
+      using callback_result_type = ailo_bool;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_abort_callback_call(result, argument_0, &callback_result,
+                                          &error) == AILO_OK);
+      CHECK(callback_tag == 8);
+      CHECK(ailo_llama_context_params_abort_callback_set(self, nullptr,
+                                                         &error) == AILO_OK &&
+            !native->abort_callback);
+      CHECK(ailo_ggml_abort_callback_free(value, &error) == AILO_OK);
+      CHECK(ailo_ggml_abort_callback_free(result, &error) == AILO_OK);
       ++tested;
     }
     {
@@ -2059,6 +2350,43 @@ int main() {
       ++tested;
     }
     {
+      struct ailo_callback_5fa34150084a *value = nullptr;
+      struct ailo_callback_5fa34150084a *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->progress_callback), 9>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_model_params_progress_callback_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_model_params_progress_callback_set(self, value,
+                                                          &error) == AILO_OK);
+      CHECK(native->progress_callback == procedure);
+      CHECK(ailo_llama_model_params_progress_callback_get(self, &result,
+                                                          &error) == AILO_OK &&
+            result);
+      using argument_type_0 = float;
+      argument_type_0 argument_0{};
+      using argument_type_1 = void *;
+      argument_type_1 argument_1{};
+      using callback_result_type = ailo_bool;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_llama_model_params_progress_callback_callback_call(
+                result, argument_0, argument_1, &callback_result, &error) ==
+            AILO_OK);
+      CHECK(callback_tag == 9);
+      CHECK(ailo_llama_model_params_progress_callback_set(self, nullptr,
+                                                          &error) == AILO_OK &&
+            !native->progress_callback);
+      CHECK(ailo_llama_model_params_progress_callback_callback_free(
+                value, &error) == AILO_OK);
+      CHECK(ailo_llama_model_params_progress_callback_callback_free(
+                result, &error) == AILO_OK);
+      ++tested;
+    }
+    {
       void *value = reinterpret_cast<void *>(address);
       void *result = {};
       CHECK(ailo_llama_model_params_progress_callback_user_data_set(
@@ -2460,6 +2788,41 @@ int main() {
       ++tested;
     }
     {
+      struct ailo_callback_2864ca7faa21 *value = nullptr;
+      struct ailo_callback_2864ca7faa21 *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->param_filter), 10>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_opt_param_filter_from_address(entry, &value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_opt_params_param_filter_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->param_filter == procedure);
+      CHECK(ailo_llama_opt_params_param_filter_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = const struct ailo_ggml_tensor *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = void *;
+      argument_type_1 argument_1{};
+      using callback_result_type = ailo_bool;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_llama_opt_param_filter_call(result, argument_0, argument_1,
+                                             &callback_result,
+                                             &error) == AILO_OK);
+      CHECK(callback_tag == 10);
+      CHECK(ailo_llama_opt_params_param_filter_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->param_filter);
+      CHECK(ailo_llama_opt_param_filter_free(value, &error) == AILO_OK);
+      CHECK(ailo_llama_opt_param_filter_free(result, &error) == AILO_OK);
+      ++tested;
+    }
+    {
       void *value = reinterpret_cast<void *>(address);
       void *result = {};
       CHECK(ailo_llama_opt_params_param_filter_ud_set(self, value, &error) ==
@@ -2468,6 +2831,40 @@ int main() {
             AILO_OK);
       CHECK(result == value);
       CHECK(native->param_filter_ud == static_cast<void *>(value));
+      ++tested;
+    }
+    {
+      struct ailo_callback_542e7ac54cdb *value = nullptr;
+      struct ailo_callback_542e7ac54cdb *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->get_opt_pars), 11>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_opt_get_optimizer_params_from_address(entry, &value,
+                                                            &error) == AILO_OK);
+      CHECK(ailo_llama_opt_params_get_opt_pars_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->get_opt_pars == procedure);
+      CHECK(ailo_llama_opt_params_get_opt_pars_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = void *;
+      argument_type_0 argument_0{};
+      using callback_result_type = struct ailo_ggml_opt_optimizer_params *;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_opt_get_optimizer_params_call(
+                result, argument_0, &callback_result, &error) == AILO_OK);
+      CHECK(callback_tag == 11);
+      CHECK(ailo_ggml_opt_optimizer_params_array_free(callback_result,
+                                                      &error) == AILO_OK);
+      CHECK(ailo_llama_opt_params_get_opt_pars_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->get_opt_pars);
+      CHECK(ailo_ggml_opt_get_optimizer_params_free(value, &error) == AILO_OK);
+      CHECK(ailo_ggml_opt_get_optimizer_params_free(result, &error) == AILO_OK);
       ++tested;
     }
     {
@@ -2790,6 +3187,392 @@ int main() {
     CHECK(ailo_llama_sampler_i_array_new(2, &self, &error) == AILO_OK && self);
     auto native = reinterpret_cast<struct llama_sampler_i *>(self);
     (void)native;
+    {
+      struct ailo_callback_8ad5c8b129df *value = nullptr;
+      struct ailo_callback_8ad5c8b129df *result = nullptr;
+      auto procedure = &field_callback<decltype(native->name), 12>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_name_callback_from_address(entry, &value,
+                                                            &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_name_set(self, value, &error) == AILO_OK);
+      CHECK(native->name == procedure);
+      CHECK(ailo_llama_sampler_i_name_get(self, &result, &error) == AILO_OK &&
+            result);
+      using argument_type_0 = const struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      using callback_result_type = const char *;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_name_callback_call(
+                result, argument_0, &callback_result, &error) == AILO_OK);
+      CHECK(callback_tag == 12);
+      CHECK(ailo_llama_sampler_i_name_set(self, nullptr, &error) == AILO_OK &&
+            !native->name);
+      CHECK(ailo_llama_sampler_i_name_callback_free(value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_name_callback_free(result, &error) == AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_074319862044 *value = nullptr;
+      struct ailo_callback_074319862044 *result = nullptr;
+      auto procedure = &field_callback<decltype(native->accept), 13>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_accept_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_accept_set(self, value, &error) == AILO_OK);
+      CHECK(native->accept == procedure);
+      CHECK(ailo_llama_sampler_i_accept_get(self, &result, &error) == AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = ailo_i32;
+      argument_type_1 argument_1{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_accept_callback_call(
+                result, argument_0, argument_1, &error) == AILO_OK);
+      CHECK(callback_tag == 13);
+      CHECK(ailo_llama_sampler_i_accept_set(self, nullptr, &error) == AILO_OK &&
+            !native->accept);
+      CHECK(ailo_llama_sampler_i_accept_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_sampler_i_accept_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_22d5b5dadc59 *value = nullptr;
+      struct ailo_callback_22d5b5dadc59 *result = nullptr;
+      auto procedure = &field_callback<decltype(native->apply), 14>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_apply_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_apply_set(self, value, &error) == AILO_OK);
+      CHECK(native->apply == procedure);
+      CHECK(ailo_llama_sampler_i_apply_get(self, &result, &error) == AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = struct ailo_llama_token_data_array *;
+      argument_type_1 argument_1{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_apply_callback_call(
+                result, argument_0, argument_1, &error) == AILO_OK);
+      CHECK(callback_tag == 14);
+      CHECK(ailo_llama_sampler_i_apply_set(self, nullptr, &error) == AILO_OK &&
+            !native->apply);
+      CHECK(ailo_llama_sampler_i_apply_callback_free(value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_apply_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_d4e25f8b4940 *value = nullptr;
+      struct ailo_callback_d4e25f8b4940 *result = nullptr;
+      auto procedure = &field_callback<decltype(native->reset), 15>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_reset_set(self, value, &error) == AILO_OK);
+      CHECK(native->reset == procedure);
+      CHECK(ailo_llama_sampler_i_reset_get(self, &result, &error) == AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_call(
+                result, argument_0, &error) == AILO_OK);
+      CHECK(callback_tag == 15);
+      CHECK(ailo_llama_sampler_i_reset_set(self, nullptr, &error) == AILO_OK &&
+            !native->reset);
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_47277094ea3e *value = nullptr;
+      struct ailo_callback_47277094ea3e *result = nullptr;
+      auto procedure = &field_callback<decltype(native->clone), 16>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_clone_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_clone_set(self, value, &error) == AILO_OK);
+      CHECK(native->clone == procedure);
+      CHECK(ailo_llama_sampler_i_clone_get(self, &result, &error) == AILO_OK &&
+            result);
+      using argument_type_0 = const struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      using callback_result_type = struct ailo_llama_sampler *;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_clone_callback_call(
+                result, argument_0, &callback_result, &error) == AILO_OK);
+      CHECK(callback_tag == 16);
+      CHECK(ailo_llama_sampler_i_clone_set(self, nullptr, &error) == AILO_OK &&
+            !native->clone);
+      CHECK(ailo_llama_sampler_i_clone_callback_free(value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_clone_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_d4e25f8b4940 *value = nullptr;
+      struct ailo_callback_d4e25f8b4940 *result = nullptr;
+      auto procedure = &field_callback<decltype(native->free), 17>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_free_set(self, value, &error) == AILO_OK);
+      CHECK(native->free == procedure);
+      CHECK(ailo_llama_sampler_i_free_get(self, &result, &error) == AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_call(
+                result, argument_0, &error) == AILO_OK);
+      CHECK(callback_tag == 17);
+      CHECK(ailo_llama_sampler_i_free_set(self, nullptr, &error) == AILO_OK &&
+            !native->free);
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_5b16e27da7ff *value = nullptr;
+      struct ailo_callback_5b16e27da7ff *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->backend_init), 18>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_backend_init_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_init_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->backend_init == procedure);
+      CHECK(ailo_llama_sampler_i_backend_init_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = struct ailo_ggml_backend_buffer_type *;
+      argument_type_1 argument_1{};
+      using argument_type_2 = ailo_u32;
+      argument_type_2 argument_2{};
+      using callback_result_type = ailo_bool;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_backend_init_callback_call(
+                result, argument_0, argument_1, argument_2, &callback_result,
+                &error) == AILO_OK);
+      CHECK(callback_tag == 18);
+      CHECK(ailo_llama_sampler_i_backend_init_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->backend_init);
+      CHECK(ailo_llama_sampler_i_backend_init_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_init_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_ea33beeaba68 *value = nullptr;
+      struct ailo_callback_ea33beeaba68 *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->backend_accept), 19>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_backend_accept_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_accept_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->backend_accept == procedure);
+      CHECK(ailo_llama_sampler_i_backend_accept_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = struct ailo_ggml_context *;
+      argument_type_1 argument_1{};
+      using argument_type_2 = struct ailo_ggml_cgraph *;
+      argument_type_2 argument_2{};
+      using argument_type_3 = struct ailo_ggml_tensor *;
+      argument_type_3 argument_3{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_backend_accept_callback_call(
+                result, argument_0, argument_1, argument_2, argument_3,
+                &error) == AILO_OK);
+      CHECK(callback_tag == 19);
+      CHECK(ailo_llama_sampler_i_backend_accept_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->backend_accept);
+      CHECK(ailo_llama_sampler_i_backend_accept_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_accept_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_42760a748de7 *value = nullptr;
+      struct ailo_callback_42760a748de7 *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->backend_apply), 20>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_backend_apply_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_apply_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->backend_apply == procedure);
+      CHECK(ailo_llama_sampler_i_backend_apply_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = struct ailo_ggml_context *;
+      argument_type_1 argument_1{};
+      using argument_type_2 = struct ailo_ggml_cgraph *;
+      argument_type_2 argument_2{};
+      using argument_type_3 = struct ailo_llama_sampler_data *;
+      argument_type_3 argument_3{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_backend_apply_callback_call(
+                result, argument_0, argument_1, argument_2, argument_3,
+                &error) == AILO_OK);
+      CHECK(callback_tag == 20);
+      CHECK(ailo_llama_sampler_i_backend_apply_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->backend_apply);
+      CHECK(ailo_llama_sampler_i_backend_apply_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_apply_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_d4e25f8b4940 *value = nullptr;
+      struct ailo_callback_d4e25f8b4940 *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->backend_set_input), 21>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_set_input_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->backend_set_input == procedure);
+      CHECK(ailo_llama_sampler_i_backend_set_input_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_call(
+                result, argument_0, &error) == AILO_OK);
+      CHECK(callback_tag == 21);
+      CHECK(ailo_llama_sampler_i_backend_set_input_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->backend_set_input);
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_d4e25f8b4940 *value = nullptr;
+      struct ailo_callback_d4e25f8b4940 *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->backend_reset), 22>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_reset_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->backend_reset == procedure);
+      CHECK(ailo_llama_sampler_i_backend_reset_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_call(
+                result, argument_0, &error) == AILO_OK);
+      CHECK(callback_tag == 22);
+      CHECK(ailo_llama_sampler_i_backend_reset_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->backend_reset);
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_sampler_i_backend_reset_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
+      struct ailo_callback_8ddfa7b459eb *value = nullptr;
+      struct ailo_callback_8ddfa7b459eb *result = nullptr;
+      auto procedure = &field_callback<decltype(native->copy_state), 23>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_sampler_i_copy_state_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_llama_sampler_i_copy_state_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->copy_state == procedure);
+      CHECK(ailo_llama_sampler_i_copy_state_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = const struct ailo_llama_sampler *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = struct ailo_llama_sampler *;
+      argument_type_1 argument_1{};
+      callback_tag = 0;
+      CHECK(ailo_llama_sampler_i_copy_state_callback_call(
+                result, argument_0, argument_1, &error) == AILO_OK);
+      CHECK(callback_tag == 23);
+      CHECK(ailo_llama_sampler_i_copy_state_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->copy_state);
+      CHECK(ailo_llama_sampler_i_copy_state_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_sampler_i_copy_state_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
     struct ailo_llama_sampler_i *element = nullptr;
     CHECK(ailo_llama_sampler_i_array_at(self, 2, 1, &element, &error) ==
           AILO_OK);
@@ -3110,6 +3893,44 @@ int main() {
       ++tested;
     }
     {
+      struct ailo_callback_f8d1d962e687 *value = nullptr;
+      struct ailo_callback_f8d1d962e687 *result = nullptr;
+      auto procedure = &field_callback<decltype(native->cb_eval), 24>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_ggml_backend_sched_eval_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_context_params_cb_eval_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(native->cb_eval == procedure);
+      CHECK(ailo_mtmd_context_params_cb_eval_get(self, &result, &error) ==
+                AILO_OK &&
+            result);
+      using argument_type_0 = struct ailo_ggml_tensor *;
+      argument_type_0 argument_0{};
+      using argument_type_1 = ailo_bool;
+      argument_type_1 argument_1{};
+      using argument_type_2 = void *;
+      argument_type_2 argument_2{};
+      using callback_result_type = ailo_bool;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_ggml_backend_sched_eval_callback_call(
+                result, argument_0, argument_1, argument_2, &callback_result,
+                &error) == AILO_OK);
+      CHECK(callback_tag == 24);
+      CHECK(ailo_mtmd_context_params_cb_eval_set(self, nullptr, &error) ==
+                AILO_OK &&
+            !native->cb_eval);
+      CHECK(ailo_ggml_backend_sched_eval_callback_free(value, &error) ==
+            AILO_OK);
+      CHECK(ailo_ggml_backend_sched_eval_callback_free(result, &error) ==
+            AILO_OK);
+      ++tested;
+    }
+    {
       void *value = reinterpret_cast<void *>(address);
       void *result = {};
       CHECK(ailo_mtmd_context_params_cb_eval_user_data_set(self, value,
@@ -3129,6 +3950,43 @@ int main() {
                                                           &error) == AILO_OK);
       CHECK(result == value);
       CHECK(native->batch_max_tokens == static_cast<int32_t>(value));
+      ++tested;
+    }
+    {
+      struct ailo_callback_5fa34150084a *value = nullptr;
+      struct ailo_callback_5fa34150084a *result = nullptr;
+      auto procedure =
+          &field_callback<decltype(native->progress_callback), 25>::call;
+      void *entry = nullptr;
+      static_assert(sizeof(entry) == sizeof(procedure),
+                    "Native callback code pointer ABI");
+      std::memcpy(&entry, &procedure, sizeof(entry));
+      CHECK(ailo_llama_model_params_progress_callback_callback_from_address(
+                entry, &value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_context_params_progress_callback_set(self, value,
+                                                           &error) == AILO_OK);
+      CHECK(native->progress_callback == procedure);
+      CHECK(ailo_mtmd_context_params_progress_callback_get(self, &result,
+                                                           &error) == AILO_OK &&
+            result);
+      using argument_type_0 = float;
+      argument_type_0 argument_0{};
+      using argument_type_1 = void *;
+      argument_type_1 argument_1{};
+      using callback_result_type = ailo_bool;
+      callback_result_type callback_result{};
+      callback_tag = 0;
+      CHECK(ailo_llama_model_params_progress_callback_callback_call(
+                result, argument_0, argument_1, &callback_result, &error) ==
+            AILO_OK);
+      CHECK(callback_tag == 25);
+      CHECK(ailo_mtmd_context_params_progress_callback_set(self, nullptr,
+                                                           &error) == AILO_OK &&
+            !native->progress_callback);
+      CHECK(ailo_llama_model_params_progress_callback_callback_free(
+                value, &error) == AILO_OK);
+      CHECK(ailo_llama_model_params_progress_callback_callback_free(
+                result, &error) == AILO_OK);
       ++tested;
     }
     {
@@ -4089,7 +4947,7 @@ int main() {
     CHECK(ailo_mtmd_memory_usage_array_free(self, &error) == AILO_OK);
     CHECK(ailo_mtmd_memory_usage_array_free(nullptr, &error) == AILO_OK);
   }
-  CHECK(tested == 281);
+  CHECK(tested == 306);
   std::printf("Native record fields verified: %zu\n", tested);
   return 0;
 }

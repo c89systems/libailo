@@ -12,9 +12,10 @@ v0.45.0, and pinned Vulkan/SPIR-V components. The static/shared project librarie
 provide the portable C89 scalar/error boundary and generated native bindings
 described in [docs/c89-boundary.md](docs/c89-boundary.md) and
 [docs/facade-bindings.md](docs/facade-bindings.md). The current bridge implements
-1,055 upstream functions and 281 record fields, including native-backed arrays,
+1,083 upstream functions and 306 record fields, including native-backed arrays,
 the public mtmd memory map, variadic formatting and C89 macro adapters. It is
-incomplete: 83 callback adapter gaps remain explicit in
+complete for the pinned public C inventory, including independently owned
+callback adapters and callable native views; no gaps remain in
 [docs/facade-coverage.json](docs/facade-coverage.json). Standalone model
 download/cache helpers are implemented in [include/ailo/model.h](include/ailo/model.h).
 The initial inference receiver is implemented in [include/ailo/client.h](include/ailo/client.h):
@@ -89,7 +90,7 @@ checks on all four Linux targets; ARM execution requires host `qemu-aarch64`. Th
 or facade coverage. Full model, backend and packaging matrix evidence remains
 pending; native fixture evidence is described below. `make valgrind` covers
 current native executable tests.
-`make facade-coverage` intentionally fails until every coverage gap is resolved;
+`make facade-coverage` requires every coverage gap to remain resolved;
 ordinary unit checks do not substitute for that completeness gate. Generated
 bindings are checked in and require no Python invocation for ordinary builds.
 `make generate-native` performs the separate compiler-inventory regeneration.
@@ -247,10 +248,11 @@ supply a compatible cpkt core SDK (baseline v0.3.0) through `CMAKE_PREFIX_PATH` 
 so C-only consumers do not need to enable C++ or write private library lists.
 `pkg-config --cflags --libs ailo` selects the shared library;
 `pkg-config --static --cflags --libs ailo-static` selects the facade/native/runtime
-archives explicitly. Provide cpkt's `lib/pkgconfig` on `PKG_CONFIG_PATH`.
+archives explicitly. Provide cpkt, cpktmisc and lonejson `lib/pkgconfig` paths
+on `PKG_CONFIG_PATH`, or their SDK prefixes on `CMAKE_PREFIX_PATH`.
 Builds also prepare cpktmisc v0.2.0 in a separate prefix and verify its libffi
-3.8.0 closures. The current installed facade does not yet link libffi; it becomes
-a consumer dependency when the callback bridge is implemented. cpktdb is not
+3.8.0 closures. The installed facade links its callback adapters against the
+separate libffi library, which is a consumer dependency. cpktdb is not
 required. Toolchain and archive defaults use `~/.cache/cpkt`; the retired cache
 is not searched or modified.
 Shared consumers must make the external SDK libraries and compatible GNU C++

@@ -112,7 +112,7 @@ string(JSON llama_sha GET "${pins}" llama sha256)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/install/dependencies.json"
   "{\n  \"project\": \"ailo\", \"version\": \"${PROJECT_VERSION}\", \"target\": \"${AILO_TARGET_ID}\",\n  \"dependencies\": [\n    {\"name\": \"llama\", \"version\": \"${llama_version}\", \"url\": \"${llama_url}\", \"sha256\": \"${llama_sha}\", \"bundled\": true, \"role\": \"separate native archives\", \"license\": \"MIT with vendored notices\"},\n    {\"name\": \"cpkt\", \"version\": \"${cpkt_version}\", \"url\": \"${cpkt_url}\", \"sha256\": \"${cpkt_sha}\", \"bundled\": false, \"role\": \"curl/OpenSSL external SDK\"},\n    {\"name\": \"GNU C++ runtime\", \"version\": \"${CMAKE_CXX_COMPILER_VERSION}\", \"bundled\": true, \"role\": \"separate runtime archives\", \"license\": \"GPL-3.0-or-later WITH GCC-exception-3.1\"}\n  ]\n}\n")
 file(READ "${CMAKE_CURRENT_BINARY_DIR}/install/dependencies.json" manifest)
-string(JSON manifest SET "${manifest}" dependencies 3 "{\"name\":\"cpktmisc\",\"version\":\"${misc_version}\",\"url\":\"${misc_url}\",\"sha256\":\"${misc_sha}\",\"bundled\":false,\"role\":\"libffi ${CpktFfi_VERSION} callback SDK; current dependency probes only\"}")
+string(JSON manifest SET "${manifest}" dependencies 3 "{\"name\":\"cpktmisc\",\"version\":\"${misc_version}\",\"url\":\"${misc_url}\",\"sha256\":\"${misc_sha}\",\"bundled\":false,\"role\":\"libffi ${CpktFfi_VERSION} native callback adapters\"}")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/install/dependencies.json" "${manifest}\n")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/install/dependencies.json" DESTINATION share/ailo COMPONENT ailo)
 file(READ "${CMAKE_CURRENT_BINARY_DIR}/install/dependencies.json" manifest)

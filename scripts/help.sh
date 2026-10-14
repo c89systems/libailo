@@ -31,7 +31,7 @@ test-scalar-matrix                 Run scalar/bridge checks on four Linux target
 example-smoke-local                Build and exercise local C89 examples.
 upstream-inventory                Compare pinned public compiler AST declarations.
 generate-native                   Regenerate tracked bindings from the AST inventory.
-facade-coverage                   Require zero binding gaps (currently incomplete).
+facade-coverage                   Require complete coverage of the pinned public C API.
 format                            Format project C/C++ sources.
 format-check                      Assert project formatting.
 finalize-slice                    Format and run deterministic checks.

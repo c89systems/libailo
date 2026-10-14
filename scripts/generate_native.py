@@ -32,6 +32,7 @@ GAPS = []
 H = []
 C = []
 EXPORTS = []
+CALLBACKS = {}
 COVERAGE = {'functions': [], 'fields': [], 'records': [], 'typedefs': [], 'enums': [], 'macros': []}
 MACRO_ADAPTERS = {
     'GGML_ABORT', 'GGML_API', 'GGML_ASSERT', 'GGML_ATTRIBUTE_FORMAT',
@@ -83,8 +84,23 @@ class Type:
             text = text[:match.start()] + replacement + text[match.end():]
         self.native = clean(text)
         self.native = self.native.replace('struct ggml_bf16_t', 'ggml_bf16_t')
-        if '(*' in self.native or re.search(r'\(\s*\*', self.native):
-            raise Gap('callback adapter pending')
+        callback = re.fullmatch(r'(.*?)\(\s*(\*+)\s*\)\s*\((.*)\)(\s*\*)?', self.native)
+        if callback:
+            signature = clean(callback[1]) + ' (*)(' + clean(callback[3]) + ')'
+            if signature not in CALLBACKS:
+                CALLBACKS[signature] = {'name': 'ailo_callback_' + hashlib.sha256(signature.encode()).hexdigest()[:12],
+                                       'return': clean(callback[1]), 'arguments': split_arguments(callback[3]),
+                                       'signature': signature, 'aliases': []}
+            self.callback = CALLBACKS[signature]
+            self.kind = 'callback'
+            self.name = self.callback['name']
+            self.base = self.name + '_native'
+            self.depth = len(callback[2]) + bool(callback[4])
+            self.const = False
+            self.storage = None
+            self.native = self.base + ' *' * (self.depth - 1)
+            self.public_base = 'struct ' + self.name
+            return
         if '(' in self.native:
             raise Gap('anonymous record must be expanded by field path')
         if '[' in self.native:
@@ -138,6 +154,8 @@ class Type:
                 STORAGES[key] = {'name': self.storage, 'element': key}
 
     def public(self, input=False):
+        if self.kind == 'callback':
+            return self.public_base + ' *' * self.depth
         if self.storage:
             readonly = self.const if self.depth == 1 else 'const' in self.qualifiers[-2]
             return ('const ' if readonly else '') + 'struct ' + self.storage + ' *'
@@ -149,6 +167,10 @@ class Type:
         return self.public_base
 
     def to_native(self, expression):
+        if self.kind == 'callback':
+            if self.depth != 1:
+                raise Gap('Callback output needs a temporary native function pointer')
+            return '(' + expression + ' ? ' + expression + '->target : nullptr)'
         if self.depth:
             if self.storage or self.kind in {'record', 'map'}:
                 return 'reinterpret_cast<' + self.native + '>(' + expression + ')'
@@ -162,6 +184,8 @@ class Type:
         return 'static_cast<' + self.native + '>(' + expression + ')'
 
     def from_native(self, expression):
+        if self.kind == 'callback':
+            return self.name + '_view(' + expression + ')'
         if self.depth:
             if self.storage or self.kind in {'record', 'map'}:
                 return 'reinterpret_cast<' + self.public() + '>(' + expression + ')'
@@ -202,6 +226,133 @@ def result_body(type_, expression):
                 'result[0] = ' + expression + ';\n'
                 '*output = reinterpret_cast<' + type_.public() + '>(result.release());')
     return '*output = ' + type_.from_native(expression) + ';'
+
+
+def split_arguments(text):
+    if text.strip() in {'', 'void'}:
+        return []
+    result, depth, start = [], 0, 0
+    for index, char in enumerate(text):
+        depth += char in '(['
+        depth -= char in ')]'
+        if char == ',' and not depth:
+            result.append(clean(text[start:index]))
+            start = index + 1
+    result.append(clean(text[start:]))
+    return result
+
+
+def ffi_description(t, layout='self.core.layout'):
+    if t.kind == 'record' and not t.depth:
+        def record_type(record):
+            nested = iter(record['nested'])
+            members = []
+            for field in record['fields']:
+                if '(unnamed ' in field['type'] or '(anonymous ' in field['type']:
+                    members.append(record_type(next(nested)))
+                else:
+                    array = re.fullmatch(r'(.+)\[(\d+)\]', field['type'])
+                    value = ffi_description(Type(array[1] if array else field['type']), layout)
+                    if array:
+                        value = layout + '.aggregate(std::vector<ffi_type *>(' + array[2] + ', ' + value + '))'
+                    members.append(value)
+            return layout + '.aggregate({' + ', '.join(members) + '})'
+        return record_type(RECORDS[t.name])
+    return 'ailo::detail::ffi_scalar<' + t.native + '>()'
+
+
+def generate_callbacks():
+    declarations, definitions = [], []
+    # Callback arguments can themselves be callbacks. Discover them first.
+    handled = set()
+    while len(handled) < len(CALLBACKS):
+        for key, cb in list(CALLBACKS.items()):
+            if key not in handled:
+                handled.add(key)
+                Type(cb['return'])
+                for arg in cb['arguments']:
+                    Type(arg)
+    for cb in CALLBACKS.values():
+        name = cb['name']
+        native = name + '_native'
+        ret = Type(cb['return'])
+        args = [Type(arg) for arg in cb['arguments']]
+        definitions.append('using ' + native + ' = ' + cb['signature'] + ';')
+        declarations.append('typedef ' + ret.public() + ' (*' + name + '_fn)(' + ', '.join(
+            [t.public() for t in args] + ['void *bridge_user_data']) + ');')
+        definitions.append('struct ' + name + ' { ' + native + ' target = nullptr; ' + name + '_fn function = nullptr; void *user = nullptr; ailo::detail::callback_core core; };')
+    for cb in CALLBACKS.values():
+        name = cb['name']
+        native = name + '_native'
+        definitions.append('static ' + name + ' * ' + name + '_view(' + native + ' target) { if (!target) return nullptr; std::unique_ptr<' + name + '> view(new ' + name + '); view->target = target; return view.release(); }')
+    for cb in CALLBACKS.values():
+        name = cb['name']
+        native = name + '_native'
+        ret = Type(cb['return'])
+        args = [Type(arg) for arg in cb['arguments']]
+        is_void = ret.base == 'void' and not ret.depth
+        body = ['static void ' + name + '_dispatch(ffi_cif *, void *result, void **arguments, void *data) noexcept {',
+                'auto & self = *static_cast<' + name + ' *>(data);', '(void)result; (void)arguments;', 'try {']
+        converted = []
+        for index, t in enumerate(args):
+            var = 'value_' + str(index)
+            body.append('using type_' + str(index) + ' = ' + t.native + ';')
+            body.append('auto ' + var + ' = *static_cast<type_' + str(index) + ' *>(arguments[' + str(index) + ']);')
+            if t.kind == 'callback':
+                body.append(t.name + ' view_' + str(index) + '; view_' + str(index) + '.target = ' + var + ';')
+                converted.append(var + ' ? &view_' + str(index) + ' : nullptr')
+            else:
+                converted.append(t.from_native(var))
+        call = 'self.function(' + ', '.join(converted + ['self.user']) + ')'
+        if is_void:
+            body.append(call + ';')
+        else:
+            body.append('auto output = ' + call + ';')
+            if ret.required('output'):
+                body.append('if (!output) throw std::runtime_error("Callback returned a missing record");')
+            body.append('ailo::detail::ffi_store(result, ' + ret.to_native('output') + ');')
+        body += ['} catch (...) { self.core.failed();']
+        if not is_void:
+            if 'ggml_abort_callback' not in cb['aliases']:
+                body.append('using result_type = ' + ret.native + ';')
+            fallback = 'true' if 'ggml_abort_callback' in cb['aliases'] else 'result_type{}'
+            body.append('ailo::detail::ffi_store(result, ' + fallback + ');')
+        body += ['}', '}']
+        definitions.append('\n'.join(body))
+        start_h, start_c = len(H), len(C)
+        public = 'struct ' + name + ' *'
+        aliases = sorted(set(cb['aliases'])) or [name.removeprefix('ailo_')]
+        for alias in aliases:
+            root = 'ailo_' + alias
+            if alias not in ALIASES:
+                H.append('typedef ' + public + ' ' + root + ';')
+            H.append('typedef ' + name + '_fn ' + root + '_fn;')
+            emit(root + '_new', [(root + '_fn', 'function'), ('void *', 'user_data')],
+                 'std::unique_ptr<' + name + '> result(new ' + name + ');\n'
+                 'result->function = function; result->user = user_data; auto & self = *result;\n'
+                 'self.core.prepare(' + ffi_description(ret) + ', {' + ', '.join(ffi_description(t) for t in args) + '}, ' + name + '_dispatch, &self);\n'
+                 + ('' if is_void else 'if (self.core.cif.rtype->size != sizeof(' + ret.native + ')) throw std::runtime_error("Callback ABI result size differs");\n')
+                 + 'static_assert(sizeof(self.target) == sizeof(self.core.entry), "Unsupported native code pointer ABI");\n'
+                 'std::memcpy(&self.target, &self.core.entry, sizeof(self.target)); *output = result.release();',
+                 'Own an independent typed closure. Keep it and callback user state alive until all native users stop.', public, ['function'])
+            emit(root + '_from_address', [('void *', 'address')],
+                 'if (address) { ' + native + ' target; static_assert(sizeof(target) == sizeof(address), "Unsupported code pointer ABI"); std::memcpy(&target, &address, sizeof(target)); *output = ' + name + '_view(target); }',
+                 'Own a callable view of a native procedure address; the procedure owner stays borrowed.', public)
+            emit(root + '_free', [(public, 'self')], 'delete self;',
+                 'Release an owned closure/view after native users stop; NULL is accepted. Never free a borrowed callback argument.')
+            params = [(public, 'self')] + [(t.public(input=True), 'argument_' + str(i)) for i, t in enumerate(args)]
+            call = 'self->target(' + ', '.join(t.to_native('argument_' + str(i)) for i, t in enumerate(args)) + ')'
+            emit(root + '_call', params, (call + ';' if is_void else result_body(ret, call)),
+                 'Call a borrowed/native or owned callback using its native preconditions; by-value record copies are owned, native pointer ownership is unchanged.',
+                 None if is_void else ret.public(), ['self'] + ['argument_' + str(i) for i, t in enumerate(args) if t.required('')])
+            emit(root + '_clear_error', [(public, 'self')], 'self->core.error.store(AILO_OK);',
+                 'Clear the sticky callback exception status after inspecting it.', validate=['self'])
+            H.append('ailo_status ' + root + '_error(' + public + 'self, ailo_error *error);')
+            C.append('extern "C" __attribute__((visibility("default"))) ailo_status ' + root + '_error(' + public + 'self, ailo_error *error) { if (!self) return ailo_error_set(error, AILO_INVALID_ARGUMENT, "Callback is required"); const auto status = self->core.error.load(); return ailo_error_set(error, status, status == AILO_OK ? "" : "Native callback raised an exception or returned an invalid result"); }')
+            EXPORTS.append(root + '_error')
+        declarations.extend(H[start_h:]); del H[start_h:]
+        definitions.extend(C[start_c:]); del C[start_c:]
+    return declarations, definitions
 
 
 def allocation(name, native, public):
@@ -248,6 +399,8 @@ def generate():
             continue
         try:
             t = Type(alias['type'])
+            if t.kind == 'callback':
+                t.callback['aliases'].append(name)
             public = t.public()
             if not t.depth and t.kind == 'record':
                 public = t.public_base
@@ -268,6 +421,8 @@ def generate():
                 match = re.fullmatch(r'(.+)\[(\d+)\]', text)
                 extent = int(match[2]) if match else None
                 t = Type(match[1] if match else text)
+                if t.kind == 'callback':
+                    t.callback['aliases'].append(name + '_' + field.replace('.', '_') + '_callback')
                 method = 'ailo_' + name + '_' + field.replace('.', '_')
                 params = [('const ' + public + ' *', 'self')]
                 expression = 'reinterpret_cast<const ' + native + ' *>(self)->' + field
@@ -302,15 +457,24 @@ def generate():
             native_args = []
             params = []
             required = []
+            before, after, prelude = [], [], ''
             for index, arg in enumerate(function['parameters']):
                 t = Type(arg['type'])
                 param = 'argument_' + str(index)
                 params.append((t.public(input=True), param))
-                native_args.append(t.to_native(param))
+                if t.kind == 'callback' and t.depth == 2:
+                    before.append(t.base + ' callback_' + str(index) + ' = nullptr;')
+                    native_args.append('&callback_' + str(index))
+                    after.append('*' + param + ' = ' + t.name + '_view(callback_' + str(index) + ');')
+                    required.append(param)
+                    prelude += 'if (' + param + ') *' + param + ' = nullptr;\n'
+                else:
+                    native_args.append(t.to_native(param))
                 if t.required(param):
                     required.append(param)
             call = name + '(' + ', '.join(native_args) + ')'
             body = call + ';' if ret.base == 'void' and not ret.depth else result_body(ret, call)
+            body = '\n'.join(before + [body] + after)
             if name == 'llama_backend_init':
                 body = 'ailo::detail::backend_acquire();'
             elif name == 'llama_backend_free':
@@ -324,11 +488,20 @@ def generate():
                 body = ''.join('(void)' + p + ';\n' for _, p in params) + body
             emit('ailo_' + name, params, body,
                  'Invoke the native API with its preconditions; native results and ownership are preserved separately from bridge status.',
-                 None if ret.base == 'void' and not ret.depth else ret.public(), required)
+                 None if ret.base == 'void' and not ret.depth else ret.public(), required, prelude)
             COVERAGE['functions'].append(name)
         except Gap as e:
             GAPS.append({'kind': 'function', 'name': name, 'reason': str(e)})
 
+    # Callback signatures also expose native-backed pointer/word-pair arrays.
+    discovered = set()
+    while len(discovered) < len(CALLBACKS):
+        for key, cb in list(CALLBACKS.items()):
+            if key not in discovered:
+                discovered.add(key)
+                Type(cb['return'])
+                for arg in cb['arguments']:
+                    Type(arg)
     # Field/functor processing discovers all native element storage types.
     handled = set()
     while len(handled) < len(STORAGES):
@@ -386,23 +559,26 @@ def generate():
 
 def outputs():
     generate()
+    callback_h, callback_c = generate_callbacks()
     preamble = ('/* Generated from the pinned upstream public API inventory.\n'
                 ' * Regenerate with scripts/generate_native.py; do not edit manually.\n'
                 ' * See docs/facade-bindings.md for ownership and bridge semantics. */\n')
     forward = ['struct ailo_' + name + ';' for name in sorted(TAGS)]
     forward += ['struct ' + s['name'] + ';' for s in STORAGES.values()]
     forward.append(MAP_PUBLIC + ';')
+    forward += ['struct ' + cb['name'] + ';' for cb in CALLBACKS.values()]
+    enum_count = len(DATA['enums'])
     header = (preamble + '#ifndef AILO_NATIVE_H\n#define AILO_NATIVE_H\n'
               '#include "ailo/base.h"\n#include <stddef.h>\n#include <stdio.h>\n'
               '#include "ailo/native_variadic.h"\n'
               '#include "ailo/native_macros.h"\n'
               '#ifdef __cplusplus\nextern "C" {\n#endif\n'
-              + '\n'.join(forward + H) + '\n#ifdef __cplusplus\n}\n#endif\n#endif\n')
+              + '\n'.join(forward + H[:enum_count] + callback_h + H[enum_count:]) + '\n#ifdef __cplusplus\n}\n#endif\n#endif\n')
     includes = ['#include "' + h + '"' for h in DATA['headers']]
     # Deprecations are deliberately part of the complete public facade.
-    cpp = (preamble + '#include "ailo/native.h"\n#include "ailo_native_internal.hpp"\n#include "ailo_backend_internal.hpp"\n'
+    cpp = (preamble + '#include "ailo/native.h"\n#include "ailo_native_internal.hpp"\n#include "ailo_backend_internal.hpp"\n#include "ailo_callback_internal.hpp"\n'
            '#pragma GCC diagnostic push\n#pragma GCC diagnostic ignored "-Wdeprecated-declarations"\n'
-           + '\n'.join(includes + C) + '\n#pragma GCC diagnostic pop\n')
+           + '\n'.join(includes + callback_c + C) + '\n#pragma GCC diagnostic pop\n')
     manifest = {'inventory_sha256': hashlib.sha256((ROOT / 'docs/upstream-api.json').read_bytes()).hexdigest(),
                 'implemented': COVERAGE, 'gaps': GAPS, 'exports': sorted(EXPORTS),
                 'manual_function_exports': sorted('ailo_' + n for n in MANUAL_FUNCTIONS),
@@ -421,10 +597,14 @@ def outputs():
 
 def record_tests(preamble, includes):
     lines = [preamble, '#include "ailo/native.h"', '#include "ailo_integer_bridge.hpp"',
-             '#include <cstdio>', '#include <limits>', '#include <cstring>'] + includes
-    lines += ['#define CHECK(x) do { if (!(x)) { std::fprintf(stderr, "%s:%d: %s\\n", __FILE__, __LINE__, #x); return 1; } } while (0)',
+             '#include <cstdio>', '#include <limits>', '#include <cstring>', '#include <type_traits>'] + includes
+    lines += ['static int callback_tag = 0;',
+              'template <typename Signature, int Tag> struct field_callback;',
+              'template <int Tag, typename R, typename... Args> struct field_callback<R (*)(Args...), Tag> { static R call(Args...) { callback_tag = Tag; if constexpr (!std::is_void_v<R>) return R{}; } };',
+              '#define CHECK(x) do { if (!(x)) { std::fprintf(stderr, "%s:%d: %s\\n", __FILE__, __LINE__, #x); return 1; } } while (0)',
               'int main() {', 'ailo_error error = {};', 'alignas(64) unsigned char address[64] = {};',
               'size_t tested = 0;']
+    callback_index = 0
     for record in DATA['records']:
         name = record['name']
         native = name if name == 'ggml_bf16_t' else 'struct ' + name
@@ -471,6 +651,36 @@ def record_tests(preamble, includes):
                           'CHECK(reinterpret_cast<' + t.base + ' *>(result)->' + member + ' == ' + expected + ');',
                           'CHECK(' + child + '_array_free(result, &error) == AILO_OK);',
                           'CHECK(' + child + '_array_free(value, &error) == AILO_OK);']
+            elif t.kind == 'callback':
+                callback_index += 1
+                cbroot = 'ailo_' + sorted(t.callback['aliases'])[0]
+                lines += [t.public() + ' value = nullptr;', t.public() + ' result = nullptr;',
+                          'auto procedure = &field_callback<decltype(' + actual + '), ' + str(callback_index) + '>::call;',
+                          'void * entry = nullptr; static_assert(sizeof(entry) == sizeof(procedure), "Native callback code pointer ABI");',
+                          'std::memcpy(&entry, &procedure, sizeof(entry));',
+                          'CHECK(' + cbroot + '_from_address(entry, &value, &error) == AILO_OK);',
+                          'CHECK(' + method + '_set(' + args + 'value, &error) == AILO_OK);',
+                          'CHECK(' + actual + ' == procedure);',
+                          'CHECK(' + method + '_get(' + args + '&result, &error) == AILO_OK && result);']
+                call_args = ['result']
+                for i, argument in enumerate(t.callback['arguments']):
+                    argument_type = Type(argument)
+                    lines += ['using argument_type_' + str(i) + ' = ' + argument_type.public(input=True) + ';',
+                              'argument_type_' + str(i) + ' argument_' + str(i) + '{};']
+                    call_args.append('argument_' + str(i))
+                ret = Type(t.callback['return'])
+                if ret.native != 'void':
+                    lines += ['using callback_result_type = ' + ret.public() + ';',
+                              'callback_result_type callback_result{};']
+                    call_args.append('&callback_result')
+                lines += ['callback_tag = 0;',
+                          'CHECK(' + cbroot + '_call(' + ', '.join(call_args + ['&error']) + ') == AILO_OK);',
+                          'CHECK(callback_tag == ' + str(callback_index) + ');']
+                if ret.kind == 'record' and not ret.depth:
+                    lines.append('CHECK(ailo_' + ret.name + '_array_free(callback_result, &error) == AILO_OK);')
+                lines += ['CHECK(' + method + '_set(' + args + 'nullptr, &error) == AILO_OK && !' + actual + ');',
+                          'CHECK(' + cbroot + '_free(value, &error) == AILO_OK);',
+                          'CHECK(' + cbroot + '_free(result, &error) == AILO_OK);']
             else:
                 public = t.public()
                 if t.depth:
@@ -529,7 +739,7 @@ if __name__ == '__main__':
         if args.check:
             if not path.exists() or path.read_text() != content:
                 raise SystemExit('Generated facade differs: ' + relative)
-        else:
+        elif not path.exists() or path.read_text() != content:
             path.parent.mkdir(parents=True, exist_ok=True)
             temporary = work / path.name
             temporary.write_text(content)

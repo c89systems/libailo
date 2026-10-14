@@ -12,8 +12,8 @@ if ! rg -qi '^AILO_VULKAN:BOOL=(OFF|FALSE|NO|N|0)$' "$work/CMakeCache.txt"; then
   exit 2
 fi
 ctest --test-dir "$work" --output-on-failure -j1 -R '^model-fixture$'
-for executable in ailo_model_test ailo_model_shared_test ailo_client_static_test ailo_client_shared_test ailo_client_threads_test; do
-  valgrind --fair-sched=yes --error-exitcode=99 --leak-check=full --track-origins=yes \
+for executable in ailo_model_test ailo_model_shared_test ailo_client_static_test ailo_client_shared_test ailo_client_threads_test ailo_callbacks_static_test ailo_callbacks_shared_test; do
+  valgrind --fair-sched=yes --suppressions="$root/scripts/valgrind-libffi.supp" --error-exitcode=99 --leak-check=full --track-origins=yes \
     --show-leak-kinds=all --errors-for-leak-kinds=all \
     "$work/$executable" "$work/model-fixtures/tiny-llama.gguf"
 done

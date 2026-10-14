@@ -59,6 +59,7 @@ valgrind: build
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_values_shared
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_integer_bridge
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_native_records
+	valgrind --fair-sched=yes --suppressions=scripts/valgrind-libffi.supp --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_native_callbacks
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_native_storage
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_native_test
 	valgrind --error-exitcode=99 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all build/$(PRESET)/ailo_variadic_test
