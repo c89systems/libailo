@@ -19945,6 +19945,10 @@
         {
           "name": "GGML_LOG_LEVEL_CONT",
           "value": 5
+        },
+        {
+          "name": "GGML_LOG_LEVEL_TRACE",
+          "value": 6
         }
       ]
     },

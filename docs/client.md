@@ -116,7 +116,7 @@ answer quality or GPU qualification. Routine tests require no network download.
 The same cached instruct model also generated successfully through a fully
 static x86_64 musl executable. `readelf -l` showed no interpreter and `readelf -d`
 reported no dynamic section. The build used the pinned musl Bootlin compiler
-and cpkt/lonejson static archives, with no host target libraries:
+and cpkt/cpktmisc/lonejson/pslog static archives, with no host target libraries:
 
 ```sh
 cmake -S . -B build/cpu-musl-static -G Ninja \
@@ -136,3 +136,38 @@ already vendored in the pinned llama source. It is restricted to request/templat
 handling; generated text passes directly through the event sink. Public JSON
 serialization uses the separate pinned lonejson SDK. Template/native/compiler
 runtime archives remain separate from `libailo.a` in the installed static SDK.
+
+## Logger ownership
+
+The additive `ailo_client_new_with_logger` constructor takes a forward-declared
+`struct pslog_logger *`. Include the separate libpslog public header to configure
+it. The client derives an owned child carrying component/model_id; the parent
+logger may be destroyed afterwards. Borrowed output/palette/user resources must
+remain live and support native worker threads until client destruction. Native
+callbacks must not throw or longjmp. Existing constructor and receiver/config
+layouts are unchanged, so this addition does not break the shared C ABI.
+
+Trace/debug/info/warn/error are mapped to pslog. Each native hook fragment emits
+one record with phase and continuation fields, preserving streaming without
+accumulating a complete native log message. Continuations inherit the preceding
+level on that receiver/thread (info before any level). The private native patch
+propagates scopes into CPU graph workers and asynchronous tensor validation;
+process-global native setters remain untouched as fallback. Raw facade logging
+setters retain their native semantics. Shared device diagnostics without an
+active scope cannot be attributed to a receiver; high-level media inference is
+still unavailable and its separate raw hooks remain caller-controlled.
+
+The [Lua facade](../lua/README.md) uses this same installed shared ABI and the
+public pslog Lua interop ABI1. Logger qualification/retention happens before
+native handoff; finalization stops native producers before unreferencing Lua.
+
+## Local Vulkan integration evidence
+
+The updated receiver and installed Lua facade both generated from the same
+cached SmolLM2-135M instruct model on Intel(R) Graphics (RPL-U), using the Mesa
+Intel Vulkan driver. Native records captured by a pslog logger configured in
+Lua showed all 31/31 layers offloaded and an 11.25 MiB Vulkan KV buffer. The Lua
+sink emitted eight text deltas for the test prompt and reported backend=vulkan.
+This qualifies the local shared-loader/driver integration. It does not qualify
+a fully static Mesa GPU executable or multi-GPU hardware not present on this
+host. The standalone musl CPU evidence remains separate.

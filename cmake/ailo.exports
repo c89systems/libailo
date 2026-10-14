@@ -6,6 +6,7 @@ ailo_client_devices
 ailo_client_generate
 ailo_client_model_card
 ailo_client_new
+ailo_client_new_with_logger
 ailo_error_clear
 ailo_i64_from_long
 ailo_i64_to_long

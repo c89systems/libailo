@@ -26,7 +26,7 @@ cd -- "$root"
 if [[ "$vulkan" == ON ]]; then
   "$root/scripts/cpkt-toolchains.sh" ensure x86_64-linux-gnu >/dev/null
 fi
-"$root/scripts/deps.sh" --target "$target" --component cpkt --component cpktmisc --component lonejson --component llama
+"$root/scripts/deps.sh" --target "$target" --component cpkt --component cpktmisc --component lonejson --component pslog --component llama
 source_root="$root/.cache/deps-build/$target/llama/source"
 while IFS= read -r name; do
   [[ -n "$name" && "$name" != \#* ]] || continue

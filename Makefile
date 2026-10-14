@@ -35,6 +35,7 @@ build-release:
 	$(MAKE) build PRESET=x86_64-linux-gnu-release
 test: build
 	ctest --preset $(PRESET) --output-on-failure -j1
+	case "$(PRESET)" in cpu|debug|x86_64-linux-gnu-release) scripts/lua.sh test "$(PRESET)" ;; esac
 test-debug:
 	$(MAKE) test PRESET=debug
 test-install-tree: build
@@ -76,3 +77,10 @@ generate-native:
 	python3 scripts/generate_native.py
 facade-coverage:
 	python3 scripts/generate_native.py --check --require-complete
+.PHONY: lua-build lua-test package-lua
+lua-build:
+	scripts/lua.sh build "$(PRESET)"
+lua-test:
+	scripts/lua.sh test "$(PRESET)"
+package-lua:
+	scripts/package_lua.sh

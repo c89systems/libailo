@@ -1,0 +1,101 @@
+# lua-ailo
+
+Lua 5.5.1 receiver facade over the installed libailo shared C ABI. The native
+module does not embed a second llama, libailo, Lua or pslog runtime.
+
+```lua
+local ailo = require("ailo")
+local pslog = require("pslog")
+local log = pslog.new_json("inference.log", { min_level = "debug" })
+local client, err = ailo.new {
+  source = { local_path = "model.gguf" },
+  backend = "auto", logger = log,
+}
+assert(client, err and err.message)
+local info, failure = client:generate({
+  items = {{ role = "user", content = "Explain gravity briefly." }},
+  max_tokens = 64,
+}, function(event)
+  if event.kind == "text_delta" then
+    io.write(event.data)
+    io.flush()
+  end
+end)
+assert(info, failure and failure.message)
+client:close()
+log:close()
+```
+
+`new` copies configuration through the C constructor. Choose `source.local_path`
+or explicit Hugging Face `repo`, `revision`, `filename`. `cache_root`, `sha256`
+(dense array, false skips one checksum), `allow_download`, `split_shards`,
+`bearer_token`, `max_bytes`, timeouts and attempts mirror the public C source.
+No implicit downloads or token environment lookup. Default cache is
+`$XDG_CACHE_HOME/ailo` or `$HOME/.cache/ailo`. Full unsigned 64-bit `max_bytes`
+accepts `{hi=...,lo=...}`; other integers are checked exactly.
+
+Constructor options also include `model_id`, `chat_template`, `lazy`, backend
+`auto`/`cpu`/`vulkan`, `gpu_layers`, `context_tokens`, `batch_tokens`, `threads`
+and an optional pslog `logger`. Defaults match the C factories. Unknown keys,
+wrong types, holes and out-of-range values return `nil, error`.
+
+Requests contain ordered `items` (kind, role, id, call_id, name, arguments and
+content), `max_tokens`, `candidates`, `temperature`, `top_p`, `seed`,
+`frequency_penalty`, `presence_penalty`, and `stop`. Content is a string or a
+dense array of `{kind="text",data="..."}` parts. Core unsupported kinds retain
+the C `unsupported` outcome. Token payloads are never assembled into a complete
+answer. Events have `kind`, monotonic `sequence`, zero-based `candidate`,
+`model_id`, `data`, `finish_reason`, and `usage`. Kinds are `run_begin`,
+`choice_begin`, `text_delta`, `choice_end`, `run_end`.
+
+`generate` is synchronous: the sink receives each available delta immediately,
+including before the next decode. Only boolean false cancels; nil continues.
+Sink errors (including attempted yields) return `sink_failed` with the original
+`cause` and partial run `info`. Callbacks run on the invoking Lua thread and
+must not yield. All Lua allocation/user code in native callbacks is protected
+by pcall so errors cannot longjmp through native C++ frames. A separate client
+may be used recursively; reentry/close on the active client returns `busy`.
+`cancel()` is allowed inside a callback. Native methods remain single-operation
+receivers.
+
+`source.progress` optionally receives `{shard,shards,received,total}`; false
+cancels, errors return `sink_failed`. Both eager construction and lazy loading
+use the active Lua thread. No coroutine pointer is retained between operations.
+`model_card()`, `capabilities()` and `devices()` return explicitly buffered JSON
+strings from the C ABI. `generate()` returns usage, completed_candidates,
+finish_reason and actual_backend; failures return nil and a table with code,
+status, message, and partial info where applicable. `close()` is idempotent;
+GC destroys native producers before releasing the logger.
+
+Logging uses the public libpslog Lua/C interop ABI1. Only live loggers positively
+qualified for native sinks are accepted; Lua function/unknown outputs are
+rejected before loading. The provider module is resolved through Lua's public
+package.searchpath/loadlib facilities; private userdata layouts are never read.
+The logger stays retained even after the constructing coroutine is collected.
+Do not close borrowed files or explicitly close logger-owned outputs until the
+client is closed. Trace/debug/info/warn/error native records carry component,
+model_id, phase and continuation fields. Shared device diagnostics that cannot
+be attributed to a receiver use the existing process-global fallback.
+
+Build with CMake 3.24+, the installed libailo/pslog SDKs, Lua 5.5.1 SDK CMake
+config, and the public pslog_lua.h interop header from lua-pslog 0.12.0. Supply
+these prefixes in CMAKE_PREFIX_PATH and PSLOG_LUA_INCLUDE_DIR; select your target
+toolchain explicitly. The rockspec exposes AILO_DIR, PSLOG_DIR, CPKTLUA_DIR and
+PSLOG_LUA_INCDIR for the same dependency selection. Configure the normal system
+library search path for the public shared libraries. Test provider code and the
+local embedding runner are only built with AILO_LUA_TESTS=ON. ailo.core is an
+internal normalized-input bridge; require("ailo") is the public facade.
+
+In the main checkout, `make lua-test PRESET=cpu` builds and installs the facade
+and its separate pslog test module against pinned Bootlin/cpkt inputs, then runs
+the installed-layout tests. `PRESET=debug` selects the Vulkan-enabled core.
+`make package-lua` produces a minimal source archive, release rockspec and source
+rock; those products are separate from per-target C SDKs.
+
+The CPU-only local memory gate checks all lost/reachable allocation kinds. A narrowly
+matched suppression covers loader metadata and libstdc++'s emergency exception
+pool retained after module loading (87,320 bytes in 22 blocks on the pinned
+x86_64 Bootlin runtime). `tests/load_only.lua` reproduces exactly that baseline
+without constructing a client or logger. The full callback/finalizer/OOM suite
+retains the same baseline, with zero lost allocations; Lua, libailo and pslog
+allocation sites are not suppressed.

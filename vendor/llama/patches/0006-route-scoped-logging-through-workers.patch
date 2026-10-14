@@ -1,0 +1,237 @@
+--- /dev/null
++++ b/ggml/src/ggml-log-scope.h
+@@ -0,0 +1,21 @@
++#ifndef GGML_LOG_SCOPE_H
++#define GGML_LOG_SCOPE_H
++#include "ggml.h"
++#ifdef __cplusplus
++extern "C" {
++#endif
++/* Private context; the public global logging hooks remain fallbacks. */
++struct ggml_log_scope { ggml_log_callback callback; void * user_data; };
++GGML_API struct ggml_log_scope ggml_log_scope_get(void);
++GGML_API void ggml_log_scope_set(struct ggml_log_scope scope);
++#ifdef __cplusplus
++}
++struct ggml_log_scope_guard {
++    ggml_log_scope previous;
++    explicit ggml_log_scope_guard(ggml_log_scope scope) : previous(ggml_log_scope_get()) { ggml_log_scope_set(scope); }
++    ~ggml_log_scope_guard() { ggml_log_scope_set(previous); }
++    ggml_log_scope_guard(const ggml_log_scope_guard &) = delete;
++    ggml_log_scope_guard & operator=(const ggml_log_scope_guard &) = delete;
++};
++#endif
++#endif
+--- a/ggml/include/ggml.h
++++ b/ggml/include/ggml.h
+@@ -656,6 +656,7 @@
+         GGML_LOG_LEVEL_WARN  = 3,
+         GGML_LOG_LEVEL_ERROR = 4,
+         GGML_LOG_LEVEL_CONT  = 5, // continue previous log
++        GGML_LOG_LEVEL_TRACE = 6, // libailo scoped tracing
+     };
+ 
+     // this tensor...
+--- a/ggml/src/ggml-impl.h
++++ b/ggml/src/ggml-impl.h
+@@ -120,6 +120,7 @@
+ #define GGML_LOG_WARN(...)  ggml_log_internal(GGML_LOG_LEVEL_WARN , __VA_ARGS__)
+ #define GGML_LOG_ERROR(...) ggml_log_internal(GGML_LOG_LEVEL_ERROR, __VA_ARGS__)
+ #define GGML_LOG_DEBUG(...) ggml_log_internal(GGML_LOG_LEVEL_DEBUG, __VA_ARGS__)
++#define GGML_LOG_TRACE(...) ggml_log_internal(GGML_LOG_LEVEL_TRACE, __VA_ARGS__)
+ #define GGML_LOG_CONT(...)  ggml_log_internal(GGML_LOG_LEVEL_CONT , __VA_ARGS__)
+ 
+ #define GGML_DEBUG 0
+--- a/src/llama-impl.h
++++ b/src/llama-impl.h
+@@ -29,6 +29,7 @@
+ #define LLAMA_LOG_WARN(...)  llama_log_internal(GGML_LOG_LEVEL_WARN , __VA_ARGS__)
+ #define LLAMA_LOG_ERROR(...) llama_log_internal(GGML_LOG_LEVEL_ERROR, __VA_ARGS__)
+ #define LLAMA_LOG_DEBUG(...) llama_log_internal(GGML_LOG_LEVEL_DEBUG, __VA_ARGS__)
++#define LLAMA_LOG_TRACE(...) llama_log_internal(GGML_LOG_LEVEL_TRACE, __VA_ARGS__)
+ #define LLAMA_LOG_CONT(...)  llama_log_internal(GGML_LOG_LEVEL_CONT , __VA_ARGS__)
+ 
+ //
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -4,6 +4,7 @@
+ #include "ggml-version.h"
+ #include "ggml-backend.h"
+ #include "ggml-impl.h"
++#include "ggml-log-scope.h"
+ #include "ggml-threading.h"
+ #include "ggml-cpu.h"
+ #include "ggml.h"
+@@ -283,22 +284,27 @@
+     void * log_callback_user_data;
+ };
+ static struct ggml_logger_state g_logger_state = {ggml_log_callback_default, NULL};
++static _Thread_local struct ggml_log_scope g_log_scope;
++struct ggml_log_scope ggml_log_scope_get(void) { return g_log_scope; }
++void ggml_log_scope_set(struct ggml_log_scope scope) { g_log_scope = scope; }
+ 
+ static void ggml_log_internal_v(enum ggml_log_level level, const char * format, va_list args) {
+     if (format == NULL) {
+         return;
+     }
++    const struct ggml_log_scope logger = g_log_scope.callback ? g_log_scope :
++        (struct ggml_log_scope) {g_logger_state.log_callback, g_logger_state.log_callback_user_data};
+     va_list args_copy;
+     va_copy(args_copy, args);
+     char buffer[128];
+     int len = vsnprintf(buffer, 128, format, args);
+     if (len < 128) {
+-        g_logger_state.log_callback(level, buffer, g_logger_state.log_callback_user_data);
++        logger.callback(level, buffer, logger.user_data);
+     } else {
+         char * buffer2 = (char *) calloc(len + 1, sizeof(char));
+         vsnprintf(buffer2, len + 1, format, args_copy);
+         buffer2[len] = 0;
+-        g_logger_state.log_callback(level, buffer2, g_logger_state.log_callback_user_data);
++        logger.callback(level, buffer2, logger.user_data);
+         free(buffer2);
+     }
+     va_end(args_copy);
+--- a/src/llama-impl.cpp
++++ b/src/llama-impl.cpp
+@@ -1,4 +1,5 @@
+ #include "llama-impl.h"
++#include "../ggml/src/ggml-log-scope.h"
+ #include "llama-mmap.h"
+ 
+ #include "ggml-backend.h"
+@@ -59,17 +60,20 @@
+ }
+ 
+ static void llama_log_internal_v(ggml_log_level level, const char * format, va_list args) {
++    const auto scope = ggml_log_scope_get();
++    const auto callback = scope.callback ? scope.callback : g_logger_state.log_callback;
++    void * user_data = scope.callback ? scope.user_data : g_logger_state.log_callback_user_data;
+     va_list args_copy;
+     va_copy(args_copy, args);
+     char buffer[128];
+     int len = vsnprintf(buffer, 128, format, args);
+     if (len < 128) {
+-        g_logger_state.log_callback(level, buffer, g_logger_state.log_callback_user_data);
++        callback(level, buffer, user_data);
+     } else {
+         char * buffer2 = new char[len + 1];
+         vsnprintf(buffer2, len + 1, format, args_copy);
+         buffer2[len] = 0;
+-        g_logger_state.log_callback(level, buffer2, g_logger_state.log_callback_user_data);
++        callback(level, buffer2, user_data);
+         delete[] buffer2;
+     }
+     va_end(args_copy);
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -6,6 +6,7 @@
+ #include "traits.h"
+ #include "ggml-cpu-impl.h"
+ #include "ggml-impl.h"
++#include "ggml-log-scope.h"
+ #include "quants.h"
+ #include "ggml-threading.h"
+ #include "unary-ops.h"
+@@ -484,6 +485,7 @@
+ 
+     struct ggml_cgraph * cgraph;
+     struct ggml_cplan  * cplan;
++    struct ggml_log_scope log_scope;
+ 
+     // synchronization primitives
+     atomic_int n_graph;       // updated when there is work to be done (i.e each graph) holds graph and active thread counts.
+@@ -513,6 +515,7 @@
+ #endif
+     bool cpumask[GGML_MAX_N_THREADS];
+     struct ggml_threadpool * threadpool;
++    struct ggml_log_scope initial_log_scope;
+     int ith;
+ };
+ 
+@@ -3106,6 +3109,8 @@
+ static thread_ret_t ggml_graph_compute_thread(void * data) {
+     struct ggml_compute_state * state = (struct ggml_compute_state *) data;
+     struct ggml_threadpool    * tp    = state->threadpool;
++    const struct ggml_log_scope previous_log_scope = ggml_log_scope_get();
++    ggml_log_scope_set(tp->log_scope);
+ 
+     const struct ggml_cgraph * cgraph = tp->cgraph;
+     const struct ggml_cplan  * cplan  = tp->cplan;
+@@ -3175,6 +3180,7 @@
+     ggml_backend_cpu_riscv64_spacemit_clear_numa_thread_affinity_threaded(state->ith);
+ #endif
+ 
++    ggml_log_scope_set(previous_log_scope);
+     return 0;
+ }
+ 
+@@ -3247,6 +3253,8 @@
+ static thread_ret_t ggml_graph_compute_secondary_thread(void* data) {
+     struct ggml_compute_state * state = (struct ggml_compute_state *) data;
+     struct ggml_threadpool * threadpool = state->threadpool;
++    const struct ggml_log_scope previous_log_scope = ggml_log_scope_get();
++    ggml_log_scope_set(state->initial_log_scope);
+ 
+     ggml_thread_apply_priority(threadpool->prio);
+     if (ggml_thread_cpumask_is_valid(state->cpumask)) {
+@@ -3278,6 +3286,7 @@
+         }
+     }
+ 
++    ggml_log_scope_set(previous_log_scope);
+     return (thread_ret_t) 0;
+ }
+ 
+@@ -3324,6 +3333,7 @@
+     struct ggml_threadpool * threadpool =
+         ggml_aligned_malloc(sizeof(struct ggml_threadpool));
+     {
++        threadpool->log_scope        = ggml_log_scope_get();
+         threadpool->cgraph           = cgraph;
+         threadpool->cplan            = cplan;
+         threadpool->n_graph          = 0;
+@@ -3348,6 +3358,7 @@
+     for (int j = 0; j < tpp->n_threads; j++) {
+         workers[j].threadpool = threadpool;
+         workers[j].ith        = j;
++        workers[j].initial_log_scope = threadpool->log_scope;
+     }
+ 
+     threadpool->workers = workers;
+@@ -3414,6 +3425,7 @@
+     } else {
+         // Reset some of the parameters that need resetting
+         // No worker threads should be accessing the parameters below at this stage
++        threadpool->log_scope        = ggml_log_scope_get();
+         threadpool->cgraph           = cgraph;
+         threadpool->cplan            = cplan;
+         threadpool->current_chunk    = 0;
+--- a/src/llama-model-loader.cpp
++++ b/src/llama-model-loader.cpp
+@@ -1,4 +1,5 @@
+ #include "llama-model-loader.h"
++#include "../ggml/src/ggml-log-scope.h"
+ 
+ #include "ggml-alloc.h"
+ #include "ggml.h"
+@@ -1647,7 +1648,8 @@
+             uint8_t * data = (uint8_t *) mapping->addr() + weight->offs;
+ 
+             if (check_tensors) {
+-                validation_result.emplace_back(std::async(std::launch::async, [cur, data, n_size] {
++                validation_result.emplace_back(std::async(std::launch::async, [cur, data, n_size, log_scope = ggml_log_scope_get()] {
++                    ggml_log_scope_guard scope_guard(log_scope);
+                     return std::make_pair(cur, ggml_validate_row_data(cur->type, data, n_size));
+                 }));
+             }
+@@ -1675,7 +1677,8 @@
+                 file->seek(weight->offs, SEEK_SET);
+                 file->read_raw(cur->data, n_size);
+                 if (check_tensors) {
+-                    validation_result.emplace_back(std::async(std::launch::async, [cur, n_size] {
++                    validation_result.emplace_back(std::async(std::launch::async, [cur, n_size, log_scope = ggml_log_scope_get()] {
++                        ggml_log_scope_guard scope_guard(log_scope);
+                         return std::make_pair(cur, ggml_validate_row_data(cur->type, cur->data, n_size));
+                     }));
+                 }

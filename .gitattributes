@@ -1,2 +1,4 @@
 # Preserve this checksum-verified upstream license verbatim.
 vendor/licenses/gcc-COPYING.RUNTIME whitespace=-blank-at-eof
+# Unified patches preserve the space prefix on otherwise empty context lines.
+vendor/llama/patches/*.patch whitespace=-blank-at-eol

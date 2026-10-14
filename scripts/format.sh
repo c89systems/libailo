@@ -9,7 +9,7 @@ case "${1:-}" in
 esac
 [[ $# -eq 0 ]] || { printf 'format: unexpected arguments\n' >&2; exit 2; }
 directories=()
-for directory in src include tests examples; do
+for directory in src include tests examples lua; do
   [[ ! -d "$root/$directory" ]] || directories+=("$root/$directory")
 done
 files=()

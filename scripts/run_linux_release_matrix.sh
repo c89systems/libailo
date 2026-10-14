@@ -27,6 +27,7 @@ for target in x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux
   "$root/scripts/build.sh" --preset "$target-release"
   if [[ "$target" == x86_64-linux-gnu ]]; then
     ctest --test-dir "$root/build/$target-release" --output-on-failure -j1
+    "$root/scripts/lua.sh" test "$target-release"
   fi
   if "$development"; then
     "$root/scripts/package.sh" --preset "$target-release" --development --no-build --output-directory "$output"
@@ -38,6 +39,14 @@ for target in x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux
 done
 # Existing four-target QEMU scalar/bridge coverage is mandatory, never a skip.
 "$root/scripts/test_scalar_matrix.sh"
+if "$development"; then
+  "$root/scripts/package_source.sh" --development --output "$output/libailo-$version.tar.gz"
+  "$root/scripts/package_lua.sh" --development --output-directory "$output"
+else
+  "$root/scripts/package_source.sh" --output "$output/libailo-$version.tar.gz"
+  "$root/scripts/package_lua.sh" --output-directory "$output"
+fi
+printf 'libailo-%s.tar.gz\nlua-ailo-%s.tar.gz\nlua-ailo-%s-1.rockspec\nlua-ailo-%s-1.src.rock\n' "$version" "$version" "$version" "$version" >> "$list"
 "$root/scripts/package_checksums.sh" "$output" "$version" "$list"
 "$root/scripts/verify_release_artifacts.sh" "$output/libailo-$version-CHECKSUMS"
 printf 'Four-target Linux package matrix verified\n'

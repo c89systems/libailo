@@ -12,6 +12,9 @@ test-install-tree                 Verify relocated CMake/pkg-config C/C++ consum
 test-foundation-matrix            Verify cpkt/core and misc libffi on four Linux targets.
 clean                             Remove build/, dist/ and local .cache/; preserve global cache.
 print-release-version             Read exact lightweight tag/candidate/archive version.
+lua-build [PRESET=cpu|debug]       Build Lua receiver against installed shared ABI.
+lua-test [PRESET=cpu|debug]        Test installed Lua receiver and pslog interop.
+package-lua                      Package separate Lua source, rockspec and source rock.
 package-source                   Require an exact release tag and complete facade, then archive.
 test-source-archive               Check development source archive staging/rejection/determinism.
 package-source-smoke SOURCE_ARCHIVE=path

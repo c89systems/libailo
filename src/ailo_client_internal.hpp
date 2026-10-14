@@ -31,9 +31,12 @@ struct source_copy {
   ~source_copy();
 };
 
+struct logging_state;
+
 struct state {
   std::mutex mutex;
   std::atomic<bool> cancelled{false};
+  std::atomic<bool> destroying{false};
   source_copy source;
   std::string id, template_override, path;
   ailo_client_config config;
@@ -45,7 +48,8 @@ struct state {
   std::vector<ggml_backend_dev_t> selected;
   bool backend_owned = false;
   bool progress_failed = false;
-  explicit state(const ailo_client_config &input);
+  std::unique_ptr<logging_state> logging;
+  explicit state(const ailo_client_config &input, pslog_logger *logger);
   ~state();
   void ensure_loaded();
 };

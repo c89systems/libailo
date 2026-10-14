@@ -1,0 +1,67 @@
+# These reachable allocations are reproduced by load_only.lua before any client
+# is created: 87,320 bytes/22 blocks with pinned Bootlin glibc/libstdc++.
+# Only loader metadata and the C++ emergency exception pool are matched.
+# Lost allocations and all Lua/libailo/pslog allocation sites remain errors.
+{
+  bootlin-loader-close-metadata
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:_dl_close_worker
+  fun:_dl_close
+  fun:_dl_catch_exception
+}
+{
+  bootlin-loader-search-metadata
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:open_path
+  fun:_dl_map_new_object
+  fun:openaux
+}
+{
+  bootlin-loader-object-name
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:_dl_new_object
+  fun:_dl_map_new_object
+  fun:openaux
+}
+{
+  bootlin-loader-object-map
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:calloc
+  fun:_dl_new_object
+  fun:_dl_map_new_object
+  fun:openaux
+}
+{
+  bootlin-loader-version-map
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:calloc
+  fun:_dl_check_map_versions
+  fun:dl_open_worker_begin
+  fun:_dl_catch_exception
+}
+{
+  bootlin-loader-unique-symbol-table
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:calloc
+  fun:do_lookup_x
+  fun:_dl_lookup_symbol_x
+  fun:_dl_relocate_object_no_relro
+}
+{
+  bootlin-cxx-emergency-exception-pool
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:_GLOBAL__sub_I_eh_alloc.cc
+  fun:call_init
+  fun:_dl_init
+}

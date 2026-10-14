@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "f8c019f2cfaeaa440de15e7415c03b8116f5831ee4fe8dce82d20a5fe6e30a3a",
+  "inventory_sha256": "6c170e0b84af1fd9132be0af1c3f9f97d5da34801b1f01bb082a1d054344430f",
   "implemented": {
     "functions": [
       "ggml_abort",

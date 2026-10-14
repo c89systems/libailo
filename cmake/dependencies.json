@@ -100,5 +100,37 @@
     "upstream": "https://github.com/KhronosGroup/SPIRV-Headers",
     "url": "https://codeload.github.com/KhronosGroup/SPIRV-Headers/tar.gz/refs/tags/vulkan-sdk-1.4.363.0",
     "sha256": "5b3a0d099f5c7649e29c0938476c462e71d66ad89a0bde42fa1ba3eb476956c9"
+  },
+  "pslog": {
+    "version": "v0.12.0",
+    "upstream": "https://github.com/sa6mwa/libpslog",
+    "assets": {
+      "aarch64-linux-gnu": {
+        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "304575fa07f14e5ff4d7614f7c450a3e88a586d5f353352bff8b678ee739da76"
+      },
+      "aarch64-linux-musl": {
+        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-aarch64-linux-musl.tar.gz",
+        "sha256": "72a3b4e1f89c339cadb996137a79db8ee6e67be1f580f482269f6b0088cda115"
+      },
+      "arm64-apple-darwin": {
+        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-arm64-apple-darwin.tar.gz",
+        "sha256": "a5945f2dc4ad16dd8a71572f40117ddfdfae371d185cb03dab5205cdf780c321"
+      },
+      "x86_64-linux-gnu": {
+        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "21239262bc06eecb504e45e0902f374ccd86751dcb32087dd84af4d2553ea0e2"
+      },
+      "x86_64-linux-musl": {
+        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-x86_64-linux-musl.tar.gz",
+        "sha256": "3a43206260bbf1095a363ffc4ddb5514dac2a621aa030db0e7f9b4364a93bb4d"
+      }
+    }
+  },
+  "lua-pslog": {
+    "version": "v0.12.0",
+    "upstream": "https://github.com/sa6mwa/libpslog",
+    "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/lua-pslog-0.12.0.tar.gz",
+    "sha256": "35e46f594b2ce12b42bba95357109fd662ce1c2ab7a175702e9b9d141cb0ec2b"
   }
 }

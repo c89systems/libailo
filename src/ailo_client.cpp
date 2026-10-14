@@ -1,4 +1,5 @@
 #include "ailo_client_internal.hpp"
+#include "ailo_logging_internal.hpp"
 #include <algorithm>
 #include <climits>
 #include <cstdlib>
@@ -77,7 +78,7 @@ source_copy::~source_copy() {
     OPENSSL_cleanse(&token[0], token.size());
 }
 
-state::state(const ailo_client_config &input)
+state::state(const ailo_client_config &input, pslog_logger *logger)
     : source(input.source), id(copy_string(input.model_id)),
       template_override(copy_string(input.chat_template)), config(input) {
   if (config.backend < AILO_BACKEND_AUTO ||
@@ -102,9 +103,14 @@ state::state(const ailo_client_config &input)
   std::unique_ptr<char, decltype(&std::free)> owned(validated, std::free);
   if (status != AILO_OK)
     throw failure(status, error.message);
+  if (logger)
+    logging = std::make_unique<logging_state>(logger, id);
 }
 
 state::~state() {
+  destroying.store(true);
+  log_scope logs(logging.get(), log_phase::destroy);
+  logs.trace("Destroying inference receiver");
   context.reset();
   model.reset();
   if (backend_owned)
@@ -114,6 +120,8 @@ state::~state() {
 void state::ensure_loaded() {
   if (context)
     return;
+  log_scope logs(logging.get(), log_phase::load);
+  logs.trace("Loading inference model");
   if (cancelled.load())
     throw failure(AILO_CANCELLED, "Model loading cancelled");
   if (!backend_owned) {
@@ -179,8 +187,10 @@ void state::ensure_loaded() {
       model.reset();
       throw failure(AILO_CANCELLED, "Model loading cancelled");
     }
-    if (context)
+    if (context) {
+      logs.trace("Inference model ready");
       return;
+    }
     model.reset();
     if (config.backend != AILO_BACKEND_AUTO || actual == AILO_BACKEND_CPU)
       throw failure(AILO_MODEL_FAILED, "Native model/context setup failed");
@@ -191,7 +201,7 @@ void state::ensure_loaded() {
 
 operation::operation(ailo_client *client)
     : self(get_state(client)), lock(self.mutex, std::try_to_lock) {
-  if (!lock.owns_lock())
+  if (!lock.owns_lock() || self.destroying.load())
     throw failure(AILO_BUSY, "The client is already executing an operation");
   self.cancelled.store(false);
   self.progress_failed = false;
@@ -235,6 +245,12 @@ AILO_PUBLIC ailo_request ailo_request_default(void) {
 AILO_PUBLIC ailo_status ailo_client_new(const ailo_client_config *config,
                                         ailo_client **output,
                                         ailo_error *error) {
+  return ailo_client_new_with_logger(config, nullptr, output, error);
+}
+
+AILO_PUBLIC ailo_status ailo_client_new_with_logger(
+    const ailo_client_config *config, pslog_logger *logger,
+    ailo_client **output, ailo_error *error) {
   if (output)
     *output = nullptr;
   if (!config || !output)
@@ -243,7 +259,7 @@ AILO_PUBLIC ailo_status ailo_client_new(const ailo_client_config *config,
   return ailo::client::boundary(error, [&]() {
     std::unique_ptr<ailo_client> shell(new ailo_client{});
     std::unique_ptr<ailo::client::state> state(
-        new ailo::client::state(*config));
+        new ailo::client::state(*config, logger));
     if (!config->lazy)
       state->ensure_loaded();
     shell->state = state.release();
@@ -269,14 +285,19 @@ AILO_PUBLIC ailo_status ailo_client_generate(ailo_client *client,
                           "Request, event sink and run info are required");
   return ailo::client::boundary(error, [&]() {
     ailo::client::operation call(client);
+    ailo::client::log_scope logs(call.self.logging.get(),
+                                 ailo::client::log_phase::generate);
+    logs.trace("Starting generation");
     ailo::client::generate(call.self, *request, sink, user, *output);
+    logs.trace("Generation complete");
   });
 }
 
 namespace {
 template <typename Function>
 ailo_status json_operation(ailo_client *client, char **output,
-                           ailo_error *error, Function work) {
+                           ailo_error *error, ailo::client::log_phase phase,
+                           Function work) {
   if (output)
     *output = nullptr;
   if (!output)
@@ -284,6 +305,7 @@ ailo_status json_operation(ailo_client *client, char **output,
                           "JSON output is required");
   return ailo::client::boundary(error, [&]() {
     ailo::client::operation call(client);
+    ailo::client::log_scope logs(call.self.logging.get(), phase);
     ailo::client::owned_json(work(call.self), output);
   });
 }
@@ -292,27 +314,32 @@ ailo_status json_operation(ailo_client *client, char **output,
 AILO_PUBLIC ailo_status ailo_client_model_card(ailo_client *client,
                                                char **output,
                                                ailo_error *error) {
-  return json_operation(client, output, error, [](ailo::client::state &self) {
-    self.ensure_loaded();
-    return ailo::client::model_card(self);
-  });
+  return json_operation(client, output, error,
+                        ailo::client::log_phase::metadata,
+                        [](ailo::client::state &self) {
+                          self.ensure_loaded();
+                          return ailo::client::model_card(self);
+                        });
 }
 
 AILO_PUBLIC ailo_status ailo_client_capabilities(ailo_client *client,
                                                  char **output,
                                                  ailo_error *error) {
-  return json_operation(client, output, error, ailo::client::capabilities);
+  return json_operation(client, output, error,
+                        ailo::client::log_phase::metadata,
+                        ailo::client::capabilities);
 }
 
 AILO_PUBLIC ailo_status ailo_client_devices(ailo_client *client, char **output,
                                             ailo_error *error) {
-  return json_operation(client, output, error, [](ailo::client::state &) {
-    ailo::detail::backend_acquire();
-    struct release {
-      ~release() { ailo::detail::backend_release(); }
-    } guard;
-    return ailo::client::devices();
-  });
+  return json_operation(client, output, error, ailo::client::log_phase::devices,
+                        [](ailo::client::state &) {
+                          ailo::detail::backend_acquire();
+                          struct release {
+                            ~release() { ailo::detail::backend_release(); }
+                          } guard;
+                          return ailo::client::devices();
+                        });
 }
 
 AILO_PUBLIC void ailo_client_cancel(ailo_client *client) {

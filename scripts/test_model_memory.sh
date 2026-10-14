@@ -17,3 +17,8 @@ for executable in ailo_model_test ailo_model_shared_test ailo_client_static_test
     --show-leak-kinds=all --errors-for-leak-kinds=all \
     "$work/$executable" "$work/model-fixtures/tiny-llama.gguf"
 done
+
+mkdir -p "$work/logging-tests"
+valgrind --fair-sched=yes --error-exitcode=99 --leak-check=full --track-origins=yes \
+  --show-leak-kinds=all --errors-for-leak-kinds=all \
+  "$work/ailo_logging_test" "$work/model-fixtures/tiny-llama.gguf" "$work/logging-tests"

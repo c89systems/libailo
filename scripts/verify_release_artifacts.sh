@@ -17,17 +17,19 @@ trap 'cmake -E rm -rf "$work"' EXIT
 while IFS= read -r row; do
   [[ "$row" =~ ^[0-9a-f]{64}[[:space:]][[:space:]](.+)$ ]] || { printf 'artifact-verify: malformed checksum manifest\n' >&2; exit 1; }
   file=${BASH_REMATCH[1]}
-  [[ "$file" != */* && "$file" == "libailo-$version"*.tar.gz && -f "$directory/$file" && ! -L "$directory/$file" ]] || { printf 'artifact-verify: missing/escaping artifact\n' >&2; exit 1; }
+  [[ "$file" != */* && ( "$file" == "libailo-$version"*.tar.gz || "$file" == "lua-ailo-$version.tar.gz" || "$file" == "lua-ailo-$version-1.rockspec" || "$file" == "lua-ailo-$version-1.src.rock" ) && -f "$directory/$file" && ! -L "$directory/$file" ]] || { printf 'artifact-verify: missing/escaping artifact\n' >&2; exit 1; }
   printf '%s\n' "$file" >> "$work/expected"
 done < "$manifest"
 [[ -s "$work/expected" ]] || { printf 'artifact-verify: empty manifest\n' >&2; exit 1; }
 LC_ALL=C sort "$work/expected" -o "$work/expected"
 [[ -z $(uniq -d "$work/expected") ]] || { printf 'artifact-verify: duplicate artifact\n' >&2; exit 1; }
-find "$directory" -maxdepth 1 -type f -name 'libailo-*.tar.gz' -printf '%f\n' | LC_ALL=C sort > "$work/actual"
+find "$directory" -maxdepth 1 -type f \( -name 'libailo-*.tar.gz' -o -name 'lua-ailo-*.tar.gz' -o -name 'lua-ailo-*.rockspec' -o -name 'lua-ailo-*.src.rock' \) -printf '%f\n' | LC_ALL=C sort > "$work/actual"
 diff -u "$work/expected" "$work/actual" || { printf 'artifact-verify: stale or unlisted artifact\n' >&2; exit 1; }
 (cd "$directory" && sha256sum --strict -c "${manifest##*/}")
 while IFS= read -r file; do
-  if [[ "$file" == "libailo-$version.tar.gz" ]]; then
+  if [[ "$file" == lua-ailo-* ]]; then
+    "$root/scripts/verify_lua_artifact.sh" "$directory/$file"
+  elif [[ "$file" == "libailo-$version.tar.gz" ]]; then
     "$root/scripts/verify_source_archive.sh" "$directory/$file"
   else
     "$root/scripts/verify_sdk_archive.sh" "$directory/$file"

@@ -1,0 +1,12 @@
+CMakeLists.txt
+README.md
+ailo/init.lua
+lua-ailo.rockspec.in
+source-manifest.txt
+src/ailo_lua.c
+tests/receiver.lua
+tests/runner.c
+tests/imports.cmake
+tests/runtime.supp
+tests/load_only.lua
+examples/infer.lua

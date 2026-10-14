@@ -56,6 +56,9 @@ done < <(find "$sdk/include" -type f -print0)
 if [[ -e "$sdk/include/llama.h" || -e "$sdk/lib/libcurl.a" || -e "$sdk/lib/libcrypto.a" || -e "$sdk/.git" || -e "$sdk/build" || -e "$sdk/.cache" ]]; then
   printf 'sdk-verify: leaked private source/SDK payload\n' >&2; exit 1
 fi
+if [[ -n $(find "$sdk" \( -name '*.rockspec' -o -name '*.rock' -o -type d -name lua \) -print -quit) ]]; then
+  printf 'sdk-verify: downstream Lua facade belongs in its separate source product\n' >&2; exit 1
+fi
 rg -q "^version=$version$" "$sdk/share/ailo/package.txt"
 rg -q "^target=$target$" "$sdk/share/ailo/package.txt"
 rg -q "#define AILO_VERSION \"$version\"" "$sdk/include/ailo/version.h"
@@ -70,5 +73,5 @@ while IFS= read -r -d '' library; do
   esac
 done < <(find "$sdk/lib" -type f -print0)
 "$root/scripts/verify_install_privacy.sh" "$sdk" "$readelf"
-"$root/scripts/verify_exports.sh" --library "$sdk/lib/libailo.so.0" --nm "$nm" --cc "$cc" --sysroot "$sysroot" --work "$work/exports" --runtime-directory "$root/.cache/deps/$target/cpkt/install/lib" --runtime-directory "$root/.cache/deps/$target/lonejson/install/lib" --runtime-directory "$root/.cache/deps/$target/cpktmisc/install/lib" --runtime-directory "$sdk/lib/ailo/native"
+"$root/scripts/verify_exports.sh" --library "$sdk/lib/libailo.so.0" --nm "$nm" --cc "$cc" --sysroot "$sysroot" --work "$work/exports" --runtime-directory "$root/.cache/deps/$target/cpkt/install/lib" --runtime-directory "$root/.cache/deps/$target/lonejson/install/lib" --runtime-directory "$root/.cache/deps/$target/cpktmisc/install/lib" --runtime-directory "$root/.cache/deps/$target/pslog/install/lib" --runtime-directory "$sdk/lib/ailo/native"
 printf 'Checksummed extracted SDK %s: layout, target ABI, privacy and exact exports passed\n' "$target"

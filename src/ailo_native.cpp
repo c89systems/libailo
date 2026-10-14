@@ -6539,6 +6539,7 @@ static_assert(static_cast<int>(GGML_LOG_LEVEL_INFO) == 2, "Native enum drift");
 static_assert(static_cast<int>(GGML_LOG_LEVEL_WARN) == 3, "Native enum drift");
 static_assert(static_cast<int>(GGML_LOG_LEVEL_ERROR) == 4, "Native enum drift");
 static_assert(static_cast<int>(GGML_LOG_LEVEL_CONT) == 5, "Native enum drift");
+static_assert(static_cast<int>(GGML_LOG_LEVEL_TRACE) == 6, "Native enum drift");
 static_assert(static_cast<int>(GGML_NUMA_STRATEGY_DISABLED) == 0,
               "Native enum drift");
 static_assert(static_cast<int>(GGML_NUMA_STRATEGY_DISTRIBUTE) == 1,

@@ -1,0 +1,147 @@
+local core = require("ailo.core")
+local M = { version = core.version }
+local methods = {}
+local function invalid(message) error({code="invalid_argument",status=1,message=message}, 0) end
+local function object(t, keys, name)
+  if type(t) ~= "table" then invalid(name .. " must be a table") end
+  for k in pairs(t) do if not keys[k] then invalid(name .. ": unknown field " .. tostring(k)) end end
+  return t
+end
+local function keys(s)
+  local out = {}; for k in s:gmatch("%S+") do out[k] = true end; return out
+end
+local function str(v, name, optional, bytes)
+  if v == nil and optional then return nil end
+  if type(v) ~= "string" or (not bytes and v:find("\0",1,true)) then invalid(name .. " must be a string without NUL") end
+  return v
+end
+local function number(v, name, default, integer, low, high)
+  if v == nil then return default end
+  if type(v) ~= "number" or v ~= v or v == math.huge or v == -math.huge or
+    (integer and math.tointeger(v) == nil) or v < low or v > high then invalid(name .. " is out of range") end
+  return integer and math.tointeger(v) or v
+end
+local function boolean(v, name)
+  if v == nil then return false end
+  if type(v) ~= "boolean" then invalid(name .. " must be boolean") end
+  return v
+end
+local function array(t, name)
+  if type(t) ~= "table" then invalid(name .. " must be a dense array") end
+  local n = #t
+  for k in pairs(t) do if type(k) ~= "number" or math.tointeger(k) == nil or k < 1 or k > n then invalid(name .. " must be a dense array") end end
+  for i=1,n do if rawget(t,i) == nil then invalid(name .. " contains a hole") end end
+  return n
+end
+local function enumeration(v, map, default, name)
+  if v == nil then return default end
+  if not map[v] then invalid("invalid " .. name) end
+  return map[v]
+end
+local function guarded(fn, ...)
+  local result = table.pack(pcall(fn, ...))
+  if not result[1] then
+    local e = result[2]
+    if type(e) ~= "table" or not e.code then e={code="invalid_argument",status=1,message=tostring(e)} end
+    return nil,e
+  end
+  return table.unpack(result,2,result.n)
+end
+local source_keys=keys("local_path repo revision filename cache_root sha256 allow_download split_shards bearer_token max_bytes connect_timeout_ms transfer_timeout_ms max_attempts progress")
+local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger")
+local backends={auto=0,cpu=1,vulkan=2}
+local function source(input)
+  object(input,source_keys,"source")
+  local out={}
+  for _,k in ipairs{"local_path","repo","revision","filename","cache_root","bearer_token"} do out[k]=str(input[k],k,true) end
+  out.allow_download=boolean(input.allow_download,"allow_download")
+  out.split_shards=boolean(input.split_shards,"split_shards")
+  if input.progress ~= nil and type(input.progress) ~= "function" then invalid("progress must be a function") end
+  out.progress=input.progress
+  for _,k in ipairs{"connect_timeout_ms","transfer_timeout_ms"} do out[k]=number(input[k],k,0,true,0,math.maxinteger) end
+  out.max_attempts=number(input.max_attempts,"max_attempts",0,true,0,6)
+  local b=input.max_bytes
+  if type(b)=="table" then
+    object(b,keys("hi lo"),"max_bytes")
+    out.max_bytes={hi=number(b.hi,"max_bytes.hi",0,true,0,0xffffffff),lo=number(b.lo,"max_bytes.lo",0,true,0,0xffffffff)}
+  else out.max_bytes=number(b,"max_bytes",0,true,0,math.maxinteger) end
+  out.sha256={}
+  if input.sha256 ~= nil then
+    for i=1,array(input.sha256,"sha256") do
+      local v=input.sha256[i]
+      if v ~= false then v=str(v,"sha256",false) end
+      out.sha256[i]=v
+    end
+  end
+  return out
+end
+local function logger_helpers(logger)
+  if logger == nil then return nil end
+  require("pslog")
+  local path,err=package.searchpath("pslog.core",package.cpath)
+  if not path then invalid("pslog.core loader: " .. tostring(err)) end
+  local out={}
+  for _,name in ipairs{"check_logger","ref_logger","unref_logger"} do
+    local fn,why=package.loadlib(path,"pslog_lua_"..name)
+    if not fn then invalid("pslog interop: "..tostring(why)) end
+    out[name]=fn
+  end
+  return out
+end
+function M.new(config)
+  return guarded(function()
+    object(config,config_keys,"client")
+    local out={source=source(config.source),logger=config.logger}
+    out.helpers=logger_helpers(config.logger)
+    for _,k in ipairs{"model_id","chat_template"} do out[k]=str(config[k],k,true) end
+    out.backend=enumeration(config.backend,backends,0,"backend")
+    out.lazy=boolean(config.lazy,"lazy")
+    out.gpu_layers=number(config.gpu_layers,"gpu_layers",0,true,-1,0x7fffffff)
+    out.threads=number(config.threads,"threads",0,true,0,0x7fffffff)
+    out.context_tokens=number(config.context_tokens,"context_tokens",0,true,0,0xffffffff)
+    out.batch_tokens=number(config.batch_tokens,"batch_tokens",0,true,0,0xffffffff)
+    local native,err=core.new(out)
+    if not native then return nil,err end
+    return setmetatable({_native=native},{__index=methods,__close=function(self) self:close() end})
+  end)
+end
+local roles={user=0,system=1,developer=2,assistant=3,tool=4}
+local kinds={message=0,function_call=1,function_result=2,reasoning=3,compaction=4}
+local content_kinds={text=0,image=1,audio=2,refusal=3}
+local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop")
+local item_keys=keys("kind role id call_id name content arguments")
+local function request(input)
+  object(input,request_keys,"request")
+  local out={items={},stop={}}
+  for i=1,array(input.items,"items") do
+    local item=object(input.items[i],item_keys,"item")
+    local v={kind=enumeration(item.kind,kinds,0,"item kind"),role=enumeration(item.role,roles,0,"role"),content={}}
+    for _,k in ipairs{"id","call_id","name","arguments"} do v[k]=str(item[k],k,true) end
+    if type(item.content)=="string" then v.content[1]={kind=0,data=item.content}
+    elseif item.content ~= nil then
+      for j=1,array(item.content,"content") do
+        local p=object(item.content[j],keys("kind data"),"content part")
+        v.content[j]={kind=enumeration(p.kind,content_kinds,0,"content kind"),data=str(p.data,"content data",false,true)}
+      end
+    end
+    out.items[i]=v
+  end
+  out.max_tokens=number(input.max_tokens,"max_tokens",0,true,0,math.maxinteger)
+  out.candidates=number(input.candidates,"candidates",0,true,0,0xffffffff)
+  out.seed=number(input.seed,"seed",0xffffffff,true,0,0xffffffff)
+  out.temperature=number(input.temperature,"temperature",0.8,false,0,math.huge)
+  out.top_p=number(input.top_p,"top_p",0.95,false,0,1)
+  for _,k in ipairs{"frequency_penalty","presence_penalty"} do out[k]=number(input[k],k,0,false,-2,2) end
+  if input.stop ~= nil then for i=1,array(input.stop,"stop") do out.stop[i]=str(input.stop[i],"stop",false) end end
+  return out
+end
+function methods:generate(input,sink)
+  return guarded(function()
+    if type(sink) ~= "function" then invalid("sink must be a function") end
+    return self._native:generate(request(input),sink)
+  end)
+end
+for _,name in ipairs{"model_card","capabilities","devices","cancel","close"} do
+  methods[name]=function(self) return self._native[name](self._native) end
+end
+return M

@@ -18,7 +18,7 @@ while IFS= read -r named; do
 done < <(find "$directory" -maxdepth 1 -type f -name 'libailo-*-CHECKSUMS' -printf '%f\n')
 while IFS= read -r file || [[ -n "$file" ]]; do
   [[ -n "$file" ]] || continue
-  if [[ "$file" == */* || "$file" != "libailo-$version"*.tar.gz || ! -f "$directory/$file" || -L "$directory/$file" ]]; then
+  if [[ "$file" == */* || ! ( "$file" == "libailo-$version"*.tar.gz || "$file" == "lua-ailo-$version.tar.gz" || "$file" == "lua-ailo-$version-1.rockspec" || "$file" == "lua-ailo-$version-1.src.rock" ) || ! -f "$directory/$file" || -L "$directory/$file" ]]; then
     printf 'checksums: missing/invalid artifact name: %s\n' "$file" >&2; exit 2
   fi
   files+=("$file")
@@ -26,7 +26,7 @@ done < "$list"
 [[ ${#files[@]} -gt 0 ]] || { printf 'checksums: no artifacts selected\n' >&2; exit 2; }
 printf '%s\n' "${files[@]}" | LC_ALL=C sort > "$work/expected"
 if [[ -n $(uniq -d "$work/expected") ]]; then printf 'checksums: duplicate artifact\n' >&2; exit 2; fi
-find "$directory" -maxdepth 1 -type f -name 'libailo-*.tar.gz' -printf '%f\n' | LC_ALL=C sort > "$work/actual"
+find "$directory" -maxdepth 1 -type f \( -name 'libailo-*.tar.gz' -o -name 'lua-ailo-*.tar.gz' -o -name 'lua-ailo-*.rockspec' -o -name 'lua-ailo-*.src.rock' \) -printf '%f\n' | LC_ALL=C sort > "$work/actual"
 diff -u "$work/expected" "$work/actual" || { printf 'checksums: stale or unlisted source/SDK artifact\n' >&2; exit 2; }
 (
   cd -- "$directory"

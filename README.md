@@ -39,8 +39,8 @@ contract is in [docs/static-vulkan.md](docs/static-vulkan.md). These capabilitie
 are specified; they are not established by the current shared-driver foundation.
 
 [docs/upstream-api.json](docs/upstream-api.json) records the pinned public C API
-inventory. An inventory is the baseline for the forthcoming facade coverage
-gate; it does not itself prove facade completeness.
+inventory. The generated coverage gate checks every declaration against the
+C89 facade and requires an empty gap list.
 
 ## Local commands
 
@@ -59,7 +59,8 @@ Python 3 is confined to compiler AST inventory processing and test fixtures;
 host Clang is needed for the inventory check. The lifecycle resolver selects the pinned Bootlin
 C/C++ collection; it never falls back to a host compiler for compiled targets.
 Host Clang is used only to inspect declarations. Valgrind is a host prerequisite
-for memory checks.
+for memory checks. Lua product tests/packaging additionally require host
+LuaRocks, zip and unzip; these tools do not supply target runtime libraries.
 Owned C targets use explicit `-std=c89 -pedantic-errors -Werror` and disable
 C extensions in CMake. Every public header, including the generated version
 header, compiles independently under those flags in the normal test build and
@@ -146,10 +147,11 @@ archive during preparation:
 - Implement the declared upstream threadpool-count query that lacked a body.
 - Give CPU repack traits static ownership rather than an unfreed allocation.
 - Format Vulkan buffer handles through their native type on 32-bit targets.
+- Route receiver-scoped logs through CPU workers and tensor-validation jobs;
+  add `GGML_LOG_LEVEL_TRACE = 6` without changing existing enum values.
 
 The ownership patches address allocations observed by Valgrind during backend
-enumeration and CPU graph execution. Public upstream header declarations remain
-unchanged. C++ namespace RAII wrappers are excluded explicitly from the API
+enumeration and CPU graph execution. The additive trace enum is the only public header extension in these patches. C++ namespace RAII wrappers are excluded explicitly from the API
 inventory; the global public mtmd memory-report operation remains covered.
 
 No HTTP server, Kore integration, Responses API, stored completions, release,
@@ -316,3 +318,21 @@ existing four-target scalar/bridge checks, including ARM QEMU coverage. The
 cross-link helper supplies dependency paths only at link time; native test
 executable runtime paths remain private and do not enter SDK metadata.
 This matrix proves the current foundation, not facade or receiver completion.
+
+## Receiver logging and Lua
+
+`ailo_client_new_with_logger` accepts a libpslog v0.12.0 logger and derives an
+owned child. Native trace/debug/info/warn/error records are scoped per receiver,
+including CPU workers, without replacing global hooks or serializing independent
+clients. Borrowed output resources must live until receiver destruction. Prompt
+and generated text are not logged by the bridge. Unattributable shared device
+messages use the existing native global hook.
+
+`make lua-test PRESET=cpu` builds the Lua 5.5.1 facade against an installed shared
+SDK and tests real token callbacks, cancellation/error recovery, allocation
+failure, logger retention and finalizers. Configure pslog in Lua and pass its
+logger as `ailo.new{source={local_path="model.gguf"},logger=log}`. Native sinks
+are required for worker logging. See [the Lua API](lua/README.md) for the full
+receiver workflow and [the C API](docs/client.md) for the underlying contract.
+`make package-lua` emits separate Lua source, rockspec and source-rock products;
+they are included in release checksum inventories and excluded from target SDKs.

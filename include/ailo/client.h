@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 typedef struct ailo_client ailo_client;
+struct pslog_logger;
 
 typedef enum ailo_backend_policy {
   AILO_BACKEND_AUTO = 0,
@@ -165,6 +166,17 @@ ailo_request ailo_request_default(void);
  * but performs no acquisition, model load or inference. */
 ailo_status ailo_client_new(const ailo_client_config *config,
                             ailo_client **output, ailo_error *error);
+/** Derives an owned child from logger; NULL selects the ordinary constructor.
+ * Logger output/palette/user resources follow libpslog's borrowed lifetimes
+ * and must support native worker threads. Destroying the parent logger is
+ * allowed; keep its borrowed resources live until this client is destroyed.
+ * Native callbacks must not throw or longjmp. No process-global hook is
+ * replaced.
+ */
+ailo_status ailo_client_new_with_logger(const ailo_client_config *config,
+                                        struct pslog_logger *logger,
+                                        ailo_client **output,
+                                        ailo_error *error);
 ailo_status ailo_client_generate(ailo_client *client,
                                  const ailo_request *request,
                                  ailo_event_sink sink, void *user_data,
