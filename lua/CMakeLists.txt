@@ -14,8 +14,10 @@ set_target_properties(ailo_lua PROPERTIES PREFIX "" OUTPUT_NAME core C_STANDARD 
 target_include_directories(ailo_lua PRIVATE "${LUA_INCLUDE_DIR}" "${PSLOG_LUA_INCLUDE_DIR}")
 target_link_libraries(ailo_lua PRIVATE ailo::shared pslog::pslog_shared)
 target_compile_options(ailo_lua PRIVATE -Wall -Wextra -Werror -Wpedantic)
-install(TARGETS ailo_lua LIBRARY DESTINATION lib/lua/5.5/ailo)
-install(FILES ailo/init.lua DESTINATION share/lua/5.5/ailo)
+set(AILO_LUA_CMODULE_DIR "lib/lua/5.5" CACHE STRING "Native module install directory")
+set(AILO_LUA_MODULE_DIR "share/lua/5.5" CACHE STRING "Lua module install directory")
+install(TARGETS ailo_lua LIBRARY DESTINATION "${AILO_LUA_CMODULE_DIR}/ailo")
+install(FILES ailo/init.lua DESTINATION "${AILO_LUA_MODULE_DIR}/ailo")
 option(AILO_LUA_TESTS "Build local installed-ABI tests" OFF)
 if(AILO_LUA_TESTS)
   foreach(variable AILO_LUA_PROVIDER_SOURCE AILO_LUA_RUNTIME_PATHS AILO_LUA_LOADER AILO_LUA_MODEL AILO_LUA_WORK)
@@ -54,5 +56,13 @@ if(AILO_LUA_TESTS)
       "${cpath}" "${AILO_LUA_MODEL}" "${AILO_LUA_WORK}")
     set_tests_properties(lua-memory PROPERTIES TIMEOUT 180 LABELS "lua;memory;local")
   endif()
+  get_target_property(pslog_library pslog::pslog_shared IMPORTED_LOCATION)
+  get_filename_component(pslog_prefix "${pslog_library}/../.." ABSOLUTE)
+  # The local SDK carries the main repository's toolchain as a configured input.
+  add_test(NAME lua-rocks COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/rocks.sh"
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${AILO_LUA_PROVIDER_SOURCE}" "${ailo_DIR}/../../.."
+    "${LUA_INCLUDE_DIR}/.." "${pslog_prefix}" "${PSLOG_LUA_INCLUDE_DIR}"
+    "${CMAKE_TOOLCHAIN_FILE}" $<TARGET_FILE:ailo_lua_runner> "${AILO_LUA_MODEL}")
+  set_tests_properties(lua-rocks PROPERTIES TIMEOUT 180 LABELS "lua;packaging;local")
   set_tests_properties(lua-receiver lua-public-imports PROPERTIES TIMEOUT 60 LABELS "lua;integration;local")
 endif()

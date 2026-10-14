@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Canonical permissions make generated artifact bytes independent of umask.
+umask 022
 root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 source "$root/scripts/version_parser.sh"
 [[ $# -eq 2 ]] || { printf 'Usage: stage_release_sources.sh generated-destination X.Y.Z\n' >&2; exit 2; }

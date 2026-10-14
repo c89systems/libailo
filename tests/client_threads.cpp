@@ -3,10 +3,14 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
+#include <filesystem>
 #include <limits>
 #include <stdexcept>
 #include <thread>
+#include <unistd.h>
 
 #define CHECK(value)                                                           \
   do {                                                                         \
@@ -47,6 +51,68 @@ int accept(void *data, const ailo_event *event) {
 }
 int throwing_progress(void *, unsigned, unsigned, ailo_u64, ailo_u64) {
   throw std::runtime_error("private acquisition text");
+}
+
+void card_location(const char *path) {
+  namespace fs = std::filesystem;
+  const fs::path fixture = fs::absolute(path);
+  struct cwd_guard {
+    int fd = open(".", O_RDONLY | O_DIRECTORY);
+    ~cwd_guard() {
+      if (fd >= 0) {
+        fchdir(fd);
+        close(fd);
+      }
+    }
+  } cwd;
+  CHECK(cwd.fd >= 0);
+  const auto expected =
+      "\"bytes\":\"" + std::to_string(fs::file_size(fixture)) + "\"";
+  auto config = ailo_client_default_config();
+  config.backend = AILO_BACKEND_CPU;
+  const auto name = fixture.filename().string();
+  config.source.local_path = name.c_str();
+  CHECK(chdir(fixture.parent_path().c_str()) == 0);
+  ailo_client *raw = nullptr;
+  ailo_error error{};
+  CHECK(ailo_client_new(&config, &raw, &error) == AILO_OK);
+  std::unique_ptr<ailo_client, client_deleter> local(raw);
+  CHECK(fchdir(cwd.fd) == 0);
+  char *text = nullptr;
+  CHECK(local->model_card(local.get(), &text, &error) == AILO_OK);
+  std::unique_ptr<char, decltype(&ailo_string_free)> card(text,
+                                                          ailo_string_free);
+  CHECK(std::strstr(card.get(), expected.c_str()));
+  struct environment_guard {
+    bool had = std::getenv("XDG_CACHE_HOME") != nullptr;
+    std::string value = had ? std::getenv("XDG_CACHE_HOME") : "";
+    ~environment_guard() {
+      if (had)
+        setenv("XDG_CACHE_HOME", value.c_str(), 1);
+      else
+        unsetenv("XDG_CACHE_HOME");
+    }
+  } environment;
+  const auto cache = fixture.parent_path() / "card-cache";
+  CHECK(setenv("XDG_CACHE_HOME", cache.c_str(), 1) == 0);
+  config.source = {};
+  config.source.repo = "owner/card-location";
+  config.source.revision = "fixed";
+  config.source.filename = "nested/tiny.gguf";
+  text = nullptr;
+  CHECK(ailo_model_cache_path(&config.source, &text, &error) == AILO_OK);
+  std::unique_ptr<char, decltype(&ailo_string_free)> target(text,
+                                                            ailo_string_free);
+  fs::create_directories(fs::path(target.get()).parent_path());
+  fs::copy_file(fixture, target.get(), fs::copy_options::overwrite_existing);
+  CHECK(ailo_client_new(&config, &raw, &error) == AILO_OK);
+  std::unique_ptr<ailo_client, client_deleter> cached(raw);
+  CHECK(setenv("XDG_CACHE_HOME", "relative-invalid-cache", 1) == 0);
+  text = nullptr;
+  CHECK(cached->model_card(cached.get(), &text, &error) == AILO_OK);
+  card.reset(text);
+  CHECK(std::strstr(card.get(), expected.c_str()));
+  CHECK(std::strstr(card.get(), "\"filename\":\"nested/tiny.gguf\""));
 }
 
 void run(const char *path) {
@@ -158,6 +224,7 @@ int main(int argc, char **argv) {
   if (argc != 2)
     return 2;
   try {
+    card_location(argv[1]);
     run(argv[1]);
     std::puts("Cross-thread cancellation, busy state, callback recovery and "
               "stored Jinja semantics: passed");

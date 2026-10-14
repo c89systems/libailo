@@ -124,3 +124,8 @@ end)
 toggle(false);assert(not construction_success)
 construction_log=nil;collectgarbage("collect");collectgarbage("collect");assert(not construction_weak[1])
 print("Lua metadata and constructor OOM ownership: passed")
+
+local preflight=ok(ailo.new(config{lazy=true}))
+local preflight_error=fails("invalid_argument",function()return preflight:generate({items={}},function()end)end)
+assert(preflight_error.info.actual_backend=="auto","backend must remain unselected before inference")
+preflight:close()

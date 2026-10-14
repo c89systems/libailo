@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Canonical permissions make generated artifact bytes independent of umask.
+umask 022
 root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 development=false
 output=

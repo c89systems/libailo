@@ -258,12 +258,23 @@ std::string model_card(state &self) {
   out.end_object();
   out.key("files");
   out.array();
-  const auto plan = model::make_plan(&self.source.value);
+  // Describe the files actually acquired, independently of later cwd/XDG
+  // changes.
+  auto resolved = self.source.value;
+  resolved.local_path = self.path.c_str();
+  resolved.repo = resolved.revision = resolved.filename = nullptr;
+  resolved.cache_root = resolved.bearer_token = nullptr;
+  const auto plan = model::make_plan(&resolved);
   for (const auto &file : plan.files) {
     out.object();
     out.key("filename");
-    out.string(plan.local ? file.name.substr(file.name.find_last_of('/') + 1)
-                          : file.name);
+    std::string name = file.name.substr(file.name.find_last_of('/') + 1);
+    if (self.source.local.empty()) {
+      const auto slash = self.source.filename.find_last_of('/');
+      if (slash != std::string::npos)
+        name = self.source.filename.substr(0, slash + 1) + name;
+    }
+    out.string(name);
     out.key("bytes");
     struct stat status{};
     if (!stat(file.path.c_str(), &status) && status.st_size >= 0)

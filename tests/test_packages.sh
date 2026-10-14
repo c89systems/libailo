@@ -6,8 +6,8 @@ mkdir -p "$root/build/tests"
 work=$(mktemp -d "$root/build/tests/packages.XXXXXXXX")
 trap 'cmake -E rm -rf "$work"' EXIT
 mkdir "$work/first" "$work/second"
-"$root/scripts/package.sh" --development --no-build --preset "$1" --output-directory "$work/first"
-"$root/scripts/package.sh" --development --no-build --preset "$1" --output-directory "$work/second"
+(umask 022; "$root/scripts/package.sh" --development --no-build --preset "$1" --output-directory "$work/first")
+(umask 077; "$root/scripts/package.sh" --development --no-build --preset "$1" --output-directory "$work/second")
 version=$("$root/scripts/release_version.sh")
 target=$(sed -n 's/^target=//p' "$root/build/$1/install/test-settings.txt")
 name="libailo-$version-$target.tar.gz"

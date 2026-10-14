@@ -5,8 +5,8 @@ root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 mkdir -p "$root/build/tests"
 work=$(mktemp -d "$root/build/tests/source.XXXXXXXX")
 trap 'cmake -E rm -rf "$work"' EXIT
-"$root/scripts/package_source.sh" --development --output "$work/first.tar.gz"
-"$root/scripts/package_source.sh" --development --output "$work/second.tar.gz"
+(umask 022; "$root/scripts/package_source.sh" --development --output "$work/first.tar.gz")
+(umask 077; "$root/scripts/package_source.sh" --development --output "$work/second.tar.gz")
 cmp "$work/first.tar.gz" "$work/second.tar.gz"
 "$root/scripts/verify_source_archive.sh" "$work/first.tar.gz"
 mkdir "$work/bad"

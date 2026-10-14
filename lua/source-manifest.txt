@@ -10,3 +10,4 @@ tests/imports.cmake
 tests/runtime.supp
 tests/load_only.lua
 examples/infer.lua
+tests/rocks.sh

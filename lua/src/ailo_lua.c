@@ -92,7 +92,9 @@ static void info(lua_State *L, const ailo_run_info *value) {
   set_integer(L, "completed_candidates", value->completed_candidates);
   set_string(L, "finish_reason", finish(value->finish_reason));
   set_string(L, "actual_backend",
-             value->actual_backend == AILO_BACKEND_VULKAN ? "vulkan" : "cpu");
+             value->actual_backend == AILO_BACKEND_VULKAN ? "vulkan"
+             : value->actual_backend == AILO_BACKEND_CPU  ? "cpu"
+                                                          : "auto");
 }
 static lua_Integer integer(lua_State *L, int index, const char *key) {
   lua_getfield(L, index, key);

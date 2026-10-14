@@ -171,3 +171,8 @@ sink emitted eight text deltas for the test prompt and reported backend=vulkan.
 This qualifies the local shared-loader/driver integration. It does not qualify
 a fully static Mesa GPU executable or multi-GPU hardware not present on this
 host. The standalone musl CPU evidence remains separate.
+
+Model-card file metadata is resolved from the acquired absolute model path.
+Changing cwd or the default XDG cache environment after loading does not redirect
+a card to another file. Requested Hugging Face identities/nested filenames are
+preserved independently of that resolved local path.

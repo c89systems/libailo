@@ -63,7 +63,7 @@ cancels, errors return `sink_failed`. Both eager construction and lazy loading
 use the active Lua thread. No coroutine pointer is retained between operations.
 `model_card()`, `capabilities()` and `devices()` return explicitly buffered JSON
 strings from the C ABI. `generate()` returns usage, completed_candidates,
-finish_reason and actual_backend; failures return nil and a table with code,
+finish_reason and actual_backend (auto means unselected in failure info); failures return nil and a table with code,
 status, message, and partial info where applicable. `close()` is idempotent;
 GC destroys native producers before releasing the logger.
 
@@ -99,3 +99,9 @@ x86_64 Bootlin runtime). `tests/load_only.lua` reproduces exactly that baseline
 without constructing a client or logger. The full callback/finalizer/OOM suite
 retains the same baseline, with zero lost allocations; Lua, libailo and pslog
 allocation sites are not suppressed.
+
+LuaRocks uses its per-rock lib/lua staging directories, supplied explicitly to
+CMake by the rockspec. The direct CMake layout keeps the normal versioned Lua
+search paths. LuaRocks tracks Lua's major/minor virtual package; CMake enforces
+the exact 5.5.1 SDK contract. The local lua-rocks gate installs both packages
+into an owned tree and loads their deployed modules with the pinned runner.

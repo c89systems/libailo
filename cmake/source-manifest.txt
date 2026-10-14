@@ -173,3 +173,4 @@ tests/test_lua_packages.sh
 lua/tests/runtime.supp
 lua/tests/load_only.lua
 lua/examples/infer.lua
+lua/tests/rocks.sh

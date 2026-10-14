@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Artifact permissions are independent of the invoking account's umask.
+umask 022
 root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 for tool in zip unzip luarocks; do
   command -v "$tool" >/dev/null || { printf 'lua-package: required host tool missing: %s\n' "$tool" >&2; exit 2; }

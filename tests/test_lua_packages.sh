@@ -9,8 +9,8 @@ name="lua-ailo-$version"
 reject() {
   if "$@" > "$work/rejection.log" 2>&1; then printf 'lua-package-test: accepted invalid artifact\n' >&2; exit 1; fi
 }
-"$root/scripts/package_lua.sh" --development --output-directory "$work/one"
-"$root/scripts/package_lua.sh" --development --output-directory "$work/two"
+(umask 022; "$root/scripts/package_lua.sh" --development --output-directory "$work/one")
+(umask 077; "$root/scripts/package_lua.sh" --development --output-directory "$work/two")
 for suffix in .tar.gz -1.rockspec -1.src.rock; do cmp "$work/one/$name$suffix" "$work/two/$name$suffix"; done
 printf '%s\n' "$name.tar.gz" "$name-1.rockspec" "$name-1.src.rock" > "$work/list"
 "$root/scripts/package_checksums.sh" "$work/one" "$version" "$work/list"
