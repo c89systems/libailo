@@ -1,7 +1,7 @@
 # libailo
 
 Ailo is a local GGUF inference library with a strict C89 public boundary and a
-receiver interface for text Chat Completions. The reviewed implementation
+receiver interface for text generation. The reviewed implementation
 contract is in [docs/architecture.md](docs/architecture.md).
 
 ## Implementation state
@@ -17,8 +17,13 @@ the public mtmd memory map, variadic formatting and C89 macro adapters. It is
 incomplete: 83 callback adapter gaps remain explicit in
 [docs/facade-coverage.json](docs/facade-coverage.json). Standalone model
 download/cache helpers are implemented in [include/ailo/model.h](include/ailo/model.h).
-The receiver and release SDK gates are still pending. Native install-tree
-CMake/pkg-config consumers are available.
+The initial inference receiver is implemented in [include/ailo/client.h](include/ailo/client.h):
+model acquisition/loading, Jinja templates, real token streaming, sampling,
+multiple candidates, cancellation, model cards and device/capability queries.
+[docs/client.md](docs/client.md) describes its supported surface and verification.
+Tools/schema support, inference caching, snapshots, compaction, protocol adapters
+and release completeness remain pending. Native install-tree CMake/pkg-config
+consumers are available.
 
 The required receiver includes normal-use Hugging Face acquisition, configurable
 XDG model caching and a structured JSON model card for the loaded model. The

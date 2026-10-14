@@ -15,6 +15,12 @@ Outputs are reset before validation; success clears the optional diagnostic.
 Native preconditions still apply to raw operations. A successful bridge status
 does not convert a native error result into a successful native operation.
 
+The backend init/free pair participates in the receiver's shared process-wide
+ownership. Balance every successful `ailo_llama_backend_init` with one
+`ailo_llama_backend_free`, and keep that ownership while low-level model/context
+resources remain live. Releasing one owner preserves other native/receiver
+owners. Unbalanced raw free calls do not provide a valid ownership boundary.
+
 Native opaque handles and public native records have project-prefixed opaque C
 tags. Clients never include native headers or dereference native layouts.
 Record accessors expose every field, including array elements and anonymous

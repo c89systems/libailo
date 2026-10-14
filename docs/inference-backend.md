@@ -56,7 +56,10 @@ ailo_status ailo_client_generate(ailo_client *client,
                                 ailo_run_info *out_info, ailo_error *error);
 ```
 
-The names describe the implementation contract, not existing exported symbols.
+The initial `generate`, `capabilities`, model-card and device surface is now
+implemented; [docs/client.md](client.md) records its exact supported subset.
+The remaining names and behavior below describe the complete implementation
+contract, not a claim that all methods already exist.
 Requests use tagged C89 records/opaque owned handles and arrays with explicit
 lengths. Provide default factories, constructors/builders, getters and cleanup
 as appropriate; public callers never include C++ or upstream headers. Fallible

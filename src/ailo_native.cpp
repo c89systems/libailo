@@ -2,6 +2,7 @@
  * Regenerate with scripts/generate_native.py; do not edit manually.
  * See docs/facade-bindings.md for ownership and bridge semantics. */
 #include "ailo/native.h"
+#include "ailo_backend_internal.hpp"
 #include "ailo_native_internal.hpp"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -20829,11 +20830,13 @@ ailo_llama_attach_threadpool(struct ailo_llama_context *argument_0,
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_llama_backend_free(ailo_error *error) {
-  return ailo::detail::native_boundary(error, [&]() { llama_backend_free(); });
+  return ailo::detail::native_boundary(
+      error, [&]() { ailo::detail::backend_release(); });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_llama_backend_init(ailo_error *error) {
-  return ailo::detail::native_boundary(error, [&]() { llama_backend_init(); });
+  return ailo::detail::native_boundary(
+      error, [&]() { ailo::detail::backend_acquire(); });
 }
 extern "C" __attribute__((visibility("default"))) ailo_status
 ailo_llama_batch_ext_add(struct ailo_llama_batch_ext *argument_0,

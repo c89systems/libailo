@@ -1,6 +1,15 @@
+ailo_client_cancel
+ailo_client_capabilities
+ailo_client_default_config
+ailo_client_destroy
+ailo_client_devices
+ailo_client_generate
+ailo_client_model_card
+ailo_client_new
 ailo_error_clear
 ailo_i64_from_long
 ailo_i64_to_long
+ailo_request_default
 ailo_status_name
 ailo_string_free
 ailo_u64_from_ulong

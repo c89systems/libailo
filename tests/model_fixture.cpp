@@ -126,6 +126,17 @@ static void build(const char *path) {
       std::fopen((std::string(path) + ".truncated").c_str(), "wb"), close_file);
   if (!truncated || std::fwrite("GGUF", 1, 4, truncated.get()) != 4)
     throw std::runtime_error("Cannot write truncated-model fixture");
+  // The same decoder now prefers its EOS token over visible text.
+  // Existing primary/shard bytes and their pinned digests remain unchanged.
+  gguf_set_val_str(file.get(), "general.architecture", "llama");
+  auto *output_tensor = ggml_get_tensor(ctx.get(), "output.weight");
+  auto *weights = static_cast<float *>(output_tensor->data);
+  for (int64_t i = 0; i < ggml_nelements(output_tensor); ++i)
+    weights[i] = i / 32 == 2 ? 0.25f : -0.015625f;
+  gguf_set_tensor_data(file.get(), "output.weight", weights);
+  if (!gguf_write_to_file(file.get(), (std::string(path) + ".eos").c_str(),
+                          false))
+    throw std::runtime_error("Cannot write EOS-model fixture");
 }
 
 int main(int argc, char **argv) {

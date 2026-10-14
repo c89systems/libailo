@@ -46,7 +46,7 @@ LC_ALL=C sort "$work/expected" -o "$work/expected"
 diff -u "$work/expected" "$work/actual"
 (cd "$sdk" && find . -type l -printf '%P\t%l\n' | LC_ALL=C sort) > "$work/symlinks"
 diff -u "$sdk/PACKAGE-SYMLINKS.txt" "$work/symlinks"
-for file in include/ailo/base.h include/ailo/native.h include/ailo/native_macros.h include/ailo/native_variadic.h include/ailo/model.h include/ailo/version.h lib/libailo.a lib/libailo.so.0 lib/cmake/ailo/ailoConfig.cmake lib/pkgconfig/ailo.pc lib/pkgconfig/ailo-static.pc share/doc/ailo/LICENSE share/ailo/dependencies.json share/ailo/package.txt share/ailo/facade-coverage.json; do
+for file in include/ailo/base.h include/ailo/client.h include/ailo/native.h include/ailo/native_macros.h include/ailo/native_variadic.h include/ailo/model.h include/ailo/version.h lib/libailo.a lib/libailo.so.0 lib/cmake/ailo/ailoConfig.cmake lib/pkgconfig/ailo.pc lib/pkgconfig/ailo-static.pc share/doc/ailo/LICENSE share/ailo/dependencies.json share/ailo/package.txt share/ailo/facade-coverage.json; do
   [[ -f "$sdk/$file" ]] || { printf 'sdk-verify: missing required file %s\n' "$file" >&2; exit 1; }
 done
 while IFS= read -r -d '' file; do
@@ -70,5 +70,5 @@ while IFS= read -r -d '' library; do
   esac
 done < <(find "$sdk/lib" -type f -print0)
 "$root/scripts/verify_install_privacy.sh" "$sdk" "$readelf"
-"$root/scripts/verify_exports.sh" --library "$sdk/lib/libailo.so.0" --nm "$nm" --cc "$cc" --sysroot "$sysroot" --work "$work/exports" --runtime-directory "$root/.cache/deps/$target/cpkt/install/lib" --runtime-directory "$sdk/lib/ailo/native"
+"$root/scripts/verify_exports.sh" --library "$sdk/lib/libailo.so.0" --nm "$nm" --cc "$cc" --sysroot "$sysroot" --work "$work/exports" --runtime-directory "$root/.cache/deps/$target/cpkt/install/lib" --runtime-directory "$root/.cache/deps/$target/lonejson/install/lib" --runtime-directory "$sdk/lib/ailo/native"
 printf 'Checksummed extracted SDK %s: layout, target ABI, privacy and exact exports passed\n' "$target"

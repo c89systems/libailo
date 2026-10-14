@@ -311,6 +311,10 @@ def generate():
                     required.append(param)
             call = name + '(' + ', '.join(native_args) + ')'
             body = call + ';' if ret.base == 'void' and not ret.depth else result_body(ret, call)
+            if name == 'llama_backend_init':
+                body = 'ailo::detail::backend_acquire();'
+            elif name == 'llama_backend_free':
+                body = 'ailo::detail::backend_release();'
             # Optional backend declarations are installed even when disabled.
             backend = BACKEND_FUNCTIONS.get(name)
             if backend:
@@ -396,7 +400,7 @@ def outputs():
               + '\n'.join(forward + H) + '\n#ifdef __cplusplus\n}\n#endif\n#endif\n')
     includes = ['#include "' + h + '"' for h in DATA['headers']]
     # Deprecations are deliberately part of the complete public facade.
-    cpp = (preamble + '#include "ailo/native.h"\n#include "ailo_native_internal.hpp"\n'
+    cpp = (preamble + '#include "ailo/native.h"\n#include "ailo_native_internal.hpp"\n#include "ailo_backend_internal.hpp"\n'
            '#pragma GCC diagnostic push\n#pragma GCC diagnostic ignored "-Wdeprecated-declarations"\n'
            + '\n'.join(includes + C) + '\n#pragma GCC diagnostic pop\n')
     manifest = {'inventory_sha256': hashlib.sha256((ROOT / 'docs/upstream-api.json').read_bytes()).hexdigest(),

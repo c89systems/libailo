@@ -36,6 +36,7 @@ if(_ailo_want_static)
     set(ailo_NOT_FOUND_MESSAGE "ailo::static requires cpkt curl/OpenSSL targets. Set ailo_EXTERNAL_ROOT or CMAKE_PREFIX_PATH to the ${ailo_TARGET_ID} core SDK described by share/ailo/dependencies.json.")
     return()
   endif()
+  find_dependency(lonejson 0.45.0 EXACT CONFIG REQUIRED)
 endif()
 set(PACKAGE_PREFIX_DIR "${_ailo_prefix}")
 function(_ailo_archive name file)
@@ -75,7 +76,7 @@ if(_ailo_want_static AND NOT TARGET ailo::static)
   # The facade archive precedes this group. Repeated archive dependencies within
   # native/mtmd and the C++ runtime resolve without consumer workaround flags.
   set_property(TARGET ailo::static PROPERTY INTERFACE_LINK_LIBRARIES
-    "-Wl,--start-group;${_ailo_native_targets};CURL::libcurl;OpenSSL::Crypto;${_ailo_runtime_targets};-Wl,--end-group;${_ailo_vulkan};Threads::Threads;m;${CMAKE_DL_LIBS}")
+    "-Wl,--start-group;${_ailo_native_targets};CURL::libcurl;OpenSSL::Crypto;lonejson::lonejson_static;${_ailo_runtime_targets};-Wl,--end-group;${_ailo_vulkan};Threads::Threads;m;${CMAKE_DL_LIBS}")
   set_property(TARGET ailo::static PROPERTY INTERFACE_LINK_OPTIONS "$<$<LINK_LANGUAGE:CXX>:-static-libstdc++;-static-libgcc>")
 endif()
 if(@AILO_BUILD_SHARED@ AND NOT TARGET ailo::shared)

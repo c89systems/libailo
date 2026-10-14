@@ -1,9 +1,16 @@
 #include "ailo/base.h"
+#include "ailo/client.h"
 #include "ailo/model.h"
 #include "ailo/native.h"
 #include "ailo/version.h"
 #include <stdio.h>
 #include <string.h>
+
+static int count_tokens(void *data, const ailo_event *event) {
+  if (event->kind == AILO_EVENT_TEXT_DELTA)
+    ++*(unsigned int *)data;
+  return 1;
+}
 
 int main(int argc, char **argv) {
   struct ailo_gguf_context *gguf = NULL;
@@ -12,6 +19,13 @@ int main(int argc, char **argv) {
   ailo_i64 key;
   ailo_u64 value, actual;
   char *path = NULL;
+  ailo_client *client = NULL;
+  ailo_client_config config;
+  ailo_request request;
+  ailo_item item;
+  ailo_content content;
+  ailo_run_info info;
+  unsigned int deltas = 0;
   if (argc != 2)
     return 2;
   if (strcmp(AILO_VERSION, EXPECTED_VERSION) != 0 || AILO_ABI_VERSION != 0)
@@ -23,6 +37,39 @@ int main(int argc, char **argv) {
     return 1;
   }
   ailo_string_free(path);
+  config = ailo_client_default_config();
+  config.source.local_path = argv[1];
+  config.backend = AILO_BACKEND_CPU;
+  if (ailo_client_new(&config, &client, &error) != AILO_OK)
+    return 1;
+  if (client->model_card(client, &path, &error) != AILO_OK) {
+    client->destroy(client);
+    return 1;
+  }
+  if (!strstr(path, "\"architecture\":\"llama\"")) {
+    ailo_string_free(path);
+    client->destroy(client);
+    return 1;
+  }
+  ailo_string_free(path);
+  memset(&item, 0, sizeof(item));
+  content.kind = AILO_CONTENT_TEXT;
+  content.data = "hello";
+  content.size = 5;
+  item.content = &content;
+  item.content_count = 1;
+  request = ailo_request_default();
+  request.items = &item;
+  request.item_count = 1;
+  request.max_tokens = 4;
+  request.temperature = 0;
+  if (client->generate(client, &request, count_tokens, &deltas, &info,
+                       &error) != AILO_OK ||
+      deltas != 4) {
+    client->destroy(client);
+    return 1;
+  }
+  client->destroy(client);
   value.hi = 0xffffffffU;
   value.lo = 0xffffffffU;
   if (ailo_gguf_init_empty(&gguf, &error) != AILO_OK || !gguf ||
