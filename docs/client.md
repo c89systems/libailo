@@ -62,6 +62,21 @@ byte offsets and EOG flags let adapters exclude suppressed stop/EOG tokens from
 user-visible content probabilities. Token events are bounded metadata, not a
 retained transcript.
 
+Text, reasoning and function-argument deltas carry `raw_offset_valid` and
+`raw_offset`: their bytes occupy `[raw_offset, raw_offset + size)` in the sampled
+byte stream. These coordinates match token `byte_offset`, include hidden
+framing and stop bytes, reset per candidate and survive context rebuilds.
+Decoded function names are metadata and have no source span. With `logprobs`
+enabled, `AILO_EVENT_OUTPUT_PROGRESS` reports an exclusive `raw_offset`
+watermark: all earlier source-mapped deltas have been delivered, and later
+mapped deltas cannot start before it. Watermarks may repeat while bounded
+UTF-8, delimiter or stop-prefix carry is unresolved; the final watermark
+classifies all sampled bytes, including suppressed framing and stops. A sink
+can release settled token metadata without retaining the reply. Adapters must
+use these spans to associate visible bytes with actual sampled-token
+probabilities, rather than matching substrings or exposing hidden framing as
+content. A progress event is control metadata, not an empty text delta.
+
 `max_output_bytes` bounds non-EOG sampled bytes across candidates, including
 stop/UTF-8 carry; zero selects 16 MiB. Exceeding the budget fails without emitting
 a successful terminal event. Cancellation/sink failures in token events stop

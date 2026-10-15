@@ -80,7 +80,7 @@ end
 do
   local template=[[{% for m in messages %}{{ m.role }}:{% if m.reasoning_content is defined %}<think>{{ m.reasoning_content }}</think>{% endif %}{{ m.content }}|{% endfor %}{% if add_generation_prompt %}assistant:{% if enable_thinking %}<think>{% endif %}{% endif %}]]
   local receiver=ok(ailo.new(config{source={local_path=path.."-reasoning"},chat_template=template,context_tokens=512}))
-  local input={items={{content="x"}},max_tokens=16,temperature=0,reasoning="enabled",
+  local input={items={{content="x"}},max_tokens=16,temperature=0,reasoning="enabled",logprobs=true,
     output_format="json_schema",json_schema='{"const":{}}',logit_bias={{token_id=260,bias=100},{token_id=2,bias=80}}}
   fails("sink_failed",function()return receiver:generate(input,function(e)if e.kind=="reasoning_delta" then error(marker)end end)end)
   ok(receiver:generate(input,function()collectgarbage("collect")end));receiver:close()

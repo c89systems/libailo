@@ -155,6 +155,15 @@ temperature and match the selected API semantics; raw logits are not logprobs.
 Seed is reproducibility control under a fixed configuration, not a guarantee
 of identical output across devices or numerical implementations.
 
+The implemented receiver exposes raw sampled-byte ranges on text, reasoning
+and argument deltas, plus exclusive classification watermarks when logprobs
+are requested. These preserve provenance through UTF-8 carry, hidden template
+framing and context rebuilds without collecting the reply. Adapters must use
+these ranges to associate visible bytes with sampled-token probabilities and
+release settled metadata; substring guessing cannot distinguish repeated text
+or suppressed framing. Wire projection remains adapter work, not a claim that
+the neutral token event itself is an OpenAI content-logprob object.
+
 Support function-tool definitions and histories, tool choice none/auto/required/
 named function, and one or multiple calls where the model/template supports it.
 Parallel tool calls means multiple returned calls, not concurrent native model

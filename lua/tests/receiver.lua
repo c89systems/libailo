@@ -10,6 +10,24 @@ local function config(extra)
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
 do
+  local receiver=ok(ailo.new(config{chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
+  local input=request();input.max_tokens=32;input.logprobs=true;input.logit_bias={{token_id=100,bias=100}};input.stop={"aaaZ"}
+  local raw,text,watermark,progress="","",0,0
+  local run=ok(receiver:generate(input,function(e)
+    if e.kind=="token" then assert(e.token.byte_offset==#raw);raw=raw..e.token.data
+    elseif e.kind=="text_delta" then
+      assert(e.raw_offset>=watermark and raw:sub(e.raw_offset+1,e.raw_offset+#e.data)==e.data);text=text..e.data
+    elseif e.kind=="output_progress" then
+      assert(e.raw_offset>=watermark and e.raw_offset<=#raw and #raw-e.raw_offset<=3)
+      watermark=e.raw_offset;progress=progress+1
+    end
+  end))
+  assert(text==string.rep("a",32) and raw==text and watermark==#raw and progress>=32 and run.usage.completion_tokens==32)
+  local cancelled=fails("cancelled",function()return receiver:generate(input,function(e)if e.kind=="output_progress" then return false end end)end)
+  assert(cancelled.info.usage.completion_tokens==1)
+  receiver:close()
+end
+do
   local receiver=ok(ailo.new(config{source={local_path=path.."-auto-compaction"},context_tokens=4096,
     chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
   local history=ok(receiver:new_continuation())

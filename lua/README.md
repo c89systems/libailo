@@ -202,7 +202,8 @@ answer. Events have `kind`, monotonic `sequence`, zero-based `candidate`,
 `model_id`, `data`, `finish_reason`, and `usage`. Kinds are `run_begin`,
 `choice_begin`, `item_begin`, `content_begin`, `text_delta`, `content_end`,
 `item_end`, `choice_end`, `usage`, `run_end`, `function_name_delta`,
-`function_arguments_delta`, and optional `token`.
+`function_arguments_delta`, `reasoning_delta`, `compaction`, and optional
+`token`/`output_progress`.
 Every event has a stable `run_id`, also returned as `info.id`. Active items have
 `item_id`, `item_kind`, `item_index`, and `content_index`; payload and identifier
 strings are copied into that event's Lua table. No output history is retained.
@@ -214,6 +215,15 @@ allow fewer alternatives than requested. Token events include
 stop/EOG tokens and arrive before their corresponding text delta. The default
 sampled-byte budget is 16 MiB across candidates; exceeding it fails without a
 successful terminal event. No whole answer is retained.
+
+Text, reasoning and argument deltas expose `raw_offset`, the beginning of their
+bytes in the original sampled stream, including hidden framing. Token
+`byte_offset` uses the same coordinates. With `logprobs=true`, `output_progress`
+reports an exclusive `raw_offset` watermark: earlier mapped deltas have already
+arrived and later ones cannot start before it. This lets a consumer discard
+settled probability metadata using only bounded parser carry. Coordinates reset
+per candidate and survive automatic context rebuilds. Decoded function-name
+metadata has no source offset. See [byte provenance](../docs/client.md#generation).
 
 Constrained JSON output uses the C receiver's declared schema subset and limits;
 see [the receiver contract](../docs/client.md#constrained-output).

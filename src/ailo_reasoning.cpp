@@ -202,19 +202,21 @@ reasoning_stream::reasoning_stream(
     : format(normalize(std::move(value))), sink(std::move(output)),
       reasoning_text({},
                      [this](const char *data, size_t size) {
+                       emitted = reasoning_text.output_offset();
                        sink(reasoning_output_kind::reasoning, data, size);
                      }),
       answer_text({},
                   [this](const char *data, size_t size) {
+                    emitted = answer_text.output_offset();
                     sink(reasoning_output_kind::answer, data, size);
                   }),
       current(format.prompt_open ? stage::reasoning : stage::open) {
   validate(format);
 }
-void reasoning_stream::feed(const char *data, size_t size) {
+void reasoning_stream::feed(const char *data, size_t size, uint64_t origin) {
   if (current == stage::answer) {
     if (size)
-      answer_text.push({data, size});
+      answer_text.push({data, size}, false, origin);
     return;
   }
   size_t offset = 0;
@@ -228,6 +230,11 @@ void reasoning_stream::feed(const char *data, size_t size) {
       return;
     current = stage::reasoning;
   }
+  if (pending.empty())
+    pending_start = origin + offset;
+  else if (pending_start + pending.size() != origin + offset)
+    throw failure(AILO_INTERNAL_ERROR,
+                  "Noncontiguous reasoning delimiter input");
   pending.append(data + offset, size - offset);
   const auto end = pending.find(format.close);
   size_t safe = end == std::string::npos ? pending.size() : end;
@@ -238,30 +245,41 @@ void reasoning_stream::feed(const char *data, size_t size) {
         break;
       }
   if (safe)
-    reasoning_text.push(pending.substr(0, safe));
+    reasoning_text.push(pending.substr(0, safe), false, pending_start);
   if (end == std::string::npos) {
     pending.erase(0, safe);
+    pending_start += safe;
     return;
   }
   current = stage::answer;
   reasoning_text.push({}, true);
+  emitted = pending_start + end + format.close.size();
   sink(reasoning_output_kind::end, nullptr, 0);
   const size_t start = end + format.close.size();
   if (start < pending.size())
-    answer_text.push(pending.substr(start));
+    answer_text.push(pending.substr(start), false, pending_start + start);
   pending.clear();
 }
-void reasoning_stream::push(const char *data, size_t size) {
+void reasoning_stream::push(const char *data, size_t size, uint64_t origin) {
   if (!data && size)
     throw failure(AILO_INVALID_ARGUMENT, "Reasoning input bytes are missing");
+  if (origin == no_offset)
+    origin = next;
   // Chunking bounds transient pending memory even for large native token
   // pieces.
   while (size) {
     const auto n = std::min(size, size_t(4096));
-    feed(data, n);
+    feed(data, n, origin);
+    origin += n;
+    next = origin;
     data += n;
     size -= n;
   }
+}
+uint64_t reasoning_stream::pending_offset() const {
+  return std::min({pending.empty() ? no_offset : pending_start,
+                   reasoning_text.pending_offset(),
+                   answer_text.pending_offset()});
 }
 void reasoning_stream::finish(bool truncated) {
   if (current != stage::answer && !truncated)

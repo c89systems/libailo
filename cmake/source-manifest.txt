@@ -16,6 +16,7 @@ src/ailo_auto_compaction.cpp
 src/ailo_auto_compaction_internal.hpp
 tests/compaction.cpp
 tests/auto_compaction.cpp
+tests/output_provenance.cpp
 src/ailo_bounded_json_internal.hpp
 tests/compaction_replay.cpp
 tests/compaction_crypto.cpp

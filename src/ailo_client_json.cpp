@@ -23,6 +23,8 @@ void feature_fields(json &out) {
   out.boolean(true);
   out.key("logprobs");
   out.boolean(true);
+  out.key("output_byte_provenance");
+  out.boolean(true);
   out.key("tools");
   out.boolean(true);
   out.key("tool_template_qualification");

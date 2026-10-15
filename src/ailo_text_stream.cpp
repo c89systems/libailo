@@ -58,10 +58,19 @@ text_stream::text_stream(std::vector<std::string> stop,
                          std::function<void(const char *, size_t)> sink)
     : stops(std::move(stop)), emit(std::move(sink)) {}
 
-bool text_stream::push(const std::string &piece, bool final) {
+bool text_stream::push(const std::string &piece, bool final, uint64_t origin) {
   if (stopped)
     return true;
-  carry += piece;
+  if (!piece.empty()) {
+    const auto base = origin == no_offset ? next : origin;
+    if (!carry.empty() && base != next)
+      throw failure(AILO_INTERNAL_ERROR,
+                    "Noncontiguous bytes inside pending text");
+    if (carry.empty())
+      start = base;
+    next = base + piece.size();
+    carry += piece;
+  }
   size_t match = std::string::npos;
   for (const auto &stop : stops)
     match = std::min(match, carry.find(stop));
@@ -79,11 +88,15 @@ bool text_stream::push(const std::string &piece, bool final) {
     throw failure(AILO_MODEL_FAILED,
                   "Native output contains incomplete or invalid UTF-8");
   }
-  if (safe)
+  if (safe) {
+    emitted = start;
     emit(carry.data(), safe);
+    start += safe;
+  }
   carry.erase(0, safe);
   if (match != std::string::npos) {
     carry.clear();
+    start = next;
     stopped = true;
   }
   return stopped;

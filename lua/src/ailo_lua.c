@@ -589,7 +589,8 @@ static int event_thunk(lua_State *L) {
                                 "function_name_delta",
                                 "function_arguments_delta",
                                 "reasoning_delta",
-                                "compaction"};
+                                "compaction",
+                                "output_progress"};
   lua_createtable(L, 0, 14);
   set_string(L, "kind", names[value->kind]);
   push_u64(L, value->sequence);
@@ -599,6 +600,10 @@ static int event_thunk(lua_State *L) {
   set_string(L, "run_id", value->run_id);
   set_string(L, "call_id", value->call_id);
   set_string(L, "name", value->name);
+  if (value->raw_offset_valid) {
+    push_u64(L, value->raw_offset);
+    lua_setfield(L, -2, "raw_offset");
+  }
   if (value->item_id) {
     static const char *kinds[] = {"message", "function_call", "function_result",
                                   "reasoning", "compaction"};

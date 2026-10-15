@@ -78,7 +78,8 @@ struct emitter {
   void send(ailo_event_kind kind, const char *data = nullptr, size_t size = 0,
             ailo_finish_reason finish = AILO_FINISH_NONE,
             const ailo_token_info *token = nullptr,
-            const compaction_change *change = nullptr) {
+            const compaction_change *change = nullptr,
+            uint64_t origin = no_offset) {
     if (self.is_cancelled())
       throw failure(AILO_CANCELLED, "Generation cancelled");
     ailo_event event{};
@@ -99,6 +100,10 @@ struct emitter {
                         ? call_id.c_str()
                         : nullptr;
     event.name = event.call_id ? name.c_str() : nullptr;
+    if (origin != no_offset) {
+      event.raw_offset = detail::from_unsigned(origin);
+      event.raw_offset_valid = 1;
+    }
     if (change) {
       event.compaction = &change->info;
       event.compacted_items = change->items.data();
@@ -133,11 +138,12 @@ struct emitter {
     item_active = false;
     ++item_index;
   }
-  void tool(const tool_output_event &event) {
+  void tool(const tool_output_event &event, uint64_t origin) {
     if (event.kind == tool_output_kind::text) {
       if (!item_active)
         begin_message();
-      send(AILO_EVENT_TEXT_DELTA, event.data, event.size);
+      send(AILO_EVENT_TEXT_DELTA, event.data, event.size, AILO_FINISH_NONE,
+           nullptr, nullptr, origin);
     } else if (event.kind == tool_output_kind::begin) {
       if (item_active)
         end_message(AILO_FINISH_NONE);
@@ -146,7 +152,8 @@ struct emitter {
       name.append(event.data, event.size);
       send(AILO_EVENT_FUNCTION_NAME_DELTA, event.data, event.size);
     } else if (event.kind == tool_output_kind::arguments) {
-      send(AILO_EVENT_FUNCTION_ARGUMENTS_DELTA, event.data, event.size);
+      send(AILO_EVENT_FUNCTION_ARGUMENTS_DELTA, event.data, event.size,
+           AILO_FINISH_NONE, nullptr, nullptr, origin);
     } else {
       send(AILO_EVENT_ITEM_END, nullptr, 0, AILO_FINISH_TOOL_CALLS);
       item_active = false;
@@ -349,18 +356,19 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
               validation->push(event.data, event.size);
               validated_text = true;
             }
-            output.tool(event);
+            output.tool(event, tool_output->output_offset());
           });
-    auto answer_sink = [&](const char *data, size_t size) {
+    auto answer_sink = [&](const char *data, size_t size, uint64_t origin) {
       if (tool_output) {
-        tool_output->push(data, size);
+        tool_output->push(data, size, origin);
         return;
       }
       if (validation) {
         validation->push(data, size);
         validated_text = true;
       }
-      output.send(AILO_EVENT_TEXT_DELTA, data, size);
+      output.send(AILO_EVENT_TEXT_DELTA, data, size, AILO_FINISH_NONE, nullptr,
+                  nullptr, origin);
     };
     std::unique_ptr<reasoning_stream> reasoning_output;
     if (reasoning.active)
@@ -368,19 +376,21 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
           reasoning.format,
           [&](reasoning_output_kind kind, const char *data, size_t size) {
             if (kind == reasoning_output_kind::reasoning)
-              output.send(AILO_EVENT_REASONING_DELTA, data, size);
+              output.send(AILO_EVENT_REASONING_DELTA, data, size,
+                          AILO_FINISH_NONE, nullptr, nullptr,
+                          reasoning_output->output_offset());
             else if (kind == reasoning_output_kind::end) {
               output.end_message(AILO_FINISH_NONE);
               if (tools.definitions.empty())
                 output.begin_message();
             } else
-              answer_sink(data, size);
+              answer_sink(data, size, reasoning_output->output_offset());
           });
     text_stream carry(stops, [&](const char *data, size_t size) {
       if (reasoning_output)
-        reasoning_output->push(data, size);
+        reasoning_output->push(data, size, carry.output_offset());
       else
-        answer_sink(data, size);
+        answer_sink(data, size, carry.output_offset());
     });
     ailo_finish_reason finish = AILO_FINISH_LENGTH;
     size_t position = tokens.size();
@@ -501,6 +511,14 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
         finish = AILO_FINISH_STOP;
         break;
       }
+      if (request.logprobs) {
+        const uint64_t settled = std::min(
+            {byte_offset, carry.pending_offset(),
+             reasoning_output ? reasoning_output->pending_offset() : no_offset,
+             tool_output ? tool_output->pending_offset() : no_offset});
+        output.send(AILO_EVENT_OUTPUT_PROGRESS, nullptr, 0, AILO_FINISH_NONE,
+                    nullptr, nullptr, settled);
+      }
       if (request.max_reasoning_tokens &&
           candidate_reasoned >= request.max_reasoning_tokens &&
           reasoning_output && reasoning_output->in_reasoning())
@@ -532,6 +550,9 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     }
     if (validation && validated_text && finish == AILO_FINISH_STOP)
       validation->finish();
+    if (request.logprobs)
+      output.send(AILO_EVENT_OUTPUT_PROGRESS, nullptr, 0, AILO_FINISH_NONE,
+                  nullptr, nullptr, byte_offset);
     if (output.item_active) {
       if (output.item_kind == AILO_ITEM_MESSAGE ||
           output.item_kind == AILO_ITEM_REASONING)

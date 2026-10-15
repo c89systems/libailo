@@ -36,8 +36,9 @@ class reasoning_stream {
   text_stream reasoning_text, answer_text;
   std::string pending;
   size_t opening = 0;
+  uint64_t next = 0, pending_start = 0, emitted = 0;
   enum class stage { open, reasoning, answer } current;
-  void feed(const char *, size_t);
+  void feed(const char *, size_t, uint64_t);
 
 public:
   reasoning_stream(
@@ -45,7 +46,9 @@ public:
       std::function<void(reasoning_output_kind, const char *, size_t)>);
   reasoning_stream(const reasoning_stream &) = delete;
   reasoning_stream &operator=(const reasoning_stream &) = delete;
-  void push(const char *, size_t);
+  void push(const char *, size_t, uint64_t origin = no_offset);
+  uint64_t output_offset() const { return emitted; }
+  uint64_t pending_offset() const;
   /** Length truncation may leave a partial reasoning item. Other termination
    * requires a complete close delimiter. Finalization never leaks syntax. */
   void finish(bool truncated);

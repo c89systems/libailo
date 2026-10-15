@@ -33,6 +33,7 @@ struct tool_output_event {
 class tool_output_stream {
   const tool_plan &plan;
   size_t quota, calls = 0, base = 0, closing = 0;
+  uint64_t next = 0, pending_start = 0, emitted = 0;
   std::string pending;
   std::function<void(const tool_output_event &)> sink;
   text_stream text;
@@ -42,7 +43,9 @@ class tool_output_stream {
 public:
   tool_output_stream(const tool_plan &plan, size_t byte_quota,
                      std::function<void(const tool_output_event &)> sink);
-  void push(const char *data, size_t size);
+  void push(const char *data, size_t size, uint64_t origin = no_offset);
+  uint64_t output_offset() const { return emitted; }
+  uint64_t pending_offset() const;
   /** Length may leave an unfinished call; stop must be complete. */
   void finish(bool truncated);
   size_t count() const { return calls; }

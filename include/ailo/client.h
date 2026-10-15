@@ -227,7 +227,10 @@ typedef enum ailo_event_kind {
   AILO_EVENT_FUNCTION_NAME_DELTA,
   AILO_EVENT_FUNCTION_ARGUMENTS_DELTA,
   AILO_EVENT_REASONING_DELTA,
-  AILO_EVENT_COMPACTION
+  AILO_EVENT_COMPACTION,
+  /** logprobs only: raw bytes before raw_offset are fully classified.
+   * All their source-mapped deltas have already been delivered. */
+  AILO_EVENT_OUTPUT_PROGRESS
 } ailo_event_kind;
 
 /** A token piece is arbitrary bytes, possibly incomplete UTF-8 or empty.
@@ -299,6 +302,13 @@ typedef struct ailo_event {
   const struct ailo_compaction_info *compaction;
   const ailo_item *compacted_items;
   size_t compacted_item_count;
+  /** Source coordinate within this candidate's sampled output bytes, matching
+   * token.byte_offset. Valid on text/reasoning/argument deltas and progress;
+   * framing and suppressed stop bytes still occupy raw coordinates. A delta
+   * covers [raw_offset, raw_offset + size). Progress is an exclusive watermark.
+   * Coordinates survive context rebuilds; they reset for each candidate. */
+  ailo_u64 raw_offset;
+  ailo_bool raw_offset_valid;
 } ailo_event;
 
 /** Return zero to cancel; a negative value reports sink failure. The consumer

@@ -37,6 +37,7 @@ class tool_json_stream {
   bool active = false, root_started = false, root_done = false, closed = false,
        args_active = false, args_done = false, name_done = false,
        wrapper_done = false, args_ended = false;
+  uint64_t next = 0, emitted = 0;
   enum class field { invalid, name, args, id, type, wrapper };
   bool at_call(const lonejson_value_path &path) const;
   bool at_function(const lonejson_value_path &path) const;
@@ -56,7 +57,9 @@ public:
   tool_json_stream(tool_json_format format, std::vector<std::string> names,
                    size_t call_limit, size_t byte_limit,
                    std::function<void(const tool_json_event &)> sink);
-  size_t push(const char *data, size_t size);
+  size_t push(const char *data, size_t size, uint64_t origin = no_offset);
+  uint64_t output_offset() const { return emitted; }
+  uint64_t pending_offset() const { return argument_utf8.pending_offset(); }
   void finish();
   bool complete() const { return root_done; }
   size_t count() const { return calls; }

@@ -261,6 +261,7 @@ tool_json_stream::tool_json_stream(
     : format(std::move(protocol)), allowed(names.begin(), names.end()),
       max_calls(call_limit), sink(std::move(callback)),
       argument_utf8({}, [&](const char *data, size_t size) {
+        emitted = argument_utf8.output_offset();
         send(tool_json_kind::arguments, data, size);
       }) {
   if (!call_limit || call_limit > 128 || names.empty() || names.size() > 128 ||
@@ -292,15 +293,18 @@ tool_json_stream::tool_json_stream(
   const auto callbacks = visitor();
   parser = std::make_unique<json_stream>(callbacks, this, byte_limit);
 }
-size_t tool_json_stream::push(const char *data, size_t size) {
+size_t tool_json_stream::push(const char *data, size_t size, uint64_t origin) {
   if (closed || (!data && size))
     throw failure(AILO_MODEL_FAILED, "Tool envelope is already closed");
   size_t consumed = 0;
+  if (origin == no_offset)
+    origin = next;
   size_t argument_start = size;
   auto flush = [&](size_t end, bool final) {
     if (argument_start != size) {
       (void)argument_utf8.push(
-          std::string(data + argument_start, end - argument_start));
+          std::string(data + argument_start, end - argument_start), false,
+          origin + argument_start);
       argument_start = size;
     }
     if (final)
@@ -321,6 +325,7 @@ size_t tool_json_stream::push(const char *data, size_t size) {
       flush(consumed, false);
   }
   flush(consumed, false);
+  next = origin + consumed;
   return consumed;
 }
 void tool_json_stream::finish() {
