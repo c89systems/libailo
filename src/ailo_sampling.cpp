@@ -44,7 +44,7 @@ std::string token_piece(const llama_vocab *vocab, llama_token token,
 
 sampling::sampling(const llama_vocab *input, const ailo_request &request,
                    unsigned candidate, size_t context_tokens,
-                   const std::string &grammar_source)
+                   const std::string &grammar_source, const char *grammar_root)
     : vocab(input), top_count(request.top_logprobs),
       report(request.logprobs != 0) {
   validate_sampling(request);
@@ -64,8 +64,8 @@ sampling::sampling(const llama_vocab *input, const ailo_request &request,
   if (!processors || !selector)
     throw std::bad_alloc();
   if (!grammar_source.empty()) {
-    grammar.reset(
-        llama_sampler_init_grammar(vocab, grammar_source.c_str(), "root"));
+    grammar.reset(llama_sampler_init_grammar(vocab, grammar_source.c_str(),
+                                             grammar_root));
     if (!grammar)
       throw failure(AILO_UNSUPPORTED,
                     "The compiled output grammar cannot be initialized");

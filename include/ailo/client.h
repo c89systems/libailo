@@ -118,6 +118,12 @@ typedef enum ailo_tool_choice {
   AILO_TOOLS_NAMED
 } ailo_tool_choice;
 
+typedef enum ailo_reasoning_mode {
+  AILO_REASONING_AUTO = 0,
+  AILO_REASONING_DISABLED,
+  AILO_REASONING_ENABLED
+} ailo_reasoning_mode;
+
 /** Keep borrowed request data unchanged throughout the synchronous call.
  * Zero max_tokens/candidates selects 128/1.
  * Zero temperature is greedy; top_p zero selects 1.0. The default factory uses
@@ -174,6 +180,15 @@ typedef struct ailo_request {
    * and appends only the supplied items after a successful final sink event.
    * Generated output is never collected here; append it explicitly. */
   ailo_continuation *continuation;
+  /** AUTO separates an initial reasoning block where template probes qualify
+   * its format. Explicit controls fail when the model/template cannot honor
+   * them. Effort is forwarded to template controls, never to temperature. */
+  ailo_reasoning_mode reasoning;
+  const char *reasoning_effort;
+  /** Per-candidate hard reasoning-token cap; zero uses only max_tokens.
+   * Exhaustion while reasoning is open ends LENGTH, without inventing an
+   * answer or a forced summary. Reasoning counts toward max_tokens. */
+  size_t max_reasoning_tokens;
 } ailo_request;
 
 typedef enum ailo_finish_reason {
@@ -196,7 +211,8 @@ typedef enum ailo_event_kind {
   AILO_EVENT_ITEM_END,
   AILO_EVENT_USAGE,
   AILO_EVENT_FUNCTION_NAME_DELTA,
-  AILO_EVENT_FUNCTION_ARGUMENTS_DELTA
+  AILO_EVENT_FUNCTION_ARGUMENTS_DELTA,
+  AILO_EVENT_REASONING_DELTA
 } ailo_event_kind;
 
 /** A token piece is arbitrary bytes, possibly incomplete UTF-8 or empty.
@@ -223,6 +239,9 @@ typedef struct ailo_usage {
   ailo_u64 prompt_tokens;
   ailo_u64 completion_tokens;
   ailo_u64 cached_tokens;
+  /** Sampled tokens beginning in the qualified reasoning phase, including
+   * delimiter tokens. A token crossing into answer text is counted once. */
+  ailo_u64 reasoning_tokens;
 } ailo_usage;
 
 /** Payload and model_id are borrowed only during the callback. Text deltas are

@@ -112,6 +112,18 @@ close during a callback return `busy`. The C ABI semantics and bounds are in
 [continuation state](../docs/client.md#owned-continuation-state); this receiver
 does not create retained OpenAI response records.
 
+Requests also accept `reasoning="auto"` (default), `"enabled"` or `"disabled"`,
+optional `reasoning_effort` and `max_reasoning_tokens`. Controls require a
+qualified template; ignored effort or unsupported disabling fails before
+generation. `reasoning_delta` events carry `item_kind="reasoning"`, a separate
+item ID and the ordinary lifecycle/usage fields. Answer text and function
+arguments keep their existing delta kinds. `usage.reasoning_tokens` is part of
+the total completion count. The optional reasoning cap stops LENGTH while an
+open block is incomplete, without fabricating an answer. Explicit history uses
+`kind="reasoning"` with text content before its assistant message/call group.
+See [reasoning semantics](../docs/client.md#reasoning-channels-and-controls) for
+supported layouts, bounded carry and accounting details.
+
 Requests contain ordered `items` (kind, role, id, call_id, name, arguments and
 content), `max_tokens`, `candidates`, `temperature`, `top_p`, `seed`,
 `frequency_penalty`, `presence_penalty`, `stop`, `max_output_bytes`, `output_format`

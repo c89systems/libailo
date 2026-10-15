@@ -78,13 +78,15 @@ static void push_u64(lua_State *L, ailo_u64 value) {
   }
 }
 static void usage(lua_State *L, const ailo_usage *value) {
-  lua_createtable(L, 0, 3);
+  lua_createtable(L, 0, 4);
   push_u64(L, value->prompt_tokens);
   lua_setfield(L, -2, "prompt_tokens");
   push_u64(L, value->completion_tokens);
   lua_setfield(L, -2, "completion_tokens");
   push_u64(L, value->cached_tokens);
   lua_setfield(L, -2, "cached_tokens");
+  push_u64(L, value->reasoning_tokens);
+  lua_setfield(L, -2, "reasoning_tokens");
 }
 static const char *finish(ailo_finish_reason value) {
   switch (value) {
@@ -490,7 +492,8 @@ static int event_thunk(lua_State *L) {
                                 "item_end",
                                 "usage",
                                 "function_name_delta",
-                                "function_arguments_delta"};
+                                "function_arguments_delta",
+                                "reasoning_delta"};
   lua_createtable(L, 0, 14);
   set_string(L, "kind", names[value->kind]);
   push_u64(L, value->sequence);
@@ -804,6 +807,9 @@ static int generate(lua_State *L) {
   request.output_format = (ailo_output_format)integer(L, 2, "output_format");
   request.json_schema = string(L, 2, "json_schema");
   request.prompt_cache_key = string(L, 2, "prompt_cache_key");
+  request.reasoning = (ailo_reasoning_mode)integer(L, 2, "reasoning");
+  request.reasoning_effort = string(L, 2, "reasoning_effort");
+  request.max_reasoning_tokens = (size_t)integer(L, 2, "max_reasoning_tokens");
   lua_getfield(L, 2, "continuation");
   continuation *history =
       lua_isnil(L, -1) ? NULL : luaL_checkudata(L, -1, CONTINUATION);

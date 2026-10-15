@@ -32,7 +32,7 @@ static void tensor(ggml_context *ctx, gguf_context *file, const char *name,
   gguf_add_tensor(file, value);
 }
 
-static void build(const char *path) {
+static void build(const char *path, bool reasoning = false) {
   std::unique_ptr<ggml_context, decltype(&ggml_free)> ctx(
       ggml_init({1024 * 1024, nullptr, false}), ggml_free);
   std::unique_ptr<gguf_context, decltype(&gguf_free)> file(gguf_init_empty(),
@@ -65,6 +65,8 @@ static void build(const char *path) {
     strings.emplace_back(byte);
   }
   strings.emplace_back("\xe2\x96\x81");
+  if (reasoning)
+    strings.emplace_back("r</think>");
   std::vector<const char *> tokens;
   for (const auto &s : strings)
     tokens.push_back(s.c_str());
@@ -72,7 +74,9 @@ static void build(const char *path) {
   std::vector<int32_t> types(tokens.size(), LLAMA_TOKEN_TYPE_BYTE);
   types[0] = LLAMA_TOKEN_TYPE_UNKNOWN;
   types[1] = types[2] = LLAMA_TOKEN_TYPE_CONTROL;
-  types.back() = LLAMA_TOKEN_TYPE_NORMAL;
+  types[259] = LLAMA_TOKEN_TYPE_NORMAL;
+  if (reasoning)
+    types[260] = LLAMA_TOKEN_TYPE_USER_DEFINED;
   gguf_set_arr_str(file.get(), "tokenizer.ggml.tokens", tokens.data(),
                    tokens.size());
   gguf_set_arr_data(file.get(), "tokenizer.ggml.scores", GGUF_TYPE_FLOAT32,
@@ -146,6 +150,7 @@ int main(int argc, char **argv) {
   }
   try {
     build(argv[1]);
+    build((std::string(argv[1]) + "-reasoning").c_str(), true);
     std::puts("Deterministic one-layer GGUF fixture written");
     return 0;
   } catch (const std::exception &e) {

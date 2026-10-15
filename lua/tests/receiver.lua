@@ -10,6 +10,23 @@ local function config(extra)
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
 do
+  local template=[[{% for m in messages %}{{ m.role }}:{% if m.reasoning_content is defined %}<think>{{ m.reasoning_content }}</think>{% endif %}{{ m.content }}|{% endfor %}{% if add_generation_prompt %}assistant:{% if enable_thinking %}<think>{% endif %}{% endif %}]]
+  local receiver=ok(ailo.new(config{source={local_path=path.."-reasoning"},chat_template=template,context_tokens=512}))
+  local input={items={{content="hello"}},max_tokens=32,temperature=0,reasoning="enabled",
+    output_format="json_schema",json_schema='{"const":{}}',logit_bias={{token_id=260,bias=100},{token_id=2,bias=80}}}
+  local reason,text="",""
+  local run=ok(receiver:generate(input,function(e)
+    if e.kind=="reasoning_delta" then assert(e.item_kind=="reasoning");reason=reason..e.data end
+    if e.kind=="text_delta" then assert(e.item_kind=="message");text=text..e.data end
+  end))
+  assert(reason=="r" and text=="{}" and run.usage.reasoning_tokens==1)
+  assert(fails("sink_failed",function()return receiver:generate(input,function(e)if e.kind=="reasoning_delta" then error("reasoning callback")end end)end).info.usage.completion_tokens==1)
+  input.reasoning="disabled";run=ok(receiver:generate(input,function()end));assert(run.usage.reasoning_tokens==0)
+  input.reasoning="enabled";input.max_reasoning_tokens=1;input.logit_bias={{token_id=100,bias=100}}
+  run=ok(receiver:generate(input,function()end));assert(run.finish_reason=="length" and run.usage.reasoning_tokens==1)
+  receiver:close()
+end
+do
   local client=ok(ailo.new(config{disable_prompt_cache=true}))
   fails("invalid_argument",function()return client:new_continuation(false)end)
   local history=ok(client:new_continuation())

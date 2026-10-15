@@ -105,6 +105,8 @@ conversation prepare_conversation(const ailo_request &request,
   conversation output;
   size_t total = 0, group_size = 0;
   bool results_started = false;
+  std::string reasoning;
+  bool pending_reasoning = false;
   std::set<std::string> item_ids, pending;
   struct call_state {
     std::string name;
@@ -118,6 +120,10 @@ conversation prepare_conversation(const ailo_request &request,
       throw failure(AILO_INVALID_ARGUMENT,
                     "Conversation item IDs must be unique");
     if (item.kind == AILO_ITEM_MESSAGE) {
+      if (pending_reasoning && item.role != AILO_ROLE_ASSISTANT)
+        throw failure(AILO_INVALID_ARGUMENT,
+                      "Reasoning history must precede an assistant message or "
+                      "function call");
       if (!pending.empty())
         throw failure(AILO_INVALID_ARGUMENT,
                       "Function call groups need complete results before "
@@ -129,6 +135,10 @@ conversation prepare_conversation(const ailo_request &request,
       message.role = role_name(item.role);
       message.name = name(item.name);
       message.content = content(item, total);
+      message.reasoning = std::move(reasoning);
+      message.has_reasoning = pending_reasoning;
+      pending_reasoning = false;
+      reasoning.clear();
       output.rich = output.rich || !message.name.empty();
       output.messages.push_back(std::move(message));
       continue;
@@ -162,11 +172,28 @@ conversation prepare_conversation(const ailo_request &request,
           message.role = "assistant";
           output.messages.push_back(std::move(message));
         }
+        if (pending_reasoning) {
+          output.messages.back().reasoning = std::move(reasoning);
+          output.messages.back().has_reasoning = true;
+          pending_reasoning = false;
+          reasoning.clear();
+        }
       }
       pending.insert(call.id);
       output.max_parallel_calls =
           std::max(output.max_parallel_calls, ++group_size);
       output.messages.back().calls.push_back(std::move(call));
+      output.rich = true;
+      continue;
+    }
+    if (item.kind == AILO_ITEM_REASONING) {
+      if (pending_reasoning || !pending.empty() || item.call_id || item.name ||
+          item.arguments ||
+          (item.role != AILO_ROLE_USER && item.role != AILO_ROLE_ASSISTANT))
+        throw failure(AILO_INVALID_ARGUMENT,
+                      "Invalid or interrupted reasoning history item");
+      reasoning = content(item, total);
+      pending_reasoning = true;
       output.rich = true;
       continue;
     }
@@ -206,6 +233,9 @@ conversation prepare_conversation(const ailo_request &request,
     throw failure(
         AILO_INVALID_ARGUMENT,
         "Unresolved function calls need their results before generation");
+  if (pending_reasoning)
+    throw failure(AILO_INVALID_ARGUMENT,
+                  "Reasoning history needs its assistant message or call");
   output.pending_calls = pending.size();
   return output;
 }

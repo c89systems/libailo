@@ -133,7 +133,10 @@ void feature_fields(json &out) {
   out.number(4 * 1024 * 1024);
   out.end_object();
   out.key("reasoning_separation");
-  out.boolean(false);
+  out.boolean(true);
+  out.key("reasoning_template_qualification");
+  out.string("initial <think> or [THINK] block, probed delimiters and history "
+             "preservation; controls qualified per request");
   out.key("compaction");
   out.boolean(false);
   out.key("continuation");

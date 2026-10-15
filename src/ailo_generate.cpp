@@ -1,6 +1,7 @@
 #include "ailo_cache_internal.hpp"
 #include "ailo_client_internal.hpp"
 #include "ailo_conversation_internal.hpp"
+#include "ailo_reasoning_internal.hpp"
 #include "ailo_sampling_internal.hpp"
 #include "ailo_schema_internal.hpp"
 #include "ailo_text_stream_internal.hpp"
@@ -14,7 +15,8 @@
 namespace ailo {
 namespace client {
 namespace {
-std::string render(state &self, const conversation &input, tool_plan &tools) {
+reasoning_plan render(state &self, const conversation &input, tool_plan &tools,
+                      const ailo_request &request) {
   self.ensure_loaded();
   const char *tmpl = self.config.chat_template
                          ? self.config.chat_template
@@ -24,8 +26,8 @@ std::string render(state &self, const conversation &input, tool_plan &tools) {
         AILO_UNSUPPORTED,
         "The model has no chat template; configure an explicit template");
   qualify_tools(tools, tmpl, llama_model_get_vocab(self.model.get()));
-  return apply_template(tmpl, llama_model_get_vocab(self.model.get()), input,
-                        tools.definitions_json);
+  return qualify_reasoning(tmpl, llama_model_get_vocab(self.model.get()), input,
+                           tools.definitions_json, request);
 }
 
 struct emitter {
@@ -91,7 +93,10 @@ struct emitter {
     item_kind = kind;
     const auto suffix = run_id.substr(4) + "_" + std::to_string(candidate) +
                         "_" + std::to_string(item_index);
-    item_id = (kind == AILO_ITEM_MESSAGE ? "msg_" : "fc_") + suffix;
+    item_id = (kind == AILO_ITEM_MESSAGE     ? "msg_"
+               : kind == AILO_ITEM_REASONING ? "rs_"
+                                             : "fc_") +
+              suffix;
     call_id = "call_" + suffix;
     name.clear();
     item_active = true;
@@ -187,9 +192,13 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   const auto partition = cache_partition(request.prompt_cache_key);
   auto tools = prepare_tools(request);
   const auto input = prepare_conversation(request);
-  const std::string prompt = render(self, input, tools);
-  const std::string grammar =
+  const auto reasoning = render(self, input, tools, request);
+  const std::string &prompt = reasoning.prompt;
+  std::string grammar =
       tools.definitions.empty() ? answer_grammar : tool_grammar(tools, request);
+  if (reasoning.active)
+    grammar = reasoning_grammar(reasoning.format, grammar);
+  const char *grammar_root = reasoning.active ? "reasoning-root" : "root";
   const auto *vocab = llama_model_get_vocab(self.model.get());
   int32_t count =
       llama_tokenize(vocab, prompt.data(), static_cast<int32_t>(prompt.size()),
@@ -210,7 +219,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   info.actual_backend = self.actual;
   // Validate model-specific token IDs before emitting events or evaluating.
   sampling first_sampler(vocab, request, 0, llama_n_ctx(self.context.get()),
-                         grammar);
+                         grammar, grammar_root);
   emitter output{self, sink, user, info};
   output.send(AILO_EVENT_RUN_BEGIN);
   struct reset {
@@ -218,6 +227,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     ~reset() { llama_memory_clear(llama_get_memory(self.context.get()), true); }
   } reset_context{self};
   uint64_t generated = 0;
+  uint64_t reasoned = 0;
   size_t output_bytes = 0;
   std::string checkpoint_key;
   const size_t output_limit =
@@ -227,7 +237,10 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     output.item_index = 0;
     llama_memory_clear(llama_get_memory(self.context.get()), true);
     output.send(AILO_EVENT_CHOICE_BEGIN);
-    if (tools.definitions.empty())
+    if (reasoning.active) {
+      output.begin_item(AILO_ITEM_REASONING);
+      output.send(AILO_EVENT_CONTENT_BEGIN);
+    } else if (tools.definitions.empty())
       output.begin_message();
     {
       struct prefill_timing {
@@ -256,8 +269,9 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     }
     std::unique_ptr<sampling> additional;
     if (candidate)
-      additional = std::make_unique<sampling>(
-          vocab, request, candidate, llama_n_ctx(self.context.get()), grammar);
+      additional = std::make_unique<sampling>(vocab, request, candidate,
+                                              llama_n_ctx(self.context.get()),
+                                              grammar, grammar_root);
     sampling &sampler = candidate ? *additional : first_sampler;
     for (llama_token token : tokens)
       sampler.accept(token);
@@ -275,7 +289,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
             }
             output.tool(event);
           });
-    text_stream carry(stops, [&](const char *data, size_t size) {
+    auto answer_sink = [&](const char *data, size_t size) {
       if (tool_output) {
         tool_output->push(data, size);
         return;
@@ -285,16 +299,42 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
         validated_text = true;
       }
       output.send(AILO_EVENT_TEXT_DELTA, data, size);
+    };
+    std::unique_ptr<reasoning_stream> reasoning_output;
+    if (reasoning.active)
+      reasoning_output = std::make_unique<reasoning_stream>(
+          reasoning.format,
+          [&](reasoning_output_kind kind, const char *data, size_t size) {
+            if (kind == reasoning_output_kind::reasoning)
+              output.send(AILO_EVENT_REASONING_DELTA, data, size);
+            else if (kind == reasoning_output_kind::end) {
+              output.end_message(AILO_FINISH_NONE);
+              if (tools.definitions.empty())
+                output.begin_message();
+            } else
+              answer_sink(data, size);
+          });
+    text_stream carry(stops, [&](const char *data, size_t size) {
+      if (reasoning_output)
+        reasoning_output->push(data, size);
+      else
+        answer_sink(data, size);
     });
     ailo_finish_reason finish = AILO_FINISH_LENGTH;
     size_t position = tokens.size();
     uint64_t byte_offset = 0;
+    size_t candidate_reasoned = 0;
     for (size_t i = 0; i < limit; ++i) {
       if (self.cancelled.load())
         throw failure(AILO_CANCELLED, "Generation cancelled");
       ailo_token_info token_info{};
       const llama_token token = sampler.sample(self.context.get(), token_info);
       ++generated;
+      if (reasoning_output && reasoning_output->in_reasoning()) {
+        ++candidate_reasoned;
+        ++reasoned;
+        info.usage.reasoning_tokens = detail::from_unsigned(reasoned);
+      }
       info.usage.completion_tokens = detail::from_unsigned(generated);
       const bool eog = llama_vocab_is_eog(vocab, token);
       const std::string piece =
@@ -315,16 +355,24 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
         break;
       }
       if (carry.push(piece)) {
-        if (validation || (tool_output && !tool_output->between_calls()))
+        if (validation ||
+            (reasoning_output && reasoning_output->in_reasoning()) ||
+            (tool_output && !tool_output->between_calls()))
           throw failure(AILO_MODEL_FAILED,
                         "A stop sequence interrupted constrained output");
         finish = AILO_FINISH_STOP;
         break;
       }
+      if (request.max_reasoning_tokens &&
+          candidate_reasoned >= request.max_reasoning_tokens &&
+          reasoning_output && reasoning_output->in_reasoning())
+        break;
       if (i + 1 < limit)
         evaluate(self, &token, 1, position++);
     }
     (void)carry.push({}, true);
+    if (reasoning_output)
+      reasoning_output->finish(finish == AILO_FINISH_LENGTH);
     if (tool_output) {
       tool_output->finish(finish == AILO_FINISH_LENGTH);
       if (finish == AILO_FINISH_STOP && tool_output->count())
@@ -333,7 +381,8 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     if (validation && validated_text && finish == AILO_FINISH_STOP)
       validation->finish();
     if (output.item_active) {
-      if (output.item_kind == AILO_ITEM_MESSAGE)
+      if (output.item_kind == AILO_ITEM_MESSAGE ||
+          output.item_kind == AILO_ITEM_REASONING)
         output.end_message(finish);
       else {
         output.send(AILO_EVENT_ITEM_END, nullptr, 0, finish);

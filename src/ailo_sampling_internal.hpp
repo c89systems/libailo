@@ -29,7 +29,8 @@ class sampling {
 public:
   sampling(const llama_vocab *vocab, const ailo_request &request,
            unsigned candidate, size_t context_tokens,
-           const std::string &grammar_source = {});
+           const std::string &grammar_source = {},
+           const char *grammar_root = "root");
   void accept(llama_token token);
   llama_token sample(llama_context *context, ailo_token_info &info);
 };

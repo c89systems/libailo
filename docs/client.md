@@ -99,9 +99,9 @@ rendering can still reject a conversation the template does not accept.
 Capabilities currently advertise text, streaming, multiple candidates, logit
 bias, log probabilities, constrained output, qualified tool generation and
 bounded prompt/KV reuse, encrypted persistent snapshots and canonical
-continuation state, with their limits.
-Separated reasoning, media and compaction are reported
-unavailable. Reasoning, media
+continuation state and qualified reasoning separation, with their limits.
+Media and compaction are reported
+unavailable. Media
 and compaction input kinds return unsupported rather than losing semantics.
 Completed function histories are supported as described below. The rest remain
 implementation requirements in the full specification; no compaction or
@@ -240,7 +240,8 @@ receiver for explicit canonical input history; include
 4096 items and 4 MiB of charged canonical storage. Explicit limits must be
 nonzero, at most 4096 items/64 MiB; all content parts together are capped at
 4096. The existing 4 MiB combined text/arguments and supported-item validation
-also apply. Unsupported media, reasoning or compaction items still fail.
+also apply. Unsupported media or compaction items still fail. Reasoning history
+requires a compatible template as described below.
 
 Construction binds the owner to actual model/shard content and the effective
 tokenizer/template, acquiring a lazy model if needed. The owner does not retain
@@ -307,6 +308,89 @@ continued the four-item history, while its fork retained only the original
 instruction. Equivalent lowercase/uppercase verified model checksums produced
 the same canonical identity. This is CPU integration evidence, not a model
 quality benchmark or GPU qualification.
+
+## Reasoning channels and controls
+
+Generation separates one initial reasoning block where template probes establish
+an unambiguous `<think>...</think>` or `[THINK]...[/THINK]` layout. Probes use the
+actual Jinja renderer, including tool definitions and requested effort. Delimiters
+include inferred suffix whitespace, at most 128 ASCII bytes each; whitespace
+before a closing tag remains reasoning content. The closing tag commits the
+grammar to its separator and answer instead of returning to reasoning. A
+generation prefix can already contain the opening delimiter, or the eager
+grammar generates it. Unsupported reasoning layouts fail before events when
+reasoning is requested or the template advertises one; ordinary text templates
+retain their existing behavior. This is conditional template support, not a
+claim that every model can reason or obey every control.
+
+`request.reasoning` selects AUTO (zero), ENABLED or DISABLED. AUTO enables and
+separates a qualified initial block. DISABLED passes the template's thinking
+control as false and requires an effective changed prefix for reasoning models;
+mandatory-thinking templates cannot silently ignore it. `reasoning_effort`
+accepts `none`, `minimal`, `low`, `medium`, `high`, `xhigh` or `max` only when the
+template actually consumes the effort control. The native effort/strength
+aliases receive the requested label. This does not emulate effort through
+temperature, promise provider-equivalent computation, or claim every level is
+meaningful to every model. Contradictory disabled/effort/budget settings reject.
+
+`max_tokens` includes all newly sampled reasoning, delimiters and answer tokens.
+Optional `max_reasoning_tokens` is a per-candidate hard bound; zero leaves only
+the total limit. Exhaustion while a reasoning block remains open ends LENGTH
+with an incomplete reasoning item. It does not force a closing message, invent
+an answer or summarize a trace. `usage.reasoning_tokens` counts sampled tokens
+beginning in the reasoning phase, including its delimiter tokens. A token
+crossing into answer text counts once there; already-prefilled opening tokens
+are prompt tokens. Counts aggregate candidates as completion usage does and
+remain local accounting rather than provider billing claims.
+
+Reasoning has its own item ID (`rs_...`), item/content lifecycle and immediate
+`AILO_EVENT_REASONING_DELTA`; answer text remains `AILO_EVENT_TEXT_DELTA` in a
+separate message item, and generated function calls retain their own IDs. Raw
+local reasoning is not relabeled as a supported summary or encrypted provider
+state. UTF-8 and delimiter carry are bounded; no complete generated item is
+retained. Eager GBNF composes the reasoning phase with the existing answer/tool
+grammar without a lazy trigger buffer or full-output parser. Constrained JSON
+and function arguments apply after reasoning closes. Independent parser and
+sampler state are created for each candidate. Token logprob events retain their
+raw sampled byte offsets; channel deltas determine user-visible spans.
+
+Byte quotas include the complete sampled reasoning/answer/syntax bytes. An
+explicit stop interrupting an open reasoning block reports a constrained-output
+failure; normal length truncation remains an incomplete LENGTH result. Invalid
+or incomplete UTF-8 fails, and a partial delimiter is not leaked as text.
+Cancellation, sink errors and backpressure remain synchronous and immediate.
+
+Explicit reasoning input uses `AILO_ITEM_REASONING`, default/assistant role and
+text content, immediately before its assistant message or function-call group.
+It may have an independent item ID and pinned flag. Empty completed reasoning
+is valid; a dangling or interrupted item is not. Rendering preserves the supplied
+reasoning through the template's reasoning field and preservation controls;
+templates that discard it reject the history. Canonical state stores the original
+typed items independently of prompt rendering. No hidden generation transcript
+is appended to continuation state.
+
+One focused CTest covers split delimiters/UTF-8, incremental delivery of a 1 MiB
+reasoning body, recursive answer-grammar composition, actual native inference
+through reasoning into constrained JSON and named tools, multiple candidates,
+usage, disabling, budget truncation, effort consumption, explicit history,
+empty history, stop/byte limits, sink failure/cancellation and recovery. The
+deterministic fixture adds one vocabulary token in a separate model variant;
+existing pinned fixture bytes remain unchanged. Lua uses the same installed
+C ABI, including reasoning callback recovery under Valgrind.
+
+A controlled CPU integration check used
+[Qwen3-0.6B Q4_K_M](https://huggingface.co/bartowski/Qwen_Qwen3-0.6B-GGUF/blob/f9184d8b4c371cb52af5b8cb3d38e55e3cf0f4a0/Qwen_Qwen3-0.6B-Q4_K_M.gguf),
+acquired through libailo's own Hugging Face facility: revision
+`f9184d8b4c371cb52af5b8cb3d38e55e3cf0f4a0`, SHA-256
+`9acfc1e001311f34b4252001b626f2e466d592a42065f66571bff3790d4e1b14`.
+The installed Lua/C ABI delivered the first reasoning delta at completion token
+3, then correctly returned LENGTH at a 16-token reasoning cap without an answer.
+A separate closing-tag/EOG-biased case exercised an empty completed reasoning
+block followed by constrained JSON; disabling reasoning produced JSON with zero
+reasoning tokens and its first answer delta at token 1. These deliberately bounded
+protocol checks used a constant-answer schema and sampled decoding; they are
+not quality benchmarks or evidence of a natural complete reasoning answer.
+A preceding natural 128-token attempt remained in reasoning at its limit.
 
 ## Conversation and function history
 

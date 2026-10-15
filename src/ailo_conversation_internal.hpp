@@ -10,6 +10,8 @@ struct chat_call {
 struct chat_message {
   std::string role, content, name, call_id;
   std::vector<chat_call> calls;
+  std::string reasoning{};
+  bool has_reasoning = false;
 };
 struct conversation {
   std::vector<chat_message> messages;
@@ -19,10 +21,15 @@ struct conversation {
 };
 conversation prepare_conversation(const ailo_request &request,
                                   bool allow_pending = false);
+struct template_options {
+  bool thinking = false;
+  const char *effort = nullptr;
+};
 std::string apply_template(const char *source, const llama_vocab *vocab,
                            const conversation &input,
                            const std::string &tools = "[]",
-                           bool generation = true);
+                           bool generation = true,
+                           const template_options *options = nullptr);
 } // namespace client
 } // namespace ailo
 #endif

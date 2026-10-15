@@ -45,9 +45,9 @@ bool template_supported(const char *source) {
 
 std::string apply_template(const char *source, const llama_vocab *vocab,
                            const conversation &input, const std::string &tools,
-                           bool generation) {
+                           bool generation, const template_options *options) {
   std::string result;
-  const bool rich = input.rich || tools != "[]";
+  const bool rich = input.rich || tools != "[]" || (options && options->effort);
   if (is_jinja(source)) {
     try {
       auto program = parse(source);
@@ -70,9 +70,11 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
           {"bos_token", token_text(vocab, llama_vocab_bos(vocab))},
           {"eos_token", token_text(vocab, llama_vocab_eos(vocab))},
           {"add_generation_prompt", generation},
-          {"enable_thinking", false}};
+          {"enable_thinking", options && options->thinking}};
       for (const auto &message : input.messages) {
         common_json value{{"role", message.role}, {"content", message.content}};
+        if (message.has_reasoning || !message.reasoning.empty())
+          value["reasoning_content"] = message.reasoning;
         if (!message.name.empty())
           value["name"] = message.name;
         if (!message.call_id.empty())
@@ -93,11 +95,18 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
         inputs["messages"].push_back(std::move(value));
       }
       jinja::global_from_json(context, inputs, rich);
+      jinja::caps_apply_preserve_reasoning(context, true);
+      if (options && options->effort)
+        jinja::caps_apply_reasoning_effort(context, options->effort);
       jinja::runtime runtime(context);
       result = jinja::runtime::gather_string_parts(runtime.execute(program))
                    ->as_string()
                    .str();
       if (rich) {
+        if (options && options->effort &&
+            !context.get_val("reasoning_effort")->stats.used)
+          throw failure(AILO_UNSUPPORTED,
+                        "Chat template ignores reasoning effort");
         if (tools != "[]" && !context.get_val("tools")->stats.used)
           throw failure(AILO_UNSUPPORTED,
                         "This chat template ignores tool definitions");
@@ -117,6 +126,12 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
         for (size_t i = 0; i < input.messages.size(); ++i) {
           const auto &message = input.messages[i];
           auto current = messages->at(i);
+          if ((message.has_reasoning || !message.reasoning.empty()) &&
+              (!current->at("reasoning_content")->stats.used ||
+               result.find(message.reasoning) == std::string::npos))
+            throw failure(
+                AILO_UNSUPPORTED,
+                "Chat template does not preserve supplied reasoning history");
           if ((!message.content.empty() || message.role == "tool") &&
               !current->at("content")->stats.used)
             throw failure(AILO_UNSUPPORTED,
@@ -173,7 +188,8 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
           }
         }
         if (ordered)
-          return apply_template(source, vocab, *ordered, tools, generation);
+          return apply_template(source, vocab, *ordered, tools, generation,
+                                options);
       }
     } catch (const failure &) {
       throw;

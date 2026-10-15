@@ -131,7 +131,7 @@ end
 local roles={user=0,system=1,developer=2,assistant=3,tool=4}
 local kinds={message=0,function_call=1,function_result=2,reasoning=3,compaction=4}
 local content_kinds={text=0,image=1,audio=2,refusal=3}
-local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls prompt_cache_key continuation")
+local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls prompt_cache_key continuation reasoning reasoning_effort max_reasoning_tokens")
 local item_keys=keys("kind role id call_id name content arguments pinned")
 local function request(input)
   object(input,request_keys,"request")
@@ -171,6 +171,9 @@ local function request(input)
   out.output_format=enumeration(input.output_format,{text=0,json_object=1,json_schema=2},0,"output_format")
   out.json_schema=str(input.json_schema,"json_schema",true)
   out.prompt_cache_key=str(input.prompt_cache_key,"prompt_cache_key",true)
+  out.reasoning=enumeration(input.reasoning,{auto=0,disabled=1,enabled=2},0,"reasoning mode")
+  out.reasoning_effort=str(input.reasoning_effort,"reasoning_effort",true)
+  out.max_reasoning_tokens=number(input.max_reasoning_tokens,"max_reasoning_tokens",0,true,0,0x7fffffff)
   out.tool_choice=enumeration(input.tool_choice,{auto=0,none=1,required=2,named=3},0,"tool_choice")
   out.tool_name=str(input.tool_name,"tool_name",true)
   out.parallel_tool_calls=input.parallel_tool_calls==nil or boolean(input.parallel_tool_calls,"parallel_tool_calls")
