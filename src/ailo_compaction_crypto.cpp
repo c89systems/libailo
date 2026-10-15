@@ -373,6 +373,10 @@ compaction_digest fingerprint(const ailo_item &item) {
   string(item.call_id, 256);
   string(item.name, 64);
   string(item.arguments, 4 * 1024 * 1024);
+  // Compaction items are excluded from the retained prefix. Ordinary items
+  // must never hide ciphertext in an unused field.
+  if (item.encrypted_content)
+    invalid("Encrypted content is only valid on the compaction item");
   if (item.content_count > 4096 || (!item.content && item.content_count))
     invalid();
   number(item.content_count);

@@ -14,7 +14,7 @@ mkdir -p "$work/interop" "$work/state"
 # The facade interop header is separate from the provider C SDK headers.
 cp "$root/.cache/deps-build/x86_64-linux-gnu/lua-pslog/source/include/pslog_lua.h" "$work/interop/"
 cmake --install "$binary" --prefix "$work/sdk" --component ailo > "$work/install-core.log"
-ctest --test-dir "$binary" --output-on-failure -j1 -R '^model-fixture$'
+ctest --test-dir "$binary" --output-on-failure -j1 -R '^(model-fixture|compaction-replay)$'
 loader=
 # Read the selected compiler collection through the declared resolver.
 description=$(scripts/cpkt-toolchains.sh discover x86_64-linux-gnu)

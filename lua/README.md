@@ -129,9 +129,14 @@ client:close()
 `new_compactor()` without configuration selects an ephemeral owner. Keys are
 32-byte binary strings; the native constructor derives/copies owned keys, while
 original Lua strings remain the caller's responsibility. `info` exposes only
-ephemeral/key-count/budget/TTL metadata. Model-driven compaction and generation
-replay integration are still pending; this constructor does not create a summary
-or a retained response record. See [key ownership](../docs/client.md#compaction-key-ownership).
+ephemeral/key-count/budget/TTL metadata. `kind="compaction"` items carry `id` and
+`encrypted_content`, with no role/content/function fields. Compatible opaque
+items can be passed to `generate` or appended as part of a complete retained
+window to a continuation; `visit` copies their opaque fields. Generation uses
+the receiving client's keys, including across history-owner boundaries.
+`compaction_replay=true` advertises this path. Model-driven summary production
+and automatic compaction remain pending; the constructor does not create a
+summary or a retained response record. See [replay](../docs/client.md#authenticated-compaction-replay).
 
 Requests also accept `reasoning="auto"` (default), `"enabled"` or `"disabled"`,
 optional `reasoning_effort` and `max_reasoning_tokens`. Controls require a

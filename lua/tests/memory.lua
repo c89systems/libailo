@@ -16,6 +16,23 @@ local function request()
 end
 local marker={message="callback marker"}
 do
+  local fixture=assert(loadfile(path.."-compaction.lua"))()
+  local owner=ok(ailo.new_compactor{namespace_id=fixture.namespace_id,key_id=fixture.key_id,key=fixture.key})
+  local receiver=ok(ailo.new(config{compactor=owner,chat_template=fixture.template,context_tokens=1024}))
+  local history=ok(receiver:new_continuation())
+  assert(history:append{
+    {id="instruction",role="system",pinned=true,content="Keep original instructions."},
+    {kind="compaction",id=fixture.id,encrypted_content=fixture.encrypted_content},
+    {id="recent",content="continue"}})
+  owner:close();owner=nil;collectgarbage("collect")
+  local input={continuation=history,max_tokens=2,temperature=0,logit_bias={{token_id=100,bias=100}}}
+  fails("sink_failed",function()return receiver:generate(input,function(e)if e.kind=="text_delta" then error(marker)end end)end)
+  ok(receiver:generate(input,function()collectgarbage("collect")end))
+  local fork=ok(history:clone());receiver:close();history:close()
+  assert(fork:visit(function(item)if item.kind=="compaction" then assert(item.encrypted_content==fixture.encrypted_content)end;collectgarbage("collect")end))
+  fork:close()
+end
+do
   local owner=ok(ailo.new_compactor{namespace_id="memory-tenant",key_id="one",key=string.rep("k",32),
     old_keys={{key_id="old",key=string.rep("o",32)}}})
   local receiver=ok(ailo.new(config{compactor=owner}));owner:close();owner=nil;collectgarbage("collect")

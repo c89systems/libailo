@@ -679,6 +679,7 @@ static void read_items(lua_State *L, work *storage, int request_index,
     item->call_id = string(L, index, "call_id");
     item->name = string(L, index, "name");
     item->arguments = string(L, index, "arguments");
+    item->encrypted_content = string(L, index, "encrypted_content");
     item->pinned = boolean(L, index, "pinned");
     lua_getfield(L, index, "content");
     int content = lua_gettop(L);
@@ -808,6 +809,7 @@ static int item_thunk(lua_State *L) {
   set_string(L, "call_id", item->call_id);
   set_string(L, "name", item->name);
   set_string(L, "arguments", item->arguments);
+  set_string(L, "encrypted_content", item->encrypted_content);
   lua_pushboolean(L, item->pinned);
   lua_setfield(L, -2, "pinned");
   lua_createtable(L, (int)item->content_count, 0);

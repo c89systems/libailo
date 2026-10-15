@@ -150,7 +150,7 @@ local roles={user=0,system=1,developer=2,assistant=3,tool=4}
 local kinds={message=0,function_call=1,function_result=2,reasoning=3,compaction=4}
 local content_kinds={text=0,image=1,audio=2,refusal=3}
 local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls prompt_cache_key continuation reasoning reasoning_effort max_reasoning_tokens")
-local item_keys=keys("kind role id call_id name content arguments pinned")
+local item_keys=keys("kind role id call_id name content arguments pinned encrypted_content")
 local function request(input)
   object(input,request_keys,"request")
   local out={items={},stop={},logit_bias={},tools={},allowed_tools={}}
@@ -166,7 +166,7 @@ local function request(input)
     local item=object(input_items[i],item_keys,"item")
     local v={kind=enumeration(item.kind,kinds,0,"item kind"),role=enumeration(item.role,roles,0,"role"),content={}}
     v.pinned=boolean(item.pinned,"pinned")
-    for _,k in ipairs{"id","call_id","name","arguments"} do v[k]=str(item[k],k,true) end
+    for _,k in ipairs{"id","call_id","name","arguments","encrypted_content"} do v[k]=str(item[k],k,true) end
     if type(item.content)=="string" then v.content[1]={kind=0,data=item.content}
     elseif item.content ~= nil then
       for j=1,array(item.content,"content") do

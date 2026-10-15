@@ -1,5 +1,6 @@
 #include "ailo_cache_internal.hpp"
 #include "ailo_client_internal.hpp"
+#include "ailo_compaction_internal.hpp"
 #include "ailo_conversation_internal.hpp"
 #include "ailo_reasoning_internal.hpp"
 #include "ailo_sampling_internal.hpp"
@@ -191,9 +192,14 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   const auto answer_grammar = output_grammar(request);
   const auto partition = cache_partition(request.prompt_cache_key);
   auto tools = prepare_tools(request);
-  const auto input = prepare_conversation(request);
+  const auto input = prepare_replay(self, request);
   const auto reasoning = render(self, input, tools, request);
   const std::string &prompt = reasoning.prompt;
+  if (!input.compaction_text.empty() &&
+      prompt.find(input.compaction_text) == std::string::npos)
+    throw failure(
+        AILO_UNSUPPORTED,
+        "The chat template does not preserve authenticated compaction context");
   std::string grammar =
       tools.definitions.empty() ? answer_grammar : tool_grammar(tools, request);
   if (reasoning.active)

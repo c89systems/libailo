@@ -10,6 +10,40 @@ local function config(extra)
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
 do
+  local fixture=assert(loadfile(path.."-compaction.lua"))()
+  local owner=ok(ailo.new_compactor{namespace_id=fixture.namespace_id,key_id=fixture.key_id,key=fixture.key})
+  local receiver=ok(ailo.new(config{compactor=owner,chat_template=fixture.template,context_tokens=1024}))
+  local capabilities=ok(receiver:capabilities());assert(capabilities:find('"compaction_replay":true',1,true) and capabilities:find('"compaction":false',1,true))
+  local input={items={
+    {id="instruction",role="system",pinned=true,content="Keep original instructions."},
+    {kind="compaction",id=fixture.id,encrypted_content=fixture.encrypted_content},
+    {id="recent",content="continue"}},
+    max_tokens=3,temperature=0,logit_bias={{token_id=100,bias=100}}}
+  local history=ok(receiver:new_continuation());assert(history:append(input.items))
+  local fork=ok(history:clone());local item
+  assert(fork:visit(function(v)if v.kind=="compaction" then item=v end end))
+  assert(item.id==fixture.id and item.encrypted_content==fixture.encrypted_content and #item.content==0)
+  item.encrypted_content="caller copy"
+  input.items[2].encrypted_content="tampered"
+  local seen=0
+  fails("invalid_argument",function()return receiver:generate(input,function()seen=seen+1 end)end);assert(seen==0)
+  input.items=nil;input.continuation=history
+  local cancelled=fails("cancelled",function()return receiver:generate(input,function(e)
+    if e.kind=="text_delta" then seen=seen+1;return false end
+  end)end)
+  assert(seen==1 and cancelled.info.usage.completion_tokens==1 and ok(history:info()).item_count==3)
+  assert(fails("sink_failed",function()return receiver:generate(input,function(e)if e.kind=="text_delta" then error("replay sink")end end)end).info.usage.completion_tokens==1)
+  local foreign=ok(ailo.new(config{chat_template=fixture.template,context_tokens=1024}))
+  fails("invalid_argument",function()return foreign:generate(input,function()error("unexpected event")end)end);foreign:close()
+  owner:close();receiver:close()
+  owner=ok(ailo.new_compactor{namespace_id=fixture.namespace_id,key_id=fixture.key_id,key=fixture.key})
+  receiver=ok(ailo.new(config{compactor=owner,chat_template=fixture.template,context_tokens=1024}));owner:close()
+  seen=0;ok(receiver:generate(input,function(e)if e.kind=="text_delta" then seen=seen+1 end end));assert(seen==3)
+  assert(ok(fork:info()).item_count==3);history:close();fork:close();receiver:close()
+  local ordinary=request();ordinary.items[1].encrypted_content="hidden"
+  receiver=ok(ailo.new(config{}));fails("invalid_argument",function()return receiver:generate(ordinary,function()end)end);receiver:close()
+end
+do
   local key="\0"..string.rep("k",31)
   local owner=ok(ailo.new_compactor{namespace_id="lua-tenant",key_id="current",key=key,
     old_keys={{key_id="previous",key=string.rep("p",32)}}})

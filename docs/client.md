@@ -99,13 +99,11 @@ rendering can still reject a conversation the template does not accept.
 Capabilities currently advertise text, streaming, multiple candidates, logit
 bias, log probabilities, constrained output, qualified tool generation and
 bounded prompt/KV reuse, encrypted persistent snapshots and canonical
-continuation state and qualified reasoning separation, with their limits.
-Media and compaction are reported
-unavailable. Media
-and compaction input kinds return unsupported rather than losing semantics.
-Completed function histories are supported as described below. The rest remain
-implementation requirements in the full specification; no compaction or
-protocol handler is claimed by this initial core.
+continuation state, qualified reasoning separation and authenticated compaction
+replay, with their limits. Media and model-driven compaction remain unavailable.
+Media items fail rather than losing semantics. Completed function histories are
+supported as described below. Semantic summary production, automatic compaction
+and protocol handlers remain implementation requirements in the full specification.
 
 ## Prompt/KV cache
 
@@ -240,7 +238,7 @@ receiver for explicit canonical input history; include
 4096 items and 4 MiB of charged canonical storage. Explicit limits must be
 nonzero, at most 4096 items/64 MiB; all content parts together are capped at
 4096. The existing 4 MiB combined text/arguments and supported-item validation
-also apply. Unsupported media or compaction items still fail. Reasoning history
+also apply. Unsupported media still fails. Reasoning history
 requires a compatible template as described below.
 
 Construction binds the owner to actual model/shard content and the effective
@@ -312,9 +310,10 @@ quality benchmark or GPU qualification.
 ## Compaction key ownership
 
 The key-owner foundation is available through
-[`ailo/compaction.h`](../include/ailo/compaction.h). It does not yet expose
-model-driven semantic compaction or accept compaction items in generation;
-the `compaction` capability remains false until that integration is implemented.
+[`ailo/compaction.h`](../include/ailo/compaction.h). Authenticated opaque items
+can be replayed through generation and canonical continuations, advertised by
+`compaction_replay=true`. Model-driven summary production is not yet exposed;
+`compaction` remains false. An envelope alone is not semantic summarization.
 
 `ailo_compactor_new(config, &owner, error)` creates an immutable receiver with
 `info` and `destroy` methods. NULL configuration selects an ephemeral owner.
@@ -326,7 +325,8 @@ are borrowed only during construction; owned derived keys are erased on final
 release. The caller remains responsible for original key bytes.
 
 Attach the owner through `client_config.compactor`. Clients retain the underlying
-owner, so destroying its receiver shell does not invalidate them. Without an
+owner, so destroying its receiver shell does not invalidate them. Continuations
+also retain the owner for authenticated append/clone validation. Without an
 explicit owner, each client gets a separate private ephemeral key/namespace.
 An explicit owner can be shared across clients; a replacement owner with a new
 current key and old decryption keys is the rotation boundary. No key file or
@@ -347,6 +347,35 @@ The focused crypto test covers tampering, wrong keys/namespaces/models/IDs,
 rotation, expiry, bounds, retained-context substitution/order/removal, duplicate
 items, replay/appending, cancellation and owner lifetime. It is evidence for the
 envelope foundation, not evidence that semantic summarization is implemented.
+
+## Authenticated compaction replay
+
+An `AILO_ITEM_COMPACTION` has required `id` and `encrypted_content` strings.
+Role, content and function fields are zero/NULL. It is accepted only with the
+compatible model/template, namespace and keys that issued it. Its canonical
+owned form retains only the opaque token; `visit` never reveals the plaintext
+summary. Appending the entire retained window is atomic, and replay failure
+cannot commit a continuation update. Compatible explicit key owners support
+fork/restart replay; a fresh default client cannot decrypt a prior client's
+private token. Generation authenticates with the receiving client's own keys,
+even when the continuation was originally created by another client.
+
+After envelope authentication and retained-context binding, lonejson validates
+the structured summary: at most 32 facts, each with bounded source index, original
+kind/role/IDs/name, category and nonempty text up to 4096 bytes. Unknown/duplicate
+fields, malformed JSON, invalid source indices and instruction-role provenance
+are rejected. This is explicitly bounded summary materialization. The renderer
+receives an assistant message labeled as untrusted historical context, preserving
+the source metadata as data. It does not create a system/developer instruction.
+A template that drops this context fails before generation events.
+
+One focused integration test uses a signed deterministic scenario containing
+the user goal `Finish ticket T-1.`. It proves provenance, byte-preserved retained
+instructions, copied opaque storage, forks and client lifetimes, key isolation,
+malformed signed summaries and immediate first-token cancellation/recovery.
+The same generated fixture runs through the installed shared C ABI in Lua,
+including the Valgrind ownership gate. These tests qualify replay and streaming,
+not model-driven summary quality or automatic compaction.
 
 ## Reasoning channels and controls
 

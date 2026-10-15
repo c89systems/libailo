@@ -1,4 +1,5 @@
 #include "ailo_cache_internal.hpp"
+#include "ailo_compaction_internal.hpp"
 #include "ailo_continuation_internal.hpp"
 #include "ailo_conversation_internal.hpp"
 #include "ailo_logging_internal.hpp"
@@ -47,6 +48,8 @@ owned_item::owned_item(const ailo_item &input, size_t &bytes, size_t limit,
   call_id = copy(input.call_id, 256, bytes, limit);
   name = copy(input.name, 64, bytes, limit);
   arguments = copy(input.arguments, 4 * 1024 * 1024, bytes, limit);
+  encrypted_content = copy(input.encrypted_content,
+                           4 * ((4 * 1024 * 1024 + 2) / 3), bytes, limit);
   if (input.content_count > 4096 - part_count)
     throw failure(AILO_OUT_OF_RANGE, "Continuation exceeds 4096 content parts");
   part_count += input.content_count;
@@ -69,7 +72,7 @@ owned_item::owned_item(const ailo_item &input, size_t &bytes, size_t limit,
     views.push_back({part.kind, part.data.data(), part.data.size()});
 }
 owned_item::~owned_item() {
-  for (auto *text : {&id, &call_id, &name, &arguments})
+  for (auto *text : {&id, &call_id, &name, &arguments, &encrypted_content})
     if (!text->empty())
       OPENSSL_cleanse(text->data(), text->size());
   for (auto &part : parts)
@@ -85,6 +88,8 @@ ailo_item owned_item::view() const {
   out.call_id = call_id.empty() ? nullptr : call_id.c_str();
   out.name = name.empty() ? nullptr : name.c_str();
   out.arguments = arguments.empty() ? nullptr : arguments.c_str();
+  out.encrypted_content =
+      encrypted_content.empty() ? nullptr : encrypted_content.c_str();
   out.content = views.empty() ? nullptr : views.data();
   out.content_count = views.size();
   return out;
@@ -127,7 +132,8 @@ stage_append(continuation_state &owner, const ailo_item *items, size_t count) {
   request.items = views.data();
   request.item_count = views.size();
   // Validate before copying payload, including null pointers/unsupported kinds.
-  const auto validated = prepare_conversation(request, true);
+  const auto validated =
+      prepare_replay(request, owner.compactor, owner.identity, true);
   auto next = std::make_shared<transcript>(*owner.current);
   for (size_t i = 0; i < count; ++i)
     next->items.push_back(std::make_shared<owned_item>(
@@ -183,6 +189,7 @@ AILO_PUBLIC ailo_status ailo_continuation_new(
     auto value = std::make_unique<ailo::client::continuation_state>();
     value->config = limits;
     value->identity = call.self.conversation_identity;
+    value->compactor = call.self.compactor;
     value->current = std::make_shared<ailo::client::transcript>();
     *output = ailo::client::shell(std::move(value));
   });
@@ -201,6 +208,7 @@ AILO_PUBLIC ailo_status ailo_continuation_clone(ailo_continuation *source,
     auto value = std::make_unique<ailo::client::continuation_state>();
     value->config = self.config;
     value->identity = self.identity;
+    value->compactor = self.compactor;
     value->current = self.current;
     *output = ailo::client::shell(std::move(value));
   });

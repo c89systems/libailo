@@ -67,6 +67,10 @@ typedef struct ailo_item {
   /** Preserve this item during semantic compaction. Instructions are always
    * protected. This flag does not change ordinary template rendering. */
   ailo_bool pinned;
+  /** COMPACTION only: opaque authenticated libailo state, with a required id.
+   * No role/content/function fields are used by that kind. Replay requires
+   * compatible model/template identity, namespace and compactor keys. */
+  const char *encrypted_content;
 } ailo_item;
 
 /** Constructor copies source strings/checksums and model_id/template strings.

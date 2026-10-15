@@ -18,6 +18,9 @@ struct conversation {
   bool rich = false;
   size_t max_parallel_calls = 0;
   size_t pending_calls = 0;
+  // Nonempty only after authenticated replay; the actual renderer must preserve
+  // this lower-trust message verbatim rather than silently dropping history.
+  std::string compaction_text;
 };
 conversation prepare_conversation(const ailo_request &request,
                                   bool allow_pending = false);

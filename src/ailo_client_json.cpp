@@ -139,6 +139,8 @@ void feature_fields(json &out) {
              "preservation; controls qualified per request");
   out.key("compaction");
   out.boolean(false);
+  out.key("compaction_replay");
+  out.boolean(true);
   out.key("continuation");
   out.boolean(true);
   out.key("prompt_cache");

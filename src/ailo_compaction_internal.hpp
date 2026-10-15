@@ -2,6 +2,7 @@
 #define AILO_COMPACTION_INTERNAL_HPP
 #include "ailo/compaction.h"
 #include "ailo_client_internal.hpp"
+#include "ailo_conversation_internal.hpp"
 #include <array>
 
 namespace ailo {
@@ -43,6 +44,20 @@ std::shared_ptr<compaction_state> retain_compactor(ailo_compactor *);
 compaction_digest fingerprint(const ailo_item &);
 void verify_compaction_binding(const compaction_payload &, const ailo_item *,
                                size_t count, size_t position);
+struct summary_fact {
+  size_t source = 0;
+  std::string kind, role, id, call_id, name, category, text;
+};
+// Bounded, explicitly materialized summary data. No output collector is used
+// by ordinary generation. Call only after authenticating replay envelopes.
+std::vector<summary_fact> parse_summary(const std::string &,
+                                        size_t source_items);
+conversation prepare_replay(const ailo_request &,
+                            const std::shared_ptr<compaction_state> &,
+                            const std::string &identity,
+                            bool allow_pending = false,
+                            state *client = nullptr);
+conversation prepare_replay(state &, const ailo_request &);
 } // namespace client
 } // namespace ailo
 #endif

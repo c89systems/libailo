@@ -28,9 +28,9 @@ capability queries.
 Compaction, protocol adapters
 and release completeness remain pending. Native install-tree CMake/pkg-config
 consumers are available.
-The C89/Lua compactor key owner and authenticated envelope/binding foundation
-are implemented; model-driven compaction and its replay/generation integration
-remain pending.
+The C89/Lua compactor key owner, authenticated envelopes and opaque-item replay
+through generation/continuations are implemented. Model-driven summaries and
+automatic compaction remain pending.
 
 The required receiver includes normal-use Hugging Face acquisition, configurable
 XDG model caching and a structured JSON model card for the loaded model. The

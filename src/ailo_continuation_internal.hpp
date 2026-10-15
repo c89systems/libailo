@@ -13,7 +13,7 @@ struct owned_item {
   ailo_item_kind kind;
   ailo_role role;
   ailo_bool pinned;
-  std::string id, call_id, name, arguments;
+  std::string id, call_id, name, arguments, encrypted_content;
   std::vector<owned_part> parts;
   std::vector<ailo_content> views;
   ailo_item view() const;
@@ -32,6 +32,7 @@ struct continuation_state {
   std::atomic<bool> active{false};
   ailo_continuation_config config;
   std::string identity;
+  std::shared_ptr<compaction_state> compactor;
   std::shared_ptr<const transcript> current;
 };
 struct continuation_guard {

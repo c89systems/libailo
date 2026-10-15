@@ -115,6 +115,10 @@ conversation prepare_conversation(const ailo_request &request,
   std::map<std::string, call_state> calls;
   for (size_t i = 0; i < request.item_count; ++i) {
     const auto &item = request.items[i];
+    if (item.encrypted_content)
+      throw failure(
+          AILO_INVALID_ARGUMENT,
+          "Encrypted content requires authenticated compaction replay");
     const auto id = bounded(item.id, 256, false);
     if (!id.empty() && !item_ids.insert(id).second)
       throw failure(AILO_INVALID_ARGUMENT,
