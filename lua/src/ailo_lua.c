@@ -1,5 +1,6 @@
 /* Private Lua 5.5 bridge. Only installed, public C headers are used. */
 #include <ailo/client.h>
+#include <ailo/continuation.h>
 #include <ailo/version.h>
 #include <lauxlib.h>
 #include <limits.h>
@@ -12,6 +13,11 @@
 #define CLIENT "ailo.client"
 #define WORK "ailo.work"
 #define CACHE "ailo.cache"
+#define CONTINUATION "ailo.continuation"
+typedef struct continuation {
+  ailo_continuation *native;
+  int busy;
+} continuation;
 typedef struct cache {
   ailo_cache *native;
 } cache;
@@ -557,6 +563,221 @@ static int event(void *data, const ailo_event *value) {
   lua_pop(L, 1);
   return result;
 }
+static void read_items(lua_State *L, work *storage, int request_index,
+                       ailo_request *request) {
+  lua_getfield(L, request_index, "items");
+  int items = lua_gettop(L);
+  size_t count = lua_rawlen(L, items), parts = 0;
+  storage->items = allocate(L, count, sizeof(ailo_item));
+  for (size_t i = 0; i < count; ++i) {
+    lua_geti(L, items, (lua_Integer)i + 1);
+    lua_getfield(L, -1, "content");
+    size_t n = lua_rawlen(L, -1);
+    if (n > SIZE_MAX - parts)
+      luaL_error(L, "too many content parts");
+    parts += n;
+    lua_pop(L, 2);
+  }
+  storage->content = allocate(L, parts, sizeof(ailo_content));
+  size_t offset = 0;
+  for (size_t i = 0; i < count; ++i) {
+    lua_geti(L, items, (lua_Integer)i + 1);
+    int index = lua_gettop(L);
+    ailo_item *item = &storage->items[i];
+    item->kind = (ailo_item_kind)integer(L, index, "kind");
+    item->role = (ailo_role)integer(L, index, "role");
+    item->id = string(L, index, "id");
+    item->call_id = string(L, index, "call_id");
+    item->name = string(L, index, "name");
+    item->arguments = string(L, index, "arguments");
+    item->pinned = boolean(L, index, "pinned");
+    lua_getfield(L, index, "content");
+    int content = lua_gettop(L);
+    size_t n = lua_rawlen(L, content);
+    item->content = n ? storage->content + offset : NULL;
+    item->content_count = n;
+    for (size_t j = 0; j < n; ++j) {
+      lua_geti(L, content, (lua_Integer)j + 1);
+      int part = lua_gettop(L);
+      ailo_content *out = &storage->content[offset++];
+      out->kind = (ailo_content_kind)integer(L, part, "kind");
+      lua_getfield(L, part, "data");
+      out->data = luaL_checklstring(L, -1, &out->size);
+      lua_pop(L, 2);
+    }
+    lua_pop(L, 2);
+  }
+  request->items = storage->items;
+  request->item_count = count;
+  lua_pop(L, 1);
+}
+static int continuation_gc(lua_State *L) {
+  continuation *value = luaL_checkudata(L, 1, CONTINUATION);
+  ailo_continuation_destroy(value->native);
+  value->native = NULL;
+  return 0;
+}
+static int continuation_close(lua_State *L) {
+  continuation *value = luaL_checkudata(L, 1, CONTINUATION);
+  if (value->busy)
+    return failure(L, AILO_BUSY, "continuation is active");
+  continuation_gc(L);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+static continuation *new_continuation_shell(lua_State *L) {
+  continuation *value = lua_newuserdatauv(L, sizeof(*value), 0);
+  value->native = NULL;
+  value->busy = 0;
+  luaL_setmetatable(L, CONTINUATION);
+  return value;
+}
+static int new_continuation(lua_State *L) {
+  client *value = get_client(L);
+  int failed = ready(L, value);
+  if (failed)
+    return failed;
+  luaL_checktype(L, 2, LUA_TTABLE);
+  ailo_continuation_config config = ailo_continuation_default_config();
+  config.max_items = (size_t)integer(L, 2, "max_items");
+  config.max_bytes = (size_t)integer(L, 2, "max_bytes");
+  continuation *out = new_continuation_shell(L);
+  ailo_error error = {0};
+  begin(L, value, 1);
+  ailo_status status =
+      ailo_continuation_new(value->native, &config, &out->native, &error);
+  end(value);
+  if (status != AILO_OK) {
+    if (value->progress_failed) {
+      status = AILO_SINK_FAILED;
+      strcpy(error.message, "model progress callback failed");
+    }
+    failure(L, status, error.message);
+    if (value->progress_failed)
+      cause(L, 1, 3);
+    return 2;
+  }
+  return 1;
+}
+static int continuation_clone(lua_State *L) {
+  continuation *value = luaL_checkudata(L, 1, CONTINUATION);
+  continuation *out = new_continuation_shell(L);
+  ailo_error error = {0};
+  ailo_status status =
+      ailo_continuation_clone(value->native, &out->native, &error);
+  if (status != AILO_OK)
+    return failure(L, status, error.message);
+  return 1;
+}
+static int continuation_info(lua_State *L) {
+  continuation *value = luaL_checkudata(L, 1, CONTINUATION);
+  ailo_continuation_info out = {0};
+  ailo_error error = {0};
+  ailo_status status = ailo_continuation_get_info(value->native, &out, &error);
+  if (status != AILO_OK)
+    return failure(L, status, error.message);
+  lua_createtable(L, 0, 5);
+  set_integer(L, "item_count", (lua_Integer)out.item_count);
+  set_integer(L, "storage_bytes", (lua_Integer)out.storage_bytes);
+  set_integer(L, "pending_calls", (lua_Integer)out.pending_calls);
+  push_u64(L, out.revision);
+  lua_setfield(L, -2, "revision");
+  set_string(L, "identity", out.identity);
+  return 1;
+}
+static int continuation_append(lua_State *L) {
+  continuation *value = luaL_checkudata(L, 1, CONTINUATION);
+  if (!value->native)
+    return failure(L, AILO_INVALID_ARGUMENT, "continuation is closed");
+  if (value->busy)
+    return failure(L, AILO_BUSY, "continuation is active");
+  work *storage = new_work(L);
+  lua_pushvalue(L, 2);
+  lua_setiuservalue(L, storage->index, 3);
+  ailo_request request = ailo_request_default();
+  read_items(L, storage, 2, &request);
+  ailo_error error = {0};
+  ailo_status status = ailo_continuation_append(value->native, request.items,
+                                                request.item_count, &error);
+  release_work(storage);
+  if (status != AILO_OK)
+    return failure(L, status, error.message);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+static int item_thunk(lua_State *L) {
+  const ailo_item *item = lua_touserdata(L, 2);
+  lua_getiuservalue(L, 1, 1);
+  static const char *kinds[] = {"message", "function_call", "function_result",
+                                "reasoning", "compaction"};
+  static const char *roles[] = {"user", "system", "developer", "assistant",
+                                "tool"};
+  lua_createtable(L, 0, 8);
+  set_string(L, "kind", kinds[item->kind]);
+  set_string(L, "role", roles[item->role]);
+  set_string(L, "id", item->id);
+  set_string(L, "call_id", item->call_id);
+  set_string(L, "name", item->name);
+  set_string(L, "arguments", item->arguments);
+  lua_pushboolean(L, item->pinned);
+  lua_setfield(L, -2, "pinned");
+  lua_createtable(L, (int)item->content_count, 0);
+  for (size_t i = 0; i < item->content_count; ++i) {
+    lua_createtable(L, 0, 2);
+    set_string(L, "kind", "text");
+    lua_pushlstring(L, item->content[i].data, item->content[i].size);
+    lua_setfield(L, -2, "data");
+    lua_seti(L, -2, (lua_Integer)i + 1);
+  }
+  lua_setfield(L, -2, "content");
+  lua_call(L, 1, 1);
+  return 1;
+}
+static int item_visit(void *user, const ailo_item *item) {
+  work *storage = user;
+  lua_State *L = storage->L;
+  if (!lua_checkstack(L, 5)) {
+    storage->failed = 1;
+    return -1;
+  }
+  lua_pushcfunction(L, item_thunk);
+  lua_pushvalue(L, storage->index);
+  lua_pushlightuserdata(L, (void *)item);
+  if (lua_pcall(L, 2, 1, 0) != LUA_OK) {
+    storage->failed = 1;
+    lua_setiuservalue(L, storage->index, 4);
+    return -1;
+  }
+  int result = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
+  lua_pop(L, 1);
+  return result;
+}
+static int continuation_visit(lua_State *L) {
+  continuation *value = luaL_checkudata(L, 1, CONTINUATION);
+  if (!value->native)
+    return failure(L, AILO_INVALID_ARGUMENT, "continuation is closed");
+  if (value->busy)
+    return failure(L, AILO_BUSY, "continuation is active");
+  luaL_checktype(L, 2, LUA_TFUNCTION);
+  work *storage = new_work(L);
+  lua_pushvalue(L, 2);
+  lua_setiuservalue(L, storage->index, 1);
+  lua_pushvalue(L, 1);
+  lua_setiuservalue(L, storage->index, 2);
+  ailo_error error = {0};
+  value->busy = 1;
+  ailo_status status =
+      ailo_continuation_visit(value->native, item_visit, storage, &error);
+  value->busy = 0;
+  if (status != AILO_OK) {
+    failure(L, status, error.message);
+    if (storage->failed)
+      cause(L, storage->index, 4);
+    return 2;
+  }
+  lua_pushboolean(L, 1);
+  return 1;
+}
 static int generate(lua_State *L) {
   client *value = get_client(L);
   int error_result = ready(L, value);
@@ -583,6 +804,15 @@ static int generate(lua_State *L) {
   request.output_format = (ailo_output_format)integer(L, 2, "output_format");
   request.json_schema = string(L, 2, "json_schema");
   request.prompt_cache_key = string(L, 2, "prompt_cache_key");
+  lua_getfield(L, 2, "continuation");
+  continuation *history =
+      lua_isnil(L, -1) ? NULL : luaL_checkudata(L, -1, CONTINUATION);
+  if (history && !history->native)
+    return failure(L, AILO_INVALID_ARGUMENT, "continuation is closed");
+  if (history && history->busy)
+    return failure(L, AILO_BUSY, "continuation is active");
+  request.continuation = history ? history->native : NULL;
+  lua_pop(L, 1);
   request.tool_choice = (ailo_tool_choice)integer(L, 2, "tool_choice");
   request.tool_name = string(L, 2, "tool_name");
   request.parallel_tool_calls = boolean(L, 2, "parallel_tool_calls");
@@ -631,52 +861,10 @@ static int generate(lua_State *L) {
     }
     request.logit_bias = storage->biases;
   }
-  lua_getfield(L, 2, "items");
-  int items = lua_gettop(L);
-  size_t count = lua_rawlen(L, items), parts = 0;
-  storage->items = allocate(L, count, sizeof(ailo_item));
-  for (size_t i = 0; i < count; ++i) {
-    lua_geti(L, items, (lua_Integer)i + 1);
-    lua_getfield(L, -1, "content");
-    size_t n = lua_rawlen(L, -1);
-    if (n > SIZE_MAX - parts)
-      return failure(L, AILO_OUT_OF_RANGE, "too many content parts");
-    parts += n;
-    lua_pop(L, 2);
-  }
-  storage->content = allocate(L, parts, sizeof(ailo_content));
-  size_t offset = 0;
-  for (size_t i = 0; i < count; ++i) {
-    lua_geti(L, items, (lua_Integer)i + 1);
-    int index = lua_gettop(L);
-    ailo_item *item = &storage->items[i];
-    item->kind = (ailo_item_kind)integer(L, index, "kind");
-    item->role = (ailo_role)integer(L, index, "role");
-    item->id = string(L, index, "id");
-    item->call_id = string(L, index, "call_id");
-    item->name = string(L, index, "name");
-    item->arguments = string(L, index, "arguments");
-    lua_getfield(L, index, "content");
-    int content = lua_gettop(L);
-    size_t n = lua_rawlen(L, content);
-    item->content = n ? storage->content + offset : NULL;
-    item->content_count = n;
-    for (size_t j = 0; j < n; ++j) {
-      lua_geti(L, content, (lua_Integer)j + 1);
-      int part = lua_gettop(L);
-      ailo_content *out = &storage->content[offset++];
-      out->kind = (ailo_content_kind)integer(L, part, "kind");
-      lua_getfield(L, part, "data");
-      out->data = luaL_checklstring(L, -1, &out->size);
-      lua_pop(L, 2);
-    }
-    lua_pop(L, 2);
-  }
-  request.items = storage->items;
-  request.item_count = count;
+  read_items(L, storage, 2, &request);
   lua_getfield(L, 2, "stop");
   int stops = lua_gettop(L);
-  count = lua_rawlen(L, stops);
+  size_t count = lua_rawlen(L, stops);
   if (count) {
     storage->strings = allocate(L, count, sizeof(char *));
     for (size_t i = 0; i < count; ++i) {
@@ -689,10 +877,14 @@ static int generate(lua_State *L) {
   }
   ailo_run_info output = {0};
   ailo_error error = {0};
+  if (history)
+    history->busy = 1;
   begin(L, value, 1);
   ailo_status status = ailo_client_generate(value->native, &request, event,
                                             storage, &output, &error);
   end(value);
+  if (history)
+    history->busy = 0;
   release_work(storage);
   if (status != AILO_OK) {
     if (value->progress_failed) {
@@ -848,8 +1040,24 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
   lua_pushliteral(L, "ailo.cache");
   lua_setfield(L, -2, "__metatable");
   lua_pop(L, 1);
+  luaL_newmetatable(L, CONTINUATION);
+  static const luaL_Reg continuation_methods[] = {
+      {"append", continuation_append}, {"clone", continuation_clone},
+      {"info", continuation_info},     {"visit", continuation_visit},
+      {"close", continuation_close},   {NULL, NULL}};
+  luaL_setfuncs(L, continuation_methods, 0);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, continuation_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pushcfunction(L, continuation_close);
+  lua_setfield(L, -2, "__close");
+  lua_pushliteral(L, "ailo.continuation");
+  lua_setfield(L, -2, "__metatable");
+  lua_pop(L, 1);
   luaL_newmetatable(L, CLIENT);
   static const luaL_Reg methods[] = {{"generate", generate},
+                                     {"new_continuation", new_continuation},
                                      {"model_card", card},
                                      {"capabilities", capabilities},
                                      {"devices", devices},

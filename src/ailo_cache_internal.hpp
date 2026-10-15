@@ -67,7 +67,7 @@ restore_checkpoint(state &, const cache_entry &, size_t count,
                    bool *allocation_failed = nullptr);
 std::shared_ptr<cache_state> retain_cache(ailo_cache *cache);
 std::string cache_partition(const char *source);
-void identify_cache(state &client);
+void identify_cache(state &client, bool required = false);
 uint64_t elapsed_us(std::chrono::steady_clock::time_point since);
 } // namespace client
 } // namespace ailo

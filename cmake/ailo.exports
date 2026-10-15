@@ -18,6 +18,13 @@ ailo_client_new_with_logger
 ailo_client_snapshot_export
 ailo_client_snapshot_import
 ailo_error_clear
+ailo_continuation_append
+ailo_continuation_clone
+ailo_continuation_default_config
+ailo_continuation_destroy
+ailo_continuation_get_info
+ailo_continuation_new
+ailo_continuation_visit
 ailo_i64_from_long
 ailo_i64_to_long
 ailo_request_default

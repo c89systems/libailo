@@ -292,6 +292,12 @@ resource limits must be explicit rather than borrowing its cloud guarantees.
 
 ## Continuation and retained conversation state
 
+The local owned continuation receiver is implemented in
+[`ailo/continuation.h`](../include/ailo/continuation.h). Its transactional input,
+explicit output ownership, fork and model/template binding semantics are in
+[the client documentation](client.md#owned-continuation-state). Protocol records,
+semantic compaction and their remaining requirements below are separate work.
+
 Provide owned canonical continuation state containing ordered items, current
 instructions/protected items and model/template identity, separately from KV
 cache entries. Explicit clone/fork operations preserve immutable prior state.

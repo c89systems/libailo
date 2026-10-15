@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 typedef struct ailo_client ailo_client;
+typedef struct ailo_continuation ailo_continuation;
 struct pslog_logger;
 
 typedef enum ailo_backend_policy {
@@ -62,6 +63,9 @@ typedef struct ailo_item {
   const ailo_content *content;
   size_t content_count;
   const char *arguments;
+  /** Preserve this item during semantic compaction. Instructions are always
+   * protected. This flag does not change ordinary template rendering. */
+  ailo_bool pinned;
 } ailo_item;
 
 /** Constructor copies source strings/checksums and model_id/template strings.
@@ -166,6 +170,10 @@ typedef struct ailo_request {
   /** Optional application partition within the explicit/private owner. UTF-8,
    * at most 256 bytes. Never bypasses token/model/configuration identity. */
   const char *prompt_cache_key;
+  /** Optional owned canonical input history. Generation reads it plus items,
+   * and appends only the supplied items after a successful final sink event.
+   * Generated output is never collected here; append it explicitly. */
+  ailo_continuation *continuation;
 } ailo_request;
 
 typedef enum ailo_finish_reason {

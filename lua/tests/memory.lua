@@ -15,6 +15,20 @@ local function request()
     logprobs=true,top_logprobs=2,logit_bias={{token_id=2,bias=100}}}
 end
 local marker={message="callback marker"}
+do
+  local receiver=ok(ailo.new(config{disable_prompt_cache=true}))
+  local history=ok(receiver:new_continuation())
+  assert(history:append{{content="x",pinned=true}})
+  local fork=ok(history:clone())
+  local input=request();input.continuation=history
+  fails("sink_failed",function()return receiver:generate(input,function()error(marker)end)end)
+  ok(receiver:generate(input,function()collectgarbage("collect")end))
+  assert(ok(history:info()).item_count==2 and ok(fork:info()).item_count==1)
+  fails("sink_failed",function()return history:visit(function()error(marker)end)end)
+  assert(history:visit(function(item)item.content=nil;collectgarbage("collect")end))
+  receiver:close();history:close()
+  assert(fork:visit(function()end));fork:close()
+end
 local logger=pslog.new_json{output=work.."/memory.log",min_level="trace"}
 local weak=setmetatable({logger},{__mode="v"})
 local client=ok(ailo.new(config{logger=logger}))

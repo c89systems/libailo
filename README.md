@@ -22,7 +22,7 @@ The initial inference receiver is implemented in [include/ailo/client.h](include
 model acquisition/loading, Jinja templates, real token streaming, sampling,
 multiple candidates, log probabilities, constrained JSON, generated function
 calls, bounded prompt/KV reuse, opt-in encrypted snapshots, cancellation, model
-cards and capability queries.
+cards, owned canonical continuation/forks and capability queries.
 [docs/client.md](docs/client.md) describes its supported surface and verification.
 Compaction, protocol adapters
 and release completeness remain pending. Native install-tree CMake/pkg-config

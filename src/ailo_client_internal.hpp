@@ -52,6 +52,7 @@ struct state {
   std::unique_ptr<logging_state> logging;
   std::shared_ptr<cache_state> cache;
   std::string cache_identity;
+  std::string conversation_identity;
   std::string last_checkpoint, last_checkpoint_partition;
   llama_context_params context_parameters{};
   explicit state(const ailo_client_config &input, pslog_logger *logger);

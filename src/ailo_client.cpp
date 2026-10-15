@@ -1,5 +1,6 @@
 #include "ailo_cache_internal.hpp"
 #include "ailo_client_internal.hpp"
+#include "ailo_continuation_internal.hpp"
 #include "ailo_logging_internal.hpp"
 #include <algorithm>
 #include <climits>
@@ -309,8 +310,16 @@ AILO_PUBLIC ailo_status ailo_client_generate(ailo_client *client,
     ailo::client::operation call(client);
     ailo::client::log_scope logs(call.self.logging.get(),
                                  ailo::client::log_phase::generate);
+    std::unique_ptr<ailo::client::continuation_transaction> history;
+    if (request->continuation) {
+      history = std::make_unique<ailo::client::continuation_transaction>(
+          call.self, *request);
+    }
     logs.trace("Starting generation");
-    ailo::client::generate(call.self, *request, sink, user, *output);
+    ailo::client::generate(call.self, history ? history->input : *request, sink,
+                           user, *output);
+    if (history)
+      history->commit();
     logs.trace("Generation complete");
   });
 }

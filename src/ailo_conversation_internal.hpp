@@ -15,8 +15,10 @@ struct conversation {
   std::vector<chat_message> messages;
   bool rich = false;
   size_t max_parallel_calls = 0;
+  size_t pending_calls = 0;
 };
-conversation prepare_conversation(const ailo_request &request);
+conversation prepare_conversation(const ailo_request &request,
+                                  bool allow_pending = false);
 std::string apply_template(const char *source, const llama_vocab *vocab,
                            const conversation &input,
                            const std::string &tools = "[]",

@@ -1,6 +1,12 @@
 local core = require("ailo.core")
 local M = { version = core.version }
 local methods = {}
+local continuation_methods={}
+local continuation_mt={__index=continuation_methods,__close=function(self)self:close()end}
+local function wrap_continuation(native,err)
+  if not native then return nil,err end
+  return setmetatable({_native=native},continuation_mt)
+end
 local function invalid(message) error({code="invalid_argument",status=1,message=message}, 0) end
 local function object(t, keys, name)
   if type(t) ~= "table" then invalid(name .. " must be a table") end
@@ -125,14 +131,23 @@ end
 local roles={user=0,system=1,developer=2,assistant=3,tool=4}
 local kinds={message=0,function_call=1,function_result=2,reasoning=3,compaction=4}
 local content_kinds={text=0,image=1,audio=2,refusal=3}
-local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls prompt_cache_key")
-local item_keys=keys("kind role id call_id name content arguments")
+local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls prompt_cache_key continuation")
+local item_keys=keys("kind role id call_id name content arguments pinned")
 local function request(input)
   object(input,request_keys,"request")
   local out={items={},stop={},logit_bias={},tools={},allowed_tools={}}
-  for i=1,array(input.items,"items") do
-    local item=object(input.items[i],item_keys,"item")
+  if input.continuation~=nil then
+    if getmetatable(input.continuation)~=continuation_mt then invalid("continuation must be an ailo continuation") end
+    out.continuation=input.continuation._native
+  end
+  local input_items=input.items
+  if input_items==nil and out.continuation then input_items={} end
+  local item_count=array(input_items,"items")
+  if item_count>4096 then invalid("too many conversation items") end
+  for i=1,item_count do
+    local item=object(input_items[i],item_keys,"item")
     local v={kind=enumeration(item.kind,kinds,0,"item kind"),role=enumeration(item.role,roles,0,"role"),content={}}
+    v.pinned=boolean(item.pinned,"pinned")
     for _,k in ipairs{"id","call_id","name","arguments"} do v[k]=str(item[k],k,true) end
     if type(item.content)=="string" then v.content[1]={kind=0,data=item.content}
     elseif item.content ~= nil then
@@ -188,6 +203,30 @@ local function request(input)
   end
   if input.stop ~= nil then for i=1,array(input.stop,"stop") do out.stop[i]=str(input.stop[i],"stop",false) end end
   return out
+end
+function methods:new_continuation(config)
+  return guarded(function()
+    if config==nil then config={} end
+    config=object(config,keys("max_items max_bytes"),"continuation")
+    return wrap_continuation(self._native:new_continuation{
+      max_items=number(config.max_items,"max_items",4096,true,1,4096),
+      max_bytes=number(config.max_bytes,"max_bytes",4*1024*1024,true,1,64*1024*1024)})
+  end)
+end
+function continuation_methods:append(items)
+  return guarded(function()return self._native:append(request{items=items})end)
+end
+function continuation_methods:clone()
+  return wrap_continuation(self._native:clone())
+end
+function continuation_methods:visit(sink)
+  return guarded(function()
+    if type(sink)~="function" then invalid("sink must be a function") end
+    return self._native:visit(sink)
+  end)
+end
+for _,name in ipairs{"info","close"} do
+  continuation_methods[name]=function(self)return self._native[name](self._native)end
 end
 function methods:generate(input,sink)
   return guarded(function()

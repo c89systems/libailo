@@ -6,6 +6,10 @@ CMakeLists.txt
 cmake/AiloCacheIdentity.cmake
 cmake/cache-build.h.in
 include/ailo/cache.h
+include/ailo/continuation.h
+src/ailo_continuation.cpp
+src/ailo_continuation_internal.hpp
+tests/continuation.cpp
 src/ailo_cache.cpp
 src/ailo_cache_internal.hpp
 src/ailo_cache_identity.cpp

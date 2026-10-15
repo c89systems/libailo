@@ -136,6 +136,8 @@ void feature_fields(json &out) {
   out.boolean(false);
   out.key("compaction");
   out.boolean(false);
+  out.key("continuation");
+  out.boolean(true);
   out.key("prompt_cache");
   out.boolean(true);
   out.key("default_prompt_cache_bytes");

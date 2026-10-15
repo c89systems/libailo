@@ -97,7 +97,8 @@ void validate_arguments(const std::string &value) {
 }
 } // namespace
 
-conversation prepare_conversation(const ailo_request &request) {
+conversation prepare_conversation(const ailo_request &request,
+                                  bool allow_pending) {
   if (!request.items || !request.item_count || request.item_count > 4096)
     throw failure(AILO_INVALID_ARGUMENT,
                   "Request needs between 1 and 4096 items");
@@ -201,10 +202,11 @@ conversation prepare_conversation(const ailo_request &request) {
         AILO_UNSUPPORTED,
         "The requested conversation item kind needs an unavailable adapter");
   }
-  if (!pending.empty())
+  if (!allow_pending && !pending.empty())
     throw failure(
         AILO_INVALID_ARGUMENT,
         "Unresolved function calls need their results before generation");
+  output.pending_calls = pending.size();
   return output;
 }
 } // namespace client

@@ -86,6 +86,32 @@ Lua key strings remain the caller's responsibility. Snapshot buffers are
 explicitly materialized within `max_snapshot_bytes`; output deltas remain
 immediate. See [snapshot semantics](../docs/client.md#encrypted-prompt-snapshots).
 
+Explicit canonical history uses its own receiver:
+
+```lua
+local history = assert(client:new_continuation {max_items=1024, max_bytes=4*1024*1024})
+assert(history:append {{role="system", content="Answer briefly.", pinned=true}})
+local fork = assert(history:clone())
+assert(client:generate({continuation=history, items={{role="user", content="Hello"}},
+  max_tokens=32}, function(event) consume(event) end))
+assert(history:visit(function(item) inspect(item) end))
+local info = assert(history:info())
+assert(info.item_count == 2) -- streamed output was never collected/appended
+fork:close()
+history:close()
+```
+
+Generation commits only supplied input after success, including final callback
+acceptance. Failure/cancellation leaves history unchanged. Append generated
+assistant messages or function calls explicitly if full replay is needed.
+Pending tool groups may be stored, but their results must be complete before
+generation. `clone` forks immutable prior items; appends diverge. Owners survive
+client destruction and are separate from KV eviction. `visit` supplies copied
+Lua item/content tables, so modifying them does not alter history. Reentry and
+close during a callback return `busy`. The C ABI semantics and bounds are in
+[continuation state](../docs/client.md#owned-continuation-state); this receiver
+does not create retained OpenAI response records.
+
 Requests contain ordered `items` (kind, role, id, call_id, name, arguments and
 content), `max_tokens`, `candidates`, `temperature`, `top_p`, `seed`,
 `frequency_penalty`, `presence_penalty`, `stop`, `max_output_bytes`, `output_format`

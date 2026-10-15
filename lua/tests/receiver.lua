@@ -10,6 +10,42 @@ local function config(extra)
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
 do
+  local client=ok(ailo.new(config{disable_prompt_cache=true}))
+  fails("invalid_argument",function()return client:new_continuation(false)end)
+  local history=ok(client:new_continuation())
+  local original={{id="instruction",role="system",content="remember",pinned=true}}
+  assert(history:append(original));original[1].content="changed"
+  local fork=ok(history:clone());assert(ok(fork:info()).item_count==1)
+  local input=request();input.items[1].id="question";input.continuation=history
+  fails("invalid_argument",function()return client:generate({items=false,continuation=history},function()end)end)
+  fails("cancelled",function()return client:generate(input,function(e)if e.kind=="run_end" then return false end end)end)
+  assert(ok(history:info()).item_count==1)
+  local count=0
+  ok(client:generate(input,function(e)
+    if e.kind=="text_delta" then count=count+1 end
+    fails("busy",function()return history:append{}end)
+    fails("busy",function()return history:clone()end)
+    fails("busy",function()return history:close()end)
+  end))
+  assert(count>0 and ok(history:info()).item_count==2 and ok(fork:info()).item_count==1)
+  local seen=0
+  assert(history:visit(function(item)
+    seen=seen+1;if seen==1 then assert(item.pinned and item.content[1].data=="remember") end
+    fails("busy",function()return history:close()end)
+    item.content[1].data="caller copy"
+  end));assert(seen==2)
+  local marker={failure=true}
+  assert(fails("sink_failed",function()return history:visit(function()error(marker)end)end).cause==marker)
+  fails("cancelled",function()return history:visit(function()return false end)end)
+  fails("invalid_argument",function()return history:append{{id="question",content="duplicate"}}end)
+  client:close();client=ok(ailo.new(config{disable_prompt_cache=true}))
+  ok(client:generate({continuation=history,max_tokens=3,temperature=0},function()end))
+  assert(ok(history:info()).revision==2)
+  assert(fork:close() and history:close() and history:close())
+  fails("invalid_argument",function()return history:info()end)
+  client:close()
+end
+do
   local options={namespace_id="lua-snapshots",directory=work.."/snapshots",max_disk_bytes=1024*1024,
     disk_ttl_seconds=60,key_id="test-key",key=string.rep("k",32)}
   local cache=ok(ailo.new_cache(options));local first=ok(ailo.new(config{cache=cache}))

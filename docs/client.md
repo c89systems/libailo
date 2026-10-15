@@ -98,7 +98,8 @@ rendering can still reject a conversation the template does not accept.
 
 Capabilities currently advertise text, streaming, multiple candidates, logit
 bias, log probabilities, constrained output, qualified tool generation and
-bounded prompt/KV reuse and encrypted persistent snapshots, with their limits.
+bounded prompt/KV reuse, encrypted persistent snapshots and canonical
+continuation state, with their limits.
 Separated reasoning, media and compaction are reported
 unavailable. Reasoning, media
 and compaction input kinds return unsupported rather than losing semantics.
@@ -230,6 +231,82 @@ process. It reused 40 of 41 prompt tokens and matched the cold run's token IDs
 and log probabilities within 1e-6. The automatic and named encrypted files
 totaled 1,846,496 bytes. This qualifies the CPU full-attention path; GPU and
 other architecture qualification remain separate.
+
+## Owned continuation state
+
+`ailo_continuation_new(client, config, &history, error)` creates a separate
+receiver for explicit canonical input history; include
+[`ailo/continuation.h`](../include/ailo/continuation.h). NULL config selects
+4096 items and 4 MiB of charged canonical storage. Explicit limits must be
+nonzero, at most 4096 items/64 MiB; all content parts together are capped at
+4096. The existing 4 MiB combined text/arguments and supported-item validation
+also apply. Unsupported media, reasoning or compaction items still fail.
+
+Construction binds the owner to actual model/shard content and the effective
+tokenizer/template, acquiring a lazy model if needed. The owner does not retain
+the client or a KV cache. A compatible client can use it after the original
+client is destroyed. Canonical items can be re-rendered with another context
+size or backend; native cache/snapshot compatibility remains stricter. Changed
+model content or template is rejected before generation events.
+
+The receiver exposes `append`, `clone`, `info`, `visit` and `destroy`, with
+equivalent free functions. Append copies ordered items, preserving IDs,
+roles/names, original argument bytes, content-part boundaries and `pinned`.
+System/developer roles represent protected instructions; an explicit pinned
+flag records application protection for compaction. Ordinary rendering is
+unchanged by this flag. Validation is atomic over the complete resulting
+history. Duplicate IDs, orphan/duplicate results and interrupted pending groups
+leave the prior history unchanged. A final unresolved tool group or partial
+results may be stored between turns; generation requires all its results.
+
+`clone` is the fork operation: owners initially share immutable items, then
+diverge on append. Destroying either owner does not invalidate the other.
+`info` reports item count, pending calls, charged bytes, identity and revision.
+Each successful nonempty append increments the revision once; empty append
+does not. `visit` borrows one item at a time, with positive/zero/negative sink
+results meaning continue/cancel/failure. Every operation is try-only; overlap
+or callback reentry on the same owner returns BUSY. Independent forks can be
+used independently. Join all operations before destroying a C shell; Lua also
+rejects explicit close while the owner is active.
+
+Set `request.continuation=history` to generate from stored items followed by
+the request's new items. New items are staged before inference and committed
+only after the final run event is accepted. Preflight failure, cancellation,
+model/sink failure or rejection of the final event leaves canonical state and
+revision unchanged. Already-delivered deltas cannot be recalled. A request
+without new items replays history without advancing its revision. Stateless
+requests keep their existing behavior. Sampling controls, tools and other
+request configuration remain request-scoped.
+
+This operation never collects or appends generated output. The application or
+protocol adapter explicitly owns any transcript collection, and appends its
+completed assistant messages/function calls itself. A tool-call finish can
+therefore be appended as a pending group before later results arrive. Input
+history is explicitly materialized; generation deltas continue immediately.
+Charged bytes include item/content records, text and metadata strings, not
+allocator overhead, the model/native contexts or temporary validation views.
+Staging temporarily retains old and new windows; immutable shared items avoid
+duplicating the old payload. Canonical payload is wiped when its last owner
+releases it. No background storage, files or automatic transcript collector is
+introduced, and KV eviction/clearing does not remove history.
+
+This supplies local canonical state, not an OpenAI response repository.
+Retention, authorization, retrieval/deletion, top-level instruction inheritance
+and `previous_response_id` semantics remain protocol adapter responsibilities.
+The focused continuation test proves copied/forked ownership, pending parallel
+tools, success/failure transactions, immediate output, busy reentry, compatible
+client reconstruction/context resizing, incompatible templates and budgets.
+Lua covers the installed C ABI, copied visitor values, callback errors,
+cancellation and ownership under Valgrind.
+
+The cached SmolLM2-135M instruct model was also exercised through the installed
+Lua/C ABI. Its first run delivered four immediate text deltas; canonical history
+contained only the system/user inputs until the proof explicitly appended the
+assistant text. A replacement client with context enlarged from 256 to 512
+continued the four-item history, while its fork retained only the original
+instruction. Equivalent lowercase/uppercase verified model checksums produced
+the same canonical identity. This is CPU integration evidence, not a model
+quality benchmark or GPU qualification.
 
 ## Conversation and function history
 

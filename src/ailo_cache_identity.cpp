@@ -64,11 +64,12 @@ std::string file_digest(state &self, const std::string &path) {
 }
 } // namespace
 
-void identify_cache(state &self) {
-  if (!self.cache || !self.cache->available() || !self.cache_identity.empty())
+void identify_cache(state &self, bool required) {
+  if (!self.cache_identity.empty() ||
+      (!required && (!self.cache || !self.cache->available())))
     return;
   try {
-    std::string identity;
+    std::string identity, canonical = "ailo-canonical-model-template:";
     auto add = [&](const std::string &value) {
       identity += std::to_string(value.size());
       identity += ':';
@@ -89,16 +90,27 @@ void identify_cache(state &self) {
     if (!split_count.empty() && split_count != "1")
       source.split_shards = 1;
     const auto files = model::make_plan(&source).files;
+    auto add_semantic = [&](const std::string &value) {
+      canonical += std::to_string(value.size()) + ':' + value;
+      add(value);
+    };
     for (size_t i = 0; i < files.size(); ++i) {
       const bool verified = files.size() == self.source.digests.size() &&
                             !self.source.digests[i].empty();
-      add(verified ? self.source.digests[i] : file_digest(self, files[i].path));
+      auto digest =
+          verified ? self.source.digests[i] : file_digest(self, files[i].path);
+      for (char &ch : digest)
+        if (ch >= 'A' && ch <= 'F')
+          ch = static_cast<char>(ch - 'A' + 'a');
+      add_semantic(digest);
     }
     const char *tmpl =
         self.config.chat_template
             ? self.config.chat_template
             : llama_model_chat_template(self.model.get(), nullptr);
-    add(tmpl ? tmpl : "");
+    add_semantic(tmpl ? tmpl : "");
+    self.conversation_identity =
+        model::digest_hex(canonical.data(), canonical.size());
     add(std::to_string(llama_n_ctx(self.context.get())));
     add(std::to_string(llama_n_batch(self.context.get())));
     add(std::to_string(llama_n_ubatch(self.context.get())));
