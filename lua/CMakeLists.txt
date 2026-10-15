@@ -39,7 +39,7 @@ if(AILO_LUA_TESTS)
   set(cpath "${CMAKE_INSTALL_PREFIX}/lib/lua/5.5/?.so")
   string(REPLACE ";" ":" runtime "${AILO_LUA_RUNTIME_PATHS}")
   add_test(NAME lua-receiver COMMAND "${AILO_LUA_LOADER}" --library-path "${runtime}" $<TARGET_FILE:ailo_lua_runner>
-    "${CMAKE_CURRENT_SOURCE_DIR}/tests/receiver.lua" "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua" "${cpath}" "${AILO_LUA_MODEL}" "${AILO_LUA_WORK}")
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/receiver.lua" "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua" "${cpath}" "${AILO_LUA_MODEL}" "${AILO_LUA_WORK}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/record_repository.lua")
   add_test(NAME lua-public-imports COMMAND "${CMAKE_COMMAND}"
     "-DREADELF=${CMAKE_READELF}" "-DNM=${CMAKE_NM}"
     "-DMODULE=${CMAKE_INSTALL_PREFIX}/lib/lua/5.5/ailo/core.so"
@@ -53,7 +53,7 @@ if(AILO_LUA_TESTS)
       $<TARGET_FILE:ailo_lua_runner>
       "${CMAKE_CURRENT_SOURCE_DIR}/tests/memory.lua"
       "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua"
-      "${cpath}" "${AILO_LUA_MODEL}" "${AILO_LUA_WORK}")
+      "${cpath}" "${AILO_LUA_MODEL}" "${AILO_LUA_WORK}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/record_repository.lua")
     set_tests_properties(lua-memory PROPERTIES TIMEOUT 180 LABELS "lua;memory;local")
   endif()
   get_target_property(pslog_library pslog::pslog_shared IMPORTED_LOCATION)

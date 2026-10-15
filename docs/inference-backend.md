@@ -27,7 +27,8 @@ conflicting, duplicate and unavailable semantics fail instead of being ignored.
 This is request materialization, not generated-output buffering. Public Chat
 JSON/SSE and C repository operations are now connected through
 [the adapter surface](openai.md). Responses, handler/model routing, stored list/
-update routes and the Lua repository-provider bridge remain required.
+update routes remain required. Lua exposes the same retention profile,
+repository receiver and direct retrieval/deletion primitives through the C ABI.
 
 API function schemas use the existing private schema helper for the documented
 [strict-mode defaults](https://developers.openai.com/api/docs/guides/function-calling#strict-mode):

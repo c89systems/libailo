@@ -5,6 +5,7 @@ lua-ailo.rockspec.in
 source-manifest.txt
 src/ailo_lua.c
 tests/receiver.lua
+tests/record_repository.lua
 tests/memory.lua
 tests/runner.c
 tests/imports.cmake

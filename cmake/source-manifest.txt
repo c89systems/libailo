@@ -224,6 +224,7 @@ lua/lua-ailo.rockspec.in
 lua/source-manifest.txt
 lua/src/ailo_lua.c
 lua/tests/receiver.lua
+lua/tests/record_repository.lua
 lua/tests/memory.lua
 lua/tests/runner.c
 scripts/lua.sh

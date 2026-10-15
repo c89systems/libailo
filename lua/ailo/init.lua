@@ -54,8 +54,36 @@ local function guarded(fn, ...)
   return table.unpack(result,2,result.n)
 end
 local source_keys=keys("local_path repo revision filename cache_root sha256 allow_download split_shards bearer_token max_bytes connect_timeout_ms transfer_timeout_ms max_attempts progress")
-local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache compactor")
+local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache compactor openai")
 local backends={auto=0,cpu=1,vulkan=2}
+local function u64(value,name)
+  if type(value)=="table" then
+    object(value,keys("hi lo"),name)
+    return {hi=number(value.hi,name..".hi",0,true,0,0xffffffff),lo=number(value.lo,name..".lo",0,true,0,0xffffffff)}
+  end
+  return number(value,name,0,true,0,math.maxinteger)
+end
+local function openai(input)
+  if input==nil then return nil end
+  object(input,keys("namespace_id repository zero_data_retention chat_store_opt_in response_retention_seconds chat_retention_seconds max_output_memory_bytes max_record_bytes"),"openai")
+  local out={namespace_id=str(input.namespace_id,"openai.namespace_id",true),
+    zero_data_retention=boolean(input.zero_data_retention,"zero_data_retention"),
+    chat_store_opt_in=boolean(input.chat_store_opt_in,"chat_store_opt_in"),
+    response_retention_seconds=u64(input.response_retention_seconds,"response_retention_seconds"),
+    chat_retention_seconds=u64(input.chat_retention_seconds,"chat_retention_seconds"),
+    max_output_memory_bytes=number(input.max_output_memory_bytes,"max_output_memory_bytes",0,true,0,math.maxinteger),
+    max_record_bytes=number(input.max_record_bytes,"max_record_bytes",0,true,0,math.maxinteger)}
+  if input.repository~=nil then
+    local provider=input.repository
+    if type(provider)~="table" and type(provider)~="userdata" then invalid("repository must be a receiver with all eight methods")end
+    out.repository={receiver=provider}
+    for _,name in ipairs{"reserve","write","commit","abort","open","read","close","erase"}do
+      if type(provider[name])~="function" then invalid("repository requires method "..name)end
+      out.repository[name]=provider[name]
+    end
+  end
+  return out
+end
 local function source(input)
   object(input,source_keys,"source")
   local out={}
@@ -66,11 +94,7 @@ local function source(input)
   out.progress=input.progress
   for _,k in ipairs{"connect_timeout_ms","transfer_timeout_ms"} do out[k]=number(input[k],k,0,true,0,math.maxinteger) end
   out.max_attempts=number(input.max_attempts,"max_attempts",0,true,0,6)
-  local b=input.max_bytes
-  if type(b)=="table" then
-    object(b,keys("hi lo"),"max_bytes")
-    out.max_bytes={hi=number(b.hi,"max_bytes.hi",0,true,0,0xffffffff),lo=number(b.lo,"max_bytes.lo",0,true,0,0xffffffff)}
-  else out.max_bytes=number(b,"max_bytes",0,true,0,math.maxinteger) end
+  out.max_bytes=u64(input.max_bytes,"max_bytes")
   out.sha256={}
   if input.sha256 ~= nil then
     for i=1,array(input.sha256,"sha256") do
@@ -109,6 +133,7 @@ function M.new(config)
     out.disable_prompt_cache=boolean(config.disable_prompt_cache,"disable_prompt_cache")
     out.cache=config.cache
     out.compactor=config.compactor
+    out.openai=openai(config.openai)
     local native,err=core.new(out)
     if not native then return nil,err end
     return setmetatable({_native=native},{__index=methods,__close=function(self) self:close() end})
@@ -276,6 +301,19 @@ function methods:chat_completions(json,sink)
   return guarded(function()
     if type(sink) ~= "function" then invalid("sink must be a function") end
     return self._native:chat_completions(str(json,"Chat Completions JSON",false,true),sink)
+  end)
+end
+function methods:chat_retrieve(id,sink,options)
+  return guarded(function()
+    if type(sink)~="function" then invalid("sink must be a function")end
+    if options==nil then options={}end;object(options,keys("input"),"retrieve options")
+    return self._native:chat_retrieve(str(id,"completion ID",false),boolean(options.input,"input"),sink)
+  end)
+end
+function methods:chat_delete(id,sink)
+  return guarded(function()
+    if type(sink)~="function" then invalid("sink must be a function")end
+    return self._native:chat_delete(str(id,"completion ID",false),sink)
   end)
 end
 function methods:compact(input,policy)

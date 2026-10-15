@@ -6,7 +6,7 @@ request JSON, a synchronous byte sink and caller-owned `ailo_api_info`. The
 request mapper supports the qualified text, function, schema, sampling and
 reasoning controls in [the receiver contract](client.md). Unavailable controls
 fail explicitly. Responses operations, model/HTTP dispatch, stored-record list/
-update routes and the Lua repository-provider bridge remain required work.
+update routes remain required work.
 
 ```c
 /* After constructing client; sink consumes every byte before returning. */
@@ -117,5 +117,43 @@ delivers each byte string immediately. The result contains HTTP metadata,
 stored/started flags, ID and native usage. Callback errors return `nil, error`
 with the original Lua value in `error.cause`; returning false cancels. Logger
 configuration and native logging ownership follow the ordinary Lua constructor.
-The current Lua constructor has no repository-provider bridge: use explicit
-`store=false`. No model output is assembled by the Lua binding.
+No model output is assembled by the Lua binding. Retained operations are
+`client:chat_retrieve(id, sink, {input=true})` (omit options for the completion)
+and `client:chat_delete(id, sink)`.
+
+Configure the same trusted profile through `ailo.new{..., openai={...}}`:
+`namespace_id`, `repository`, `zero_data_retention`, `chat_store_opt_in`,
+`response_retention_seconds`, `chat_retention_seconds`,
+`max_output_memory_bytes` and `max_record_bytes`. Defaults match C. Unsigned
+64-bit TTLs accept an exact nonnegative integer or `{hi=...,lo=...}`.
+The repository is an application-owned table or userdata receiver with all
+eight methods below; the constructor captures its methods and retains the
+receiver until client close. Later method replacement does not change that
+client's callbacks. The application supplies the durable implementation.
+
+| Receiver method | Successful return |
+| --- | --- |
+| `reserve(metadata)` | transaction |
+| `write(transaction, section, bytes)` | `true` |
+| `commit(transaction)` | `true`, consuming transaction |
+| `abort(transaction)` | no return required; must succeed |
+| `open(namespace_id, protocol, id)` | reader, expiry |
+| `read(reader, section, emit)` | `true` |
+| `close(reader)` | no return required; must succeed |
+| `erase(namespace_id, protocol, id)` | `true` |
+
+Metadata has `namespace_id`, `protocol`, `id`, `created_at`, `expires_at` and
+`max_bytes`. Protocol is `"chat"` or `"response"`; section is `"output"`,
+`"input"` or `"metadata"`. Expiry uses Unix seconds with zero meaning until
+deletion. `read` calls `emit(bytes)` synchronously for each available chunk and
+must stop when it returns false. It runs on the invoking Lua thread. The emitter
+rejects calls after `read` returns or throws; retaining it does not extend reader
+or client lifetime.
+
+Failure returns `nil, error`, or throws a Lua value. `reserve` may return a
+transaction plus an error for subsequent abort; `open` may return reader,
+expiry, error for subsequent close. Error tables with a recognized native
+`code` preserve that status; other values become `io_failed`. The original
+value is exposed as `error.cause`. Cleanup errors are reported separately as
+`error.cleanup_cause`, preserving an earlier output/provider failure. Callbacks
+must not yield and all calls are protected before crossing native C++ frames.

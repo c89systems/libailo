@@ -15,6 +15,7 @@ local function request()
     logprobs=true,top_logprobs=2,logit_bias={{token_id=2,bias=100}}}
 end
 local marker={message="callback marker"}
+dofile(assert(arg[3])).exercise(ailo,path,true)
 do
   local receiver=ok(ailo.new(config()))
   local json='{"model":"local-model","messages":[{"role":"user","content":"x"}],"store":false,"stream":true,"max_completion_tokens":2,"temperature":0,"logprobs":true,"top_logprobs":2}'

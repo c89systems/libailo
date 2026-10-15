@@ -26,5 +26,5 @@ sed "s/@VERSION@/$version/g" "$source/lua-ailo.rockspec.in" > "$work/ailo/lua-ai
 (cd "$work/ailo" && CMAKE_TOOLCHAIN_FILE="$toolchain" CMAKE_BUILD_PARALLEL_LEVEL=1 luarocks --lua-version=5.5 --tree "$work/tree" make "lua-ailo-$version-1.rockspec" --deps-mode=one CC="$cc" LUA_INCDIR="$cpkt/include" AILO_DIR="$sdk" PSLOG_DIR="$pslog" CPKTLUA_DIR="$cpkt" PSLOG_LUA_INCDIR="$interop")
 [[ -f "$work/tree/share/lua/5.5/ailo/init.lua" && -f "$work/tree/lib/lua/5.5/ailo/core.so" ]] || { printf 'rocks-test: modules were not deployed into the Lua search paths\n' >&2; exit 1; }
 mkdir "$work/state"
-"$runner" "$source/tests/receiver.lua" "$work/tree/share/lua/5.5/?.lua;$work/tree/share/lua/5.5/?/init.lua" "$work/tree/lib/lua/5.5/?.so" "$fixture" "$work/state"
+"$runner" "$source/tests/receiver.lua" "$work/tree/share/lua/5.5/?.lua;$work/tree/share/lua/5.5/?/init.lua" "$work/tree/lib/lua/5.5/?.so" "$fixture" "$work/state" "$source/tests/record_repository.lua"
 printf 'LuaRocks dependency resolution, native compilation, deployment and pinned runtime imports: passed\n'

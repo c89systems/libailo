@@ -9,6 +9,7 @@ local function config(extra)
   return c
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
+dofile(assert(arg[3])).exercise(ailo,path,false)
 do
   local receiver=ok(ailo.new(config()))
   local json='{"model":"local-model","messages":[{"role":"user","content":"Hi"}],"store":false,"stream":true,"max_completion_tokens":8,"temperature":0,"logprobs":true,"top_logprobs":2,"logit_bias":{"100":100},"stream_options":{"include_usage":true,"include_obfuscation":false}}'
