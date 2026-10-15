@@ -95,6 +95,10 @@ src/ailo_sampling.cpp
 src/ailo_sampling_internal.hpp
 src/ailo_schema.cpp
 src/ailo_schema_internal.hpp
+src/ailo_json_stream.cpp
+src/ailo_json_stream_internal.hpp
+src/ailo_conversation.cpp
+src/ailo_conversation_internal.hpp
 src/ailo_template_support.cpp
 src/ailo_integer_bridge.hpp
 src/ailo_logging.cpp
@@ -116,6 +120,8 @@ tests/c89_policy.c
 tests/client.c
 tests/generation_controls.cpp
 tests/schema.cpp
+tests/json_stream.cpp
+tests/conversation.cpp
 tests/client_threads.cpp
 tests/install-consumer/CMakeLists.txt
 tests/install-consumer/consumer.c
@@ -171,6 +177,7 @@ lua/lua-ailo.rockspec.in
 lua/source-manifest.txt
 lua/src/ailo_lua.c
 lua/tests/receiver.lua
+lua/tests/memory.lua
 lua/tests/runner.c
 scripts/lua.sh
 scripts/package_lua.sh

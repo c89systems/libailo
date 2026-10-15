@@ -50,7 +50,11 @@ dense array of `{kind="text",data="..."}` parts. Core unsupported kinds retain
 the C `unsupported` outcome. Token payloads are never assembled into a complete
 answer. Events have `kind`, monotonic `sequence`, zero-based `candidate`,
 `model_id`, `data`, `finish_reason`, and `usage`. Kinds are `run_begin`,
-`choice_begin`, `text_delta`, `choice_end`, `run_end`, and optional `token`.
+`choice_begin`, `item_begin`, `content_begin`, `text_delta`, `content_end`,
+`item_end`, `choice_end`, `usage`, `run_end`, and optional `token`.
+Every event has a stable `run_id`, also returned as `info.id`. Active items have
+`item_id`, `item_kind`, `item_index`, and `content_index`; payload and identifier
+strings are copied into that event's Lua table. No output history is retained.
 Token events carry `token={token_id,data,logprob,top_logprobs,index,byte_offset,
 end_of_generation}`; each alternative has token_id/data/logprob. Pieces are raw
 bytes and may split UTF-8; text_delta stays valid UTF-8. Probabilities normalize
@@ -67,6 +71,15 @@ constrains the response while still emitting immediate `text_delta` events.
 A `length` finish can leave incomplete JSON;
 interruption by a stop sequence returns `model_failed`. No full JSON reply is
 collected by this binding.
+
+Completed tool histories use items with `kind="function_call"`, `call_id`,
+`name` and `arguments` (a JSON-object string), followed by
+`kind="function_result"`, matching `call_id` and text `content`. Calls may also
+have an independent item `id`. Complete parallel result groups can arrive in a
+different order. Incomplete groups, duplicate identities and orphan results fail
+before events. A compatible Jinja `chat_template` is required; unsupported
+templates fail instead of dropping fields. This input support does not yet
+enable new tool-call generation or execute functions.
 
 `generate` is synchronous: the sink receives each available delta immediately,
 including before the next decode. Only boolean false cancels; nil continues.

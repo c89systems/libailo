@@ -237,7 +237,7 @@ static int run(const char *path) {
   CHECK(ailo_client_new(&config, &other, &error) == AILO_OK);
   item.kind = AILO_ITEM_FUNCTION_CALL;
   CHECK(other->generate(other, &request, observe, &seen, &info, &error) ==
-        AILO_UNSUPPORTED);
+        AILO_INVALID_ARGUMENT);
   item.kind = AILO_ITEM_MESSAGE;
   content.data = "\xc0\x80";
   content.size = 2;

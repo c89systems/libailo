@@ -47,7 +47,11 @@ typedef struct ailo_content {
   size_t size;
 } ailo_content;
 
-/** Ordered conversation item. Fields not used by its kind must be zero/NULL. */
+/** Ordered conversation item. Function calls require call_id/name/arguments;
+ * arguments is a JSON object. Results require call_id and text content.
+ * Call/result roles may be zero (implied assistant/tool) or their explicit
+ * role. Message name is an optional participant name. Item IDs and call IDs
+ * are independent, unique identities. Fields unused by a kind are zero/NULL. */
 typedef struct ailo_item {
   ailo_item_kind kind;
   ailo_role role;
@@ -140,7 +144,12 @@ typedef enum ailo_event_kind {
   AILO_EVENT_TEXT_DELTA,
   AILO_EVENT_CHOICE_END,
   AILO_EVENT_RUN_END,
-  AILO_EVENT_TOKEN
+  AILO_EVENT_TOKEN,
+  AILO_EVENT_ITEM_BEGIN,
+  AILO_EVENT_CONTENT_BEGIN,
+  AILO_EVENT_CONTENT_END,
+  AILO_EVENT_ITEM_END,
+  AILO_EVENT_USAGE
 } ailo_event_kind;
 
 /** A token piece is arbitrary bytes, possibly incomplete UTF-8 or empty.
@@ -187,6 +196,13 @@ typedef struct ailo_event {
    * tokens from user-visible content logprobs using byte offsets/text deltas.
    */
   const ailo_token_info *token;
+  const char *run_id;
+  /** Non-NULL only while an item is active, including its begin/end events.
+   * IDs are stable within this run, unique across runs, and borrowed. */
+  const char *item_id;
+  ailo_item_kind item_kind;
+  unsigned int item_index;
+  unsigned int content_index;
 } ailo_event;
 
 /** Return zero to cancel; a negative value reports sink failure. The consumer
@@ -198,6 +214,8 @@ typedef struct ailo_run_info {
   unsigned int completed_candidates;
   ailo_finish_reason finish_reason;
   ailo_backend_policy actual_backend;
+  /** Owned run identity, empty for preflight failures. */
+  char id[37];
 } ailo_run_info;
 
 /** Allocated receiver shell. Do not copy or modify its state/method pointers.

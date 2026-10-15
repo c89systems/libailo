@@ -25,9 +25,16 @@ assert(client:capabilities():find('"streaming":true',1,true))
 assert(client:devices():find('CPU',1,true))
 assert(client:model_card():find('lua-model',1,true))
 local count,sequence=0,-1
+local run_id,item_id,usage_events
+usage_events=0
 local info=ok(client:generate(request(),function(event)
   assert(event.sequence>sequence); sequence=event.sequence
+  assert(type(event.run_id)=="string" and #event.run_id==36)
+  run_id=run_id or event.run_id;assert(event.run_id==run_id)
+  if event.kind=="item_begin" then item_id=event.item_id;assert(event.item_kind=="message") end
+  if event.kind=="usage" then usage_events=usage_events+1 end
   if event.kind=="text_delta" then
+    assert(event.item_id==item_id and event.item_index==0 and event.content_index==0)
     count=count+1; assert(type(event.data)=="string" and #event.data>0)
     if count==1 then
       fails("busy",function() return client:close() end)
@@ -37,6 +44,7 @@ local info=ok(client:generate(request(),function(event)
   end
 end))
 assert(count==3 and info.usage.completion_tokens==3 and info.completed_candidates==1)
+assert(info.id==run_id and usage_events==1)
 local seen=0
 fails("cancelled",function() return client:generate(request(),function(event)
   if event.kind=="text_delta" then seen=seen+1; return false end
@@ -106,76 +114,24 @@ bad_schema.json_schema='{"type":"number","minimum":1}'
 fails("unsupported",function()return client:generate(bad_schema,function()error("unsupported schema emitted events")end)end)
 ok(client:generate(request(),function()end))
 assert(client:close() and client:close())
+local history_template=[[{% for m in messages %}{{ m.role }}:{{ m.content }}{% if m.tool_calls is defined %}{% for c in m.tool_calls %}{{ c.id }}={{ c.function.name }}:{{ c.function.arguments | tojson }}{% endfor %}{% endif %}{% if m.tool_call_id is defined %}#{{ m.tool_call_id }}{% endif %};{% endfor %}]]
+local history=ok(ailo.new(config{chat_template=history_template}))
+local history_request={items={
+  {role="user",content="question"},
+  {kind="function_call",id="function-item",call_id="call-one",name="lookup",arguments='{ "x" : 1 }'},
+  {kind="function_result",call_id="call-one",content="result"}
+},max_tokens=1,temperature=0}
+local history_info=ok(history:generate(history_request,function(e) if e.kind=="text_delta" then assert(e.data=="a") end end))
+assert(history_info.completed_candidates==1 and history_info.id~=run_id)
+history_request.items[3].call_id="missing"
+fails("invalid_argument",function()return history:generate(history_request,function()error("orphan emitted an event")end)end)
+history:close()
 fails("invalid_argument",function() return client:model_card() end)
 collectgarbage("collect"); assert(not weak[1],"logger leaked after close")
 local file=assert(io.open(work.."/lua.log","rb")); local logs=file:read("a");file:close()
 assert(logs:find('"model_id":"lua-model"',1,true) and logs:find('"lvl":"trace"',1,true))
 assert(logs:find("Generation complete",1,true) and logs:find("Destroying inference receiver",1,true))
--- Lazy acquisition callbacks use the active coroutine only during each call.
-local lazy
-local co=coroutine.create(function()
-  local l=pslog.new_json{output=work.."/coroutine.log"}
-  lazy=ok(ailo.new(config{logger=l,lazy=true,source={local_path=path,progress=function(p) assert(p.shard==1); return true end}}))
-end)
-assert(coroutine.resume(co)); co=nil;collectgarbage("collect")
-ok(lazy:model_card());ok(lazy:generate(request(),function()end));lazy:close()
-local progress=ok(ailo.new(config{lazy=true,source={local_path=path,progress=function()error(marker)end}}))
-local progress_error=fails("sink_failed",function()return progress:model_card()end)
-assert(progress_error.cause==marker);progress:close()
-local cancelled=ok(ailo.new(config{lazy=true,source={local_path=path,progress=function()return false end}}))
-fails("cancelled",function()return cancelled:model_card()end);cancelled:close()
--- Progress captures the wrapper: ordinary Lua GC must collect the cycle.
-local cycle
-cycle=ok(ailo.new(config{lazy=true,source={local_path=path,progress=function()return cycle~=nil end}}))
-local refs=setmetatable({cycle._native},{__mode="v"});cycle=nil;collectgarbage("collect");collectgarbage("collect");assert(not refs[1])
--- Yielding from native callbacks is rejected without escaping native frames.
-local y=ok(ailo.new(config()))
-local thread=coroutine.create(function()
-  fails("sink_failed",function()return y:generate(request(),function()coroutine.yield()end)end)
-end)
-assert(coroutine.resume(thread));assert(coroutine.status(thread)=="dead");y:close()
-collectgarbage("collect")
 print("Lua installed shared ABI, token streaming, pslog ownership, callbacks and validation: passed")
--- Refuse allocation while native generation is active. OOM must be caught
--- inside the callback boundary, and the receiver must recover after unwinding.
-local oom=ok(ailo.new(config()))
-local toggle=_ailo_fail_allocations
-local succeeded=pcall(function()
-  oom:generate(request(),function(event)
-    if event.kind=="text_delta" then toggle(true) end
-  end)
-end)
-toggle(false)
-assert(not succeeded,"allocation fault was not exercised")
-ok(oom:generate(request(),function()end));oom:close()
--- Mutating caller-owned tables during callbacks cannot invalidate native views.
-local mutated=request()
-local m=ok(ailo.new(config()))
-ok(m:generate(mutated,function() mutated.items=nil;collectgarbage("collect") end));m:close()
--- Actual capture cycle (the closure keeps a wrapper in an upvalue).
-local cycleweak=setmetatable({},{__mode="v"})
-do
-  local box={}
-  box.client=ok(ailo.new(config{lazy=true,source={local_path=path,progress=function()return box.client~=nil end}}))
-  cycleweak[1]=box.client._native
-end
-collectgarbage("collect");collectgarbage("collect");assert(not cycleweak[1])
-print("Lua allocation failure, immutable request views and finalizer cycles: passed")
--- Owned metadata JSON must be freed even when Lua cannot allocate its string.
-local metadata_oom=ok(ailo.new(config{lazy=true,source={local_path=path,progress=function(p)if p.total>0 then toggle(true)end end}}))
-local metadata_success=pcall(function()metadata_oom:model_card()end)
-toggle(false);assert(not metadata_success)
-collectgarbage("collect");ok(metadata_oom:model_card());metadata_oom:close()
--- Constructor completion can fail while building the Lua wrapper; native
--- state and the retained logger must remain finalizable in that case too.
-local construction_log=pslog.new_json{output=work.."/construction-oom.log"}
-local construction_weak=setmetatable({construction_log},{__mode="v"})
-local construction_success=pcall(function()
-  ailo.new(config{logger=construction_log,source={local_path=path,progress=function(p)if p.total>0 then toggle(true)end end}})
-end)
-toggle(false);assert(not construction_success)
-construction_log=nil;collectgarbage("collect");collectgarbage("collect");assert(not construction_weak[1])
-print("Lua metadata and constructor OOM ownership: passed")
 
 local preflight=ok(ailo.new(config{lazy=true}))
 local preflight_error=fails("invalid_argument",function()return preflight:generate({items={}},function()end)end)

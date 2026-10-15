@@ -29,7 +29,11 @@ template execution. Request text is limited to 4 MiB, 4096 items and 4096 parts
 per message. Embedded NUL text currently returns unsupported because the
 private message boundary uses C strings.
 
-Generation emits run begin, choice begin, text deltas, choice end and run end.
+Generation emits run begin, choice begin, item/content begin, text deltas,
+content/item end, choice end, usage and run end. Every event has a stable run ID;
+item/content events and deltas carry a stable item ID and zero-based item/content
+indices. Run info owns its run ID. Candidate item IDs are distinct, and each run
+uses a fresh random identity. Payload pointers remain borrowed for the callback.
 Each delta goes to the sink before the next native token evaluation. There is
 no retained complete answer, output spool or whole-answer JSON conversion.
 Only an incomplete UTF-8 character and a possible stop-string prefix can delay
@@ -94,11 +98,42 @@ rendering can still reject a conversation the template does not accept.
 
 Capabilities currently advertise text, streaming, multiple candidates, logit
 bias, log probabilities and constrained output, with their limits.
-Tools, separated reasoning, media, prompt/KV reuse,
-persistent snapshots and compaction are reported unavailable. Their request
-item kinds return unsupported rather than losing semantics. These remain
+Tool generation, separated reasoning, media, prompt/KV reuse,
+persistent snapshots and compaction are reported unavailable. Reasoning, media
+and compaction input kinds return unsupported rather than losing semantics.
+Completed function histories are supported as described below. The rest remain
 implementation requirements in the full specification; no cache/compaction or
 protocol handler is claimed by this initial core.
+
+## Conversation and function history
+
+Input supports participant names and complete function-call/result histories
+through compatible Jinja templates. A function-call item carries an independent
+item ID, call ID, function name and original JSON-object argument string. A
+result refers to the call ID and supplies text content; its optional name must
+match that call. Call/result roles may be zero (implied by kind) or explicitly
+assistant/tool. Participant and function names use 1-64 ASCII letters, digits,
+underscores or hyphens; IDs are UTF-8 strings of 1-256 bytes when supplied.
+Argument bytes count toward the shared 4 MiB input-text budget.
+
+Adjacent calls form one assistant group, including any preceding assistant
+message text. Every call needs exactly one result before another message or
+generation. Results may arrive in a different order, with their call identities
+preserved. Duplicate item/call IDs, orphan/duplicate results, mismatched names,
+interrupted or unresolved groups and malformed arguments fail before inference
+events. Each request is independently validated; failures do not replace history.
+
+Named native text templates cannot represent these richer fields and reject
+them. Jinja rendering uses the selected pinned capability helper to choose
+object/string arguments and check parallel-call representation. Actual rendering
+tracks field use and rejects templates that discard supplied participant names,
+call names/arguments or nonempty message/result content. A template can format
+arguments for its model, while the caller's original input bytes stay unchanged.
+For parallel-call formats that omit explicit result IDs, the prompt presents
+results in the original call order so the model cannot swap their association.
+The caller's ordered items stay unchanged; explicit-ID formats retain that order.
+The core never executes a function. New function-call generation/argument events
+remain the next implementation step; accepting history does not claim them.
 
 ## Constrained output
 

@@ -1,5 +1,8 @@
 #include "ailo_client_internal.hpp"
+#include "ailo_conversation_internal.hpp"
+#include <algorithm>
 #include <cstring>
+#include <jinja/caps.h>
 #include <jinja/parser.h>
 #include <json.h>
 
@@ -41,26 +44,120 @@ bool template_supported(const char *source) {
 }
 
 std::string apply_template(const char *source, const llama_vocab *vocab,
-                           const std::vector<llama_chat_message> &messages) {
+                           const conversation &input) {
   std::string result;
   if (is_jinja(source)) {
     try {
-      const auto program = parse(source);
+      auto program = parse(source);
+      jinja::caps caps;
+      if (input.rich) {
+        caps = jinja::caps_get(program);
+        if (input.max_parallel_calls && !caps.supports_tool_calls)
+          throw failure(
+              AILO_UNSUPPORTED,
+              "This chat template cannot represent function-call history");
+        if (input.max_parallel_calls > 1 && !caps.supports_parallel_tool_calls)
+          throw failure(AILO_UNSUPPORTED, "This chat template cannot represent "
+                                          "parallel function-call history");
+      }
       jinja::context context(source);
+      context.is_get_stats = input.rich;
       common_json inputs{
           {"messages", common_json::array()},
+          {"tools", common_json::array()},
           {"bos_token", token_text(vocab, llama_vocab_bos(vocab))},
           {"eos_token", token_text(vocab, llama_vocab_eos(vocab))},
           {"add_generation_prompt", true},
           {"enable_thinking", false}};
-      for (const auto &message : messages)
-        inputs["messages"].push_back(
-            {{"role", message.role}, {"content", message.content}});
-      jinja::global_from_json(context, inputs, false);
+      for (const auto &message : input.messages) {
+        common_json value{{"role", message.role}, {"content", message.content}};
+        if (!message.name.empty())
+          value["name"] = message.name;
+        if (!message.call_id.empty())
+          value["tool_call_id"] = message.call_id;
+        if (!message.calls.empty()) {
+          value["tool_calls"] = common_json::array();
+          for (const auto &call : message.calls) {
+            common_json arguments = caps.supports_object_arguments
+                                        ? common_json::parse(call.arguments)
+                                        : common_json::make(call.arguments);
+            value["tool_calls"].push_back(
+                {{"id", call.id},
+                 {"type", "function"},
+                 {"function",
+                  {{"name", call.name}, {"arguments", std::move(arguments)}}}});
+          }
+        }
+        inputs["messages"].push_back(std::move(value));
+      }
+      jinja::global_from_json(context, inputs, input.rich);
       jinja::runtime runtime(context);
       result = jinja::runtime::gather_string_parts(runtime.execute(program))
                    ->as_string()
                    .str();
+      if (input.rich) {
+        auto messages = context.get_val("messages");
+        for (size_t i = 0; i < input.messages.size(); ++i) {
+          const auto &message = input.messages[i];
+          auto current = messages->at(i);
+          if ((!message.content.empty() || message.role == "tool") &&
+              !current->at("content")->stats.used)
+            throw failure(AILO_UNSUPPORTED,
+                          "This chat template ignores message or "
+                          "function-result content");
+          if (!message.name.empty() && message.role != "tool" &&
+              !current->at("name")->stats.used)
+            throw failure(AILO_UNSUPPORTED,
+                          "This chat template ignores participant names");
+          if (!message.calls.empty() && !current->at("tool_calls")->stats.used)
+            throw failure(AILO_UNSUPPORTED,
+                          "This chat template ignores function-call history");
+          for (size_t j = 0; j < message.calls.size(); ++j) {
+            auto function = current->at("tool_calls")->at(j)->at("function");
+            if (!function->at("name")->stats.used ||
+                !function->at("arguments")->stats.used)
+              throw failure(AILO_UNSUPPORTED, "This chat template ignores a "
+                                              "function name or its arguments");
+          }
+        }
+        // Implicit result formats associate parallel results by call order.
+        // Normalize only the model prompt, preserving canonical input order.
+        std::unique_ptr<conversation> ordered;
+        for (size_t i = 0; i < input.messages.size(); ++i) {
+          const auto &calls = input.messages[i].calls;
+          if (calls.size() < 2)
+            continue;
+          const size_t first = i + 1;
+          if (calls.size() > input.messages.size() - first)
+            throw failure(AILO_INVALID_ARGUMENT,
+                          "Function result group is incomplete");
+          bool implicit = false;
+          for (size_t j = 0; j < calls.size(); ++j)
+            implicit = implicit ||
+                       !messages->at(first + j)->at("tool_call_id")->stats.used;
+          if (!implicit)
+            continue;
+          for (size_t j = 0; j < calls.size(); ++j) {
+            const auto begin =
+                input.messages.begin() + static_cast<ptrdiff_t>(first);
+            const auto end = begin + static_cast<ptrdiff_t>(calls.size());
+            const auto found =
+                std::find_if(begin, end, [&](const chat_message &value) {
+                  return value.role == "tool" && value.call_id == calls[j].id;
+                });
+            if (found == end)
+              throw failure(AILO_INVALID_ARGUMENT,
+                            "Function result group has an unknown identity");
+            if (found != begin + static_cast<ptrdiff_t>(j)) {
+              if (!ordered)
+                ordered = std::make_unique<conversation>(input);
+              ordered->messages[first + j] = *found;
+            }
+          }
+        }
+        if (ordered)
+          return apply_template(source, vocab, *ordered);
+      }
     } catch (const failure &) {
       throw;
     } catch (const std::bad_alloc &) {
@@ -71,6 +168,14 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
                     "The chat template cannot render this conversation");
     }
   } else {
+    if (input.rich)
+      throw failure(
+          AILO_UNSUPPORTED,
+          "Named text templates cannot represent participant names or function "
+          "histories; provide a compatible Jinja template");
+    std::vector<llama_chat_message> messages;
+    for (const auto &message : input.messages)
+      messages.push_back({message.role.c_str(), message.content.c_str()});
     const int32_t size = llama_chat_apply_template(
         source, messages.data(), messages.size(), true, nullptr, 0);
     if (size < 0)

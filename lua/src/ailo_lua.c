@@ -91,6 +91,7 @@ static void info(lua_State *L, const ailo_run_info *value) {
   usage(L, &value->usage);
   lua_setfield(L, -2, "usage");
   set_integer(L, "completed_candidates", value->completed_candidates);
+  set_string(L, "id", value->id[0] ? value->id : NULL);
   set_string(L, "finish_reason", finish(value->finish_reason));
   set_string(L, "actual_backend",
              value->actual_backend == AILO_BACKEND_VULKAN ? "vulkan"
@@ -367,14 +368,25 @@ static int new_client(lua_State *L) {
 static int event_thunk(lua_State *L) {
   const ailo_event *value = lua_touserdata(L, 2);
   lua_getiuservalue(L, 1, 1);
-  static const char *names[] = {"run_begin",  "choice_begin", "text_delta",
-                                "choice_end", "run_end",      "token"};
-  lua_createtable(L, 0, 8);
+  static const char *names[] = {"run_begin",  "choice_begin",  "text_delta",
+                                "choice_end", "run_end",       "token",
+                                "item_begin", "content_begin", "content_end",
+                                "item_end",   "usage"};
+  lua_createtable(L, 0, 14);
   set_string(L, "kind", names[value->kind]);
   push_u64(L, value->sequence);
   lua_setfield(L, -2, "sequence");
   set_integer(L, "candidate", value->candidate);
   set_string(L, "model_id", value->model_id);
+  set_string(L, "run_id", value->run_id);
+  if (value->item_id) {
+    static const char *kinds[] = {"message", "function_call", "function_result",
+                                  "reasoning", "compaction"};
+    set_string(L, "item_id", value->item_id);
+    set_string(L, "item_kind", kinds[value->item_kind]);
+    set_integer(L, "item_index", value->item_index);
+    set_integer(L, "content_index", value->content_index);
+  }
   lua_pushlstring(L, value->data ? value->data : "", value->size);
   lua_setfield(L, -2, "data");
   set_string(L, "finish_reason", finish(value->finish_reason));

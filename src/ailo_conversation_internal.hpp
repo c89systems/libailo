@@ -1,0 +1,24 @@
+#ifndef AILO_CONVERSATION_INTERNAL_HPP
+#define AILO_CONVERSATION_INTERNAL_HPP
+#include "ailo_client_internal.hpp"
+
+namespace ailo {
+namespace client {
+struct chat_call {
+  std::string id, name, arguments;
+};
+struct chat_message {
+  std::string role, content, name, call_id;
+  std::vector<chat_call> calls;
+};
+struct conversation {
+  std::vector<chat_message> messages;
+  bool rich = false;
+  size_t max_parallel_calls = 0;
+};
+conversation prepare_conversation(const ailo_request &request);
+std::string apply_template(const char *source, const llama_vocab *vocab,
+                           const conversation &input);
+} // namespace client
+} // namespace ailo
+#endif

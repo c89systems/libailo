@@ -85,8 +85,6 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
               void *user, ailo_run_info &info);
 void require_utf8(const char *data, size_t size);
 bool template_supported(const char *source);
-std::string apply_template(const char *source, const llama_vocab *vocab,
-                           const std::vector<llama_chat_message> &messages);
 } // namespace client
 } // namespace ailo
 #endif

@@ -51,7 +51,7 @@ if(AILO_LUA_TESTS)
       "--suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime.supp"
       --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all
       $<TARGET_FILE:ailo_lua_runner>
-      "${CMAKE_CURRENT_SOURCE_DIR}/tests/receiver.lua"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/memory.lua"
       "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua"
       "${cpath}" "${AILO_LUA_MODEL}" "${AILO_LUA_WORK}")
     set_tests_properties(lua-memory PROPERTIES TIMEOUT 180 LABELS "lua;memory;local")

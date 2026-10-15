@@ -1,4 +1,5 @@
 #include "ailo_client_internal.hpp"
+#include "ailo_conversation_internal.hpp"
 #include "ailo_sampling_internal.hpp"
 #include "ailo_schema_internal.hpp"
 #include "ailo_text_stream_internal.hpp"
@@ -6,67 +7,12 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <openssl/rand.h>
 
 namespace ailo {
 namespace client {
 namespace {
-const char *role_name(ailo_role role) {
-  switch (role) {
-  case AILO_ROLE_USER:
-    return "user";
-  case AILO_ROLE_SYSTEM:
-    return "system";
-  case AILO_ROLE_DEVELOPER:
-    return "developer";
-  case AILO_ROLE_ASSISTANT:
-    return "assistant";
-  case AILO_ROLE_TOOL:
-    return "tool";
-  }
-  throw failure(AILO_INVALID_ARGUMENT, "Unknown message role");
-}
-
-std::string render(state &self, const ailo_request &request) {
-  if (!request.items || !request.item_count || request.item_count > 4096)
-    throw failure(AILO_INVALID_ARGUMENT,
-                  "Request needs between 1 and 4096 items");
-  std::vector<std::string> content;
-  std::vector<llama_chat_message> messages;
-  content.reserve(request.item_count);
-  messages.reserve(request.item_count);
-  size_t total = 0;
-  for (size_t i = 0; i < request.item_count; ++i) {
-    const ailo_item &item = request.items[i];
-    if (item.kind != AILO_ITEM_MESSAGE || item.role == AILO_ROLE_TOOL ||
-        item.call_id || item.arguments || item.name)
-      throw failure(AILO_UNSUPPORTED, "This template adapter does not support "
-                                      "the requested item semantics");
-    const char *role = role_name(item.role);
-    if ((!item.content && item.content_count) || item.content_count > 4096)
-      throw failure(AILO_INVALID_ARGUMENT, "Invalid message content array");
-    std::string text;
-    for (size_t j = 0; j < item.content_count; ++j) {
-      const ailo_content &part = item.content[j];
-      if (part.kind != AILO_CONTENT_TEXT)
-        throw failure(AILO_UNSUPPORTED,
-                      "This model adapter accepts text content only");
-      if ((!part.data && part.size) || part.size > 4 * 1024 * 1024 - total)
-        throw failure(AILO_INVALID_ARGUMENT,
-                      "Request text is missing or exceeds 4 MiB");
-      if (part.size) {
-        const auto *bytes = static_cast<const char *>(part.data);
-        require_utf8(bytes, part.size);
-        if (std::memchr(bytes, 0, part.size))
-          throw failure(
-              AILO_UNSUPPORTED,
-              "This template adapter cannot represent embedded NUL text");
-        text.append(bytes, part.size);
-        total += part.size;
-      }
-    }
-    content.push_back(std::move(text));
-    messages.push_back({role, content.back().c_str()});
-  }
+std::string render(state &self, const conversation &input) {
   self.ensure_loaded();
   const char *tmpl = self.config.chat_template
                          ? self.config.chat_template
@@ -75,8 +21,7 @@ std::string render(state &self, const ailo_request &request) {
     throw failure(
         AILO_UNSUPPORTED,
         "The model has no chat template; configure an explicit template");
-  return apply_template(tmpl, llama_model_get_vocab(self.model.get()),
-                        messages);
+  return apply_template(tmpl, llama_model_get_vocab(self.model.get()), input);
 }
 
 struct emitter {
@@ -86,6 +31,23 @@ struct emitter {
   ailo_run_info &info;
   uint64_t sequence = 0;
   unsigned candidate = 0;
+  std::string run_id{}, item_id{};
+  bool item_active = false;
+  emitter(state &value, ailo_event_sink callback, void *context,
+          ailo_run_info &run)
+      : self(value), sink(callback), user(context), info(run) {
+    unsigned char nonce[16];
+    if (RAND_bytes(nonce, sizeof(nonce)) != 1)
+      throw failure(AILO_INTERNAL_ERROR,
+                    "Cannot create an inference run identity");
+    static const char hex[] = "0123456789abcdef";
+    run_id = "run_";
+    for (unsigned char ch : nonce) {
+      run_id += hex[ch >> 4];
+      run_id += hex[ch & 15];
+    }
+    std::memcpy(info.id, run_id.c_str(), run_id.size() + 1);
+  }
   void send(ailo_event_kind kind, const char *data = nullptr, size_t size = 0,
             ailo_finish_reason finish = AILO_FINISH_NONE,
             const ailo_token_info *token = nullptr) {
@@ -101,11 +63,26 @@ struct emitter {
     event.finish_reason = finish;
     event.usage = info.usage;
     event.token = token;
+    event.run_id = run_id.c_str();
+    event.item_id = item_active ? item_id.c_str() : nullptr;
+    event.item_kind = AILO_ITEM_MESSAGE;
     const int accepted = sink(user, &event);
     if (accepted < 0)
       throw failure(AILO_SINK_FAILED, "The event sink failed");
     if (!accepted || self.cancelled.load())
       throw failure(AILO_CANCELLED, "Generation cancelled by the event sink");
+  }
+  void begin_message() {
+    item_id =
+        "msg_" + run_id.substr(4) + "_" + std::to_string(candidate) + "_0";
+    item_active = true;
+    send(AILO_EVENT_ITEM_BEGIN);
+    send(AILO_EVENT_CONTENT_BEGIN);
+  }
+  void end_message(ailo_finish_reason finish) {
+    send(AILO_EVENT_CONTENT_END, nullptr, 0, finish);
+    send(AILO_EVENT_ITEM_END, nullptr, 0, finish);
+    item_active = false;
   }
 };
 
@@ -166,7 +143,8 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     stops.emplace_back(request.stop[i], size);
   }
   const std::string grammar = output_grammar(request);
-  const std::string prompt = render(self, request);
+  const auto input = prepare_conversation(request);
+  const std::string prompt = render(self, input);
   const auto *vocab = llama_model_get_vocab(self.model.get());
   int32_t count =
       llama_tokenize(vocab, prompt.data(), static_cast<int32_t>(prompt.size()),
@@ -201,6 +179,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     output.candidate = candidate;
     llama_memory_clear(llama_get_memory(self.context.get()), true);
     output.send(AILO_EVENT_CHOICE_BEGIN);
+    output.begin_message();
     evaluate(self, tokens.data(), tokens.size(), 0);
     std::unique_ptr<sampling> additional;
     if (candidate)
@@ -258,10 +237,12 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     (void)carry.push({}, true);
     if (validation && finish == AILO_FINISH_STOP)
       validation->finish();
+    output.end_message(finish);
     output.send(AILO_EVENT_CHOICE_END, nullptr, 0, finish);
     info.finish_reason = finish;
     ++info.completed_candidates;
   }
+  output.send(AILO_EVENT_USAGE, nullptr, 0, info.finish_reason);
   output.send(AILO_EVENT_RUN_END, nullptr, 0, info.finish_reason);
 }
 } // namespace client

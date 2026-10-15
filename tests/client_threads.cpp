@@ -1,5 +1,6 @@
 #include "ailo/client.h"
 #include "ailo_client_internal.hpp"
+#include "ailo_conversation_internal.hpp"
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
@@ -182,7 +183,11 @@ void run(const char *path) {
   const char *jinja =
       "{% for m in messages %}{{ m.role | upper }}:{{ m.content }};"
       "{% endfor %}{% if add_generation_prompt %}GO{% endif %}";
-  std::vector<llama_chat_message> messages{{"user", "hello"}};
+  ailo::client::conversation messages;
+  ailo::client::chat_message message;
+  message.role = "user";
+  message.content = "hello";
+  messages.messages.push_back(std::move(message));
   CHECK(ailo::client::template_supported(jinja));
   CHECK(ailo::client::apply_template(jinja,
                                      llama_model_get_vocab(state.model.get()),
