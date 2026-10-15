@@ -15,6 +15,28 @@ logging and Lua facade are implemented. Protocol adapters and the expanded
 receiver behavior below remain required. Native coverage alone does not
 provide the complete conversation API.
 
+The private adapter foundation now decodes Chat Completions and Responses
+request JSON through lonejson into owned receiver input. It maps text histories,
+function calls/results, function definitions/choices, structured-output schemas
+and supported sampling controls, and preserves storage, continuation and
+compaction controls separately. The JSON body is capped at 8 MiB, with 64 levels
+and 32768 object members; expanded owned input uses the continuation's 4 MiB and
+4096-item/part bounds. Schema fragments are explicitly materialized within
+64 KiB through lonejson's writer. Counts require integer literals; invalid,
+conflicting, duplicate and unavailable semantics fail instead of being ignored.
+This is request materialization, not generated-output buffering. No public
+JSON/SSE operation or retained-record repository is connected yet.
+
+API function schemas use the existing private schema helper for the documented
+[strict-mode defaults](https://developers.openai.com/api/docs/guides/function-calling#strict-mode):
+Chat defaults to best effort; Responses attempts closed objects with every
+property required when strict is unspecified, falling back to best effort when
+the schema cannot be normalized by the qualified grammar subset. Explicit
+`strict=false` opts out, and explicit true rejects incompatible object schemas
+or unsupported constraints. Normalized definitions expose their effective
+strictness. Responses' `max_tool_calls` is preserved as its built-in-tool limit;
+it is never reinterpreted as the neutral receiver's function-call limit.
+
 The official [Responses migration guide](https://developers.openai.com/api/docs/guides/migrate-to-responses)
 distinguishes messages/choices from typed response items and continuation state.
 The documented API is Responses; this investigation found no separate published
@@ -134,6 +156,30 @@ do not substitute an evictable KV cache or silently weaken the retention period.
 An unavailable repository must reject storage-dependent requests before inference.
 Deletion, retrieval and previous_response_id use that repository. Temporary
 terminal-event assembly for store=false is released when the operation ends.
+
+The private retention planner resolves these requirements before repository
+admission: it separates response storage, prior-response reads and conversation
+reads/appends, requires a trusted application namespace and the corresponding
+repository capabilities, and rejects Responses TTLs below 30 days or overflowing
+expiry timestamps. Repository quota reservation, actual writes and retrieval
+remain adapter work. Neither request `user` nor `safety_identifier` grants access.
+
+Current [OpenAI migration guidance](https://developers.openai.com/api/docs/guides/migrate-to-responses)
+also documents default Chat storage for new accounts. The planner defaults to
+that behavior and allows the trusted application to select the earlier opt-in
+default for an existing deployment. OpenAI does not publish a Chat record TTL
+on the inspected create/retrieve reference; the local default retains stored
+Chat records until deletion, with an explicit application TTL if needed. This
+is a local repository policy, not a claim of an undocumented provider deadline.
+
+Under the documented [data controls](https://developers.openai.com/api/docs/guides/your-data),
+ZDR forces response `store=false` in both APIs, including an explicit true.
+Conversations and their items are outside that eligible endpoint contract and
+remain until deleted; attaching a conversation still requires repository
+read/append admission even with `store=false`. A response's expiry must not
+expire its conversation items. The planner also distinguishes transient
+Responses terminal-object assembly from retained response records; Chat
+streaming without storage requires no full output collector.
 
 Expose actual capability flags and limits in `capabilities` and the model card:
 text, media types, tool formats, schema subset, reasoning separation/controls,

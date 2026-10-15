@@ -18,6 +18,11 @@ tests/compaction.cpp
 tests/auto_compaction.cpp
 tests/output_provenance.cpp
 src/ailo_bounded_json_internal.hpp
+src/ailo_openai_request_internal.hpp
+src/ailo_openai_request.cpp
+src/ailo_openai_retention_internal.hpp
+src/ailo_openai_retention.cpp
+tests/openai_requests.cpp
 tests/compaction_replay.cpp
 tests/compaction_crypto.cpp
 src/ailo_continuation.cpp

@@ -6,8 +6,8 @@
 
 namespace ailo {
 namespace client {
-/** Explicitly bounded materialization for metadata/compaction, never ordinary
- * generated output or protocol delta transport. */
+/** Explicitly bounded materialization for metadata/compaction/request
+ * fragments, never ordinary generated output or protocol delta transport. */
 class bounded_json {
   std::unique_ptr<lonejson, decltype(&lonejson_free)> runtime{nullptr,
                                                               lonejson_free};
@@ -53,6 +53,9 @@ public:
   void key(const char *name) {
     check(writer.key(&writer, name, std::strlen(name), nullptr));
   }
+  void key(const std::string &name) {
+    check(writer.key(&writer, name.data(), name.size(), nullptr));
+  }
   void string(const std::string &value) {
     check(writer.string(&writer, value.data(), value.size(), nullptr));
   }
@@ -65,6 +68,9 @@ public:
   void null() { check(writer.null_fn(&writer, nullptr)); }
   void boolean(bool value) { check(writer.bool_fn(&writer, value, nullptr)); }
   void number(uint64_t value) { check(writer.u64(&writer, value, nullptr)); }
+  void number_text(const std::string &value) {
+    check(writer.number_text(&writer, value.data(), value.size(), nullptr));
+  }
   std::string finish() {
     check(lonejson_writer_finish(&writer, nullptr));
     return std::move(buffer);

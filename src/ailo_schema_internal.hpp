@@ -7,6 +7,10 @@ namespace ailo {
 namespace client {
 std::string output_grammar(const ailo_request &request);
 std::string schema_document(const char *source, bool normalize);
+// API-specific strict defaults/closed-object validation, using the existing
+// bounded private schema helper. strict=-1 is unspecified, 0/1 explicit.
+std::string openai_tool_parameters(const char *source, int strict,
+                                   bool responses, bool &effective_strict);
 
 // Push-fed lonejson validation with a discard sink. No output is retained.
 class json_validation {

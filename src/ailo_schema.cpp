@@ -1,6 +1,8 @@
 #include "ailo_schema_internal.hpp"
+#include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <functional>
 #include <json-schema-to-grammar.h>
 #include <nlohmann/json.hpp>
 #include <set>
@@ -294,6 +296,92 @@ std::string schema_document(const char *source, bool normalize) {
     throw;
   } catch (...) {
     invalid("JSON schema cannot be compiled by the pinned grammar helper");
+  }
+}
+
+std::string openai_tool_parameters(const char *source, int strict,
+                                   bool responses, bool &effective_strict) {
+  const auto original = schema_document(source, false);
+  effective_strict = false;
+  if (strict == 0 || (strict < 0 && !responses))
+    return original;
+  try {
+    auto schema = json::parse(original);
+    if (!schema.contains("type") || schema["type"] != "object")
+      invalid("Strict API function parameters require an object root");
+    const bool normalize = strict < 0;
+    size_t nodes = 0;
+    std::function<void(json &, size_t)> visit = [&](json &node, size_t depth) {
+      if (++nodes > 4096 || depth > 32)
+        throw failure(AILO_OUT_OF_RANGE,
+                      "API tool schema exceeds its node/depth budget");
+      if (!node.is_object())
+        invalid("API tool schemas must be objects");
+      const bool object = node.contains("type") &&
+                          (node["type"] == "object" ||
+                           (node["type"].is_array() &&
+                            std::find(node["type"].begin(), node["type"].end(),
+                                      "object") != node["type"].end()));
+      if (object) {
+        if (node.contains("additionalProperties") &&
+            node["additionalProperties"] != false)
+          invalid(
+              "Strict API object schemas require additionalProperties=false");
+        if (!node.contains("additionalProperties")) {
+          if (!normalize)
+            invalid(
+                "Strict API object schemas require additionalProperties=false");
+          node["additionalProperties"] = false;
+        }
+        json required = json::array();
+        if (node.contains("properties")) {
+          if (!node["properties"].is_object())
+            invalid("Invalid API tool properties");
+          for (const auto &property : node["properties"].items())
+            required.push_back(property.key());
+        }
+        if (normalize)
+          node["required"] = required;
+        else {
+          auto actual = node.value("required", json::array());
+          if (!actual.is_array() || actual.size() != required.size())
+            invalid("Strict API object schemas require every property");
+          for (const auto &key : required)
+            if (std::find(actual.begin(), actual.end(), key) == actual.end())
+              invalid("Strict API object schemas require every property");
+        }
+      }
+      for (const char *group : {"properties", "$defs", "definitions"})
+        if (node.contains(group)) {
+          if (!node[group].is_object())
+            invalid("Invalid API tool schema map");
+          for (auto &entry : node[group].items())
+            visit(entry.value(), depth + 1);
+        }
+      if (node.contains("items"))
+        visit(node["items"], depth + 1);
+      if (node.contains("anyOf")) {
+        if (!node["anyOf"].is_array())
+          invalid("Invalid API tool schema alternatives");
+        for (auto &child : node["anyOf"])
+          visit(child, depth + 1);
+      }
+    };
+    visit(schema, 0);
+    auto serialized = schema.dump();
+    (void)schema_document(serialized.c_str(), true);
+    effective_strict = true;
+    return serialized;
+  } catch (const failure &) {
+    if (strict > 0)
+      throw;
+    // Responses' documented omitted-strict fallback preserves the original
+    // schema and advertises strict=false. Explicit true never falls back.
+    return original;
+  } catch (const json::exception &) {
+    if (strict > 0)
+      invalid("Strict API function schema is invalid");
+    return original;
   }
 }
 
