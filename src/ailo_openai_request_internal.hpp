@@ -12,7 +12,11 @@ enum class openai_protocol {
   conversation,
   conversation_update,
   conversation_items,
-  conversation_query
+  conversation_query,
+  chat_list,
+  chat_update,
+  chat_messages,
+  response_input_items
 };
 struct openai_function {
   std::string type, name, description, parameters;
@@ -40,7 +44,7 @@ struct openai_request {
   size_t raw_size = 0;
   std::vector<std::string> wire_items;
   std::vector<bool> wire_status;
-  std::vector<bool> wire_simple, wire_type;
+  std::vector<bool> wire_simple;
   size_t compact_threshold = 0;
   size_t max_builtin_tool_calls = 0;
   std::string model, previous_response_id, conversation_id, instructions;

@@ -130,6 +130,10 @@ std::string capabilities(state &self) {
   out.boolean(true);
   out.key("retained_chat_records");
   out.boolean(self.openai->policy.repository_writable);
+  out.key("stored_record_queries");
+  out.boolean(self.openai->repository.scan != nullptr);
+  out.key("stored_chat_metadata_update");
+  out.boolean(self.openai->repository.edit != nullptr);
   out.key("max_candidates");
   out.number(16);
   out.key("max_request_text_bytes");

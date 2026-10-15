@@ -192,10 +192,18 @@ void api_expand_compaction(state &self, openai_request &request) {
     (void)token_position(request.items, false);
     if (position != prefix + cut || count > request.items.size() - prefix)
       invalid();
-    for (size_t i = 0; i < count; ++i)
-      if (i != cut && fingerprint(decoded.items[i]) !=
-                          fingerprint(request.items[prefix + i]))
+    for (size_t i = 0; i < count; ++i) {
+      if (i == cut)
+        continue;
+      auto supplied = request.items[prefix + i];
+      // Storage can name a previously anonymous item. Authenticate all original
+      // fields, including every explicit ID, then restore the bound native
+      // view.
+      if (!decoded.items[i].id)
+        supplied.id = nullptr;
+      if (fingerprint(decoded.items[i]) != fingerprint(supplied))
         invalid();
+    }
   }
   auto payload = self.compactor->open(decoded.items[cut].id,
                                       decoded.items[cut].encrypted_content,

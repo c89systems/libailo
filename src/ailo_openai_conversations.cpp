@@ -48,15 +48,15 @@ void incoming(openai_request &request, conversation_snapshot &snapshot) {
     const size_t row = i - request.instruction_items;
     std::string wire;
     if (row < request.wire_items.size() && !request.wire_simple[row]) {
-      wire = request.wire_items[row];
-      wire.pop_back();
-      if (missing)
-        wire += ",\"id\":\"" + std::string(item.id) + "\"";
-      if (!request.wire_type[row])
-        wire += ",\"type\":\"message\"";
-      if (!request.wire_status[row] && item.kind != AILO_ITEM_COMPACTION)
-        wire += ",\"status\":\"completed\"";
-      wire += '}';
+      wire_json out([&](const void *p, size_t n) {
+        if (n > 8 * 1024 * 1024 - wire.size())
+          throw failure(AILO_OUT_OF_RANGE,
+                        "Conversation input item exceeds its wire budget");
+        wire.append(static_cast<const char *>(p), n);
+      });
+      api_input_wire(out, request, snapshot.incoming.items.back()->view(),
+                     request.wire_items[row], request.wire_status[row]);
+      out.finish();
     } else {
       wire_json out([&](const void *p, size_t n) {
         wire.append(static_cast<const char *>(p), n);

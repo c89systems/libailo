@@ -860,6 +860,10 @@ class response_writer {
   }
 
 public:
+  void input_page() {
+    if (store)
+      api_response_input_page(self, request, *record);
+  }
   void seal_reasoning(response_item &i) {
     const auto encrypted = api_seal_reasoning(self, i.id, i.text);
     append(i.encrypted, encrypted.data(), encrypted.size());
@@ -1025,6 +1029,7 @@ AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
     log_scope logs(call.self.logging.get(), log_phase::generate);
     try {
       prior_input(call.self, request);
+      output.input_page();
       bool compacted = false;
       for (const auto &i : request.items)
         compacted |= i.kind == AILO_ITEM_COMPACTION;

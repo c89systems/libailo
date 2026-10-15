@@ -318,6 +318,10 @@ AILO_PUBLIC ailo_status ailo_client_new_with_logger(
     shell->conversation_item_retrieve = ailo_client_conversation_item_retrieve;
     shell->conversation_item_delete = ailo_client_conversation_item_delete;
     shell->conversation_items_list = ailo_client_conversation_items_list;
+    shell->chat_list = ailo_client_chat_list;
+    shell->chat_update = ailo_client_chat_update;
+    shell->chat_messages_list = ailo_client_chat_messages_list;
+    shell->response_input_items_list = ailo_client_response_input_items_list;
     *output = shell.release();
   });
 }

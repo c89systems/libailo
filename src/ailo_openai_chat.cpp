@@ -260,11 +260,23 @@ class chat_writer {
       pending.pop_front();
     }
   }
-  void input_json(byte_sink target) {
+  void input_json(byte_sink target, bool page = false) {
     wire_json out(std::move(target), self.openai->record_limit);
     out.array();
+    size_t index = 0;
     for (const auto &item : request.items) {
       out.object();
+      if (page) {
+        out.key("id");
+        out.string(std::string(info.id) + "-" + std::to_string(index++));
+        out.key("name");
+        if (item.name && item.kind != AILO_ITEM_FUNCTION_CALL)
+          out.string(item.name);
+        else
+          out.null();
+        out.key("content_parts");
+        out.null();
+      }
       out.key("role");
       if (item.kind == AILO_ITEM_FUNCTION_CALL) {
         out.string("assistant");
@@ -284,6 +296,10 @@ class chat_writer {
         out.end_object();
         out.end_object();
         out.end_array();
+        if (page) {
+          out.key("content");
+          out.null();
+        }
       } else {
         out.string(item.kind == AILO_ITEM_FUNCTION_RESULT ? "tool"
                    : item.role == AILO_ROLE_SYSTEM        ? "system"
@@ -293,13 +309,20 @@ class chat_writer {
         if (item.kind == AILO_ITEM_FUNCTION_RESULT) {
           out.key("tool_call_id");
           out.string(item.call_id);
-        } else if (item.name) {
+        } else if (item.name && !page) {
           out.key("name");
           out.string(item.name);
         }
         out.key("content");
-        out.array();
+        if (page)
+          out.string_begin();
+        else
+          out.array();
         for (size_t i = 0; i < item.content_count; ++i) {
+          if (page) {
+            out.string_chunk(item.content[i].data, item.content[i].size);
+            continue;
+          }
           out.object();
           out.key("type");
           out.string("text");
@@ -307,7 +330,10 @@ class chat_writer {
           out.string(item.content[i].data, item.content[i].size);
           out.end_object();
         }
-        out.end_array();
+        if (page)
+          out.string_end();
+        else
+          out.end_array();
       }
       out.end_object();
     }
@@ -376,6 +402,13 @@ class chat_writer {
     out.end_array();
     out.key("usage");
     usage_json(out, info.run.usage);
+    out.key("metadata");
+    out.object();
+    for (const auto &p : request.metadata) {
+      out.key(p.first);
+      out.string(p.second);
+    }
+    out.end_object();
     out.end_object();
     out.finish();
   }
@@ -501,6 +534,7 @@ public:
                                 self.openai->record_limit};
       record = std::make_unique<record_transaction>(*self.openai, meta);
       input_json(record->section(AILO_RECORD_INPUT));
+      input_json(record->section(AILO_RECORD_CHAT_MESSAGES), true);
       wire_json attributes(record->section(AILO_RECORD_METADATA),
                            self.openai->record_limit);
       attributes.object();

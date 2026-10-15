@@ -406,6 +406,20 @@ struct ailo_client {
                                          const void *, size_t, ailo_output_sink,
                                          void *, struct ailo_api_info *,
                                          ailo_error *);
+  ailo_status (*chat_list)(ailo_client *, const void *, size_t,
+                           ailo_output_sink, void *, struct ailo_api_info *,
+                           ailo_error *);
+  ailo_status (*chat_update)(ailo_client *, const char *, const void *, size_t,
+                             ailo_output_sink, void *, struct ailo_api_info *,
+                             ailo_error *);
+  ailo_status (*chat_messages_list)(ailo_client *, const char *, const void *,
+                                    size_t, ailo_output_sink, void *,
+                                    struct ailo_api_info *, ailo_error *);
+  ailo_status (*response_input_items_list)(ailo_client *, const char *,
+                                           const void *, size_t,
+                                           ailo_output_sink, void *,
+                                           struct ailo_api_info *,
+                                           ailo_error *);
 };
 
 ailo_client_config ailo_client_default_config(void);

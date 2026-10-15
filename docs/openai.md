@@ -6,8 +6,9 @@ without an HTTP server. `client->chat_completions` and
 caller-owned `ailo_api_info`. The
 request mapper supports the qualified text, function, schema, sampling and
 reasoning controls in [the receiver contract](client.md). Unavailable controls
-fail explicitly. Model/HTTP dispatch and stored-response list/update routes
-remain required work.
+fail explicitly. Model/HTTP dispatch remains required work; stored Chat list/
+metadata update and paginated Chat messages/Responses input items are receiver
+operations, ready for an embedding transport.
 
 ```c
 /* After constructing client; sink consumes every byte before returning. */
@@ -93,6 +94,8 @@ receives independent incremental JSON sections:
 - `AILO_RECORD_INPUT`: normalized input-message array, including function history.
 - `AILO_RECORD_OUTPUT`: complete `chat.completion` object, not SSE frames.
 - `AILO_RECORD_METADATA`: request metadata object, separate from the wire result.
+- `AILO_RECORD_CHAT_MESSAGES`: normalized input messages with stable message IDs
+  and the stored-message content shape, for cursor queries.
 
 Failure while reserving, writing, generating or forwarding pre-terminal output
 aborts unpublished state. A successful commit atomically publishes all sections
@@ -109,7 +112,71 @@ bytes, closes read handles on every path, and enforces its read byte limit.
 Missing/unauthorized/expired records return `AILO_NOT_FOUND` and HTTP 404.
 `chat_delete` emits the documented deletion object after the provider deletes
 the record. These are primitives for a later transport handler, not registered
-HTTP routes or paginated messages/list/update endpoints.
+HTTP routes. The paginated operations below use separate query primitives.
+
+## Stored lists, input pages and metadata updates
+
+`chat_list(query_json, ...)`, `chat_messages_list(id, query_json, ...)` and
+`response_input_items_list(id, query_json, ...)` return `object:list`, incremental
+data items, first/last IDs and `has_more`. Queries accept `after`, `limit`
+(1..100, default 20) and `order`; Chat defaults to ascending order, Responses
+input items to descending order. Chat completion lists also accept `model` and
+an AND filter of metadata key/value pairs. Responses input pages accept the same
+supported reasoning/logprob `include` values as conversation item queries.
+Unavailable include fields are rejected. These follow the official
+[Chat list](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/list),
+[stored messages](https://developers.openai.com/api/reference/resources/chat/subresources/completions/subresources/messages/methods/list)
+and [Responses input items](https://developers.openai.com/api/reference/resources/responses/subresources/input_items/methods/list)
+contracts. The local Chat page limit is bounded even where the reference does
+not state a numeric maximum.
+
+Stored Responses now also write `AILO_RECORD_RESPONSE_INPUT_ITEMS`, a normalized
+array of input items for that request, including resolved previous/conversation
+context. Top-level instructions remain a separate Response field. The index
+precedes automatic compaction and
+does not contain that request's generated output. New input IDs are assigned
+before inference for the stored index; they do not mutate authenticated native
+inference state. Explicit input IDs are preserved. Original structured new-input
+diagnostics are preserved; easy messages and inherited context use canonical
+item views. This is separate from the private compactable inference checkpoint.
+Compaction replay accepts storage-assigned IDs on previously anonymous items;
+original explicit IDs and all authenticated content remain bound and are checked.
+Chat message IDs are stable completion-ID/index pairs. Supported text parts are
+joined incrementally into stored-message content; native function history keeps
+its call/result associations. Deleting or expiring the parent removes its pages.
+
+Configure optional repository `scan(query, &reader, &expiry)`. The borrowed query
+contains namespace, protocol, section, optional parent ID/cursor/model, metadata
+pairs, order, limit and the current Unix time. It returns a stable OUTPUT array
+with at most `limit+1` rows, using ordinary `read`/`close`. The provider checks
+authorization, parent existence and expiry, filters expired records, and sorts
+records by creation time with a stable tie-breaker. Collection expiry is zero;
+child pages report the parent's original expiry. Item/record bodies, including
+strings, pass incrementally through the existing lonejson projection; libailo
+does not collect a complete page or item. Cursor admission and query indexes
+belong to the provider. `stored_record_queries` reports configured support.
+Input item serialization places type before encrypted content; providers must
+preserve that stored order. This lets projection omit optional reasoning tokens
+without buffering them. Required compaction tokens are always preserved.
+
+`chat_update(id, json, ...)` accepts required nullable `metadata` only, following
+the official [update contract](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/update).
+The map replaces prior metadata; null clears it. Generation parameters, input,
+output choices and the original expiry are preserved. Configure optional
+repository `edit(change, &transaction, &reader, &expiry)`. It exclusively admits
+the existing record and returns an unpublished transaction plus a stable
+pre-edit reader. Untouched sections are preserved. The byte allowance covers
+the final record, including untouched sections; the provider enforces admission.
+Competing mutation/deletion must serialize or return BUSY.
+
+The library incrementally copies OUTPUT, replacing only top-level metadata,
+writes METADATA and commits both atomically with provider indexes. Failed
+read/write/commit aborts without emitting success bytes. After commit it reads
+the same snapshot again, applying the same patch directly to the output sink.
+The reader must support repeated reads through commit until close; the complete
+completion is never buffered. A post-commit sink failure leaves `info.stored`
+true. Expiry is not renewed by editing or listing. `scan` and `edit` are
+independent optional callbacks; `stored_chat_metadata_update` reports the latter.
 
 ## Responses
 
@@ -162,15 +229,15 @@ lineage retains the existing 4 MiB / 4096 item-and-part bounds. Repository read
 sections are bounded to 8 MiB while decoding lineage. The private input section
 is an envelope with `ailo_model_identity`, `input` and diagnostic-free canonical
 `output` arrays; it is not an
-implemented input-items HTTP endpoint. Output logprobs are validated as diagnostic
+input-items page index. Output logprobs are validated as diagnostic
 metadata on replay and are not rendered into the model prompt or copied into
 canonical descendant input. Chaining reads this private section alone, so large
 wire logprob diagnostics do not consume the lineage input budget. Each original
 stored output retains its logprobs.
 
 Standalone compaction and canonical-window replay are implemented below.
-Stored-response input-item pagination and HTTP routes are still
-unavailable integrations; requests for those controls fail explicitly. Capability
+Stored input-item pagination is implemented above; HTTP routes remain a separate
+embedding integration. Capability
 fields distinguish implemented Responses operations, configured record storage,
 and configured conversation support.
 
@@ -441,11 +508,23 @@ client's callbacks. The application supplies the durable implementation.
 
 Metadata has `namespace_id`, `protocol`, `id`, `created_at`, `expires_at` and
 `max_bytes`. Protocol is `"chat"` or `"response"`; section is `"output"`,
-`"input"` or `"metadata"`. Expiry uses Unix seconds with zero meaning until
+`"input"`, `"metadata"`, `"chat_messages"` or `"response_input_items"` for record
+operations; conversations add the protocol and two sections described above.
+Expiry uses Unix seconds with zero meaning until
 deletion. `read` calls `emit(bytes)` synchronously for each available chunk and
 must stop when it returns false. It runs on the invoking Lua thread. The emitter
 rejects calls after `read` returns or throws; retaining it does not extend reader
 or client lifetime.
+
+Optional Lua `scan(query)` returns `reader, expiry` (or `nil, error`), and
+`edit(change)` returns `transaction, reader, expiry` (or `nil, error`). For partial
+failure, return the handles and expiry followed by an error; both handles are
+cleaned up. The facade captures these methods at construction just like the
+required callbacks. Use `chat_list(sink, query_json)`,
+`chat_messages_list(id, sink, query_json)`,
+`response_input_items_list(id, sink, query_json)` and
+`chat_update(id, json, sink)`. Query JSON defaults to `{}`. No extra user-facing
+logger or native-handle plumbing is required.
 
 Failure returns `nil, error`, or throws a Lua value. `reserve` may return a
 transaction plus an error for subsequent abort; `open` may return reader,

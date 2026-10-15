@@ -15,7 +15,9 @@ typedef enum ailo_record_section {
   AILO_RECORD_INPUT,
   AILO_RECORD_METADATA,
   AILO_RECORD_CONVERSATION_STATE,
-  AILO_RECORD_CONVERSATION_ITEMS
+  AILO_RECORD_CONVERSATION_ITEMS,
+  AILO_RECORD_CHAT_MESSAGES,
+  AILO_RECORD_RESPONSE_INPUT_ITEMS
 } ailo_record_section;
 /** Borrowed reservation arguments. The repository scopes every operation to
  * namespace_id and enforces authorization and the promised retention/quota.
@@ -56,7 +58,9 @@ typedef struct ailo_conversation_change {
  * namespace/conversation. Return at most limit+1 rows for pagination. A zero
  * limit is an internal ascending full-history read for context reconstruction.
  * Deleting a conversation retains its item rows; queries may read those rows.
- * The returned handle uses ordinary read/close, without a TTL. */
+ * The returned handle uses ordinary read/close, without a TTL. Preserve stored
+ * field order: item type precedes encrypted_content for streaming projection.
+ */
 typedef struct ailo_conversation_query {
   const char *namespace_id;
   const char *id;
@@ -69,6 +73,43 @@ typedef struct ailo_conversation_query {
    */
   ailo_bool canonical;
 } ailo_conversation_query;
+typedef struct ailo_record_filter {
+  const char *key;
+  size_t key_size;
+  const char *value;
+  size_t value_size;
+} ailo_record_filter;
+/** Stable cursor query. id=NULL selects stored Chat completions (OUTPUT);
+ * otherwise section selects the parent's message/input-item array. Return an
+ * OUTPUT array of at most limit+1 rows, with stable IDs, sorted by creation
+ * time and a stable tie-breaker. Filter metadata pairs with AND semantics.
+ * Apply namespace/authorization and exclude records expired at now. Preserve
+ * stored item field order: type precedes encrypted_content. */
+typedef struct ailo_record_query {
+  const char *namespace_id;
+  ailo_record_protocol protocol;
+  ailo_record_section section;
+  const char *id;
+  const char *after;
+  const char *model;
+  const ailo_record_filter *metadata;
+  size_t metadata_count;
+  size_t limit;
+  ailo_bool descending;
+  ailo_u64 now;
+} ailo_record_query;
+/** Exclusive metadata edit. Return a stable pre-edit reader and unpublished
+ * transaction together. Preserve untouched sections and the original expiry;
+ * competing mutation/deletion must serialize or return BUSY. The reader
+ * supports repeated reads, including after commit, until close. max_bytes
+ * bounds the final record, including untouched sections. */
+typedef struct ailo_record_edit {
+  const char *namespace_id;
+  ailo_record_protocol protocol;
+  const char *id;
+  size_t max_bytes;
+  ailo_u64 now;
+} ailo_record_edit;
 /** Application-owned durable repository, not an evictable cache. Callbacks are
  * synchronous, must not throw/longjmp, and consume borrowed data before return.
  * reserve admits the full max_bytes and TTL BEFORE inference. It sets a unique
@@ -113,6 +154,16 @@ typedef struct ailo_record_repository {
                        ailo_error *);
   ailo_status (*query)(void *, const ailo_conversation_query *, void **,
                        ailo_error *);
+  /** Optional stored-list and metadata-update capabilities, independent of
+   * each other and of the conversation pair. scan uses read(OUTPUT)/close;
+   * expiry=0 for collection queries, parent expiry for message/input pages.
+   * edit uses write/commit/abort plus read/close, returning both handles even
+   * on an error requiring cleanup. Commit updates metadata indexes atomically.
+   */
+  ailo_status (*scan)(void *, const ailo_record_query *, void **, ailo_u64 *,
+                      ailo_error *);
+  ailo_status (*edit)(void *, const ailo_record_edit *, void **, void **,
+                      ailo_u64 *, ailo_error *);
 } ailo_record_repository;
 
 typedef struct ailo_openai_config {
@@ -165,6 +216,16 @@ ailo_status ailo_client_chat_retrieve(ailo_client *, const char *, ailo_bool,
 ailo_status ailo_client_chat_delete(ailo_client *, const char *,
                                     ailo_output_sink, void *, ailo_api_info *,
                                     ailo_error *);
+ailo_status ailo_client_chat_list(ailo_client *, const void *, size_t,
+                                  ailo_output_sink, void *, ailo_api_info *,
+                                  ailo_error *);
+ailo_status ailo_client_chat_update(ailo_client *, const char *, const void *,
+                                    size_t, ailo_output_sink, void *,
+                                    ailo_api_info *, ailo_error *);
+ailo_status ailo_client_chat_messages_list(ailo_client *, const char *,
+                                           const void *, size_t,
+                                           ailo_output_sink, void *,
+                                           ailo_api_info *, ailo_error *);
 /** Responses output is explicitly retained within max_output_memory_bytes for
  * full done/terminal repeats; every available delta is still sent immediately.
  * Stored records default to at least 30 days. previous_response_id reads the
@@ -178,6 +239,11 @@ ailo_status ailo_client_response_retrieve(ailo_client *, const char *,
 ailo_status ailo_client_response_delete(ailo_client *, const char *,
                                         ailo_output_sink, void *,
                                         ailo_api_info *, ailo_error *);
+ailo_status ailo_client_response_input_items_list(ailo_client *, const char *,
+                                                  const void *, size_t,
+                                                  ailo_output_sink, void *,
+                                                  ailo_api_info *,
+                                                  ailo_error *);
 /** Stateless standalone Responses compaction. Writes the canonical next window
  * as response.compaction JSON; performs no response-record storage. */
 ailo_status ailo_client_response_compact(ailo_client *, const void *, size_t,

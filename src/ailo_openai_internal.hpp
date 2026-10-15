@@ -60,6 +60,8 @@ void read_record(openai_state &, ailo_record_protocol, const char *,
 void erase_record(openai_state &, ailo_record_protocol, const char *);
 void query_conversation(openai_state &, const ailo_conversation_query &,
                         byte_sink);
+void query_records(openai_state &, const ailo_record_query &, byte_sink);
+void read_record_handle(openai_state &, void *, ailo_record_section, byte_sink);
 void read_conversation_snapshot(openai_state &, const char *, byte_sink state,
                                 byte_sink header);
 void api_canonical_item(wire_json &, const ailo_item &);
@@ -86,6 +88,7 @@ class record_transaction {
 public:
   record_transaction(openai_state &, const ailo_record_metadata &);
   record_transaction(openai_state &, const ailo_conversation_change &);
+  record_transaction(openai_state &, const ailo_record_edit &, void **reader);
   ~record_transaction();
   byte_sink section(ailo_record_section);
   void commit();
@@ -107,6 +110,11 @@ api_attach_conversation(state &, openai_request &);
 void api_conversation_header(wire_json &, const conversation_snapshot &);
 void api_conversation_items(wire_json &, const conversation_snapshot &,
                             const std::vector<ailo_item> &canonical);
+void api_project_items(const openai_request &, const char *, byte_sink, size_t,
+                       const std::function<void(byte_sink)> &);
+void api_response_input_page(state &, openai_request &, record_transaction &);
+void api_input_wire(wire_json &, const openai_request &, const ailo_item &,
+                    const std::string &, bool has_status);
 } // namespace client
 } // namespace ailo
 #endif

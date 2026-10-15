@@ -174,7 +174,6 @@ class decoder {
           self.out.wire_simple.push_back(self.input.back().content_string &&
                                          self.input.back().type !=
                                              "function_call_output");
-          self.out.wire_type.push_back(!self.input.back().type.empty());
           self.item_capture.reset();
         }
       }
@@ -768,7 +767,9 @@ class decoder {
       const auto protocol = out.protocol;
       if (field == "metadata" &&
           (protocol == openai_protocol::conversation ||
-           protocol == openai_protocol::conversation_update)) {
+           protocol == openai_protocol::conversation_update ||
+           protocol == openai_protocol::chat_update ||
+           protocol == openai_protocol::chat_list)) {
         metadata_value(p, k, v);
         return;
       }
@@ -780,7 +781,19 @@ class decoder {
           message(p, k, v);
         return;
       }
-      if (protocol != openai_protocol::conversation_query)
+      if (protocol == openai_protocol::chat_list && p.size() == 1 &&
+          field == "model") {
+        if (k != kind::null) {
+          expect(k, kind::string);
+          text_limit(v, 256, true);
+          out.model = v;
+        }
+        return;
+      }
+      if (protocol != openai_protocol::conversation_query &&
+          protocol != openai_protocol::chat_list &&
+          protocol != openai_protocol::chat_messages &&
+          protocol != openai_protocol::response_input_items)
         unsupported();
       if (p.size() == 1 && field == "after") {
         if (k != kind::null) {
@@ -806,7 +819,8 @@ class decoder {
         }
         return;
       }
-      if (field != "include")
+      if (field != "include" || protocol == openai_protocol::chat_list ||
+          protocol == openai_protocol::chat_messages)
         unsupported();
     }
     if (compact && !one_of(field, {"model", "input", "instructions",
@@ -1113,7 +1127,11 @@ public:
       : out(request), chat(request.protocol == openai_protocol::chat),
         compact(request.protocol == openai_protocol::compact),
         control(request.protocol >= openai_protocol::conversation),
-        selected_items(selected) {}
+        selected_items(selected) {
+    if (request.protocol == openai_protocol::chat_list ||
+        request.protocol == openai_protocol::chat_messages)
+      request.descending = false;
+  }
   void parse(const void *data, size_t size, const std::string &served_model) {
     if ((!data && size) || !size || size > 8 * 1024 * 1024)
       invalid("API request must contain between one byte and 8 MiB of JSON");
@@ -1160,14 +1178,16 @@ public:
       return;
     }
     if (control) {
-      if (out.protocol == openai_protocol::conversation_update &&
+      if ((out.protocol == openai_protocol::conversation_update ||
+           out.protocol == openai_protocol::chat_update) &&
           !root_keys.count("metadata"))
-        invalid("Conversation update requires metadata");
+        invalid("Update requires metadata");
       if (out.protocol == openai_protocol::conversation_items && !input_present)
         invalid("Conversation items requires an items array");
       if (input.size() > 20)
         invalid("At most 20 conversation items may be added at once");
-      out.model = served_model;
+      if (out.protocol != openai_protocol::chat_list)
+        out.model = served_model;
       finish_input();
       return;
     }

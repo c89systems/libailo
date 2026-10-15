@@ -8,7 +8,7 @@ function M.new()
     self.reserved=self.reserved+1
     if self.hook then self.hook()end
     if self.fault=="reserve_throw" then error(self.marker)end
-    local tx={metadata=metadata,parts={output={},input={},metadata={}},bytes=0}
+    local tx={metadata=metadata,parts={output={},input={},metadata={},chat_messages={},response_input_items={}},bytes=0}
     self.active[tx]=true;self.last_metadata=metadata
     if self.fault=="reserve" then return tx,self.marker end
     return tx
@@ -25,7 +25,8 @@ function M.new()
     assert(self.active[tx])
     if self.fault=="commit" then return nil,self.marker end
     local m=tx.metadata
-    self.records[key(m.namespace_id,m.protocol,m.id)]={parts={output=table.concat(tx.parts.output),input=table.concat(tx.parts.input),metadata=table.concat(tx.parts.metadata)},expires=m.expires_at}
+    local parts={};for name,chunks in pairs(tx.parts)do parts[name]=table.concat(chunks)end
+    self.records[key(m.namespace_id,m.protocol,m.id)]={parts=parts,expires=m.expires_at,identity=m}
     self.active[tx]=nil;self.committed=self.committed+1
     return true
   end
@@ -155,10 +156,11 @@ function M.exercise(ailo,path,memory)
   assert(not pcall(late,"after close"));c=nil;collectgarbage("collect")
   M.compaction(ailo,path,memory)
   M.conversations(ailo,path,memory)
+  M.record_operations(ailo,path,memory)
 end
 function M.compaction(ailo,path,memory)
   local function ok(v,e)assert(v,e and (e.code..": "..e.message));return v end
-  local r=M.new()
+  local r=M.record_repository()
   local function client(mode,thinking)
     local owner
     if mode=="ephemeral" then owner=ok(ailo.new_compactor())
@@ -172,7 +174,7 @@ function M.compaction(ailo,path,memory)
   end
   local c=client()
   local text={"Finish ticket T-1. "..string.rep("x",1000),"old answer","older","answer","recent","answer","newest","answer","current"}
-  local items={};for i,s in ipairs(text)do items[i]='{"role":"'..(i%2==1 and "user" or "assistant")..'","content":"'..s..'"}'end
+  local items={};for i,s in ipairs(text)do items[i]='{'..(i==9 and '"id":"history-9",'or'')..'"role":"'..(i%2==1 and "user" or "assistant")..'","content":"'..s..'"}'end
   local body='{"model":"local-model","instructions":"Only compact","input":['..table.concat(items,",")..']}'
   local chunks={};local compact=ok(c:response_compact(body,function(bytes)chunks[#chunks+1]=bytes;if memory then collectgarbage("collect")end end))
   assert(not compact.stored and r.reserved==0 and compact.usage.compaction_passes>0 and #chunks>3)
@@ -186,6 +188,7 @@ function M.compaction(ailo,path,memory)
   assert(value==nil and err.code=="sink_failed" and err.cause==marker and r.reserved==0)
   local replay='{"input":'..window..',"instructions":"New per-request","stream":true,"max_output_tokens":2,"temperature":0,"stream_options":{"include_obfuscation":false}}'
   local response=ok(c:responses(replay,function()if memory then collectgarbage("collect")end end));assert(response.stored)
+  if not memory then M.replay_input_page(c,response.id)end
   c:close();c=client()
   local next_response=ok(c:responses('{"previous_response_id":"'..response.id..'","input":"Next","max_output_tokens":2,"temperature":0}',function()if memory then collectgarbage("collect")end end))
   assert(next_response.stored and not next(r.active) and not next(r.reading))
@@ -270,7 +273,12 @@ local function rows(s)
   end
   return out
 end
+local function quoted(s)
+  local short={['\b']='\\b',['\f']='\\f',['\n']='\\n',['\r']='\\r',['\t']='\\t',['"']='\\"',['\\']='\\\\'}
+  return '"'..s:gsub('[%z\1-\31"\\]',function(c)return short[c]or string.format('\\u%04x',c:byte())end)..'"'
+end
 local function member(s,name)
+  name=quoted(name):sub(2,-2)
   local p=2
   while p<#s do
     if s:sub(p,p)==',' or s:sub(p,p):match('%s')then p=p+1 else
@@ -292,7 +300,7 @@ function M.conversation_repository()
     local present={};for _,row in ipairs(old and old.rows or {})do present[row.id]=true end
     for _,id in ipairs(c.input_ids)do if present[id]then return nil,{code='invalid_argument'}end;present[id]=true end
     if c.action=='delete_item' and not present[c.item_id]then return nil,{code='not_found'}end
-    local tx={change=c,key=k,old=old,parts={output={},input={},metadata={},conversation_state={},conversation_items={}},bytes=0,metadata={max_bytes=c.max_bytes}}
+    local tx={change=c,key=k,old=old,parts={output={},input={},metadata={},conversation_state={},conversation_items={},chat_messages={},response_input_items={}},bytes=0,metadata={max_bytes=c.max_bytes}}
     self.reserved=self.reserved+1;self.active[tx]=true;self.locks[k]=tx
     if self.fault=='amend' then return tx,self.marker end
     return tx
@@ -311,7 +319,7 @@ function M.conversation_repository()
     local output=table.concat(tx.parts.output)
     if c.response then
       local m=c.response
-      self.records[key(m.namespace_id,m.protocol,m.id)]={parts={input=table.concat(tx.parts.input),output=output,metadata=table.concat(tx.parts.metadata)},expires=m.expires_at}
+      self.records[key(m.namespace_id,m.protocol,m.id)]={parts={input=table.concat(tx.parts.input),output=output,metadata=table.concat(tx.parts.metadata),response_input_items=table.concat(tx.parts.response_input_items)},expires=m.expires_at,identity=m}
       output=old.parts.output
     elseif output=='' then output=old.parts.output end
     self.records[tx.key]={parts={output=output,input=table.concat(tx.parts.conversation_state)},expires=0,revision=c.revision+1,rows=entries}
@@ -460,5 +468,175 @@ function M.conversations(ailo,path,memory)
   joint:close();joint=keyed('-reasoning',true)
   ok(joint:responses('{"conversation":"'..root.id..'","input":"Next","store":false,"max_output_tokens":2,"temperature":0}',function()end))
   ok(joint:conversation_delete(root.id,function()end));joint:close()
+end
+function M.record_repository()
+  local r=M.new();r.locks={}
+  local base_commit,base_abort,base_read=r.commit,r.abort,r.read
+  function r:edit(e)
+    local k=key(e.namespace_id,e.protocol,e.id);local old=self.records[k]
+    if not old or(old.expires~=0 and old.expires<=e.now)then return nil,{code='not_found'}end
+    if self.locks[k]then return nil,{code='busy'}end
+    local tx={edit=true,key=k,old=old,metadata={max_bytes=e.max_bytes},parts={output={},metadata={}},bytes=0}
+    local reader={parts=old.parts,expires=old.expires,edit_source=true}
+    self.active[tx]=true;self.locks[k]=tx;self.reading[reader]=true
+    if self.edit_hook then self.edit_hook()end
+    if self.fault=='edit' then return tx,reader,old.expires,self.marker end
+    if self.fault=='edit_expiry' then return tx,reader,'bad' end
+    return tx,reader,old.expires
+  end
+  function r:commit(tx)
+    if not tx.edit then return base_commit(self,tx)end
+    if self.fault=='commit' then return nil,self.marker end
+    local parts={};for name,value in pairs(tx.old.parts)do parts[name]=value end
+    for name,chunks in pairs(tx.parts)do if #chunks>0 then parts[name]=table.concat(chunks)end end
+    self.records[tx.key]={parts=parts,expires=tx.old.expires,identity=tx.old.identity}
+    self.active[tx]=nil;self.locks[tx.key]=nil;self.committed=self.committed+1
+    return true
+  end
+  function r:abort(tx)
+    if tx.edit then self.locks[tx.key]=nil end
+    return base_abort(self,tx)
+  end
+  function r:scan(q)
+    local eligible={};local expiry=0
+    if q.id then
+      local old=self.records[key(q.namespace_id,q.protocol,q.id)]
+      if not old or(old.expires~=0 and old.expires<=q.now)then return nil,{code='not_found'}end
+      expiry=old.expires
+      for _,row in ipairs(rows(assert(old.parts[q.section])))do eligible[#eligible+1]=row end
+    else
+      local selected={}
+      for _,old in pairs(self.records)do
+        local m=old.identity
+        if m and m.namespace_id==q.namespace_id and m.protocol==q.protocol and(old.expires==0 or old.expires>q.now)then
+          local matches=not q.model or member(old.parts.output,'model')==quoted(q.model)
+          for k,v in pairs(q.metadata)do if member(old.parts.metadata,k)~=quoted(v)then matches=false end end
+          if matches then selected[#selected+1]=old end
+        end
+      end
+      table.sort(selected,function(a,b)local x,y=a.identity,b.identity;return x.created_at<y.created_at or(x.created_at==y.created_at and x.id<y.id)end)
+      for _,old in ipairs(selected)do eligible[#eligible+1]=old.parts.output end
+    end
+    if q.descending then local reversed={};for n=#eligible,1,-1 do reversed[#reversed+1]=eligible[n]end;eligible=reversed end
+    local selected={};local started=not q.after
+    for _,row in ipairs(eligible)do
+      if started then selected[#selected+1]=row elseif member(row,'id')=='"'..q.after..'"' then started=true end
+      if #selected>=q.limit+1 then break end
+    end
+    if not started then return nil,{code='not_found'}end
+    local handle={parts={output='['..table.concat(selected,',')..']'},scan=true};self.reading[handle]=true
+    if self.bad_scan then handle.parts.output='[{"id":"broken"'end
+    if self.fault=='scan' then return handle,expiry,self.marker end
+    return handle,self.scan_expiry or expiry
+  end
+  function r:read(handle,section,emit)
+    self.in_scan=handle.scan;self.query_total=handle.scan and #handle.parts.output or 0;self.query_sent=0
+    self.read_passes=(self.read_passes or 0)+1
+    local v,e=base_read(self,handle,section,function(s)self.query_sent=self.query_sent+#s;return emit(s)end)
+    self.in_scan=false;return v,e
+  end
+  return r
+end
+function M.record_operations(ailo,path,memory)
+  local function ok(v,e)assert(v,e and(e.code..': '..e.message));return v end
+  local function fails(code,fn)local v,e=fn();assert(v==nil and e and e.code==code,tostring(e and e.code));return e end
+  local r=M.record_repository()
+  local function client(ns)
+    return ok(ailo.new{source={local_path=path},backend='cpu',threads=1,context_tokens=256,lazy=true,
+      openai={namespace_id=ns or'R',repository=r,chat_retention_seconds=60,max_record_bytes=32768}})
+  end
+  local c=client();local chunks={};local function sink(s)chunks[#chunks+1]=s end
+  local function text()local s=table.concat(chunks);chunks={};return s end
+  local body='{"model":"local-model","messages":[{"role":"system","content":"Be helpful"},{"role":"user","content":"Hi"}],"max_completion_tokens":2,"temperature":0,"stream":true,"metadata":{"team":"alpha","ticket":"one"},"stream_options":{"include_obfuscation":false}}'
+  local one=ok(c:chat_completions(body,sink));text()
+  local original=r.records[key('R','chat',one.id)];local expiry=original.expires
+  ok(c:chat_messages_list(one.id,sink,'{"limit":1}'));local page=text()
+  assert(page:find('"has_more":true')and page:find('"first_id":"'..one.id..'-0"',1,true)and page:find('Be helpful'),page)
+  ok(c:chat_messages_list(one.id,sink,'{"after":"'..one.id..'-0"}'));assert(text():find('"content":"Hi"'))
+  ok(c:chat_messages_list(one.id,sink,'{"order":"desc","limit":1}'));assert(text():find('"first_id":"'..one.id..'-1"',1,true))
+  ok(c:chat_update(one.id,'{"metadata":{"ticket":"new"}}',sink));local updated=text()
+  local record=r.records[key('R','chat',one.id)]
+  assert(record.expires==expiry and record.parts.input==original.parts.input and record.parts.chat_messages==original.parts.chat_messages)
+  assert(member(updated,'choices')==member(original.parts.output,'choices')and record.parts.metadata=='{"ticket":"new"}'and updated==record.parts.output)
+  ok(c:chat_list(sink,'{"metadata":{"team":"alpha"}}'));assert(text():find('"data":%[%]'))
+  ok(c:chat_list(sink,'{"metadata":{"ticket":"new"},"model":"local-model"}'));assert(text():find(one.id,1,true))
+  ok(c:chat_list(sink,'{"metadata":{"ticket":"new","team":"alpha"}}'));assert(text():find('"data":%[%]'))
+  ok(c:chat_update(one.id,'{"metadata":{"a\\u0000b":"v\\u0000x"}}',sink));text()
+  ok(c:chat_list(sink,'{"metadata":{"a\\u0000b":"v\\u0000x"}}'));assert(text():find(one.id,1,true))
+  ok(c:chat_list(sink,'{"metadata":{"a":"v"}}'));assert(text():find('"data":%[%]'))
+  ok(c:chat_list(sink,'{"model":"not-this-model"}'));assert(text():find('"data":%[%]'))
+  local before=r.committed
+  local e=fails('cancelled',function()return c:chat_update(one.id,'{"metadata":null}',function()assert(r.committed==before+1);return false end)end)
+  assert(e.info.stored and r.records[key('R','chat',one.id)].parts.metadata=='{}'and not next(r.reading)and not next(r.active))
+  for _,fault in ipairs{'edit','edit_expiry','write','commit','read'}do
+    local old=r.records[key('R','chat',one.id)];r.marker={fault=fault};r.fault=fault;local deliveries=0
+    e=fails('io_failed',function()return c:chat_update(one.id,'{"metadata":{"x":"y"}}',function()deliveries=deliveries+1 end)end)
+    assert(deliveries==0 and r.records[key('R','chat',one.id)]==old and not next(r.reading)and not next(r.active)and not next(r.locks))
+    if fault~='edit_expiry'then assert(e.cause==r.marker)end
+  end
+  r.fault='scan';r.marker={scan=true};e=fails('io_failed',function()return c:chat_list(function()end)end);assert(e.cause==r.marker and not next(r.reading));r.fault=nil
+  local deliveries=0;r.scan_expiry=1
+  fails('not_found',function()return c:chat_messages_list(one.id,function()deliveries=deliveries+1 end)end)
+  assert(deliveries==0 and not next(r.reading));r.scan_expiry=nil
+  r.bad_scan=true;fails('io_failed',function()return c:chat_list(function()end)end);r.bad_scan=nil
+  fails('invalid_argument',function()return c:chat_update(one.id,'{}',function()end)end)
+  fails('unsupported',function()return c:chat_update(one.id,'{"metadata":{},"temperature":1}',function()end)end)
+  fails('invalid_argument',function()return c:chat_list(function()end,'{"limit":0}')end)
+  fails('unsupported',function()return c:chat_messages_list(one.id,function()end,'{"include":[]}')end)
+  local other=client('different');ok(other:chat_list(sink));assert(text():find('"data":%[%]'))
+  fails('not_found',function()return other:chat_update(one.id,'{"metadata":{}}',function()end)end);other:close()
+  local json='{"input":[{"id":"user_one","role":"user","content":"Hi"},{"role":"assistant","content":[{"type":"output_text","text":"Hello","annotations":[],"logprobs":[]}]},{"role":"user","content":"Again"}],"instructions":"Be helpful","max_output_tokens":2,"temperature":0}'
+  local response=ok(c:responses(json,sink));text()
+  local streaming=false
+  ok(c:response_input_items_list(response.id,function(s)sink(s);if table.concat(chunks):find('Hi')and r.in_scan and r.query_sent<r.query_total then streaming=true end end,'{"order":"asc","limit":100}'))
+  local all=text();assert(streaming and all:find('user_one')and not all:find('Be helpful')and not all:find('logprobs'))
+  ok(c:response_input_items_list(response.id,sink,'{"order":"asc","limit":100,"include":["message.output_text.logprobs"]}'));assert(text():find('"logprobs":%[%]'))
+  ok(c:response_input_items_list(response.id,sink,'{"limit":1}'));assert(text():find('"has_more":true'))
+  local input_record=r.records[key('R','response',response.id)];local saved_inputs=input_record.parts.response_input_items
+  input_record.parts.response_input_items='[{"type":"reasoning","id":"rs_test","encrypted_content":"reason-secret","summary":[]},{"type":"compaction","id":"cmp_test","encrypted_content":"compact-secret"}]'
+  ok(c:response_input_items_list(response.id,sink));local projected=text()
+  assert(projected:find('compact%-secret')and not projected:find('reason%-secret'))
+  ok(c:response_input_items_list(response.id,sink,'{"include":["reasoning.encrypted_content"]}'));assert(text():find('reason%-secret'))
+  input_record.parts.response_input_items=saved_inputs
+  if not memory then
+    local two=ok(c:chat_completions(body,sink));text()
+    ok(c:chat_list(sink,'{"limit":1}'));page=text();local cursor=assert(page:match('"last_id":"([^"]+)"'));assert(page:find('"has_more":true'))
+    ok(c:chat_list(sink,'{"after":"'..cursor..'","limit":1}'));assert(text():find('"has_more":false'))
+    local second=client();r.edit_hook=function()r.edit_hook=nil;fails('busy',function()return second:chat_update(one.id,'{"metadata":{}}',function()error('conflict emitted bytes')end)end)end
+    ok(c:chat_update(one.id,'{"metadata":{"owner":"one"}}',sink));text();second:close()
+    second=client();local switched=false
+    ok(c:chat_update(one.id,'{"metadata":{"owner":"snapshot"}}',function(s)
+      sink(s)
+      if not switched then switched=true;ok(second:chat_update(one.id,'{"metadata":{"owner":"later"}}',function()end))end
+    end))
+    assert(text():find('"owner":"snapshot"')and r.records[key('R','chat',one.id)].parts.metadata=='{"owner":"later"}');second:close()
+    local next_response=ok(c:responses('{"previous_response_id":"'..response.id..'","input":"Next","max_output_tokens":2,"temperature":0}',sink));text()
+    ok(c:response_input_items_list(next_response.id,sink,'{"order":"asc","limit":100}'));local continued=text()
+    assert(continued:find('user_one')and continued:find('Next')and not continued:find('Be helpful'))
+    local old=r.records[key('R','chat',one.id)];local stored=old.parts.output;old.parts.output='{"id":"broken"'
+    fails('io_failed',function()return c:chat_update(one.id,'{"metadata":{}}',function()error('uncommitted output')end)end);old.parts.output=stored
+    assert(not next(r.active)and not next(r.reading))
+    local missing=ok(c:responses('{"input":"Not stored","store":false,"max_output_tokens":2}',sink));text()
+    fails('not_found',function()return c:response_input_items_list(missing.id,function()end)end)
+    local expired=r.records[key('R','chat',two.id)];expired.expires=1
+    ok(c:chat_list(sink));local visible=text();assert(visible:find(one.id,1,true)and not visible:find(two.id,1,true));expired.expires=expired.identity.expires_at
+    ok(c:chat_delete(two.id,function()end));ok(c:response_delete(next_response.id,function()end))
+  end
+  ok(c:chat_delete(one.id,function()end));fails('not_found',function()return c:chat_messages_list(one.id,function()end)end)
+  ok(c:response_delete(response.id,function()end));c:close()
+  assert(not next(r.active)and not next(r.reading)and not next(r.locks))
+  local bare=ok(ailo.new{source={local_path=path},backend='cpu',lazy=true})
+  fails('unsupported',function()return bare:chat_list(function()error('unavailable query emitted bytes')end)end);bare:close()
+end
+function M.replay_input_page(c,id)
+  local chunks={};local v,e=c:response_input_items_list(id,function(s)chunks[#chunks+1]=s end,'{"order":"asc","limit":100}')
+  assert(v,e and e.message)
+  local input=assert(member(table.concat(chunks),'data'))
+  v,e=c:responses('{"input":'..input..',"store":false,"max_output_tokens":2,"temperature":0}',function()end)
+  assert(v,e and e.message)
+  local changed,n=input:gsub('"id":"history%-9"','"id":"changed"',1);assert(n==1)
+  local deliveries=0
+  v,e=c:responses('{"input":'..changed..',"store":false,"max_output_tokens":2}',function()deliveries=deliveries+1 end)
+  assert(v==nil and e.code=='invalid_argument'and deliveries==0)
 end
 return M

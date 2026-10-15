@@ -89,6 +89,12 @@ local function openai(input)
         out.repository[name]=provider[name]
       end
     end
+    for _,name in ipairs{"scan","edit"}do
+      if provider[name]~=nil then
+        if type(provider[name])~="function" then invalid("repository method "..name.." must be a function")end
+        out.repository[name]=provider[name]
+      end
+    end
   end
   return out
 end
@@ -351,6 +357,18 @@ end
 local function api_sink_function(sink)
   if type(sink)~="function" then invalid("sink must be a function")end
   return sink
+end
+function methods:chat_list(sink,query)
+  return guarded(function()return self._native:chat_list(str(query or "{}","Chat list query JSON",false,true),api_sink_function(sink))end)
+end
+function methods:chat_update(id,json,sink)
+  return guarded(function()return self._native:chat_update(str(id,"completion ID",false),str(json,"Chat metadata update JSON",false,true),api_sink_function(sink))end)
+end
+function methods:chat_messages_list(id,sink,query)
+  return guarded(function()return self._native:chat_messages_list(str(id,"completion ID",false),str(query or "{}","Chat message query JSON",false,true),api_sink_function(sink))end)
+end
+function methods:response_input_items_list(id,sink,query)
+  return guarded(function()return self._native:response_input_items_list(str(id,"response ID",false),str(query or "{}","Response input query JSON",false,true),api_sink_function(sink))end)
 end
 function methods:conversation_create(json,sink)
   return guarded(function()return self._native:conversation_create(str(json,"conversation JSON",false,true),api_sink_function(sink))end)

@@ -476,7 +476,9 @@ typedef enum repository_op {
   REPOSITORY_CLOSE,
   REPOSITORY_ERASE,
   REPOSITORY_AMEND,
-  REPOSITORY_QUERY
+  REPOSITORY_QUERY,
+  REPOSITORY_SCAN,
+  REPOSITORY_EDIT
 } repository_op;
 typedef struct read_emitter {
   ailo_output_sink sink;
@@ -488,12 +490,15 @@ typedef struct repository_call {
   const ailo_record_metadata *metadata;
   const ailo_conversation_change *change;
   const ailo_conversation_query *query;
+  const ailo_record_query *record_query;
+  const ailo_record_edit *edit;
   const char *namespace_id, *id;
   ailo_record_protocol protocol;
   ailo_record_section section;
   const void *bytes;
   size_t size;
   void **handle;
+  void **reader;
   ailo_u64 *expires;
   ailo_output_sink sink;
   void *user;
@@ -574,10 +579,16 @@ static void repository_metadata(lua_State *L, const ailo_record_metadata *m) {
   set_integer(L, "max_bytes", (lua_Integer)m->max_bytes);
 }
 static int repository_thunk(lua_State *L) {
-  static const char *names[] = {"reserve", "write", "commit", "abort", "open",
-                                "read",    "close", "erase",  "amend", "query"};
-  static const char *sections[] = {"output", "input", "metadata",
-                                   "conversation_state", "conversation_items"};
+  static const char *names[] = {"reserve", "write", "commit", "abort",
+                                "open",    "read",  "close",  "erase",
+                                "amend",   "query", "scan",   "edit"};
+  static const char *sections[] = {"output",
+                                   "input",
+                                   "metadata",
+                                   "conversation_state",
+                                   "conversation_items",
+                                   "chat_messages",
+                                   "response_input_items"};
   client *owner = lua_touserdata(L, 1);
   repository_call *call = lua_touserdata(L, 2);
   lua_getiuservalue(L, 1, 4);
@@ -630,6 +641,42 @@ static int repository_thunk(lua_State *L) {
     arguments = 2;
     break;
   }
+  case REPOSITORY_SCAN: {
+    const ailo_record_query *q = call->record_query;
+    lua_createtable(L, 0, 11);
+    set_string(L, "namespace_id", q->namespace_id);
+    set_string(L, "protocol", repository_protocol(q->protocol));
+    set_string(L, "section", sections[q->section]);
+    set_string(L, "id", q->id);
+    set_string(L, "after", q->after);
+    set_string(L, "model", q->model);
+    set_integer(L, "limit", (lua_Integer)q->limit);
+    lua_pushboolean(L, q->descending);
+    lua_setfield(L, -2, "descending");
+    push_u64(L, q->now);
+    lua_setfield(L, -2, "now");
+    lua_createtable(L, 0, (int)q->metadata_count);
+    for (size_t n = 0; n < q->metadata_count; ++n) {
+      lua_pushlstring(L, q->metadata[n].key, q->metadata[n].key_size);
+      lua_pushlstring(L, q->metadata[n].value, q->metadata[n].value_size);
+      lua_settable(L, -3);
+    }
+    lua_setfield(L, -2, "metadata");
+    arguments = 2;
+    break;
+  }
+  case REPOSITORY_EDIT: {
+    const ailo_record_edit *e = call->edit;
+    lua_createtable(L, 0, 5);
+    set_string(L, "namespace_id", e->namespace_id);
+    set_string(L, "protocol", repository_protocol(e->protocol));
+    set_string(L, "id", e->id);
+    set_integer(L, "max_bytes", (lua_Integer)e->max_bytes);
+    push_u64(L, e->now);
+    lua_setfield(L, -2, "now");
+    arguments = 2;
+    break;
+  }
   case REPOSITORY_OPEN:
   case REPOSITORY_ERASE:
     lua_pushstring(L, call->namespace_id);
@@ -662,29 +709,62 @@ static int repository_thunk(lua_State *L) {
     arguments = 2;
     break;
   }
-  lua_call(L, arguments, call->operation == REPOSITORY_OPEN ? 3 : 2);
+  const int expiry =
+      call->operation == REPOSITORY_OPEN || call->operation == REPOSITORY_SCAN;
+  lua_call(L, arguments,
+           call->operation == REPOSITORY_EDIT ? 4
+           : expiry                           ? 3
+                                              : 2);
   ailo_status status = AILO_OK;
-  if (call->operation == REPOSITORY_RESERVE ||
-      call->operation == REPOSITORY_OPEN ||
-      call->operation == REPOSITORY_AMEND ||
-      call->operation == REPOSITORY_QUERY) {
+  if (call->operation == REPOSITORY_EDIT) {
+    const int tx = lua_gettop(L) - 3, reader = tx + 1;
+    if (lua_isnil(L, tx) && !lua_isnil(L, reader) && lua_isnil(L, tx + 2) &&
+        lua_isnil(L, tx + 3)) {
+      lua_pushinteger(L, repository_error(L, owner, reader, 0));
+      return 1;
+    }
+    if (!lua_isnil(L, tx)) {
+      lua_pushvalue(L, tx);
+      lua_setiuservalue(L, 1, 5);
+      *call->handle = owner;
+    }
+    if (!lua_isnil(L, reader)) {
+      lua_pushvalue(L, reader);
+      lua_setiuservalue(L, 1, 6);
+      *call->reader = owner;
+    }
+    if (!lua_isnil(L, tx + 3))
+      status = repository_error(L, owner, tx + 3, 0);
+    else if (lua_isnil(L, tx) || lua_isnil(L, reader)) {
+      if (lua_isnil(L, tx) && !lua_isnil(L, reader))
+        status = repository_error(L, owner, reader, 0);
+      else
+        return luaL_error(L, "repository edit must return "
+                             "transaction,reader,expiry or nil,error");
+    } else
+      *call->expires = unsigned_value(L, tx + 2);
+  } else if (call->operation == REPOSITORY_RESERVE ||
+             call->operation == REPOSITORY_OPEN ||
+             call->operation == REPOSITORY_AMEND ||
+             call->operation == REPOSITORY_QUERY ||
+             call->operation == REPOSITORY_SCAN) {
     const int opened = call->operation == REPOSITORY_OPEN ||
-                       call->operation == REPOSITORY_QUERY;
-    int handle = lua_gettop(L) - (call->operation == REPOSITORY_OPEN ? 2 : 1);
+                       call->operation == REPOSITORY_QUERY ||
+                       call->operation == REPOSITORY_SCAN;
+    int handle = lua_gettop(L) - (expiry ? 2 : 1);
     if (!lua_isnil(L, handle)) {
       lua_pushvalue(L, handle);
       lua_setiuservalue(L, 1, opened ? 6 : 5);
       *call->handle = owner;
     }
     int problem = lua_gettop(L);
-    if (call->operation == REPOSITORY_OPEN && lua_isnil(L, handle) &&
-        lua_isnil(L, problem))
+    if (expiry && lua_isnil(L, handle) && lua_isnil(L, problem))
       problem = handle + 1;
     if (!lua_isnil(L, problem))
       status = repository_error(L, owner, problem, 0);
     else if (lua_isnil(L, handle))
       return luaL_error(L, "repository must return a handle or nil,error");
-    else if (call->operation == REPOSITORY_OPEN)
+    else if (expiry)
       *call->expires = unsigned_value(L, handle + 1);
   } else {
     const int cleanup = call->operation == REPOSITORY_ABORT ||
@@ -794,6 +874,29 @@ static ailo_status repository_commit(void *u, void *tx, ailo_error *error) {
   (void)error;
   repository_call call = {0};
   call.operation = REPOSITORY_COMMIT;
+  return repository_invoke(u, &call);
+}
+static ailo_status repository_scan(void *u, const ailo_record_query *query,
+                                   void **reader, ailo_u64 *expiry,
+                                   ailo_error *error) {
+  (void)error;
+  repository_call call = {0};
+  call.operation = REPOSITORY_SCAN;
+  call.record_query = query;
+  call.handle = reader;
+  call.expires = expiry;
+  return repository_invoke(u, &call);
+}
+static ailo_status repository_edit(void *u, const ailo_record_edit *edit,
+                                   void **tx, void **reader, ailo_u64 *expiry,
+                                   ailo_error *error) {
+  (void)error;
+  repository_call call = {0};
+  call.operation = REPOSITORY_EDIT;
+  call.edit = edit;
+  call.handle = tx;
+  call.reader = reader;
+  call.expires = expiry;
   return repository_invoke(u, &call);
 }
 static void repository_abort(void *u, void *tx) {
@@ -919,6 +1022,8 @@ static int new_client(lua_State *L) {
                                      repository_close,
                                      repository_erase,
                                      NULL,
+                                     NULL,
+                                     NULL,
                                      NULL};
   lua_getfield(L, 1, "openai");
   if (!lua_isnil(L, -1)) {
@@ -948,6 +1053,14 @@ static int new_client(lua_State *L) {
         provider.amend = repository_amend;
         provider.query = repository_query;
       }
+      lua_pop(L, 1);
+      lua_getfield(L, -1, "scan");
+      if (!lua_isnil(L, -1))
+        provider.scan = repository_scan;
+      lua_pop(L, 1);
+      lua_getfield(L, -1, "edit");
+      if (!lua_isnil(L, -1))
+        provider.edit = repository_edit;
       lua_pop(L, 1);
       lua_setiuservalue(L, client_index, 4);
       api.repository = &provider;
@@ -1607,11 +1720,11 @@ static int api_operation(lua_State *L, int operation) {
   size_t size = 0;
   const char *json = luaL_checklstring(L, 2, &size);
   if (operation != 0 && operation != 3 && operation != 6 && operation != 7 &&
-      memchr(json, 0, size))
+      operation != 15 && memchr(json, 0, size))
     return failure(L, AILO_INVALID_ARGUMENT, "completion ID contains NUL");
   int sink_index = operation == 1 ? 4 : 3;
   const char *id = json, *item = NULL;
-  if (operation == 9 || operation == 11 || operation == 14) {
+  if (operation == 9 || operation == 11 || operation == 14 || operation >= 16) {
     json = luaL_checklstring(L, 3, &size);
     sink_index = 4;
   } else if (operation == 12 || operation == 13) {
@@ -1684,9 +1797,23 @@ static int api_operation(lua_State *L, int operation) {
       : operation == 13
           ? ailo_client_conversation_item_delete(
                 value->native, id, item, api_bytes_sink, storage, &out, &error)
-          : ailo_client_conversation_items_list(value->native, id, json, size,
+      : operation == 14
+          ? ailo_client_conversation_items_list(value->native, id, json, size,
                                                 api_bytes_sink, storage, &out,
-                                                &error);
+                                                &error)
+      : operation == 15
+          ? ailo_client_chat_list(value->native, json, size, api_bytes_sink,
+                                  storage, &out, &error)
+      : operation == 16
+          ? ailo_client_chat_update(value->native, id, json, size,
+                                    api_bytes_sink, storage, &out, &error)
+      : operation == 17
+          ? ailo_client_chat_messages_list(value->native, id, json, size,
+                                           api_bytes_sink, storage, &out,
+                                           &error)
+          : ailo_client_response_input_items_list(value->native, id, json, size,
+                                                  api_bytes_sink, storage, &out,
+                                                  &error);
   end(value);
   lua_pushnil(L);
   lua_setiuservalue(L, 1, 10);
@@ -1744,6 +1871,12 @@ static int conversation_item_delete(lua_State *L) {
 }
 static int conversation_items_list(lua_State *L) {
   return api_operation(L, 14);
+}
+static int chat_list(lua_State *L) { return api_operation(L, 15); }
+static int chat_update(lua_State *L) { return api_operation(L, 16); }
+static int chat_messages_list(lua_State *L) { return api_operation(L, 17); }
+static int response_input_items_list(lua_State *L) {
+  return api_operation(L, 18);
 }
 static int metadata(lua_State *L, int kind) {
   client *value = get_client(L);
@@ -1915,6 +2048,10 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
       {"conversation_item_retrieve", conversation_item_retrieve},
       {"conversation_item_delete", conversation_item_delete},
       {"conversation_items_list", conversation_items_list},
+      {"chat_list", chat_list},
+      {"chat_update", chat_update},
+      {"chat_messages_list", chat_messages_list},
+      {"response_input_items_list", response_input_items_list},
       {"new_continuation", new_continuation},
       {"compact", compact},
       {"model_card", card},

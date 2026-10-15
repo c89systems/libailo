@@ -75,6 +75,12 @@ both provider `amend(change)` and `query(query)` methods to enable them. These
 return transaction and read handles using the ordinary protected repository
 bridge. See [the conversation contract](../docs/openai.md#conversations) for
 atomic mutation, permanent item retention and callback section/query shapes.
+Stored operations also include `chat_list(sink,query_json)`,
+`chat_update(id,json,sink)`, `chat_messages_list(id,sink,query_json)` and
+`response_input_items_list(id,sink,query_json)`. Queries default to `{}`.
+Configure independent optional repository methods `scan(query)` and
+`edit(change)` for pages and metadata edits. They use the protected reader/
+transaction bridge and preserve the record's original expiry.
 
 Constructor options also include `model_id`, `chat_template`, `lazy`, backend
 `auto`/`cpu`/`vulkan`, `gpu_layers`, `context_tokens`, `batch_tokens`, `threads`

@@ -16,17 +16,22 @@ struct projection {
   const openai_request &options;
   const char *expected;
   size_t rows = 0, current = 0;
-  std::string key, number, id, first, last;
+  std::string key, number, id, first, last, type;
   std::set<std::string> ids;
   bool root = false, ended = false;
+  bool diagnostics() const {
+    return options.protocol == openai_protocol::conversation_query ||
+           options.protocol == openai_protocol::response_input_items;
+  }
   size_t limit() const { return expected ? 1 : options.page_limit; }
   bool emit(const lonejson_value_path *p) const {
     if (!p->segment_count || current >= limit())
       return false;
     for (size_t n = 1; n < p->segment_count; ++n) {
-      if ((!options.include_reasoning &&
-           equal(p->segments[n], "encrypted_content")) ||
-          (!options.generation.logprobs && equal(p->segments[n], "logprobs")))
+      if (diagnostics() &&
+          ((!options.include_reasoning && type == "reasoning" &&
+            equal(p->segments[n], "encrypted_content")) ||
+           (!options.generation.logprobs && equal(p->segments[n], "logprobs"))))
         return false;
     }
     return true;
@@ -39,6 +44,7 @@ struct projection {
     if (p->segment_count == 1) {
       current_row(s, p);
       s.id.clear();
+      s.type.clear();
     }
     if (s.emit(p))
       s.out.object();
@@ -115,9 +121,14 @@ struct projection {
   static lonejson_status key_end(void *u, const lonejson_value_path *p,
                                  lonejson_error *) {
     auto &s = *static_cast<projection *>(u);
+    if (s.diagnostics() && !s.options.include_reasoning &&
+        p->segment_count == 1 && s.key == "encrypted_content" && s.type.empty())
+      invalid();
     if (s.emit(p) &&
-        (s.options.include_reasoning || s.key != "encrypted_content") &&
-        (s.options.generation.logprobs || s.key != "logprobs"))
+        (!s.diagnostics() || s.options.include_reasoning ||
+         s.type != "reasoning" || s.key != "encrypted_content") &&
+        (!s.diagnostics() || s.options.generation.logprobs ||
+         s.key != "logprobs"))
       s.out.key(s.key);
     return LONEJSON_STATUS_OK;
   }
@@ -138,6 +149,11 @@ struct projection {
       if (n > 256 - s.id.size())
         invalid();
       s.id.append(bytes, n);
+    }
+    if (p->segment_count == 2 && equal(p->segments[1], "type")) {
+      if (n > 256 - s.type.size())
+        invalid();
+      s.type.append(bytes, n);
     }
     if (s.emit(p))
       s.out.string_chunk(bytes, n);
@@ -235,16 +251,31 @@ struct projection {
   }
 };
 } // namespace
+void api_project_items(const openai_request &options, const char *item,
+                       byte_sink sink, size_t limit,
+                       const std::function<void(byte_sink)> &produce) {
+  wire_json out(std::move(sink), limit);
+  projection project{out, options, item, 0,  0,  {},    {},
+                     {},  {},      {},   {}, {}, false, false};
+  json_stream parser(project.visitor(), &project, limit);
+  try {
+    produce([&](const void *p, size_t n) {
+      parser.push(static_cast<const char *>(p), n);
+    });
+    parser.finish();
+    project.finish();
+  } catch (const failure &e) {
+    if (e.status == AILO_MODEL_FAILED)
+      throw failure(AILO_IO_FAILED, "Repository returned invalid item JSON");
+    throw;
+  }
+}
 void api_conversation_query_output(state &self, const char *id,
                                    const char *item, const void *json,
                                    size_t size, ailo_output_sink sink,
                                    void *user, ailo_api_info &info) {
   openai_request options(openai_protocol::conversation_query,
                          json ? json : "{}", json ? size : 2, self.id);
-  wire_json out(api_sink(self, sink, user, info), self.openai->record_limit);
-  projection project{out, options, item, 0,  0,     {},   {},
-                     {},  {},      {},   {}, false, false};
-  json_stream parser(project.visitor(), &project, self.openai->record_limit);
   ailo_conversation_query query{self.openai->policy.namespace_id.c_str(),
                                 id,
                                 item,
@@ -253,18 +284,11 @@ void api_conversation_query_output(state &self, const char *id,
                                 item ? 1 : options.page_limit,
                                 options.descending,
                                 0};
-  try {
-    query_conversation(*self.openai, query, [&](const void *p, size_t n) {
-      parser.push(static_cast<const char *>(p), n);
-    });
-    parser.finish();
-    project.finish();
-  } catch (const failure &e) {
-    if (e.status == AILO_MODEL_FAILED)
-      throw failure(AILO_IO_FAILED,
-                    "Conversation repository returned invalid JSON");
-    throw;
-  }
+  api_project_items(options, item, api_sink(self, sink, user, info),
+                    self.openai->record_limit, [&](byte_sink output) {
+                      query_conversation(*self.openai, query,
+                                         std::move(output));
+                    });
   info.stored = 1;
 }
 } // namespace client

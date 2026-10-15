@@ -303,6 +303,65 @@ struct record_handle {
 } // namespace
 namespace ailo {
 namespace client {
+void read_record_handle(openai_state &owner, void *handle,
+                        ailo_record_section section, byte_sink sink) {
+  read_forward output{std::move(sink), owner.record_limit, 0, {}};
+  const auto result =
+      owner.repository.read(owner.repository.user_data, handle, section,
+                            read_forward::send, &output, nullptr);
+  if (output.problem)
+    std::rethrow_exception(output.problem);
+  api_check(result);
+}
+record_transaction::record_transaction(openai_state &state,
+                                       const ailo_record_edit &edit,
+                                       void **reader)
+    : owner(state) {
+  *reader = nullptr;
+  ailo_u64 expiry{};
+  try {
+    if (!owner.repository.edit)
+      throw failure(AILO_UNSUPPORTED,
+                    "No metadata edit repository is configured");
+    api_check(owner.repository.edit(owner.repository.user_data, &edit,
+                                    &transaction, reader, &expiry, nullptr));
+    if (!transaction || !*reader)
+      throw failure(AILO_INTERNAL_ERROR, "Metadata edit requires both handles");
+    if (detail::to_native(expiry) && detail::to_native(expiry) <= api_now())
+      throw failure(AILO_NOT_FOUND, "Retained completion expired");
+  } catch (...) {
+    if (*reader)
+      owner.repository.close(owner.repository.user_data, *reader);
+    *reader = nullptr;
+    if (transaction)
+      owner.repository.abort(owner.repository.user_data, transaction);
+    throw;
+  }
+}
+void query_records(openai_state &owner, const ailo_record_query &query,
+                   byte_sink sink) {
+  if (!owner.repository.scan)
+    throw failure(AILO_UNSUPPORTED, "No stored query repository is configured");
+  void *handle = nullptr;
+  struct cleanup {
+    openai_state &owner;
+    void *&handle;
+    ~cleanup() {
+      if (handle)
+        owner.repository.close(owner.repository.user_data, handle);
+    }
+  } guard{owner, handle};
+  ailo_u64 expiry{};
+  api_check(owner.repository.scan(owner.repository.user_data, &query, &handle,
+                                  &expiry, nullptr));
+  if (!handle)
+    throw failure(AILO_INTERNAL_ERROR, "Repository returned no query reader");
+  if ((!query.id && detail::to_native(expiry)) ||
+      (detail::to_native(expiry) && detail::to_native(expiry) <= api_now()))
+    throw failure(query.id ? AILO_NOT_FOUND : AILO_IO_FAILED,
+                  "Stored query has an invalid or expired lifetime");
+  read_record_handle(owner, handle, AILO_RECORD_OUTPUT, std::move(sink));
+}
 void read_record(openai_state &owner, ailo_record_protocol protocol,
                  const char *id, ailo_record_section section, byte_sink sink) {
   live_repository(owner, id);

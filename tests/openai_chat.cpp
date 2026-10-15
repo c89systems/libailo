@@ -129,7 +129,7 @@ std::string tool_field(const std::string &sse, const char *field) {
 }
 struct repository {
   struct record {
-    std::string ns, id, parts[3];
+    std::string ns, id, parts[7];
     ailo_u64 expires{};
     ailo_record_protocol protocol = AILO_RECORD_CHAT;
   };

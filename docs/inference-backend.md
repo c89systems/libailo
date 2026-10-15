@@ -26,8 +26,9 @@ and 32768 object members; expanded owned input uses the continuation's 4 MiB and
 conflicting, duplicate and unavailable semantics fail instead of being ignored.
 This is request materialization, not generated-output buffering. Public Chat
 and Responses JSON/SSE and C repository operations are now connected through
-[the adapter surface](openai.md). Handler/model routing and stored-response
-list/update remain required. Conversation objects/items, standalone and
+[the adapter surface](openai.md). Handler/model routing remains required.
+Stored Chat list/metadata update, paginated messages/Responses input items,
+conversation objects/items, standalone and
 automatic Responses compaction and authenticated reasoning replay are connected. Lua
 exposes the same retention profile,
 repository receiver and direct retrieval/deletion primitives through the C ABI.
