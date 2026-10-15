@@ -16,6 +16,27 @@ local function request()
 end
 local marker={message="callback marker"}
 do
+  local receiver=ok(ailo.new(config{source={local_path=path.."-auto-compaction"},context_tokens=4096,
+    chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
+  local history=ok(receiver:new_continuation())
+  assert(history:append{
+    {role="system",pinned=true,content="Preserve instructions."},
+    {content="Finish ticket T-1. "..string.rep("x",1000)},{role="assistant",content="old answer"},
+    {content="older"},{role="assistant",content="answer"},{content="recent"},{role="assistant",content="answer"},
+    {content="newest"},{role="assistant",content="answer"},{content="current"}})
+  local input={continuation=history,max_tokens=3,temperature=0,logit_bias={{token_id=100,bias=100}}}
+  local baseline=ok(receiver:generate(input,function()end))
+  input.auto_compaction={target_tokens=800,output_reserve_tokens=64,summary_context_tokens=8192,trigger_tokens=baseline.usage.prompt_tokens+1}
+  fails("sink_failed",function()return receiver:generate(input,function(e)if e.kind=="compaction" then error(marker)end end)end)
+  assert(ok(history:info()).item_count==10)
+  receiver:close()
+  receiver=ok(ailo.new(config{source={local_path=path.."-auto-compaction"},context_tokens=4096,
+    chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
+  ok(receiver:generate(input,function(e)if e.kind=="compaction" then assert(e.compacted_items);collectgarbage("collect")end end))
+  receiver:close();assert(ok(history:info()).item_count==7)
+  assert(history:append{{content="next"}});assert(ok(history:info()).item_count==8);history:close()
+end
+do
   local receiver=ok(ailo.new(config{source={local_path=path.."-compaction"},context_tokens=4096,
     chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
   local input={items={

@@ -105,7 +105,7 @@ std::vector<bool> select(const ailo_request &request, size_t recent,
         removed[i] = true;
         any = true;
       }
-  if (!any)
+  if (!any && prior == request.item_count)
     throw failure(AILO_CONTEXT_LIMIT,
                   "No complete older turn is eligible for semantic compaction");
   if (prior < request.item_count) {
@@ -330,9 +330,9 @@ std::string summarize(state &parent, const ailo_request &input,
   info.summary_passes = 1;
   return result;
 }
-ailo_continuation *compact(state &self, const ailo_request &input,
-                           ailo_compaction_policy policy,
-                           ailo_compaction_info &info) {
+} // namespace
+ailo_compaction_policy
+resolve_compaction_policy(state &self, ailo_compaction_policy policy) {
   if (policy.recent_turns > 4096 || !policy.summary_tokens ||
       policy.summary_tokens > 4096 || policy.max_summary_bytes < 256 ||
       policy.max_summary_bytes > 1024 * 1024 ||
@@ -361,12 +361,20 @@ ailo_continuation *compact(state &self, const ailo_request &input,
   if (policy.summary_tokens >= policy.summary_context_tokens)
     throw failure(AILO_INVALID_ARGUMENT,
                   "Summary output budget must be smaller than its context");
+  return policy;
+}
+ailo_continuation *compact_window(state &self, const ailo_request &input,
+                                  ailo_compaction_policy policy,
+                                  ailo_compaction_info &info,
+                                  const ailo_continuation_config *bounds) {
+  policy = resolve_compaction_policy(self, policy);
   std::unique_ptr<continuation_transaction> history;
   if (input.continuation)
     history = std::make_unique<continuation_transaction>(self, input);
   const auto &request = history ? history->input : input;
-  const auto limits =
-      history ? history->owner.config : ailo_continuation_default_config();
+  const auto limits = bounds    ? *bounds
+                      : history ? history->owner.config
+                                : ailo_continuation_default_config();
   const auto conversation = prepare_replay(
       request, self.compactor, self.conversation_identity, true, &self);
   auto tools = prepare_tools(request);
@@ -442,7 +450,6 @@ ailo_continuation *compact(state &self, const ailo_request &input,
   check_cancelled(self);
   return new_window(self, limits, items.data(), items.size());
 }
-} // namespace
 } // namespace client
 } // namespace ailo
 
@@ -461,6 +468,11 @@ AILO_PUBLIC ailo_status ailo_client_compact(
     return ailo_error_set(
         error, AILO_INVALID_ARGUMENT,
         "Compaction request, window and info outputs are required");
+  if (request->auto_compaction)
+    return ailo_error_set(
+        error, AILO_INVALID_ARGUMENT,
+        "Automatic compaction is a generation policy; standalone compact uses "
+        "its explicit policy argument");
   return ailo::client::boundary(error, [&]() {
     ailo::client::operation call(client);
     ailo::client::log_scope logs(call.self.logging.get(),
@@ -468,7 +480,7 @@ AILO_PUBLIC ailo_status ailo_client_compact(
     logs.trace("Starting semantic compaction");
     ailo_compaction_info result{};
     std::unique_ptr<ailo_continuation, decltype(&ailo_continuation_destroy)>
-        window(ailo::client::compact(
+        window(ailo::client::compact_window(
                    call.self, *request,
                    policy ? *policy : ailo_compaction_default_policy(), result),
                ailo_continuation_destroy);

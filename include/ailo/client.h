@@ -15,6 +15,7 @@ struct pslog_logger;
 struct ailo_compactor;
 struct ailo_compaction_policy;
 struct ailo_compaction_info;
+struct ailo_auto_compaction_policy;
 
 typedef enum ailo_backend_policy {
   AILO_BACKEND_AUTO = 0,
@@ -199,6 +200,9 @@ typedef struct ailo_request {
    * Exhaustion while reasoning is open ends LENGTH, without inventing an
    * answer or a forced summary. Reasoning counts toward max_tokens. */
   size_t max_reasoning_tokens;
+  /** NULL disables automatic compaction. Requires an explicit continuation.
+   * Policy remains borrowed throughout generation. See ailo/compaction.h. */
+  const struct ailo_auto_compaction_policy *auto_compaction;
 } ailo_request;
 
 typedef enum ailo_finish_reason {
@@ -222,7 +226,8 @@ typedef enum ailo_event_kind {
   AILO_EVENT_USAGE,
   AILO_EVENT_FUNCTION_NAME_DELTA,
   AILO_EVENT_FUNCTION_ARGUMENTS_DELTA,
-  AILO_EVENT_REASONING_DELTA
+  AILO_EVENT_REASONING_DELTA,
+  AILO_EVENT_COMPACTION
 } ailo_event_kind;
 
 /** A token piece is arbitrary bytes, possibly incomplete UTF-8 or empty.
@@ -252,6 +257,11 @@ typedef struct ailo_usage {
   /** Sampled tokens beginning in the qualified reasoning phase, including
    * delimiter tokens. A token crossing into answer text is counted once. */
   ailo_u64 reasoning_tokens;
+  /** Separate summary/rebuild work; not ordinary sampled reply tokens. */
+  ailo_u64 compaction_prompt_tokens;
+  ailo_u64 compaction_completion_tokens;
+  ailo_u64 context_replay_tokens;
+  unsigned int compaction_passes;
 } ailo_usage;
 
 /** Payload and model_id are borrowed only during the callback. Text deltas are
@@ -283,6 +293,12 @@ typedef struct ailo_event {
    * bounded prefix known at this event; final at ITEM_END. */
   const char *call_id;
   const char *name;
+  /** COMPACTION control event only. Borrowed canonical INPUT window and work
+   * metadata; output item lifecycle/IDs stay unchanged. Copy only if needed
+   * beyond this callback. No generated reply is collected into this window. */
+  const struct ailo_compaction_info *compaction;
+  const ailo_item *compacted_items;
+  size_t compacted_item_count;
 } ailo_event;
 
 /** Return zero to cancel; a negative value reports sink failure. The consumer

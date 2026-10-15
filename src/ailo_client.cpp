@@ -325,7 +325,7 @@ AILO_PUBLIC ailo_status ailo_client_generate(ailo_client *client,
     }
     logs.trace("Starting generation");
     ailo::client::generate(call.self, history ? history->input : *request, sink,
-                           user, *output);
+                           user, *output, history.get());
     if (history)
       history->commit();
     logs.trace("Generation complete");

@@ -75,7 +75,23 @@ typedef struct ailo_compaction_info {
   ailo_u64 summary_prompt_tokens;
   ailo_u64 summary_completion_tokens;
   unsigned int summary_passes;
+  /** Automatic in-flight rebuild only: actual decoded tokens and reused
+   * prompt-prefix tokens. Standalone/preflight work leaves these zero. */
+  size_t replayed_tokens;
+  size_t reused_tokens;
 } ailo_compaction_info;
+
+typedef struct ailo_auto_compaction_policy {
+  ailo_compaction_policy compaction;
+  /** Trigger at this total native context occupancy (input + unfinished
+   * output). Zero selects context minus the configured output reserve. */
+  size_t trigger_tokens;
+  /** Finite summary-work bound per generation, default four, at most sixteen.
+   */
+  unsigned int max_passes;
+} ailo_auto_compaction_policy;
+
+ailo_auto_compaction_policy ailo_auto_compaction_default_policy(void);
 
 ailo_compaction_policy ailo_compaction_default_policy(void);
 /** Returns a new owned canonical window. Input and its continuation are never

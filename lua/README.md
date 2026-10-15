@@ -152,9 +152,30 @@ window:close()
 The source history is unchanged. A no-op still returns a new owned window, with
 `info.changed=false`. Summary generation materializes only the bounded summary;
 ordinary generation continues to emit immediate deltas. `compaction=true` exposes
-this standalone method; `automatic_compaction=false` remains explicit. Failures
+this standalone method; `automatic_compaction=true` advertises the generation
+policy below. Failures
 return `nil, error` with cleared `error.info`. See
 [policy and limits](../docs/client.md#standalone-semantic-compaction).
+
+Automatic compaction is explicit and requires a continuation:
+
+```lua
+assert(client:generate({continuation=history, max_tokens=1024,
+  auto_compaction={trigger_tokens=3500, target_tokens=2048,
+    output_reserve_tokens=512, summary_context_tokens=8192, max_passes=4},
+}, function(event)
+  if event.kind=="compaction" then
+    -- Bounded canonical input, not a collected generated reply.
+    on_compaction(event.compacted_items, event.compaction)
+  elseif event.kind=="text_delta" then on_text(event.data) end
+end))
+```
+
+The `auto_compaction` table accepts the standalone policy fields plus
+`trigger_tokens` and `max_passes`. Summary/rebuild counters are separate fields
+in `usage`. Output item IDs and parser/sampler state remain stable across the
+control event. A failed/cancelled run leaves `history` unchanged even if it has
+already streamed deltas. See [automatic policy](../docs/client.md#automatic-preflight-and-in-flight-compaction).
 
 Requests also accept `reasoning="auto"` (default), `"enabled"` or `"disabled"`,
 optional `reasoning_effort` and `max_reasoning_tokens`. Controls require a

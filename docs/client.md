@@ -102,8 +102,8 @@ bounded prompt/KV reuse, encrypted persistent snapshots and canonical
 continuation state, qualified reasoning separation and authenticated compaction
 replay and standalone semantic compaction, with their limits. Media remains unavailable.
 Media items fail rather than losing semantics. Completed function histories are
-supported as described below. Automatic compaction
-and protocol handlers remain implementation requirements in the full specification.
+supported as described below. Protocol handlers remain implementation requirements
+in the full specification.
 
 ## Prompt/KV cache
 
@@ -313,8 +313,8 @@ The key-owner foundation is available through
 [`ailo/compaction.h`](../include/ailo/compaction.h). Authenticated opaque items
 can be replayed through generation and canonical continuations, advertised by
 `compaction_replay=true`. Standalone model-driven summary production is advertised
-by `compaction=true`; automatic/in-flight compaction remains unavailable and is
-advertised as `automatic_compaction=false`.
+by `compaction=true`; explicit automatic preflight/in-flight compaction is
+advertised as `automatic_compaction=true`.
 
 `ailo_compactor_new(config, &owner, error)` creates an immutable receiver with
 `info` and `destroy` methods. NULL configuration selects an ephemeral owner.
@@ -428,8 +428,7 @@ Model quality is model-dependent. The deterministic one-layer compaction fixture
 qualifies selection, goal/identifier preservation, authenticated replay, original
 cache preservation, replacement/forks, pending parallel tools, cancellation and
 policy/work/byte/context failures through C89/Lua. It is not a general summary
-quality benchmark. Automatic thresholds/in-flight rebuilding and protocol compact
-endpoints are separate remaining implementation work.
+quality benchmark. Protocol compact endpoints remain separate implementation work.
 
 A trained CPU integration case also passed through the installed Lua/shared C
 ABI with the pinned Qwen2.5-0.5B-Instruct Q4_K_M model used in the tool-generation
@@ -441,6 +440,59 @@ opaque window answered `T-1` in three text deltas, starting at completion token
 and 1024 bytes; ordinary library generation still collects no reply. This is one
 trained-model semantic/streaming integration observation, not a general quality
 or performance qualification.
+
+## Automatic preflight and in-flight compaction
+
+Generation accepts an explicit `request.auto_compaction` pointer to an
+`ailo_auto_compaction_policy` from `ailo/compaction.h`. NULL leaves ordinary
+generation unchanged. An owned continuation is required. Standalone `compact`
+rejects this generation-only option. Use `ailo_auto_compaction_default_policy()`
+for the standalone policy defaults plus four passes; zero trigger selects main
+context minus the output reserve. Explicit policies require a nonzero reserve,
+`target < trigger <= context - reserve`, and 1..16 passes. Invalid policies and
+model-specific sampling errors fail before summary inference/events.
+
+The trigger counts actual rendered input and unfinished native output tokens.
+Large input is compacted before generation; when generation crosses the trigger,
+the backend compacts eligible canonical input, rebuilds a disposable context and
+continues. A bounded token-ID window replays unfinished output into the model
+without re-emitting deltas. Sampler/RNG/grammar, stop/UTF-8 carry, reasoning and
+tool/JSON parsers stay alive, with stable run/item/call IDs. The input target is
+tightened when needed to leave space for the protected unfinished output.
+Impossible protected spans, exhausted passes or non-reducing summaries fail
+explicitly. No full generated reply is collected or spooled. Output budgets may
+exceed a single context only with this explicit policy; a protected unfinished
+span still cannot grow beyond its bounded native window.
+
+`AILO_EVENT_COMPACTION` carries borrowed `compaction` work metadata and the complete
+`compacted_items` canonical INPUT window (including its opaque item). It is a
+control event; it does not restart the active output item. Preflight emits it
+after RUN_BEGIN, before CHOICE_BEGIN; in-flight emits it between token steps.
+The staged canonical window is committed only after the final RUN_END sink
+acceptance. Cancellation, sink failure, later context failure or failed rebuild
+leaves the caller's original continuation unchanged; already-emitted deltas and
+control events cannot be recalled.
+
+Successful adoption also retains the issuing client's key owner with the new
+canonical window. Later append remains valid after that client is destroyed;
+the old client does not gain authority to decrypt a different private issuer's
+token. Failed adoption preserves the old key owner along with the old history.
+
+Usage separates `compaction_prompt_tokens`, `compaction_completion_tokens`,
+`compaction_passes` and `context_replay_tokens` from ordinary generation tokens.
+`prompt_tokens` and `cached_tokens` describe the initial effective generation
+prompt, after any preflight compaction. Control metadata also reports actual
+`replayed_tokens` and `reused_tokens` for the rebuild. Prefix cache matching uses
+the new rendered tokens; unrelated entries follow normal quota/TTL policy without
+an explicit whole-cache clear. Later candidates
+start with the latest staged canonical input and retain independent samplers.
+
+One local integration test covers preflight and three-token in-flight checks,
+transactional cancellation/sink failure, bounded/pass-exhaustion errors,
+independent candidate RNG streams, constrained JSON and checkpoints inside tool
+arguments and reasoning, withheld stop prefixes and issuing-key ownership after
+client destruction. These are deterministic protocol/state tests; trained
+standalone summary quality remains model-dependent.
 
 ## Reasoning channels and controls
 

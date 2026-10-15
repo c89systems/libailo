@@ -1,6 +1,7 @@
 #ifndef AILO_COMPACTION_INTERNAL_HPP
 #define AILO_COMPACTION_INTERNAL_HPP
 #include "ailo/compaction.h"
+#include "ailo/continuation.h"
 #include "ailo_client_internal.hpp"
 #include "ailo_conversation_internal.hpp"
 #include <array>
@@ -60,6 +61,12 @@ conversation prepare_replay(const ailo_request &,
                             bool allow_pending = false,
                             state *client = nullptr);
 conversation prepare_replay(state &, const ailo_request &);
+ailo_compaction_policy resolve_compaction_policy(state &,
+                                                 ailo_compaction_policy);
+ailo_continuation *
+compact_window(state &, const ailo_request &, ailo_compaction_policy,
+               ailo_compaction_info &,
+               const ailo_continuation_config *limits = nullptr);
 } // namespace client
 } // namespace ailo
 #endif

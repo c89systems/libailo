@@ -93,6 +93,13 @@ static void usage(lua_State *L, const ailo_usage *value) {
   lua_setfield(L, -2, "cached_tokens");
   push_u64(L, value->reasoning_tokens);
   lua_setfield(L, -2, "reasoning_tokens");
+  push_u64(L, value->compaction_prompt_tokens);
+  lua_setfield(L, -2, "compaction_prompt_tokens");
+  push_u64(L, value->compaction_completion_tokens);
+  lua_setfield(L, -2, "compaction_completion_tokens");
+  push_u64(L, value->context_replay_tokens);
+  lua_setfield(L, -2, "context_replay_tokens");
+  set_integer(L, "compaction_passes", value->compaction_passes);
 }
 static const char *finish(ailo_finish_reason value) {
   switch (value) {
@@ -563,6 +570,8 @@ static int new_client(lua_State *L) {
   lua_pushvalue(L, client_index);
   return 1;
 }
+static void compaction_info(lua_State *, const ailo_compaction_info *);
+static void push_item(lua_State *, const ailo_item *);
 static int event_thunk(lua_State *L) {
   const ailo_event *value = lua_touserdata(L, 2);
   lua_getiuservalue(L, 1, 1);
@@ -579,7 +588,8 @@ static int event_thunk(lua_State *L) {
                                 "usage",
                                 "function_name_delta",
                                 "function_arguments_delta",
-                                "reasoning_delta"};
+                                "reasoning_delta",
+                                "compaction"};
   lua_createtable(L, 0, 14);
   set_string(L, "kind", names[value->kind]);
   push_u64(L, value->sequence);
@@ -602,6 +612,16 @@ static int event_thunk(lua_State *L) {
   set_string(L, "finish_reason", finish(value->finish_reason));
   usage(L, &value->usage);
   lua_setfield(L, -2, "usage");
+  if (value->compaction) {
+    compaction_info(L, value->compaction);
+    lua_setfield(L, -2, "compaction");
+    lua_createtable(L, (int)value->compacted_item_count, 0);
+    for (size_t i = 0; i < value->compacted_item_count; ++i) {
+      push_item(L, &value->compacted_items[i]);
+      lua_seti(L, -2, (lua_Integer)i + 1);
+    }
+    lua_setfield(L, -2, "compacted_items");
+  }
   if (value->token) {
     const ailo_token_info *token = value->token;
     lua_createtable(L, 0, 7);
@@ -795,9 +815,7 @@ static int continuation_append(lua_State *L) {
   lua_pushboolean(L, 1);
   return 1;
 }
-static int item_thunk(lua_State *L) {
-  const ailo_item *item = lua_touserdata(L, 2);
-  lua_getiuservalue(L, 1, 1);
+static void push_item(lua_State *L, const ailo_item *item) {
   static const char *kinds[] = {"message", "function_call", "function_result",
                                 "reasoning", "compaction"};
   static const char *roles[] = {"user", "system", "developer", "assistant",
@@ -821,6 +839,11 @@ static int item_thunk(lua_State *L) {
     lua_seti(L, -2, (lua_Integer)i + 1);
   }
   lua_setfield(L, -2, "content");
+}
+static int item_thunk(lua_State *L) {
+  const ailo_item *item = lua_touserdata(L, 2);
+  lua_getiuservalue(L, 1, 1);
+  push_item(L, item);
   lua_call(L, 1, 1);
   return 1;
 }
@@ -878,10 +901,23 @@ static void compaction_info(lua_State *L, const ailo_compaction_info *out) {
   set_integer(L, "retained_items", (lua_Integer)out->retained_items);
   set_integer(L, "removed_items", (lua_Integer)out->removed_items);
   set_integer(L, "summary_passes", out->summary_passes);
+  set_integer(L, "replayed_tokens", (lua_Integer)out->replayed_tokens);
+  set_integer(L, "reused_tokens", (lua_Integer)out->reused_tokens);
   push_u64(L, out->summary_prompt_tokens);
   lua_setfield(L, -2, "summary_prompt_tokens");
   push_u64(L, out->summary_completion_tokens);
   lua_setfield(L, -2, "summary_completion_tokens");
+}
+static void read_compaction_policy(lua_State *L, int index,
+                                   ailo_compaction_policy *policy) {
+  policy->target_tokens = (size_t)integer(L, index, "target_tokens");
+  policy->recent_turns = (size_t)integer(L, index, "recent_turns");
+  policy->output_reserve_tokens =
+      (size_t)integer(L, index, "output_reserve_tokens");
+  policy->summary_context_tokens =
+      (size_t)integer(L, index, "summary_context_tokens");
+  policy->summary_tokens = (size_t)integer(L, index, "summary_tokens");
+  policy->max_summary_bytes = (size_t)integer(L, index, "max_summary_bytes");
 }
 static int generate_or_compact(lua_State *L, int compacting) {
   client *value = get_client(L);
@@ -896,6 +932,18 @@ static int generate_or_compact(lua_State *L, int compacting) {
     lua_setiuservalue(L, storage->index, i);
   }
   ailo_request request = ailo_request_default();
+  ailo_auto_compaction_policy automatic = ailo_auto_compaction_default_policy();
+  lua_getfield(L, 2, "auto_compaction");
+  if (!lua_isnil(L, -1)) {
+    int automatic_index = lua_gettop(L);
+    read_compaction_policy(L, automatic_index, &automatic.compaction);
+    automatic.trigger_tokens =
+        (size_t)integer(L, automatic_index, "trigger_tokens");
+    automatic.max_passes =
+        (unsigned int)integer(L, automatic_index, "max_passes");
+    request.auto_compaction = &automatic;
+  }
+  lua_pop(L, 1);
   request.max_tokens = (size_t)integer(L, 2, "max_tokens");
   request.candidates = (unsigned int)integer(L, 2, "candidates");
   request.seed = (ailo_u32)integer(L, 2, "seed");
@@ -988,14 +1036,7 @@ static int generate_or_compact(lua_State *L, int compacting) {
   ailo_compaction_policy policy = ailo_compaction_default_policy();
   continuation *window = NULL;
   if (compacting) {
-    policy.target_tokens = (size_t)integer(L, 3, "target_tokens");
-    policy.recent_turns = (size_t)integer(L, 3, "recent_turns");
-    policy.output_reserve_tokens =
-        (size_t)integer(L, 3, "output_reserve_tokens");
-    policy.summary_context_tokens =
-        (size_t)integer(L, 3, "summary_context_tokens");
-    policy.summary_tokens = (size_t)integer(L, 3, "summary_tokens");
-    policy.max_summary_bytes = (size_t)integer(L, 3, "max_summary_bytes");
+    read_compaction_policy(L, 3, &policy);
     window = new_continuation_shell(L);
   }
   ailo_error error = {0};

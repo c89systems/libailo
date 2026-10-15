@@ -146,7 +146,7 @@ continuation_transaction::continuation_transaction(state &client,
                                                    const ailo_request &request)
     : owner(get_continuation(request.continuation)), guard(owner),
       candidate(stage_append(owner, request.items, request.item_count)),
-      items(candidate->views()), input(request) {
+      compactor(owner.compactor), items(candidate->views()), input(request) {
   client.ensure_loaded();
   identify_cache(client, true);
   if (client.conversation_identity != owner.identity)
@@ -159,6 +159,19 @@ continuation_transaction::continuation_transaction(state &client,
 }
 void continuation_transaction::commit() noexcept {
   owner.current = std::move(candidate);
+  owner.compactor = std::move(compactor);
+}
+void continuation_transaction::replace(const continuation_state &replacement) {
+  if (candidate->revision == std::numeric_limits<uint64_t>::max())
+    throw failure(AILO_OUT_OF_RANGE, "Continuation revision exhausted");
+  auto next = std::make_shared<transcript>(*replacement.current);
+  next->revision = candidate->revision + 1;
+  auto next_views = next->views();
+  candidate = std::move(next);
+  compactor = replacement.compactor;
+  items = std::move(next_views);
+  input.items = items.data();
+  input.item_count = items.size();
 }
 ailo_continuation *new_window(state &client,
                               const ailo_continuation_config &limits,

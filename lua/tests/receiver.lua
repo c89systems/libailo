@@ -10,6 +10,43 @@ local function config(extra)
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
 do
+  local receiver=ok(ailo.new(config{source={local_path=path.."-auto-compaction"},context_tokens=4096,
+    chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
+  local history=ok(receiver:new_continuation())
+  assert(history:append{
+    {role="system",id="system",pinned=true,content="Preserve instructions."},
+    {id="goal",content="Finish ticket T-1. "..string.rep("x",1000)},{role="assistant",content="old answer"},
+    {content="older question"},{role="assistant",content="older answer"},
+    {content="recent question"},{role="assistant",content="recent answer"},
+    {content="newest question"},{role="assistant",content="newest answer"},{content="current question"}})
+  local input={continuation=history,max_tokens=32,temperature=0,logit_bias={{token_id=100,bias=100}}}
+  local baseline=ok(receiver:generate(input,function()end))
+  input.auto_compaction={target_tokens=800,output_reserve_tokens=64,summary_context_tokens=8192,
+    trigger_tokens=baseline.usage.prompt_tokens+3,max_passes=1}
+  local failed=fails("cancelled",function()return receiver:generate(input,function(e)if e.kind=="compaction" then return false end end)end)
+  assert(failed.info.usage.completion_tokens==3 and failed.info.usage.compaction_passes==1 and ok(history:info()).item_count==10)
+  local marker={automatic=true}
+  local err=fails("sink_failed",function()return receiver:generate(input,function(e)if e.kind=="compaction" then error(marker)end end)end)
+  assert(err.cause==marker and ok(history:info()).item_count==10)
+  local controls,deltas=0,0;local id
+  local run=ok(receiver:generate(input,function(e)
+    if e.kind=="text_delta" then
+      deltas=deltas+1;id=id or e.item_id;assert(id==e.item_id)
+      if deltas==1 then assert(e.usage.completion_tokens==1) end
+    elseif e.kind=="compaction" then
+      controls=controls+1;assert(e.item_id==id and e.usage.completion_tokens==3 and #e.compacted_items==7)
+      assert(e.compaction.changed and e.compaction.after_tokens<e.compaction.before_tokens and e.compaction.replayed_tokens>0)
+      assert(e.compacted_items[2].kind=="compaction" and e.compacted_items[2].encrypted_content)
+      fails("busy",function()return history:close()end)
+    end
+  end))
+  assert(controls==1 and deltas==32 and run.usage.compaction_passes==1 and run.usage.context_replay_tokens>0 and ok(history:info()).item_count==7)
+  fails("invalid_argument",function()return receiver:generate({items={{content="x"}},auto_compaction={}},function()end)end)
+  fails("invalid_argument",function()return receiver:generate({continuation=history,auto_compaction={max_passes=0}},function()end)end)
+  fails("invalid_argument",function()return receiver:compact(input)end)
+  history:close();receiver:close()
+end
+do
   local receiver=ok(ailo.new(config{source={local_path=path.."-compaction"},context_tokens=4096,
     chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
   local history=ok(receiver:new_continuation())
@@ -44,7 +81,7 @@ do
   local fixture=assert(loadfile(path.."-compaction.lua"))()
   local owner=ok(ailo.new_compactor{namespace_id=fixture.namespace_id,key_id=fixture.key_id,key=fixture.key})
   local receiver=ok(ailo.new(config{compactor=owner,chat_template=fixture.template,context_tokens=1024}))
-  local capabilities=ok(receiver:capabilities());assert(capabilities:find('"compaction_replay":true',1,true) and capabilities:find('"compaction":true',1,true) and capabilities:find('"automatic_compaction":false',1,true))
+  local capabilities=ok(receiver:capabilities());assert(capabilities:find('"compaction_replay":true',1,true) and capabilities:find('"compaction":true',1,true) and capabilities:find('"automatic_compaction":true',1,true))
   local input={items={
     {id="instruction",role="system",pinned=true,content="Keep original instructions."},
     {kind="compaction",id=fixture.id,encrypted_content=fixture.encrypted_content},

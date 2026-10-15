@@ -81,7 +81,7 @@ void feature_fields(json &out) {
   out.key("compaction");
   out.boolean(true);
   out.key("automatic_compaction");
-  out.boolean(false);
+  out.boolean(true);
   out.key("compaction_replay");
   out.boolean(true);
   out.key("continuation");

@@ -149,11 +149,28 @@ end
 local roles={user=0,system=1,developer=2,assistant=3,tool=4}
 local kinds={message=0,function_call=1,function_result=2,reasoning=3,compaction=4}
 local content_kinds={text=0,image=1,audio=2,refusal=3}
-local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls prompt_cache_key continuation reasoning reasoning_effort max_reasoning_tokens")
+local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls prompt_cache_key continuation reasoning reasoning_effort max_reasoning_tokens auto_compaction")
 local item_keys=keys("kind role id call_id name content arguments pinned encrypted_content")
+local function compaction_policy(policy,automatic)
+  if policy==nil then policy={} end
+  object(policy,keys("target_tokens recent_turns output_reserve_tokens summary_context_tokens summary_tokens max_summary_bytes"..(automatic and " trigger_tokens max_passes" or "")),"compaction policy")
+  local out={}
+  out.target_tokens=number(policy.target_tokens,"target_tokens",0,true,0,math.maxinteger)
+  out.recent_turns=number(policy.recent_turns,"recent_turns",2,true,0,4096)
+  out.output_reserve_tokens=number(policy.output_reserve_tokens,"output_reserve_tokens",128,true,0,math.maxinteger)
+  out.summary_context_tokens=number(policy.summary_context_tokens,"summary_context_tokens",0,true,0,32768)
+  out.summary_tokens=number(policy.summary_tokens,"summary_tokens",256,true,1,4096)
+  out.max_summary_bytes=number(policy.max_summary_bytes,"max_summary_bytes",32768,true,256,1024*1024)
+  if automatic then
+    out.trigger_tokens=number(policy.trigger_tokens,"trigger_tokens",0,true,0,math.maxinteger)
+    out.max_passes=number(policy.max_passes,"max_passes",4,true,1,16)
+  end
+  return out
+end
 local function request(input)
   object(input,request_keys,"request")
   local out={items={},stop={},logit_bias={},tools={},allowed_tools={}}
+  if input.auto_compaction~=nil then out.auto_compaction=compaction_policy(input.auto_compaction,true) end
   if input.continuation~=nil then
     if getmetatable(input.continuation)~=continuation_mt then invalid("continuation must be an ailo continuation") end
     out.continuation=input.continuation._native
@@ -257,15 +274,7 @@ function methods:generate(input,sink)
 end
 function methods:compact(input,policy)
   return guarded(function()
-    if policy==nil then policy={} end
-    object(policy,keys("target_tokens recent_turns output_reserve_tokens summary_context_tokens summary_tokens max_summary_bytes"),"compaction policy")
-    local out={}
-    out.target_tokens=number(policy.target_tokens,"target_tokens",0,true,0,math.maxinteger)
-    out.recent_turns=number(policy.recent_turns,"recent_turns",2,true,0,4096)
-    out.output_reserve_tokens=number(policy.output_reserve_tokens,"output_reserve_tokens",128,true,0,math.maxinteger)
-    out.summary_context_tokens=number(policy.summary_context_tokens,"summary_context_tokens",0,true,0,32768)
-    out.summary_tokens=number(policy.summary_tokens,"summary_tokens",256,true,1,4096)
-    out.max_summary_bytes=number(policy.max_summary_bytes,"max_summary_bytes",32768,true,256,1024*1024)
+    local out=compaction_policy(policy,false)
     local window,info=self._native:compact(request(input),out)
     if not window then return nil,info end
     return wrap_continuation(window),info

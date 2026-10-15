@@ -1,3 +1,4 @@
+#include "ailo_auto_compaction_internal.hpp"
 #include "ailo_cache_internal.hpp"
 #include "ailo_client_internal.hpp"
 #include "ailo_compaction_internal.hpp"
@@ -76,7 +77,8 @@ struct emitter {
   }
   void send(ailo_event_kind kind, const char *data = nullptr, size_t size = 0,
             ailo_finish_reason finish = AILO_FINISH_NONE,
-            const ailo_token_info *token = nullptr) {
+            const ailo_token_info *token = nullptr,
+            const compaction_change *change = nullptr) {
     if (self.is_cancelled())
       throw failure(AILO_CANCELLED, "Generation cancelled");
     ailo_event event{};
@@ -97,6 +99,11 @@ struct emitter {
                         ? call_id.c_str()
                         : nullptr;
     event.name = event.call_id ? name.c_str() : nullptr;
+    if (change) {
+      event.compaction = &change->info;
+      event.compacted_items = change->items.data();
+      event.compacted_item_count = change->items.size();
+    }
     const int accepted = sink(user, &event);
     if (accepted < 0)
       throw failure(AILO_SINK_FAILED, "The event sink failed");
@@ -180,7 +187,8 @@ void evaluate(state &self, const llama_token *tokens, size_t size,
 } // namespace
 
 void generate(state &self, const ailo_request &request, ailo_event_sink sink,
-              void *user, ailo_run_info &info) {
+              void *user, ailo_run_info &info,
+              continuation_transaction *history) {
   const size_t limit = request.max_tokens ? request.max_tokens : 128;
   const unsigned candidates = request.candidates ? request.candidates : 1;
   const double top_p = request.top_p ? request.top_p : 1.0;
@@ -208,9 +216,28 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   }
   const auto answer_grammar = output_grammar(request);
   const auto partition = cache_partition(request.prompt_cache_key);
+  if (request.auto_compaction && !history)
+    throw failure(AILO_INVALID_ARGUMENT,
+                  "Automatic compaction requires an explicit continuation");
+  std::unique_ptr<automatic_compaction> automatic;
+  if (request.auto_compaction)
+    automatic = std::make_unique<automatic_compaction>(
+        self, *history, *request.auto_compaction);
   auto tools = prepare_tools(request);
-  const auto input = prepare_replay(self, request);
-  const auto reasoning = render_prompt(self, input, tools, request);
+  auto input = prepare_replay(self, request);
+  auto reasoning = render_prompt(self, input, tools, request);
+  std::unique_ptr<compaction_change> preflight;
+  if (automatic && prompt_token_count(self, reasoning.prompt) >=
+                       automatic->policy.trigger_tokens) {
+    // Reject model-specific sampling errors before doing any summary work.
+    sampling validate(llama_model_get_vocab(self.model.get()), request, 0,
+                      llama_n_ctx(self.context.get()));
+    preflight = std::make_unique<compaction_change>(automatic->propose(0));
+    automatic->adopt(*preflight);
+    tools = prepare_tools(request);
+    input = prepare_replay(self, request);
+    reasoning = render_prompt(self, input, tools, request);
+  }
   const std::string &prompt = reasoning.prompt;
   std::string grammar =
       tools.definitions.empty() ? answer_grammar : tool_grammar(tools, request);
@@ -219,7 +246,10 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   const char *grammar_root = reasoning.active ? "reasoning-root" : "root";
   const auto *vocab = llama_model_get_vocab(self.model.get());
   const auto count = static_cast<int32_t>(prompt_token_count(self, prompt));
-  if (static_cast<size_t>(count) + limit > llama_n_ctx(self.context.get()))
+  if (static_cast<size_t>(count) +
+          (automatic ? automatic->policy.compaction.output_reserve_tokens
+                     : limit) >
+      llama_n_ctx(self.context.get()))
     throw failure(AILO_CONTEXT_LIMIT,
                   "Prompt plus output budget exceeds the loaded context");
   std::vector<llama_token> tokens(static_cast<size_t>(count));
@@ -233,8 +263,27 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   // Validate model-specific token IDs before emitting events or evaluating.
   sampling first_sampler(vocab, request, 0, llama_n_ctx(self.context.get()),
                          grammar, grammar_root);
+  auto account = [&](const compaction_change &change) {
+    auto add = [](ailo_u64 &target, ailo_u64 amount) {
+      target = detail::from_unsigned(detail::to_native(target) +
+                                     detail::to_native(amount));
+    };
+    add(info.usage.compaction_prompt_tokens, change.info.summary_prompt_tokens);
+    add(info.usage.compaction_completion_tokens,
+        change.info.summary_completion_tokens);
+    add(info.usage.context_replay_tokens,
+        detail::from_unsigned(change.info.replayed_tokens));
+    info.usage.compaction_passes += change.info.summary_passes;
+  };
+  if (preflight)
+    account(*preflight);
   emitter output{self, sink, user, info};
   output.send(AILO_EVENT_RUN_BEGIN);
+  if (preflight) {
+    output.send(AILO_EVENT_COMPACTION, nullptr, 0, AILO_FINISH_NONE, nullptr,
+                preflight.get());
+    preflight.reset();
+  }
   struct reset {
     state &self;
     ~reset() { llama_memory_clear(llama_get_memory(self.context.get()), true); }
@@ -335,6 +384,82 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     });
     ailo_finish_reason finish = AILO_FINISH_LENGTH;
     size_t position = tokens.size();
+    std::vector<llama_token> unfinished;
+    if (automatic)
+      unfinished.reserve(llama_n_ctx(self.context.get()));
+    auto rebuild = [&]() {
+      auto change = automatic->propose(unfinished.size());
+      auto refreshed = request;
+      refreshed.items = change.items.data();
+      refreshed.item_count = change.items.size();
+      auto refreshed_tools = prepare_tools(refreshed);
+      const auto refreshed_reasoning = render_prompt(
+          self, prepare_replay(self, refreshed), refreshed_tools, refreshed);
+      auto refreshed_grammar = refreshed_tools.definitions.empty()
+                                   ? answer_grammar
+                                   : tool_grammar(refreshed_tools, refreshed);
+      if (refreshed_reasoning.active)
+        refreshed_grammar =
+            reasoning_grammar(refreshed_reasoning.format, refreshed_grammar);
+      if (refreshed_grammar != grammar ||
+          refreshed_reasoning.active != reasoning.active ||
+          refreshed_reasoning.format.open != reasoning.format.open ||
+          refreshed_reasoning.format.close != reasoning.format.close ||
+          refreshed_reasoning.format.prompt_open !=
+              reasoning.format.prompt_open)
+        throw failure(
+            AILO_UNSUPPORTED,
+            "Compaction changes the active output framing or grammar");
+      const auto &new_prompt = refreshed_reasoning.prompt;
+      const auto new_count =
+          static_cast<int32_t>(prompt_token_count(self, new_prompt));
+      if (static_cast<size_t>(new_count) + unfinished.size() >=
+          automatic->policy.trigger_tokens)
+        throw failure(AILO_CONTEXT_LIMIT,
+                      "Compaction cannot fit the protected unfinished output "
+                      "below its trigger");
+      std::vector<llama_token> new_tokens(static_cast<size_t>(new_count));
+      if (llama_tokenize(vocab, new_prompt.data(),
+                         static_cast<int32_t>(new_prompt.size()),
+                         new_tokens.data(), new_count, true, true) != new_count)
+        throw failure(AILO_MODEL_FAILED,
+                      "Compacted prompt tokenization failed");
+      auto replacement = self.new_context();
+      if (!replacement)
+        throw failure(self.is_cancelled() ? AILO_CANCELLED : AILO_MODEL_FAILED,
+                      "Cannot rebuild the compacted context");
+      auto previous = std::move(self.context);
+      self.context = std::move(replacement);
+      try {
+        const size_t reused =
+            self.cache ? self.cache->restore(self, new_tokens, partition) : 0;
+        const size_t checkpoint = new_tokens.size() - 1;
+        if (reused < checkpoint)
+          evaluate(self, new_tokens.data() + reused, checkpoint - reused,
+                   reused, true);
+        std::string new_checkpoint;
+        if (self.cache)
+          new_checkpoint =
+              self.cache->capture(self, new_tokens, checkpoint, partition);
+        evaluate(self, new_tokens.data() + checkpoint, 1, checkpoint, true);
+        if (!unfinished.empty())
+          evaluate(self, unfinished.data(), unfinished.size(),
+                   new_tokens.size());
+        change.info.reused_tokens = reused;
+        change.info.replayed_tokens =
+            new_tokens.size() - reused + unfinished.size();
+        account(change);
+        output.send(AILO_EVENT_COMPACTION, nullptr, 0, AILO_FINISH_NONE,
+                    nullptr, &change);
+        automatic->adopt(change);
+        position = new_tokens.size() + unfinished.size();
+        tokens = std::move(new_tokens);
+        checkpoint_key = std::move(new_checkpoint);
+      } catch (...) {
+        self.context = std::move(previous);
+        throw;
+      }
+    };
     uint64_t byte_offset = 0;
     size_t candidate_reasoned = 0;
     for (size_t i = 0; i < limit; ++i) {
@@ -380,8 +505,22 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
           candidate_reasoned >= request.max_reasoning_tokens &&
           reasoning_output && reasoning_output->in_reasoning())
         break;
-      if (i + 1 < limit)
-        evaluate(self, &token, 1, position++);
+      if (i + 1 < limit) {
+        if (automatic) {
+          if (unfinished.size() >= llama_n_ctx(self.context.get()))
+            throw failure(
+                AILO_CONTEXT_LIMIT,
+                "Unfinished output exceeds the bounded native token window");
+          unfinished.push_back(token);
+        }
+        if (automatic && position + 1 >= automatic->policy.trigger_tokens)
+          rebuild();
+        else {
+          if (position >= llama_n_ctx(self.context.get()))
+            throw failure(AILO_CONTEXT_LIMIT, "Protected context is full");
+          evaluate(self, &token, 1, position++);
+        }
+      }
     }
     (void)carry.push({}, true);
     if (reasoning_output)

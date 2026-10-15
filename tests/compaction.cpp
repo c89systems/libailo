@@ -199,6 +199,16 @@ int main(int argc, char **argv) {
           !noop.changed && !noop.summary_passes);
     history_owner clone(raw, ailo_continuation_destroy);
     CHECK(info(clone.get()).item_count == 6);
+    // A prior summary is eligible even without additional old raw groups.
+    // This fixture repeats the same fact, so a tighter target must detect
+    // actual lack of reduction rather than silently accepting another token.
+    auto repeated_policy = policy;
+    repeated_policy.target_tokens = compacted.after_tokens - 1;
+    ailo_compaction_info repeated{};
+    CHECK(receiver->compact(receiver.get(), &replay, &repeated_policy, &raw,
+                            &repeated, &error) == AILO_MODEL_FAILED &&
+          !raw && !repeated.changed);
+    CHECK(info(window.get()).item_count == 6);
     auto reject = [&](ailo_status status, const ailo_request &input,
                       const ailo_compaction_policy &limits) {
       raw = reinterpret_cast<ailo_continuation *>(1);

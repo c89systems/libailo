@@ -51,10 +51,12 @@ struct continuation_transaction {
   continuation_state &owner;
   continuation_guard guard;
   std::shared_ptr<const transcript> candidate;
+  std::shared_ptr<compaction_state> compactor;
   std::vector<ailo_item> items;
   ailo_request input;
   continuation_transaction(state &, const ailo_request &);
   void commit() noexcept;
+  void replace(const continuation_state &);
 };
 } // namespace client
 } // namespace ailo
