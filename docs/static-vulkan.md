@@ -405,7 +405,76 @@ creation denied and no shared-library or manifest attempts. The executable size
 remains 95,010,784 bytes.
 
 The comprehensive hardware campaign remains pending: firmware identification,
-AMD, AArch64 GPU and multi-GPU execution, larger dense/MoE workloads and
-numerical/performance qualification. The earlier host-driver receiver proof
+AMD, AArch64 GPU and multi-GPU execution, and numerical/performance acceptance.
+Larger dense/MoE execution evidence and its failed initial numerical gate are
+recorded below. The earlier host-driver receiver proof
 remains separate from this static-driver evidence. These are development
 checks, not a signed or tagged release.
+
+### Larger dense and MoE execution probes
+
+`tests/qualify_models.lua` is a manual installed-Lua/C-ABI probe, separate from
+the offline CTest suite. Use the matching runner/module paths from `lua-receiver`
+and supply an absolute cache root and existing output directory, followed by
+`--download` only to permit acquisition. It acquires through the normal receiver,
+validates these pinned SHA-256 values, then runs both backends offline with
+256 context tokens, a 128-token batch, two CPU threads, prompt caching disabled,
+greedy sampling and 16 output tokens. Both publishers identify Apache-2.0;
+the loaded GGUF cards agree. These are Q4_K_M files with mixed Q4_K/Q6_K tensors.
+
+| Fixture | Repository / immutable revision | File / SHA-256 |
+| --- | --- | --- |
+| Dense, 1,711,376,384 parameters, `llama` | [bartowski/SmolLM2-1.7B-Instruct-GGUF](https://huggingface.co/bartowski/SmolLM2-1.7B-Instruct-GGUF/tree/1f03464768bfcc0319fc50da8ff5fb20b6417ba2) / `1f03464768bfcc0319fc50da8ff5fb20b6417ba2` | `SmolLM2-1.7B-Instruct-Q4_K_M.gguf`, 1,055,609,824 bytes / `77665ea4815999596525c636fbeb56ba8b080b46ae85efef4f0d986a139834d7` |
+| MoE, 1,334,628,352 parameters, `granitemoe` | [bartowski/granite-3.1-1b-a400m-instruct-GGUF](https://huggingface.co/bartowski/granite-3.1-1b-a400m-instruct-GGUF/tree/940d2e1f9f65330615c7c8e980e6c5ac73d3360c) / `940d2e1f9f65330615c7c8e980e6c5ac73d3360c` | `granite-3.1-1b-a400m-instruct-Q4_K_M.gguf`, 821,847,360 bytes / `3a2ec1c2a78cb29d901e29bbf5162dcd03381e13803d2cbdcff838d4d08142eb` |
+
+Both GGUF templates are used unchanged, with identities
+`872be49dbb638044ad01b60388f48d469ff2980e5f0dccdc22ec907db54d0788`
+and `22da301945ac6b617a8835d435cbbdc780c0ac08d69c07e1e17e6c6799eed800`,
+respectively. On the same Intel RPL-U/i915, x86-64 and Linux
+`6.17.0-41-generic`, built-in ANV placed all 24 repeating layers and the output
+layer on Vulkan. Scheduler diagnostics assign Granite's `MUL_MAT_ID` expert
+gate/up/down operations to Vulkan; input embedding `GET_ROWS` remains on CPU.
+Both complete 16-token generation and deliver first text at token 1. An offline
+repeat with socket creation denied makes no socket/connect attempts; misleading
+ICD environment settings and disabled Mesa disk shader caching remain active.
+
+One short offline run, under network syscall tracing, measured:
+
+| Fixture/backend | Load/context setup s | First text s | Prompt tokens | Inclusive prefill tokens/s | Decode tokens/s |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Dense CPU | 1.56 | 0.81 | 41 | 50.62 | 16.30 |
+| Dense Vulkan | 1.33 | 1.61 | 41 | 25.47 | 16.13 |
+| MoE CPU | 1.09 | 0.38 | 53 | 139.47 | 48.39 |
+| MoE Vulkan | 1.23 | 1.23 | 53 | 43.09 | 45.45 |
+
+The Linux uptime clock has 10 ms resolution. Prefill includes rendering,
+first-use pipeline work and first-token sampling; decode measures token events
+after the first. These short diagnostic timings do not isolate shader pipeline
+compilation or establish sustained throughput. Native Vulkan model/context/compute
+bytes are 1,053,827,072 / 50,331,648 / 29,429,760 for dense and
+820,107,736 / 12,582,912 / 27,334,144 for MoE. Process RSS after each GPU run is
+149,444 and 107,408 KiB; driver allocations and mapped GPU memory are accounted
+separately by the cards, with additional driver memory still unknown.
+
+Numerical acceptance **does not pass** the initial conservative gate.
+`ailo_qualify_logits` is an explicit, strict C89 target excluded from ordinary
+builds and CTest. Build it with `cmake --build BUILD --target ailo_qualify_logits`,
+then invoke it with `MODEL SHA256`. It compares the entire vocabulary at 16
+identical prefixes by feeding each CPU-selected token to both backends. It uses
+the raw prompt `The sky appears blue because` and native defaults apart from
+explicit placement, 256 context/128 batch tokens and two threads. Each position
+requires maximum absolute normalized-logprob error <= 0.25 nats, RMS <= 0.025
+nats and CPU-to-GPU KL divergence <= 0.001 nats. All comparisons are reported;
+any violation exits nonzero. The deterministic fixture passes this tool.
+
+| Trained fixture | Worst absolute logprob error | Worst RMS | Worst KL | Differing argmax positions |
+| --- | ---: | ---: | ---: | ---: |
+| Dense | 3.24414 | 1.21621 | 0.0268033 | 1/16 |
+| MoE | 1.71170 | 0.34109 | 0.0301260 | 0/16 |
+
+The dense model's first-position discrepancy remains when disabling Vulkan
+FP16 or CPU repacking independently. These probes have not isolated its cause
+or established an acceptable trained-model accuracy budget. Matching MoE greedy
+text also does not establish probability equivalence. Preserve these failed
+gates for investigation; successful execution, streaming and reported timings
+do not qualify numerical accuracy or general model/hardware support.

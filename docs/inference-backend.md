@@ -368,7 +368,8 @@ The local owned continuation receiver is implemented in
 [`ailo/continuation.h`](../include/ailo/continuation.h). Its transactional input,
 explicit output ownership, fork and model/template binding semantics are in
 [the client documentation](client.md#owned-continuation-state). Protocol records
-remain separate work. Standalone semantic compaction, authenticated replay and
+use the implemented [adapter repository](openai.md#retained-records), separately
+from the evictable inference cache. Standalone semantic compaction, authenticated replay and
 explicit automatic preflight/in-flight compaction are implemented as described
 in [the client documentation](client.md#automatic-preflight-and-in-flight-compaction).
 

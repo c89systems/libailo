@@ -207,6 +207,8 @@ tests/macros_native.cpp
 tests/model.c
 tests/model_cache.c
 tests/model_download_driver.cpp
+tests/qualify_models.lua
+tests/qualify_logits.c
 tests/model_metadata.cpp
 tests/metadata_fixture.py
 tests/test_model_metadata.sh
