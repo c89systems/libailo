@@ -16,6 +16,13 @@ local function request()
 end
 local marker={message="callback marker"}
 do
+  local receiver=ok(ailo.new(config()))
+  local json='{"model":"local-model","messages":[{"role":"user","content":"x"}],"store":false,"stream":true,"max_completion_tokens":2,"temperature":0,"logprobs":true,"top_logprobs":2}'
+  fails("sink_failed",function()return receiver:chat_completions(json,function()error(marker)end)end)
+  ok(receiver:chat_completions(json,function()collectgarbage("collect")end))
+  receiver:close()
+end
+do
   local receiver=ok(ailo.new(config{source={local_path=path.."-auto-compaction"},context_tokens=4096,
     chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
   local history=ok(receiver:new_continuation())

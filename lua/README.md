@@ -34,6 +34,14 @@ No implicit downloads or token environment lookup. Default cache is
 `$XDG_CACHE_HOME/ailo` or `$HOME/.cache/ailo`. Full unsigned 64-bit `max_bytes`
 accepts `{hi=...,lo=...}`; other integers are checked exactly.
 
+`client:chat_completions(json, sink)` accepts raw OpenAI-shaped request JSON and
+forwards JSON/SSE byte strings through the installed C ABI. Set `stream=true`
+for immediate deltas and `store=false` for stateless use. It returns ID, HTTP
+metadata, started/stored flags and native usage; false from the sink cancels,
+and a thrown Lua value is preserved in `error.cause`. The binding never assembles
+the reply. A Lua repository-provider bridge remains required work; retained
+storage can currently be configured through C. See [adapter operations](../docs/openai.md).
+
 Constructor options also include `model_id`, `chat_template`, `lazy`, backend
 `auto`/`cpu`/`vulkan`, `gpu_layers`, `context_tokens`, `batch_tokens`, `threads`
 and an optional pslog `logger`. Defaults match the C factories. Unknown keys,

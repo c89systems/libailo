@@ -3,6 +3,7 @@
 #include "ailo_compaction_internal.hpp"
 #include "ailo_continuation_internal.hpp"
 #include "ailo_logging_internal.hpp"
+#include "ailo_openai_internal.hpp"
 #include <algorithm>
 #include <climits>
 #include <cstdlib>
@@ -124,6 +125,8 @@ state::state(const ailo_client_config &input, pslog_logger *logger)
           ? retain_compactor(input.compactor)
           : std::make_shared<compaction_state>(ailo_compactor_default_config());
   config.compactor = nullptr;
+  openai = std::make_unique<openai_state>(input.openai);
+  config.openai = nullptr;
 }
 
 state::~state() {
@@ -300,6 +303,9 @@ AILO_PUBLIC ailo_status ailo_client_new_with_logger(
     shell->snapshot_import = ailo_client_snapshot_import;
     shell->cancel = ailo_client_cancel;
     shell->destroy = ailo_client_destroy;
+    shell->chat_completions = ailo_client_chat_completions;
+    shell->chat_retrieve = ailo_client_chat_retrieve;
+    shell->chat_delete = ailo_client_chat_delete;
     *output = shell.release();
   });
 }

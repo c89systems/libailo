@@ -1,6 +1,7 @@
 #include "ailo_bounded_json_internal.hpp"
 #include "ailo_client_internal.hpp"
 #include "ailo_model_internal.hpp"
+#include "ailo_openai_internal.hpp"
 #include "src/llama-model.h"
 #include <cstring>
 #include <lonejson.h>
@@ -105,12 +106,18 @@ void feature_fields(json &out) {
 
 } // namespace
 
-std::string capabilities(state &) {
+std::string capabilities(state &self) {
   json out;
   out.object();
   out.key("scope");
   out.string("receiver_implementation");
   feature_fields(out);
+  out.key("chat_completions");
+  out.boolean(true);
+  out.key("responses");
+  out.boolean(false);
+  out.key("retained_chat_records");
+  out.boolean(self.openai->policy.repository_writable);
   out.key("max_candidates");
   out.number(16);
   out.key("max_request_text_bytes");

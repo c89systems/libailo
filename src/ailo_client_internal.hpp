@@ -34,6 +34,7 @@ struct source_copy {
 struct logging_state;
 struct cache_state;
 struct compaction_state;
+struct openai_state;
 
 struct state {
   std::mutex mutex;
@@ -56,6 +57,7 @@ struct state {
   std::unique_ptr<logging_state> logging;
   std::shared_ptr<cache_state> cache;
   std::shared_ptr<compaction_state> compactor;
+  std::unique_ptr<openai_state> openai;
   std::string cache_identity;
   std::string conversation_identity;
   std::string last_checkpoint, last_checkpoint_partition;

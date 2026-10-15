@@ -2,6 +2,7 @@
 #include <ailo/client.h>
 #include <ailo/compaction.h>
 #include <ailo/continuation.h>
+#include <ailo/openai.h>
 #include <ailo/version.h>
 #include <lauxlib.h>
 #include <limits.h>
@@ -1083,6 +1084,84 @@ static int generate_or_compact(lua_State *L, int compacting) {
 }
 static int generate(lua_State *L) { return generate_or_compact(L, 0); }
 static int compact(lua_State *L) { return generate_or_compact(L, 1); }
+typedef struct api_bytes {
+  const void *data;
+  size_t size;
+} api_bytes;
+static int bytes_thunk(lua_State *L) {
+  const api_bytes *bytes = lua_touserdata(L, 2);
+  lua_getiuservalue(L, 1, 1);
+  lua_pushlstring(L, bytes->data, bytes->size);
+  lua_call(L, 1, 1);
+  return 1;
+}
+static int api_bytes_sink(void *user, const void *data, size_t size) {
+  work *storage = user;
+  lua_State *L = storage->L;
+  api_bytes bytes = {data, size};
+  if (!lua_checkstack(L, 5)) {
+    storage->failed = 1;
+    return -1;
+  }
+  lua_pushcfunction(L, bytes_thunk);
+  lua_pushvalue(L, storage->index);
+  lua_pushlightuserdata(L, &bytes);
+  if (lua_pcall(L, 2, 1, 0) != LUA_OK) {
+    storage->failed = 1;
+    lua_setiuservalue(L, storage->index, 4);
+    return -1;
+  }
+  int accepted = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
+  lua_pop(L, 1);
+  return accepted;
+}
+static void api_info(lua_State *L, const ailo_api_info *out) {
+  info(L, &out->run);
+  set_string(L, "id", out->id[0] ? out->id : NULL);
+  set_integer(L, "http_status", out->http_status);
+  set_string(L, "content_type", out->content_type);
+  lua_pushboolean(L, out->started);
+  lua_setfield(L, -2, "started");
+  lua_pushboolean(L, out->stored);
+  lua_setfield(L, -2, "stored");
+}
+static int chat_completions(lua_State *L) {
+  client *value = get_client(L);
+  int checked = ready(L, value);
+  if (checked)
+    return checked;
+  size_t size = 0;
+  const char *json = luaL_checklstring(L, 2, &size);
+  luaL_checktype(L, 3, LUA_TFUNCTION);
+  work *storage = new_work(L);
+  for (int i = 1; i <= 3; ++i) {
+    lua_pushvalue(L, i == 1 ? 3 : i == 2 ? 1 : 2);
+    lua_setiuservalue(L, storage->index, i);
+  }
+  ailo_api_info out = {0};
+  ailo_error error = {0};
+  begin(L, value, 1);
+  ailo_status status = ailo_client_chat_completions(
+      value->native, json, size, api_bytes_sink, storage, &out, &error);
+  end(value);
+  release_work(storage);
+  if (status != AILO_OK) {
+    if (value->progress_failed) {
+      status = AILO_SINK_FAILED;
+      strcpy(error.message, "model progress callback failed");
+    }
+    failure(L, status, error.message);
+    api_info(L, &out);
+    lua_setfield(L, -2, "info");
+    if (storage->failed)
+      cause(L, storage->index, 4);
+    else if (value->progress_failed)
+      cause(L, 1, 3);
+    return 2;
+  }
+  api_info(L, &out);
+  return 1;
+}
 static int metadata(lua_State *L, int kind) {
   client *value = get_client(L);
   int error_result = ready(L, value);
@@ -1237,6 +1316,7 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
   lua_pop(L, 1);
   luaL_newmetatable(L, CLIENT);
   static const luaL_Reg methods[] = {{"generate", generate},
+                                     {"chat_completions", chat_completions},
                                      {"new_continuation", new_continuation},
                                      {"compact", compact},
                                      {"model_card", card},

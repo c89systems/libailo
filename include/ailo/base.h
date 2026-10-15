@@ -53,7 +53,8 @@ typedef enum ailo_status {
   AILO_BUSY,
   AILO_CANCELLED,
   AILO_SINK_FAILED,
-  AILO_INTERNAL_ERROR
+  AILO_INTERNAL_ERROR,
+  AILO_NOT_FOUND
 } ailo_status;
 
 /** Includes the terminating NUL byte. */

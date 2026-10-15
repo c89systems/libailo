@@ -16,10 +16,10 @@ int main(void) {
   const long signed_values[] = {
       0L, 1L, -1L, 2147483647L, -2147483647L - 1L, LONG_MIN, LONG_MAX};
   const char *names[] = {
-      "ok",          "invalid_argument", "out_of_range",  "no_memory",
-      "unsupported", "invalid_json",     "unknown_model", "download_failed",
-      "io_failed",   "model_failed",     "context_limit", "busy",
-      "cancelled",   "sink_failed",      "internal_error"};
+      "ok",          "invalid_argument", "out_of_range",   "no_memory",
+      "unsupported", "invalid_json",     "unknown_model",  "download_failed",
+      "io_failed",   "model_failed",     "context_limit",  "busy",
+      "cancelled",   "sink_failed",      "internal_error", "not_found"};
   ailo_error error;
   ailo_u64 u;
   ailo_i64 s;

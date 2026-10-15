@@ -33,6 +33,8 @@ const char *ailo_status_name(int status) {
     return "sink_failed";
   case AILO_INTERNAL_ERROR:
     return "internal_error";
+  case AILO_NOT_FOUND:
+    return "not_found";
   }
   return "unknown_status";
 }

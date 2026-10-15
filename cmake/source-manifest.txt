@@ -22,6 +22,11 @@ src/ailo_openai_request_internal.hpp
 src/ailo_openai_request.cpp
 src/ailo_openai_retention_internal.hpp
 src/ailo_openai_retention.cpp
+include/ailo/openai.h
+src/ailo_openai_internal.hpp
+src/ailo_openai.cpp
+src/ailo_openai_chat.cpp
+tests/openai_chat.cpp
 tests/openai_requests.cpp
 tests/compaction_replay.cpp
 tests/compaction_crypto.cpp
@@ -66,6 +71,7 @@ cmake/version.h.in
 docs/architecture.md
 docs/c89-boundary.md
 docs/client.md
+docs/openai.md
 docs/facade-bindings.md
 docs/facade-coverage.json
 docs/gpu-userspace-dependencies.md

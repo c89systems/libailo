@@ -10,6 +10,21 @@ local function config(extra)
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
 do
+  local receiver=ok(ailo.new(config()))
+  local json='{"model":"local-model","messages":[{"role":"user","content":"Hi"}],"store":false,"stream":true,"max_completion_tokens":8,"temperature":0,"logprobs":true,"top_logprobs":2,"logit_bias":{"100":100},"stream_options":{"include_usage":true,"include_obfuscation":false}}'
+  local parts={}
+  local run=ok(receiver:chat_completions(json,function(bytes)parts[#parts+1]=bytes;collectgarbage("collect")end))
+  local result=table.concat(parts)
+  assert(run.http_status==200 and run.content_type=="text/event-stream" and run.started and not run.stored and run.usage.completion_tokens==8 and result:find("data: %[DONE%]"))
+  local cancelled=fails("cancelled",function()return receiver:chat_completions(json,function()return false end)end)
+  assert(cancelled.info.started and cancelled.info.usage.completion_tokens==0)
+  local marker={sink=true}
+  local failed=fails("sink_failed",function()return receiver:chat_completions(json,function()error(marker)end)end)
+  assert(failed.cause==marker and failed.info.started)
+  fails("invalid_json",function()return receiver:chat_completions("{",function()end)end)
+  receiver:close()
+end
+do
   local receiver=ok(ailo.new(config{chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
   local input=request();input.max_tokens=32;input.logprobs=true;input.logit_bias={{token_id=100,bias=100}};input.stop={"aaaZ"}
   local raw,text,watermark,progress="","",0,0

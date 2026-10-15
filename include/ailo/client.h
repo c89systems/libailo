@@ -16,6 +16,9 @@ struct ailo_compactor;
 struct ailo_compaction_policy;
 struct ailo_compaction_info;
 struct ailo_auto_compaction_policy;
+struct ailo_openai_config;
+struct ailo_api_info;
+typedef int (*ailo_output_sink)(void *, const void *, size_t);
 
 typedef enum ailo_backend_policy {
   AILO_BACKEND_AUTO = 0,
@@ -100,6 +103,9 @@ typedef struct ailo_client_config {
   /** NULL selects a private ephemeral compaction key owner. An explicit owner
    * is retained independently of its receiver shell. No files are written. */
   struct ailo_compactor *compactor;
+  /** Copied API/repository configuration; callback user resources are borrowed
+   * until destroy. NULL selects defaults and no retained-record repository. */
+  const struct ailo_openai_config *openai;
 } ailo_client_config;
 
 typedef struct ailo_logit_bias {
@@ -351,6 +357,14 @@ struct ailo_client {
                                  ailo_error *);
   void (*cancel)(ailo_client *);
   void (*destroy)(ailo_client *);
+  ailo_status (*chat_completions)(ailo_client *, const void *, size_t,
+                                  ailo_output_sink, void *,
+                                  struct ailo_api_info *, ailo_error *);
+  ailo_status (*chat_retrieve)(ailo_client *, const char *, ailo_bool,
+                               ailo_output_sink, void *, struct ailo_api_info *,
+                               ailo_error *);
+  ailo_status (*chat_delete)(ailo_client *, const char *, ailo_output_sink,
+                             void *, struct ailo_api_info *, ailo_error *);
 };
 
 ailo_client_config ailo_client_default_config(void);

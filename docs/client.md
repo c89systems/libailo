@@ -1,8 +1,9 @@
 # Inference receiver
 
 `include/ailo/client.h` provides the first implemented shared inference core.
-It calls the pinned llama library in the embedding process. Chat Completions
-and Responses wire adapters are separate work under the broader
+It calls the pinned llama library in the embedding process. The
+[Chat Completions adapter](openai.md) provides public JSON/SSE operations and
+retained-record hooks. Responses and remaining handler work follow the broader
 [backend contract](inference-backend.md).
 
 Construct an `ailo_client` with `ailo_client_new`, then call its `generate`,

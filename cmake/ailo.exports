@@ -12,6 +12,10 @@ ailo_client_default_config
 ailo_client_destroy
 ailo_client_devices
 ailo_client_generate
+ailo_client_chat_completions
+ailo_client_chat_retrieve
+ailo_client_chat_delete
+ailo_openai_default_config
 ailo_client_compact
 ailo_compaction_default_policy
 ailo_auto_compaction_default_policy

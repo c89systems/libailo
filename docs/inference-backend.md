@@ -24,8 +24,10 @@ and 32768 object members; expanded owned input uses the continuation's 4 MiB and
 4096-item/part bounds. Schema fragments are explicitly materialized within
 64 KiB through lonejson's writer. Counts require integer literals; invalid,
 conflicting, duplicate and unavailable semantics fail instead of being ignored.
-This is request materialization, not generated-output buffering. No public
-JSON/SSE operation or retained-record repository is connected yet.
+This is request materialization, not generated-output buffering. Public Chat
+JSON/SSE and C repository operations are now connected through
+[the adapter surface](openai.md). Responses, handler/model routing, stored list/
+update routes and the Lua repository-provider bridge remain required.
 
 API function schemas use the existing private schema helper for the documented
 [strict-mode defaults](https://developers.openai.com/api/docs/guides/function-calling#strict-mode):
@@ -161,8 +163,9 @@ The private retention planner resolves these requirements before repository
 admission: it separates response storage, prior-response reads and conversation
 reads/appends, requires a trusted application namespace and the corresponding
 repository capabilities, and rejects Responses TTLs below 30 days or overflowing
-expiry timestamps. Repository quota reservation, actual writes and retrieval
-remain adapter work. Neither request `user` nor `safety_identifier` grants access.
+expiry timestamps. Chat now connects repository reservation, atomic writes,
+retrieval and deletion; Responses integration remains adapter work. Neither
+request `user` nor `safety_identifier` grants access.
 
 Current [OpenAI migration guidance](https://developers.openai.com/api/docs/guides/migrate-to-responses)
 also documents default Chat storage for new accounts. The planner defaults to
@@ -207,8 +210,8 @@ are requested. These preserve provenance through UTF-8 carry, hidden template
 framing and context rebuilds without collecting the reply. Adapters must use
 these ranges to associate visible bytes with sampled-token probabilities and
 release settled metadata; substring guessing cannot distinguish repeated text
-or suppressed framing. Wire projection remains adapter work, not a claim that
-the neutral token event itself is an OpenAI content-logprob object.
+or suppressed framing. Chat's wire projection is implemented in its adapter;
+the neutral token event itself is not an OpenAI content-logprob object.
 
 Support function-tool definitions and histories, tool choice none/auto/required/
 named function, and one or multiple calls where the model/template supports it.

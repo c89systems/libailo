@@ -272,6 +272,12 @@ function methods:generate(input,sink)
     return self._native:generate(request(input),sink)
   end)
 end
+function methods:chat_completions(json,sink)
+  return guarded(function()
+    if type(sink) ~= "function" then invalid("sink must be a function") end
+    return self._native:chat_completions(str(json,"Chat Completions JSON",false,true),sink)
+  end)
+end
 function methods:compact(input,policy)
   return guarded(function()
     local out=compaction_policy(policy,false)
