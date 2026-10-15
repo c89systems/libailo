@@ -27,8 +27,8 @@ conflicting, duplicate and unavailable semantics fail instead of being ignored.
 This is request materialization, not generated-output buffering. Public Chat
 and Responses JSON/SSE and C repository operations are now connected through
 [the adapter surface](openai.md). Handler/model routing, stored list/update,
-conversation objects and encrypted reasoning remain required. Standalone and
-automatic Responses compaction and authenticated replay are connected. Lua
+conversation objects remain required. Standalone and
+automatic Responses compaction and authenticated reasoning replay are connected. Lua
 exposes the same retention profile,
 repository receiver and direct retrieval/deletion primitives through the C ABI.
 
@@ -248,9 +248,15 @@ unsupported keyword or ignored converter warning is a pre-generation error.
 Separate reasoning from user-visible answer text where the qualified model and
 template provide an unambiguous format. Reasoning-token budgets count toward
 the total generation limit. Do not relabel raw reasoning as a supported summary,
-invent provider-specific encrypted reasoning state, or implement reasoning
+invent another provider's encrypted reasoning state, or implement reasoning
 effort by silently changing temperature. Unsupported controls fail clearly.
 Tool, reasoning and content parser state remains independent per candidate.
+
+The Responses adapter now emits authenticated local encrypted reasoning items
+for replay, as described in [the adapter contract](openai.md#encrypted-reasoning-replay).
+This is local canonical state, not an OpenAI-issued token or a claim of compatible
+proprietary latent state. Native receiver generation still retains no complete
+reasoning item; the already-declared Responses typed-output owner supplies it.
 
 Finish reasons, actual usage, UTF-8/stop handling, cancellation, device failure
 and sink failure follow architecture.md. Context overflow never silently drops

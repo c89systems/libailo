@@ -57,6 +57,11 @@ void erase_record(openai_state &, ailo_record_protocol, const char *);
 void api_canonical_item(wire_json &, const ailo_item &);
 void api_prior_input(state &, openai_request &);
 void api_expand_compaction(state &, openai_request &);
+void api_expand_reasoning(state &, openai_request &);
+void api_prepare_reasoning(state &, const openai_request &, bool store);
+void api_require_replay_storage(state &);
+std::string api_seal_reasoning(state &, const std::string &id,
+                               const std::string &text);
 struct sealed_summary;
 transcript api_compacted_window(state &, const std::vector<ailo_item> &,
                                 size_t instructions);

@@ -158,12 +158,13 @@ end
 function M.compaction(ailo,path,memory)
   local function ok(v,e)assert(v,e and (e.code..": "..e.message));return v end
   local r=M.new()
-  local function client(mode)
+  local function client(mode,thinking)
     local owner
     if mode=="ephemeral" then owner=ok(ailo.new_compactor())
     else owner=ok(ailo.new_compactor{namespace_id="key-domain",key_id="one",key=string.rep("k",32),ttl_seconds=mode=="expiring" and 2591999 or mode=="retained" and 2592000 or 0})end
-    local c=ok(ailo.new{source={local_path=path.."-auto-compaction"},backend="cpu",threads=1,context_tokens=4096,
-      chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}",compactor=owner,
+    local template=thinking and "{% for m in messages %}{{m.role}}:{% if m.reasoning_content is defined %}<think>{{m.reasoning_content}}</think>{% endif %}{{m.content}}|{% endfor %}{% if add_generation_prompt %}assistant:{% if enable_thinking %}<think>{% endif %}{% endif %}" or "{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"
+    local c=ok(ailo.new{source={local_path=path..(thinking and "-reasoning" or "-auto-compaction")},backend="cpu",threads=1,context_tokens=4096,
+      chat_template=template,compactor=owner,
       openai={namespace_id="A",repository=r,max_record_bytes=16384,
         compaction={target_tokens=800,summary_context_tokens=8192}}})
     owner:close();return c
@@ -220,5 +221,27 @@ function M.compaction(ailo,path,memory)
   local v,e=c:responses(automatic,function()end)
   assert(v==nil and e.code=="io_failed" and e.cause==r.marker and r.aborted==aborted+1 and not next(r.active))
   r.fault=nil;c:close()
+  -- Encrypted reasoning is emitted by default, survives stored retrieval and
+  -- reconstructs an incomplete reasoning-only historical assistant turn.
+  c=client("retained",true)
+  local thinking='{"input":"Hi","stream":true,"max_output_tokens":8,"temperature":0,"stream_options":{"include_obfuscation":false}}'
+  frames={};run=ok(c:responses(thinking,function(s)frames[#frames+1]=s end))
+  local wire=table.concat(frames)
+  local token=assert(wire:match('"encrypted_content":"([^"]+)"'))
+  local item_id=assert(wire:match('"id":"(rs_[^"]+)"'))
+  assert(run.stored and run.usage.reasoning_tokens>0 and wire:find('event: response.reasoning_text.delta')<wire:find('event: response.output_item.done'))
+  c:close();c=client("retained",true)
+  local retrieved={};ok(c:response_retrieve(run.id,function(s)retrieved[#retrieved+1]=s end))
+  assert(table.concat(retrieved):find(token,1,true))
+  local next_run=ok(c:responses('{"previous_response_id":"'..run.id..'","input":"Next","max_output_tokens":2,"temperature":0}',function()end));assert(next_run.stored)
+  local opaque='{"input":[{"type":"reasoning","id":"'..item_id..'","summary":[],"encrypted_content":"'..token..'"},{"role":"user","content":"Next"}],"store":false,"include":["reasoning.encrypted_content"],"max_output_tokens":2,"temperature":0}'
+  assert(not ok(c:responses(opaque,function()end)).stored)
+  ok(c:response_delete(run.id,function()end));ok(c:response_delete(next_run.id,function()end));c:close()
+  c=client("ephemeral",true);local deliveries=0;aborted=r.aborted
+  v,e=c:responses(thinking,function()deliveries=deliveries+1 end)
+  assert(v==nil and e.code=="invalid_argument" and e.message:find("covering response retention") and deliveries==0 and r.aborted==aborted+1)
+  local transient=thinking:sub(1,-2)..',"store":false}'
+  frames={};assert(not ok(c:responses(transient,function(s)frames[#frames+1]=s end)).stored)
+  assert(table.concat(frames):find('"encrypted_content":"'));c:close()
 end
 return M

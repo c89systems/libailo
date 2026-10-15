@@ -125,7 +125,7 @@ std::string capabilities(state &self) {
   out.key("response_compaction");
   out.boolean(true);
   out.key("response_reasoning_encryption");
-  out.boolean(false);
+  out.boolean(true);
   out.key("retained_chat_records");
   out.boolean(self.openai->policy.repository_writable);
   out.key("max_candidates");

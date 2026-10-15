@@ -100,6 +100,10 @@ void canonical_item(wire_json &out, const ailo_item &item) {
       out.key("summary");
       out.array();
       out.end_array();
+      if (item.encrypted_content) {
+        out.key("encrypted_content");
+        out.string(item.encrypted_content);
+      }
     } else {
       out.key("role");
       out.string(item.role == AILO_ROLE_SYSTEM      ? "system"
@@ -270,6 +274,13 @@ class response_writer {
         out.key("summary");
         out.array();
         out.end_array();
+        if (diagnostics) {
+          out.key("encrypted_content");
+          if (full && !i.encrypted.empty())
+            out.string(i.encrypted);
+          else
+            out.null();
+        }
       } else {
         out.key("role");
         out.string("assistant");
@@ -667,6 +678,9 @@ class response_writer {
       throw failure(AILO_INTERNAL_ERROR,
                     "Unsettled response probabilities at completion");
     completed_at = api_now();
+    for (auto &i : items)
+      if (i.kind == AILO_ITEM_REASONING && i.encrypted.empty())
+        seal_reasoning(i);
     seal_controls();
     const char *status = info.run.finish_reason == AILO_FINISH_LENGTH
                              ? "incomplete"
@@ -784,6 +798,8 @@ class response_writer {
       added(current);
       i.done = true;
       i.incomplete = e.finish_reason == AILO_FINISH_LENGTH;
+      if (i.kind == AILO_ITEM_REASONING && !record)
+        seal_reasoning(i);
       flush_done();
     } else if (e.kind == AILO_EVENT_COMPACTION) {
       if (active_control == SIZE_MAX || items[active_control].window)
@@ -802,6 +818,10 @@ class response_writer {
   }
 
 public:
+  void seal_reasoning(response_item &i) {
+    const auto encrypted = api_seal_reasoning(self, i.id, i.text);
+    append(i.encrypted, encrypted.data(), encrypted.size());
+  }
   void start() {
     if (begun)
       return;
@@ -953,15 +973,11 @@ AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
       bool compacted = false;
       for (const auto &i : request.items)
         compacted |= i.kind == AILO_ITEM_COMPACTION;
-      if ((compacted || request.automatic_compaction) && plan.store_response &&
-          (call.self.compactor->ephemeral ||
-           (call.self.compactor->ttl_seconds &&
-            call.self.compactor->ttl_seconds <
-                call.self.openai->policy.response_retention_seconds)))
-        throw failure(AILO_INVALID_ARGUMENT,
-                      "Stored compacted Responses require stable keys and a "
-                      "compaction TTL covering response retention");
+      if ((compacted || request.automatic_compaction) && plan.store_response)
+        api_require_replay_storage(call.self);
       api_expand_compaction(call.self, request);
+      api_expand_reasoning(call.self, request);
+      api_prepare_reasoning(call.self, request, plan.store_response);
       auto native = request.generation;
       if (native.logprobs)
         native.top_logprobs = 20;

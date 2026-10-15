@@ -93,6 +93,7 @@ struct item {
   std::vector<call> calls;
   bool has_content = false, content_null = false, has_arguments = false,
        has_encrypted = false, has_calls = false, has_summary = false;
+  bool encrypted_null = false;
 };
 class decoder {
   openai_request &out;
@@ -392,6 +393,8 @@ class decoder {
       } else if (!chat && field == "summary") {
         expect(k, kind::array);
         m.has_summary = true;
+      } else if (!chat && field == "encrypted_content" && k == kind::null) {
+        m.has_encrypted = m.encrypted_null = true;
       } else if (field == "tool_calls" && chat) {
         m.has_calls = true;
         if (k != kind::null)
@@ -823,11 +826,13 @@ class decoder {
             unsupported();
           modalities = true;
         } else {
-          if (v != "message.output_text.logprobs")
+          if (v != "message.output_text.logprobs" &&
+              v != "reasoning.encrypted_content")
             unsupported();
           if (!includes.insert(v).second)
             invalid("Duplicate include value");
-          out.generation.logprobs = 1;
+          if (v == "message.output_text.logprobs")
+            out.generation.logprobs = 1;
         }
       } else
         unsupported();
@@ -954,9 +959,11 @@ class decoder {
         value.content_count = parts.size();
         append(value);
       } else if (!chat && m.type == "reasoning") {
-        if (!m.has_content || m.has_encrypted || m.has_arguments ||
-            m.has_calls || !m.role.empty() || !m.name.empty() ||
-            !m.call_id.empty() || !m.has_summary)
+        const bool encrypted = m.has_encrypted && !m.encrypted_null;
+        if ((!m.has_content && !encrypted) || m.has_arguments || m.has_calls ||
+            !m.role.empty() || !m.name.empty() || !m.call_id.empty() ||
+            !m.has_summary ||
+            (encrypted && (m.encrypted.empty() || m.id.empty())))
           invalid("Reasoning item has missing or incompatible fields");
         std::vector<ailo_content> parts;
         for (const auto &part : m.parts) {
@@ -970,6 +977,7 @@ class decoder {
         value.role = AILO_ROLE_ASSISTANT;
         value.content = parts.data();
         value.content_count = parts.size();
+        value.encrypted_content = encrypted ? m.encrypted.c_str() : nullptr;
         append(value);
       } else if (!chat && m.type == "compaction") {
         if (!m.has_encrypted || m.encrypted.empty() || m.id.empty() ||

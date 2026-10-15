@@ -28,6 +28,9 @@ src/ailo_openai.cpp
 src/ailo_openai_chat.cpp
 src/ailo_openai_responses.cpp
 src/ailo_openai_compaction.cpp
+src/ailo_openai_crypto_internal.hpp
+src/ailo_openai_crypto.cpp
+src/ailo_openai_reasoning.cpp
 tests/openai_compaction.cpp
 tests/openai_chat.cpp
 tests/openai_requests.cpp

@@ -58,6 +58,7 @@ struct output {
   bool busy = false;
   ailo_api_info *info = nullptr;
   size_t boundary = 0, first_delta = SIZE_MAX, control_at = SIZE_MAX;
+  size_t first_reasoning = SIZE_MAX, reasoning_done = SIZE_MAX;
   int control_action = 1;
   static int send(void *u, const void *p, size_t n) {
     auto &out = *static_cast<output *>(u);
@@ -66,6 +67,12 @@ struct output {
     while ((end = out.bytes.find("\n\n", out.boundary)) != std::string::npos) {
       const auto frame = out.bytes.substr(out.boundary, end - out.boundary);
       out.boundary = end + 2;
+      if (out.info && frame.find("event: response.reasoning_text.delta") == 0 &&
+          out.first_reasoning == SIZE_MAX)
+        out.first_reasoning = out.info->run.usage.completion_tokens.lo;
+      if (out.info && frame.find("event: response.output_item.done") == 0 &&
+          frame.find("\"type\":\"reasoning\"") != std::string::npos)
+        out.reasoning_done = out.info->run.usage.completion_tokens.lo;
       if (out.info && frame.find("event: response.output_text.delta") == 0 &&
           frame.find("\"delta\":\"\"") == std::string::npos &&
           out.first_delta == SIZE_MAX)
@@ -320,6 +327,136 @@ void automatic_cases(const std::string &path, ailo_openai_config profile,
         seen.bytes.find("event: response.incomplete") == std::string::npos);
   seen = {};
   CHECK(generate(receiver.get(), inflight, seen, info) == AILO_OK);
+}
+void reasoning_cases(const std::string &base, ailo_openai_config profile,
+                     ailo_compactor *owner) {
+  const char *thinking =
+      "{% for m in messages %}{{m.role}}:{% if m.reasoning_content is defined "
+      "%}<think>{{m.reasoning_content}}</think>{% endif %}{{m.content}}|{% "
+      "endfor %}{% if add_generation_prompt %}assistant:{% if "
+      "enable_thinking %}<think>{% endif %}{% endif %}";
+  const std::string path = base + "-auto-compaction-reasoning";
+  auto receiver = create(path, profile, owner, thinking);
+  const std::string body =
+      R"({"input":"Hi","store":false,"stream":true,"max_output_tokens":32,"temperature":0,"text":{"format":{"type":"json_schema","name":"answer","schema":{"const":{}}}},"stream_options":{"include_obfuscation":false}})";
+  output seen;
+  ailo_api_info info{};
+  seen.info = &info;
+  CHECK(generate(receiver.get(), body, seen, info) == AILO_OK);
+  CHECK(seen.first_reasoning == 1 && seen.reasoning_done == 1 &&
+        seen.reasoning_done < info.run.usage.completion_tokens.lo);
+  const auto json = terminal(seen.bytes);
+  openai_request result(openai_protocol::responses, json.data(), json.size(),
+                        "local-model", "output");
+  CHECK(result.items.size() == 2 &&
+        result.items[0].kind == AILO_ITEM_REASONING &&
+        result.items[0].encrypted_content &&
+        std::strlen(result.items[0].encrypted_content) > 120 &&
+        result.items[0].content_count == 1 &&
+        result.items[0].content[0].size == 1 &&
+        *static_cast<const char *>(result.items[0].content[0].data) == 'r');
+  CHECK(seen.bytes.find("event: response.reasoning_text.delta") <
+        seen.bytes.find("event: response.output_item.done"));
+  const auto opaque = std::string(result.items[0].encrypted_content);
+  auto replay = result.items;
+  ailo_content next{AILO_CONTENT_TEXT, "Next", 4};
+  ailo_item user{};
+  user.role = AILO_ROLE_USER;
+  user.content = &next;
+  user.content_count = 1;
+  replay.push_back(user);
+  seen = {};
+  CHECK(generate(receiver.get(), request(replay, "New policy"), seen, info) ==
+        AILO_OK);
+  const auto full_prompt = info.run.usage.prompt_tokens.lo;
+  replay[0].content = nullptr;
+  replay[0].content_count = 0;
+  seen = {};
+  CHECK(generate(receiver.get(), request(replay, "New policy"), seen, info) ==
+            AILO_OK &&
+        info.run.usage.prompt_tokens.lo == full_prompt);
+  auto plain_replay = result.items;
+  plain_replay[0].encrypted_content = nullptr;
+  plain_replay.push_back(user);
+  seen = {};
+  CHECK(generate(receiver.get(), request(plain_replay, "New policy"), seen,
+                 info) == AILO_OK &&
+        info.run.usage.prompt_tokens.lo == full_prompt);
+  receiver = create(path, profile, owner, thinking);
+  seen = {};
+  CHECK(generate(receiver.get(), request(replay, "New policy"), seen, info) ==
+        AILO_OK);
+  auto bad = [&](const std::vector<ailo_item> &items) {
+    seen = {};
+    CHECK(generate(receiver.get(), request(items, nullptr), seen, info) ==
+              AILO_INVALID_ARGUMENT &&
+          !info.started && seen.bytes.empty());
+  };
+  auto changed = replay;
+  changed[0].id = "rs_changed";
+  bad(changed);
+  auto corrupt = opaque;
+  corrupt[corrupt.size() / 2] = corrupt[corrupt.size() / 2] == 'A' ? 'B' : 'A';
+  changed = replay;
+  changed[0].encrypted_content = corrupt.c_str();
+  bad(changed);
+  ailo_content substitution{AILO_CONTENT_TEXT, "different", 9};
+  changed = replay;
+  changed[0].content = &substitution;
+  changed[0].content_count = 1;
+  bad(changed);
+  // Same ID, model, key and namespace, but a different encrypted-item purpose.
+  changed = replay;
+  changed[0].kind = AILO_ITEM_COMPACTION;
+  bad(changed);
+  const std::string key(32, 'k'), other_key(32, 'q');
+  auto wrong_key = keys(other_key);
+  auto other = create(path, profile, wrong_key.get(), thinking);
+  seen = {};
+  CHECK(generate(other.get(), request(replay, nullptr), seen, info) ==
+            AILO_INVALID_ARGUMENT &&
+        !info.started);
+  auto isolated = profile;
+  isolated.namespace_id = "other-tenant";
+  other = create(path, isolated, owner, thinking);
+  seen = {};
+  CHECK(generate(other.get(), request(replay, nullptr), seen, info) ==
+            AILO_INVALID_ARGUMENT &&
+        !info.started);
+  auto rotated = keys(other_key, 0, 1024 * 1024, &key);
+  other = create(path, profile, rotated.get(), thinking);
+  seen = {};
+  CHECK(generate(other.get(), request(replay, nullptr), seen, info) == AILO_OK);
+  // A reasoning-only incomplete response can be replayed without inventing
+  // visible answer output, including with no plaintext content supplied.
+  auto partial = create(base + "-reasoning", profile, owner, thinking);
+  const std::string short_body =
+      R"({"input":"Hi","store":false,"max_output_tokens":2,"temperature":0})";
+  seen = {};
+  CHECK(generate(partial.get(), short_body, seen, info) == AILO_OK);
+  openai_request unfinished(openai_protocol::responses, seen.bytes.data(),
+                            seen.bytes.size(), "local-model", "output");
+  CHECK(unfinished.items.size() == 1 &&
+        unfinished.items[0].kind == AILO_ITEM_REASONING &&
+        unfinished.items[0].encrypted_content);
+  auto incomplete = unfinished.items;
+  incomplete[0].content = nullptr;
+  incomplete[0].content_count = 0;
+  incomplete.push_back(user);
+  seen = {};
+  CHECK(generate(partial.get(), request(incomplete, nullptr), seen, info) ==
+        AILO_OK);
+  seen = {};
+  CHECK(generate(receiver.get(), request(incomplete, nullptr), seen, info) ==
+            AILO_INVALID_ARGUMENT &&
+        !info.started);
+  // Encrypted reasoning is the default; legacy include remains accepted.
+  auto legacy = body;
+  legacy.pop_back();
+  legacy += ",\"include\":[\"reasoning.encrypted_content\"]}";
+  seen = {};
+  CHECK(generate(receiver.get(), legacy, seen, info) == AILO_OK &&
+        seen.bytes.find("\"encrypted_content\":\"") != std::string::npos);
 }
 int main(int argc, char **argv) {
   try {
@@ -596,6 +733,7 @@ int main(int argc, char **argv) {
           std::string(window.items[0].encrypted_content) == encrypted);
     auto automatic_key = keys(key);
     automatic_cases(path, profile, automatic_key.get());
+    reasoning_cases(argv[1], profile, automatic_key.get());
     std::puts("Responses standalone compaction, canonical replay/instructions, "
               "reconstruction/rotation, authenticated failures/expiry, quotas "
               "and cancellation: passed");

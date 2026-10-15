@@ -60,7 +60,12 @@ Responses create also accepts automatic `context_management` compaction. Deltas
 remain immediate through preflight/in-flight context rebuilds; completed opaque
 items support pruning before the latest automatic item. Stored automatic requests
 use the same stable-key/retention requirement. See [the adapter contract](../docs/openai.md#automatic-responses-compaction).
-Conversation objects and encrypted reasoning
+Responses reasoning items include encrypted replay content by default. Replay a
+completed item's ID, empty summary and encrypted content through ordinary input;
+its plaintext content is optional and must match if supplied. This also works
+for reasoning-only incomplete responses. Stored reasoning requests require the
+same stable-key/retention policy. See [encrypted reasoning replay](../docs/openai.md#encrypted-reasoning-replay).
+Conversation objects
 remain unavailable integrations;
 capabilities report those separately.
 

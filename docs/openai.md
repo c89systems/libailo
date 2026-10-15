@@ -7,7 +7,7 @@ caller-owned `ailo_api_info`. The
 request mapper supports the qualified text, function, schema, sampling and
 reasoning controls in [the receiver contract](client.md). Unavailable controls
 fail explicitly. Model/HTTP dispatch, stored-record list/update routes,
-conversation objects and encrypted reasoning
+conversation objects
 remain required work.
 
 ```c
@@ -170,11 +170,10 @@ wire logprob diagnostics do not consume the lineage input budget. Each original
 stored output retains its logprobs.
 
 Standalone compaction and canonical-window replay are implemented below.
-Conversation objects,
-encrypted reasoning replay, input-item pagination and HTTP routes are still
+Conversation objects, input-item pagination and HTTP routes are still
 unavailable integrations; requests for those controls fail explicitly. Capability
 fields distinguish implemented Responses operations, configured record storage,
-and the unavailable conversation/reasoning-encryption paths.
+and the unavailable conversation path.
 
 ## Standalone Responses compaction
 
@@ -279,6 +278,48 @@ once, permitting `previous_response_id` chaining across receiver reconstruction.
 Publication remains atomic before successful done/terminal events. Summary work
 is included in wire usage; native info keeps its separate compaction counters.
 `response_automatic_compaction` now advertises this integration.
+
+## Encrypted reasoning replay
+
+Qualified Responses reasoning items include local `encrypted_content` by default,
+following the current [Responses create reference](https://developers.openai.com/api/reference/resources/responses/methods/create)
+and [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning).
+This also applies to `store=false` and the trusted ZDR profile. The legacy
+`include: ["reasoning.encrypted_content"]` is accepted without enabling logprobs
+or changing that default. Nonempty reasoning summaries remain unsupported; raw
+local reasoning is not relabeled as a summary.
+
+Reasoning deltas reach the sink immediately. The added item has null encrypted
+content; its completed `response.output_item.done` item contains the final token.
+For an unstored response, that done event can precede subsequent answer tokens.
+Stored responses retain the existing atomic-publication rule for done events.
+Use a final item for replay, including when its status is `incomplete`.
+
+Pass the reasoning item with its ID, empty `summary` array and encrypted content
+into subsequent input. Plain `content` may be omitted or empty. If supplied, it
+must match the authenticated content exactly. The adapter restores canonical
+reasoning before inference and normalizes a reasoning-only historical turn with
+an internal empty assistant message when required by the native template. It
+does not emit a fabricated answer item. Raw reasoning input remains supported.
+
+The token contains bounded canonical reasoning state encrypted with AES-256-GCM,
+using a separate HKDF-SHA256 purpose, `libailo.responses.reasoning:1`. Model/template,
+namespace, key domain, item ID, issue/expiry timestamps and payload length are
+authenticated. Compaction tokens and reasoning tokens cannot substitute for each
+other. Authentication precedes parsing. The existing compactor byte limit, key
+rotation and TTL apply, alongside API input/output budgets; plaintext and derived
+secret buffers are cleansed. Model identity is established before generation,
+so a done-item encryption step never starts hashing model files between deltas.
+
+Stateless ephemeral keys work within the owning client. Reconstruction or restart
+requires compatible configured keys. Stored requests that generate reasoning
+require stable configured keys and TTL zero or at least the response retention
+period; a missing policy fails before events or inference and aborts any record
+reservation. Private retained lineage stores canonical reasoning rather than a
+dependency on a public replay token. Public retrieval preserves the encrypted
+wire item. Only compatible libailo instances can consume these local tokens;
+they are not OpenAI-issued state. `response_reasoning_encryption` advertises the
+implemented integration.
 
 ## Lua
 

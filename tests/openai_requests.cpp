@@ -264,12 +264,30 @@ int main(int argc, char **argv) {
     for (
         auto field :
         {R"("background":true)", R"("truncation":"auto")", R"("n":null)",
-         R"("include":["reasoning.encrypted_content"])",
          R"("reasoning":{"summary":"auto"})",
          R"("input":[{"role":"user","content":[{"type":"input_image","image_url":"https://example.invalid/image"}]}])"})
       reject(responses, "{\"input\":\"Hi\"," + std::string(field) + "}",
              std::strstr(field, "\"input\"") ? AILO_INVALID_ARGUMENT
                                              : AILO_UNSUPPORTED);
+    const std::string legacy_reasoning =
+        R"({"input":"Hi","include":["reasoning.encrypted_content"]})";
+    openai_request legacy(responses, legacy_reasoning.data(),
+                          legacy_reasoning.size(), "local-model");
+    CHECK(!legacy.generation.logprobs);
+    const std::string opaque_reasoning =
+        R"({"input":[{"type":"reasoning","id":"rs_1","summary":[],"encrypted_content":"opaque"},{"role":"user","content":"Next"}]})";
+    openai_request parsed_opaque(responses, opaque_reasoning.data(),
+                                 opaque_reasoning.size(), "local-model");
+    CHECK(parsed_opaque.items[0].kind == AILO_ITEM_REASONING &&
+          parsed_opaque.items[0].content_count == 0 &&
+          !std::strcmp(parsed_opaque.items[0].encrypted_content, "opaque"));
+    for (
+        const char *bad :
+        {R"({"input":[{"type":"reasoning","summary":[],"encrypted_content":"opaque"}]})",
+         R"({"input":[{"type":"reasoning","id":"rs_1","summary":[],"encrypted_content":""}]})",
+         R"({"input":[{"type":"reasoning","id":"rs_1","summary":[],"encrypted_content":null}]})",
+         R"({"input":"Hi","include":["reasoning.encrypted_content","reasoning.encrypted_content"]})"})
+      reject(responses, bad, AILO_INVALID_ARGUMENT);
     reject(
         responses,
         R"({"input":[{"type":"function_call_output","call_id":"x","content":"wrong field"}]})",
