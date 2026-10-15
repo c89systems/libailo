@@ -1,5 +1,6 @@
 /* Private Lua 5.5 bridge. Only installed, public C headers are used. */
 #include <ailo/client.h>
+#include <ailo/compaction.h>
 #include <ailo/continuation.h>
 #include <ailo/version.h>
 #include <lauxlib.h>
@@ -14,6 +15,10 @@
 #define WORK "ailo.work"
 #define CACHE "ailo.cache"
 #define CONTINUATION "ailo.continuation"
+#define COMPACTOR "ailo.compactor"
+typedef struct compactor {
+  ailo_compactor *native;
+} compactor;
 typedef struct continuation {
   ailo_continuation *native;
   int busy;
@@ -41,6 +46,7 @@ typedef struct work {
   ailo_logit_bias *biases;
   ailo_function_tool *tools;
   const char **allowed;
+  ailo_compaction_key *keys;
   char *json;
   lua_State *L;
   int index;
@@ -228,6 +234,7 @@ static void release_work(work *value) {
   free(value->biases);
   free(value->tools);
   free(value->allowed);
+  free(value->keys);
   ailo_string_free(value->json);
   value->items = NULL;
   value->content = NULL;
@@ -235,6 +242,7 @@ static void release_work(work *value) {
   value->biases = NULL;
   value->tools = NULL;
   value->allowed = NULL;
+  value->keys = NULL;
   value->json = NULL;
 }
 static int work_gc(lua_State *L) {
@@ -256,6 +264,76 @@ static void *allocate(lua_State *L, size_t count, size_t size) {
   if (!value)
     luaL_error(L, "request allocation failed");
   return value;
+}
+static int compactor_gc(lua_State *L) {
+  compactor *value = luaL_checkudata(L, 1, COMPACTOR);
+  ailo_compactor_destroy(value->native);
+  value->native = NULL;
+  return 0;
+}
+static int compactor_close(lua_State *L) {
+  compactor_gc(L);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+static int compactor_info(lua_State *L) {
+  compactor *value = luaL_checkudata(L, 1, COMPACTOR);
+  ailo_compactor_info out = {0};
+  ailo_error error = {0};
+  ailo_status status = ailo_compactor_get_info(value->native, &out, &error);
+  if (status != AILO_OK)
+    return failure(L, status, error.message);
+  lua_createtable(L, 0, 4);
+  lua_pushboolean(L, out.ephemeral);
+  lua_setfield(L, -2, "ephemeral");
+  set_integer(L, "decryption_keys", (lua_Integer)out.decryption_keys);
+  set_integer(L, "max_item_bytes", (lua_Integer)out.max_item_bytes);
+  set_integer(L, "ttl_seconds", out.ttl_seconds);
+  return 1;
+}
+static ailo_compaction_key read_compaction_key(lua_State *L, int index) {
+  ailo_compaction_key out = {0};
+  out.id = string(L, index, "key_id");
+  lua_getfield(L, index, "key");
+  if (!lua_isnil(L, -1))
+    out.bytes = luaL_checklstring(L, -1, &out.size);
+  lua_pop(L, 1);
+  return out;
+}
+static int new_compactor(lua_State *L) {
+  luaL_checktype(L, 1, LUA_TTABLE);
+  compactor *out = lua_newuserdatauv(L, sizeof(*out), 0);
+  out->native = NULL;
+  luaL_setmetatable(L, COMPACTOR);
+  int result = lua_gettop(L);
+  work *storage = new_work(L);
+  lua_pushvalue(L, 1);
+  lua_setiuservalue(L, storage->index, 3);
+  ailo_compactor_config config = ailo_compactor_default_config();
+  config.namespace_id = string(L, 1, "namespace_id");
+  config.current_key = read_compaction_key(L, 1);
+  config.ttl_seconds = (ailo_u32)integer(L, 1, "ttl_seconds");
+  config.max_item_bytes = (size_t)integer(L, 1, "max_item_bytes");
+  lua_getfield(L, 1, "old_keys");
+  int keys = lua_gettop(L);
+  config.old_key_count = lua_rawlen(L, keys);
+  if (config.old_key_count) {
+    storage->keys =
+        allocate(L, config.old_key_count, sizeof(ailo_compaction_key));
+    for (size_t i = 0; i < config.old_key_count; ++i) {
+      lua_geti(L, keys, (lua_Integer)i + 1);
+      storage->keys[i] = read_compaction_key(L, lua_gettop(L));
+      lua_pop(L, 1);
+    }
+    config.old_keys = storage->keys;
+  }
+  ailo_error error = {0};
+  ailo_status status = ailo_compactor_new(&config, &out->native, &error);
+  release_work(storage);
+  if (status != AILO_OK)
+    return failure(L, status, error.message);
+  lua_pushvalue(L, result);
+  return 1;
 }
 static int client_gc(lua_State *L) {
   client *value = luaL_checkudata(L, 1, CLIENT);
@@ -396,6 +474,14 @@ static int new_client(lua_State *L) {
   config.context_tokens = (ailo_u32)integer(L, 1, "context_tokens");
   config.batch_tokens = (ailo_u32)integer(L, 1, "batch_tokens");
   config.disable_prompt_cache = boolean(L, 1, "disable_prompt_cache");
+  lua_getfield(L, 1, "compactor");
+  if (!lua_isnil(L, -1)) {
+    compactor *owner = luaL_checkudata(L, -1, COMPACTOR);
+    if (!owner->native)
+      return failure(L, AILO_INVALID_ARGUMENT, "compactor is closed");
+    config.compactor = owner->native;
+  }
+  lua_pop(L, 1);
   lua_getfield(L, 1, "cache");
   if (!lua_isnil(L, -1)) {
     cache *owner = luaL_checkudata(L, -1, CACHE);
@@ -1082,8 +1168,22 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
   lua_pushliteral(L, "ailo.client");
   lua_setfield(L, -2, "__metatable");
   lua_pop(L, 1);
+  luaL_newmetatable(L, COMPACTOR);
+  static const luaL_Reg compactor_methods[] = {
+      {"info", compactor_info}, {"close", compactor_close}, {NULL, NULL}};
+  luaL_setfuncs(L, compactor_methods, 0);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, compactor_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pushcfunction(L, compactor_close);
+  lua_setfield(L, -2, "__close");
+  lua_pushliteral(L, "ailo.compactor");
+  lua_setfield(L, -2, "__metatable");
+  lua_pop(L, 1);
   static const luaL_Reg module[] = {{"new", new_client},
                                     {"new_cache", new_cache},
+                                    {"new_compactor", new_compactor},
                                     {"version", version},
                                     {NULL, NULL}};
   luaL_newlib(L, module);

@@ -10,6 +10,20 @@ local function config(extra)
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
 do
+  local key="\0"..string.rep("k",31)
+  local owner=ok(ailo.new_compactor{namespace_id="lua-tenant",key_id="current",key=key,
+    old_keys={{key_id="previous",key=string.rep("p",32)}}})
+  local info=ok(owner:info());assert(not info.ephemeral and info.decryption_keys==2 and info.ttl_seconds==0)
+  local receiver=ok(ailo.new(config{compactor=owner}))
+  assert(owner:close() and owner:close());fails("invalid_argument",function()return owner:info()end)
+  fails("invalid_argument",function()return ailo.new(config{compactor=owner})end)
+  ok(receiver:generate(request(),function()end));receiver:close()
+  owner=ok(ailo.new_compactor());assert(ok(owner:info()).ephemeral);owner:close()
+  fails("invalid_argument",function()return ailo.new_compactor{namespace_id="tenant",key_id="x",key="short"}end)
+  fails("invalid_argument",function()return ailo.new_compactor{namespace_id="tenant",key_id="x",key=key,
+    old_keys={{key_id="x",key=key}}}end)
+end
+do
   local template=[[{% for m in messages %}{{ m.role }}:{% if m.reasoning_content is defined %}<think>{{ m.reasoning_content }}</think>{% endif %}{{ m.content }}|{% endfor %}{% if add_generation_prompt %}assistant:{% if enable_thinking %}<think>{% endif %}{% endif %}]]
   local receiver=ok(ailo.new(config{source={local_path=path.."-reasoning"},chat_template=template,context_tokens=512}))
   local input={items={{content="hello"}},max_tokens=32,temperature=0,reasoning="enabled",

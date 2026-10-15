@@ -1,5 +1,6 @@
 #include "ailo_cache_internal.hpp"
 #include "ailo_client_internal.hpp"
+#include "ailo_compaction_internal.hpp"
 #include "ailo_continuation_internal.hpp"
 #include "ailo_logging_internal.hpp"
 #include <algorithm>
@@ -118,6 +119,11 @@ state::state(const ailo_client_config &input, pslog_logger *logger)
     cache = std::make_shared<cache_state>(options);
   }
   config.cache = nullptr; // the retained owner, not the caller's shell, is used
+  compactor =
+      input.compactor
+          ? retain_compactor(input.compactor)
+          : std::make_shared<compaction_state>(ailo_compactor_default_config());
+  config.compactor = nullptr;
 }
 
 state::~state() {

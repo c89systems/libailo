@@ -43,7 +43,7 @@ mkdir "$work/changed"
 tar -xzf "$work/original.tar.gz" -C "$work/changed"
 sdk="$work/changed/${name%.tar.gz}"
 cp "$sdk/PACKAGE-MANIFEST.sha256" "$work/complete-ledger"
-for header in cache continuation; do
+for header in cache continuation compaction; do
   mv "$sdk/include/ailo/$header.h" "$work/$header-header"
   rg -v -F "  include/ailo/$header.h" "$work/complete-ledger" > "$sdk/PACKAGE-MANIFEST.sha256"
   tar -czf "$work/changed/$name" -C "$work/changed" "${name%.tar.gz}"

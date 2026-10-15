@@ -112,6 +112,27 @@ close during a callback return `busy`. The C ABI semantics and bounds are in
 [continuation state](../docs/client.md#owned-continuation-state); this receiver
 does not create retained OpenAI response records.
 
+Compaction keys can already be configured independently of KV caching:
+
+```lua
+local owner = assert(ailo.new_compactor {
+  namespace_id="trusted-tenant", key_id="current", key=secret_key,
+  old_keys={{key_id="previous", key=previous_secret_key}},
+  max_item_bytes=1024*1024, ttl_seconds=0,
+})
+local client = assert(ailo.new {source={local_path="model.gguf"}, compactor=owner})
+local info = assert(owner:info())
+owner:close() -- client retains the native key owner
+client:close()
+```
+
+`new_compactor()` without configuration selects an ephemeral owner. Keys are
+32-byte binary strings; the native constructor derives/copies owned keys, while
+original Lua strings remain the caller's responsibility. `info` exposes only
+ephemeral/key-count/budget/TTL metadata. Model-driven compaction and generation
+replay integration are still pending; this constructor does not create a summary
+or a retained response record. See [key ownership](../docs/client.md#compaction-key-ownership).
+
 Requests also accept `reasoning="auto"` (default), `"enabled"` or `"disabled"`,
 optional `reasoning_effort` and `max_reasoning_tokens`. Controls require a
 qualified template; ignored effort or unsupported disabling fails before

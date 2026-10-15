@@ -12,6 +12,7 @@ extern "C" {
 typedef struct ailo_client ailo_client;
 typedef struct ailo_continuation ailo_continuation;
 struct pslog_logger;
+struct ailo_compactor;
 
 typedef enum ailo_backend_policy {
   AILO_BACKEND_AUTO = 0,
@@ -89,6 +90,9 @@ typedef struct ailo_client_config {
   ailo_cache *cache;
   /** Disable the private default cache; cannot accompany an explicit owner. */
   ailo_bool disable_prompt_cache;
+  /** NULL selects a private ephemeral compaction key owner. An explicit owner
+   * is retained independently of its receiver shell. No files are written. */
+  struct ailo_compactor *compactor;
 } ailo_client_config;
 
 typedef struct ailo_logit_bias {

@@ -18,6 +18,10 @@ ailo_client_new_with_logger
 ailo_client_snapshot_export
 ailo_client_snapshot_import
 ailo_error_clear
+ailo_compactor_default_config
+ailo_compactor_new
+ailo_compactor_get_info
+ailo_compactor_destroy
 ailo_continuation_append
 ailo_continuation_clone
 ailo_continuation_default_config

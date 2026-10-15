@@ -309,6 +309,45 @@ instruction. Equivalent lowercase/uppercase verified model checksums produced
 the same canonical identity. This is CPU integration evidence, not a model
 quality benchmark or GPU qualification.
 
+## Compaction key ownership
+
+The key-owner foundation is available through
+[`ailo/compaction.h`](../include/ailo/compaction.h). It does not yet expose
+model-driven semantic compaction or accept compaction items in generation;
+the `compaction` capability remains false until that integration is implemented.
+
+`ailo_compactor_new(config, &owner, error)` creates an immutable receiver with
+`info` and `destroy` methods. NULL configuration selects an ephemeral owner.
+`ailo_compactor_default_config()` selects a 1 MiB decoded-envelope limit and
+no automatic expiry. Explicit limits are 256 bytes through 4 MiB. Stable keys
+require an application namespace, current key ID and exactly 32 key bytes;
+up to eight distinct old decryption keys support rotation. Constructor inputs
+are borrowed only during construction; owned derived keys are erased on final
+release. The caller remains responsible for original key bytes.
+
+Attach the owner through `client_config.compactor`. Clients retain the underlying
+owner, so destroying its receiver shell does not invalidate them. Without an
+explicit owner, each client gets a separate private ephemeral key/namespace.
+An explicit owner can be shared across clients; a replacement owner with a new
+current key and old decryption keys is the rotation boundary. No key file or
+record store is created. A zero TTL avoids silently imposing a lifetime on
+future retained API records; response retention remains a separate contract.
+
+The private codec uses purpose-separated HKDF-SHA256 and AES-256-GCM with a fresh
+96-bit nonce. Its authenticated envelope binds item ID, namespace, key ID, model/
+template identity, issue/expiry times and payload length. The encrypted payload
+contains a summary and ordered retained-item fingerprints/cut boundary. Decryption
+must authenticate before any payload field is parsed. Canonical unpadded base64url
+and encoded/decoded length checks bound decoding. Retained-role/content/identity/
+pinned changes, missing/reordered context and duplicate compaction items fail;
+appending new items after the bound prefix and authorized replay/forks are allowed.
+This is bounded compaction materialization, not a generated-reply collector.
+
+The focused crypto test covers tampering, wrong keys/namespaces/models/IDs,
+rotation, expiry, bounds, retained-context substitution/order/removal, duplicate
+items, replay/appending, cancellation and owner lifetime. It is evidence for the
+envelope foundation, not evidence that semantic summarization is implemented.
+
 ## Reasoning channels and controls
 
 Generation separates one initial reasoning block where template probes establish

@@ -54,7 +54,7 @@ local function guarded(fn, ...)
   return table.unpack(result,2,result.n)
 end
 local source_keys=keys("local_path repo revision filename cache_root sha256 allow_download split_shards bearer_token max_bytes connect_timeout_ms transfer_timeout_ms max_attempts progress")
-local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache")
+local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache compactor")
 local backends={auto=0,cpu=1,vulkan=2}
 local function source(input)
   object(input,source_keys,"source")
@@ -108,6 +108,7 @@ function M.new(config)
     out.batch_tokens=number(config.batch_tokens,"batch_tokens",0,true,0,0xffffffff)
     out.disable_prompt_cache=boolean(config.disable_prompt_cache,"disable_prompt_cache")
     out.cache=config.cache
+    out.compactor=config.compactor
     local native,err=core.new(out)
     if not native then return nil,err end
     return setmetatable({_native=native},{__index=methods,__close=function(self) self:close() end})
@@ -126,6 +127,23 @@ function M.new_cache(config)
       disk_ttl_seconds=number(config.disk_ttl_seconds,"disk_ttl_seconds",0,true,0,0xffffffff),
       max_disk_entries=number(config.max_disk_entries,"max_disk_entries",8,true,0,4096),
       max_snapshot_bytes=number(config.max_snapshot_bytes,"max_snapshot_bytes",64*1024*1024,true,0,math.maxinteger)}
+  end)
+end
+function M.new_compactor(config)
+  return guarded(function()
+    if config==nil then config={} end
+    object(config,keys("namespace_id key_id key old_keys ttl_seconds max_item_bytes"),"compactor")
+    local out={namespace_id=str(config.namespace_id,"namespace_id",true),key_id=str(config.key_id,"key_id",true),
+      key=str(config.key,"key",true,true),ttl_seconds=number(config.ttl_seconds,"ttl_seconds",0,true,0,0xffffffff),
+      max_item_bytes=number(config.max_item_bytes,"max_item_bytes",1024*1024,true,256,4*1024*1024),old_keys={}}
+    if config.old_keys~=nil then
+      local n=array(config.old_keys,"old_keys");if n>8 then invalid("too many old compaction keys")end
+      for i=1,n do
+        local old=object(config.old_keys[i],keys("key_id key"),"old compaction key")
+        out.old_keys[i]={key_id=str(old.key_id,"key_id",false),key=str(old.key,"key",false,true)}
+      end
+    end
+    return core.new_compactor(out)
   end)
 end
 local roles={user=0,system=1,developer=2,assistant=3,tool=4}

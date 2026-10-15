@@ -16,6 +16,15 @@ local function request()
 end
 local marker={message="callback marker"}
 do
+  local owner=ok(ailo.new_compactor{namespace_id="memory-tenant",key_id="one",key=string.rep("k",32),
+    old_keys={{key_id="old",key=string.rep("o",32)}}})
+  local receiver=ok(ailo.new(config{compactor=owner}));owner:close();owner=nil;collectgarbage("collect")
+  ok(receiver:generate(request(),function()collectgarbage("collect")end));receiver:close()
+  local invalid,err=ailo.new_compactor{namespace_id="memory-tenant",key_id="one",key=string.rep("k",32),
+    old_keys={{key_id="one",key=string.rep("o",32)}}}
+  assert(not invalid and err.code=="invalid_argument")
+end
+do
   local template=[[{% for m in messages %}{{ m.role }}:{% if m.reasoning_content is defined %}<think>{{ m.reasoning_content }}</think>{% endif %}{{ m.content }}|{% endfor %}{% if add_generation_prompt %}assistant:{% if enable_thinking %}<think>{% endif %}{% endif %}]]
   local receiver=ok(ailo.new(config{source={local_path=path.."-reasoning"},chat_template=template,context_tokens=512}))
   local input={items={{content="x"}},max_tokens=16,temperature=0,reasoning="enabled",
