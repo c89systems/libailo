@@ -30,8 +30,15 @@ Chat Completions and Responses JSON/SSE adapters, retention repositories and
 conversation/compaction operations are implemented; [docs/openai.md](docs/openai.md)
 records their supported profile. The in-process `handle` dispatcher supplies
 model discovery and routes these operations without an output buffer. HTTP
+response lifecycle is supplied by the strict C89
+[serving handler](docs/serving.md), with a matching Lua receiver. Network
 server integration and release acceptance
 remain subsequent work. Native install-tree CMake/pkg-config consumers are available.
+
+`make test-openai-agent PRESET=x86_64-linux-gnu-release` exercises the handler
+through a test-only loopback HTTP bridge and a real Codex CLI function-tool
+round-trip. The deterministic producer emits token pieces through the production
+adapters; this gate tests agent interoperability separately from model quality.
 The C89/Lua compactor key owner, authenticated envelopes and opaque-item replay
 through generation/continuations, standalone model-driven semantic compaction
 and explicit automatic preflight/in-flight compaction are implemented.

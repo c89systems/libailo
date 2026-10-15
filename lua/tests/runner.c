@@ -23,10 +23,12 @@ static int fail_allocations(lua_State *L) {
   return 0;
 }
 int main(int argc, char **argv) {
+  allocation_state state = {0};
+  lua_State *L;
+  int i, status;
   if (argc < 4)
     return 2;
-  allocation_state state = {0};
-  lua_State *L = lua_newstate(allocator, &state, 0);
+  L = lua_newstate(allocator, &state, 0);
   if (!L)
     return 2;
   luaL_openlibs(L);
@@ -39,12 +41,12 @@ int main(int argc, char **argv) {
   lua_setfield(L, -2, "cpath");
   lua_pop(L, 1);
   lua_newtable(L);
-  for (int i = 4; i < argc; ++i) {
+  for (i = 4; i < argc; ++i) {
     lua_pushstring(L, argv[i]);
     lua_seti(L, -2, i - 3);
   }
   lua_setglobal(L, "arg");
-  int status = luaL_loadfile(L, argv[1]);
+  status = luaL_loadfile(L, argv[1]);
   if (!status)
     status = lua_pcall(L, 0, 0, 0);
   if (status)

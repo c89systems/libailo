@@ -24,6 +24,14 @@ src/ailo_openai_request.cpp
 src/ailo_openai_retention_internal.hpp
 src/ailo_openai_retention.cpp
 include/ailo/openai.h
+include/ailo/handler.h
+src/ailo_handler.c
+src/ailo_prompt.cpp
+tests/handler.c
+tests/serving_fixture.cpp
+scripts/test_openai_agent.sh
+docs/serving.md
+lua/tests/handler.lua
 src/ailo_openai_internal.hpp
 src/ailo_openai.cpp
 src/ailo_openai_chat.cpp

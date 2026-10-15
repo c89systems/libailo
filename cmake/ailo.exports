@@ -42,6 +42,10 @@ ailo_client_new_with_logger
 ailo_client_snapshot_export
 ailo_client_snapshot_import
 ailo_error_clear
+ailo_handler_default_config
+ailo_handler_new
+ailo_handler_handle
+ailo_handler_destroy
 ailo_compactor_default_config
 ailo_compactor_new
 ailo_compactor_get_info

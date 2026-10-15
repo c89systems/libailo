@@ -10,6 +10,10 @@ fail explicitly. The transport-neutral dispatcher routes the implemented model,
 Chat, Responses and conversation operations, including stored queries and
 metadata updates. An embedding server supplies the HTTP transport.
 
+The strict C89 [serving handler](serving.md) wraps this dispatcher with typed
+response headers, OpenAI-shaped preflight errors, immediate byte forwarding and
+explicit finish/abort callbacks. It adds no listener or inference path.
+
 ```c
 /* After constructing client; sink consumes every byte before returning. */
 ailo_api_info result;
@@ -131,6 +135,13 @@ API information/error table as direct adapter calls, including `allow` on 405.
 The binding passes bytes and callback failures through the shared C ABI.
 
 ## Retained records
+
+The Responses parser recognizes the Codex CLI `client_metadata` telemetry
+extension as a flat map of at most 16 UTF-8 string entries (keys at most 128
+bytes, values at most 4096 bytes). These untrusted hints do not enter the model
+prompt, retained application metadata or trusted namespace. This is a named
+client extension, not a claim that it is part of the public OpenAI wire schema.
+Unknown request fields still fail explicitly.
 
 Set `config.openai` to an `ailo_openai_config`. Strings and the repository method
 table are copied; callback user resources remain borrowed until client destroy.

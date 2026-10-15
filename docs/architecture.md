@@ -10,8 +10,10 @@ receiver shell and equivalent free functions for applications that ordinarily
 call OpenAI Chat Completions. It also supplies a complete C89 facade over the
 pinned llama.cpp public C library APIs. Neither public boundary exposes C++
 types, C++ headers, upstream headers, or compiler extensions disguised as C89.
-There is no HTTP server in this project. Vectis/Kore integration and the Responses
-wire handler are later work. The inference receiver must already support the
+There is no production HTTP listener in this project. Vectis/Kore integration
+is later work. Chat/Responses wire adapters and in-process routing are implemented;
+the [serving handler](serving.md) adds a framework-independent transport boundary.
+The inference receiver supports the
 shared generation, state, caching and compaction contract in
 [inference-backend.md](inference-backend.md), so future API adapters do not
 reimplement inference or force a role/content-only backend redesign.
@@ -19,9 +21,9 @@ reimplement inference or force a role/content-only backend redesign.
 The receiver implements Chat Completions generation, buffered output and real
 streaming, tools, constrained output, model listing and model retrieval, with
 actual model capabilities and explicit errors for unavailable behavior. Stored
-completions and their list/retrieve/update/delete and messages routes require the
-later handler/state repository. Backend prompt caching and semantic compaction
-are required now, separately from stored completion records. Public API
+completions and their list/retrieve/update/delete and messages routes use an
+explicit application-owned repository provider. Backend prompt caching and
+semantic compaction are separate from stored completion records. Public API
 compatibility claims follow verified wire contracts, not the native inventory.
 
 Distributed coordinator/participant inference over authenticated TCP/IP is a
@@ -210,15 +212,16 @@ the generated streaming output may not.
 
 ## Transport-neutral handler and model routes
 
-`handle` dispatches method/path plus JSON bytes into status/content-type metadata
-and a response sink. Implement `POST /v1/chat/completions`, `GET /v1/models`, and
-`GET /v1/models/{id}`. Unknown paths return 404; unsupported methods return 405.
-Do not register placeholder success routes for stored completions or Responses.
+`client->handle` dispatches method/path plus JSON bytes into status/content-type
+metadata and a response sink. The complete implemented route table, including
+stored completions, Responses and conversations, is in [openai.md](openai.md).
+Unknown paths return 404; unsupported methods return 405.
 Model list/retrieve expose configured served models without leaking local file
 paths or forcing a lazy download. Model ID must match the configured identity.
 Authentication, HTTP framing, TLS, CORS and connection management belong to the
 embedding server. Midstream failures return library status; the embedding server
-owns closing an already-started HTTP response.
+owns closing an already-started HTTP response. `ailo_handler` supplies the
+begin/write/finish/abort lifecycle above this dispatcher without a listener.
 
 ## Hugging Face acquisition and model cache
 

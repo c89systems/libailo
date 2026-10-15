@@ -3,6 +3,28 @@
 Lua 5.5.1 receiver facade over the installed libailo shared C ABI. The native
 module does not embed a second llama, libailo, Lua or pslog runtime.
 
+The binding and local runner compile with explicit `-std=c89`, pedantic errors
+and warnings as errors. On the supported LP64 Linux targets, Lua's documented
+`LUA_USE_C89` long/double declarations preserve the provider's 64-bit integer/
+double calling ABI; runtime numeric sizes are checked by `luaL_checkversion`.
+The external libpslog Lua provider retains its own upstream language standard.
+
+The serving receiver is constructed with `client:new_handler(options)`; options
+may lower `max_body_bytes` and `max_target_bytes`. Call
+`handler:handle({method="GET",target="/v1/models"}, transport)`, where transport
+has `:begin(headers)`, `:write(bytes)`, `:finish()` and `:abort()` methods. The
+transport receiver may carry its own connection state in ordinary table fields.
+Each method accepts by returning normally, cancels with false, or fails by throwing;
+abort must complete cleanup even after another callback failed. Callback errors
+return their original Lua value in `error.cause`. Successful transport completion
+returns information with `request_id`, `http_status`, `bytes_written`, `started`,
+`completed` and `aborted`; HTTP error outcomes return nil,error with this
+information in `error.info`. Bytes flow directly through the public C handler.
+The handler pins its client; close handlers before closing that client. Join
+active calls before closing. Transport callbacks must not yield. The synchronous
+callback/backpressure and application-owned networking contract is in
+[the serving specification](../docs/serving.md).
+
 ```lua
 local ailo = require("ailo")
 local pslog = require("pslog")

@@ -67,6 +67,9 @@ format-check:
 finalize-slice: format test format-check
 inference-smoke-vulkan: build
 	scripts/test_model_vulkan.sh "$(PRESET)"
+.PHONY: test-openai-agent
+test-openai-agent: build
+	bash scripts/test_openai_agent.sh "$(PRESET)"
 valgrind-model:
 	scripts/test_model_memory.sh
 valgrind-acquisition: build

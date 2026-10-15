@@ -104,6 +104,7 @@ class decoder {
   std::vector<item> input;
   std::vector<openai_function> allowed;
   std::set<std::string> root_keys, includes;
+  size_t client_metadata_fields = 0;
   std::vector<std::set<std::string>> object_keys;
   std::string scalar, key, format_type, choice_type, choice_mode, context_type;
   bool format_object = false, choice_object = false, context_entry = false;
@@ -847,6 +848,21 @@ class decoder {
       return;
     if (!chat && field == "text" && p.size() == 1) {
       expect(k, kind::object);
+      return;
+    }
+    if (!chat && field == "client_metadata") {
+      // Codex CLI telemetry extension. These untrusted strings confer no
+      // authority and are not prompt input or retained application metadata.
+      if (p.size() == 1) {
+        expect(k, kind::object);
+      } else if (p.size() == 2) {
+        expect(k, kind::string);
+        text_limit(p[1], 128, true);
+        text_limit(v, 4096);
+        if (++client_metadata_fields > 16)
+          invalid("Client telemetry exceeds 16 string entries");
+      } else
+        invalid("Client telemetry must be a flat string map");
       return;
     }
     if (field == "metadata" && (k != kind::null || p.size() > 1)) {

@@ -1,6 +1,8 @@
 local core = require("ailo.core")
 local M = { version = core.version }
 local methods = {}
+local handler_methods={}
+local handler_mt={__index=handler_methods,__close=function(self)self:close()end}
 local continuation_methods={}
 local continuation_mt={__index=continuation_methods,__close=function(self)self:close()end}
 local function wrap_continuation(native,err)
@@ -340,6 +342,31 @@ function methods:handle(method,target,json,sink)
     return self._native:handle(str(method,"HTTP method",false),str(target,"API target",false),str(json,"request JSON",true,true),sink)
   end)
 end
+function methods:new_handler(options)
+  return guarded(function()
+    options=options or {};object(options,keys("max_body_bytes max_target_bytes"),"handler options")
+    local native,err=self._native:new_handler{
+      max_body_bytes=number(options.max_body_bytes,"max_body_bytes",0,true,0,8*1024*1024),
+      max_target_bytes=number(options.max_target_bytes,"max_target_bytes",0,true,0,16384)}
+    if not native then return nil,err end
+    return setmetatable({_native=native},handler_mt)
+  end)
+end
+function handler_methods:handle(request,transport)
+  return guarded(function()
+    object(request,keys("method target content_type content_encoding body"),"HTTP request")
+    if type(transport)~="table"then invalid("HTTP transport must be a receiver table")end
+    for _,name in ipairs{"begin","write","finish","abort"}do
+      if type(transport[name])~="function"then invalid("transport."..name.." must be a function")end
+    end
+    return self._native:handle({method=str(request.method,"HTTP method",false),
+      target=str(request.target,"HTTP target",false),
+      content_type=str(request.content_type,"content_type",true),
+      content_encoding=str(request.content_encoding,"content_encoding",true),
+      body=str(request.body,"body",true,true)},transport)
+  end)
+end
+function handler_methods:close()return self._native:close()end
 function methods:chat_retrieve(id,sink,options)
   return guarded(function()
     if type(sink)~="function" then invalid("sink must be a function")end

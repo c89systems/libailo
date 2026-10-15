@@ -2,6 +2,7 @@
 #include <ailo/client.h>
 #include <ailo/compaction.h>
 #include <ailo/continuation.h>
+#include <ailo/handler.h>
 #include <ailo/openai.h>
 #include <ailo/version.h>
 #include <lauxlib.h>
@@ -12,11 +13,25 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef __STRICT_ANSI__
+#error Project Lua binding must use strict C89
+#endif
+#ifdef __STDC_VERSION__
+#error Project Lua binding must use -std=c89
+#endif
+#if LONG_MAX <= 2147483647L
+#error The Lua facade requires the supported LP64 target ABI
+#endif
+/* Lua's supported C89 long/double declarations have the same 64-bit integer
+ * and double calling ABI on our LP64 targets. luaL_checkversion verifies the
+ * runtime numeric widths before creating any userdata. */
+
 #define CLIENT "ailo.client"
 #define WORK "ailo.work"
 #define CACHE "ailo.cache"
 #define CONTINUATION "ailo.continuation"
 #define COMPACTOR "ailo.compactor"
+#define HANDLER "ailo.handler"
 typedef struct compactor {
   ailo_compactor *native;
 } compactor;
@@ -41,7 +56,13 @@ typedef struct client {
   int progress_failed;
   int repository_failed;
   int cleanup_failed;
+  unsigned handlers;
 } client;
+typedef struct handler {
+  ailo_handler *native;
+  client *owner;
+  int busy;
+} handler;
 typedef struct work {
   ailo_item *items;
   ailo_content *content;
@@ -130,26 +151,30 @@ static void info(lua_State *L, const ailo_run_info *value) {
                                                           : "auto");
 }
 static lua_Integer integer(lua_State *L, int index, const char *key) {
+  lua_Integer value;
   lua_getfield(L, index, key);
-  lua_Integer value = luaL_checkinteger(L, -1);
+  value = luaL_checkinteger(L, -1);
   lua_pop(L, 1);
   return value;
 }
 static double number(lua_State *L, int index, const char *key) {
+  double value;
   lua_getfield(L, index, key);
-  double value = luaL_checknumber(L, -1);
+  value = luaL_checknumber(L, -1);
   lua_pop(L, 1);
   return value;
 }
 static const char *string(lua_State *L, int index, const char *key) {
+  const char *value;
   lua_getfield(L, index, key);
-  const char *value = lua_isnil(L, -1) ? NULL : luaL_checkstring(L, -1);
+  value = lua_isnil(L, -1) ? NULL : luaL_checkstring(L, -1);
   lua_pop(L, 1);
   return value;
 }
 static int boolean(lua_State *L, int index, const char *key) {
+  int value;
   lua_getfield(L, index, key);
-  int value = lua_toboolean(L, -1);
+  value = lua_toboolean(L, -1);
   lua_pop(L, 1);
   return value;
 }
@@ -158,18 +183,24 @@ static ailo_u64 unsigned_value(lua_State *L, int index) {
   index = lua_absindex(L, index);
   if (lua_istable(L, index)) {
     const char *keys[] = {"hi", "lo"};
-    for (int i = 0; i < 2; ++i) {
-      lua_getfield(L, index, keys[i]);
-      int exact = 0;
-      lua_Integer n = lua_tointegerx(L, -1, &exact);
-      if (lua_type(L, -1) != LUA_TNUMBER || !exact || n < 0 ||
-          (uint64_t)n > UINT32_MAX)
-        luaL_error(L, "unsigned 64-bit words must be integers in [0, 2^32-1]");
-      if (i == 0)
-        result.hi = (ailo_u32)n;
-      else
-        result.lo = (ailo_u32)n;
-      lua_pop(L, 1);
+    {
+      int i = 0;
+      for (; i < 2; ++i) {
+        int exact;
+        lua_Integer n;
+        lua_getfield(L, index, keys[i]);
+        exact = 0;
+        n = lua_tointegerx(L, -1, &exact);
+        if (lua_type(L, -1) != LUA_TNUMBER || !exact || n < 0 ||
+            (uint64_t)n > UINT32_MAX)
+          luaL_error(L,
+                     "unsigned 64-bit words must be integers in [0, 2^32-1]");
+        if (i == 0)
+          result.hi = (ailo_u32)n;
+        else
+          result.lo = (ailo_u32)n;
+        lua_pop(L, 1);
+      }
     }
   } else {
     int exact = 0;
@@ -194,11 +225,15 @@ static int close_cache(lua_State *L) {
   return 1;
 }
 static int new_cache(lua_State *L) {
+  cache *value;
+  ailo_cache_config config;
+  ailo_error error = {0};
+  ailo_status status;
   luaL_checktype(L, 1, LUA_TTABLE);
-  cache *value = lua_newuserdatauv(L, sizeof(*value), 0);
+  value = lua_newuserdatauv(L, sizeof(*value), 0);
   value->native = NULL;
   luaL_setmetatable(L, CACHE);
-  ailo_cache_config config = ailo_cache_default_config();
+  config = ailo_cache_default_config();
   config.namespace_id = string(L, 1, "namespace_id");
   config.max_memory_bytes = (size_t)integer(L, 1, "max_memory_bytes");
   config.max_entries = (size_t)integer(L, 1, "max_entries");
@@ -213,8 +248,8 @@ static int new_cache(lua_State *L) {
   if (!lua_isnil(L, -1))
     config.key = luaL_checklstring(L, -1, &config.key_size);
   lua_pop(L, 1);
-  ailo_error error = {0};
-  ailo_status status = ailo_cache_new(&config, &value->native, &error);
+
+  status = ailo_cache_new(&config, &value->native, &error);
   if (status != AILO_OK)
     return failure(L, status, error.message);
   return 1;
@@ -249,14 +284,15 @@ static int cache_statistics(lua_State *L, const ailo_cache_stats *value) {
 }
 static int cache_operation(lua_State *L, int kind) {
   cache *value = luaL_checkudata(L, 1, CACHE);
-  if (!value->native)
-    return failure(L, AILO_INVALID_ARGUMENT, "cache is closed");
   ailo_cache_stats output = {0};
   ailo_error error = {0};
-  ailo_status status =
-      kind == 0   ? ailo_cache_get_stats(value->native, &output, &error)
-      : kind == 1 ? ailo_cache_clear(value->native, &error)
-                  : ailo_cache_prune(value->native, &error);
+  ailo_status status;
+  if (!value->native)
+    return failure(L, AILO_INVALID_ARGUMENT, "cache is closed");
+
+  status = kind == 0   ? ailo_cache_get_stats(value->native, &output, &error)
+           : kind == 1 ? ailo_cache_clear(value->native, &error)
+                       : ailo_cache_prune(value->native, &error);
   if (status != AILO_OK)
     return failure(L, status, error.message);
   if (kind == 0)
@@ -300,9 +336,10 @@ static work *new_work(lua_State *L) {
   return value;
 }
 static void *allocate(lua_State *L, size_t count, size_t size) {
+  void *value;
   if (size && count > SIZE_MAX / size)
     luaL_error(L, "request exceeds native address space");
-  void *value = calloc(count ? count : 1, size);
+  value = calloc(count ? count : 1, size);
   if (!value)
     luaL_error(L, "request allocation failed");
   return value;
@@ -343,34 +380,44 @@ static ailo_compaction_key read_compaction_key(lua_State *L, int index) {
   return out;
 }
 static int new_compactor(lua_State *L) {
+  compactor *out;
+  int result;
+  work *storage;
+  ailo_compactor_config config;
+  int keys;
+  ailo_error error = {0};
+  ailo_status status;
   luaL_checktype(L, 1, LUA_TTABLE);
-  compactor *out = lua_newuserdatauv(L, sizeof(*out), 0);
+  out = lua_newuserdatauv(L, sizeof(*out), 0);
   out->native = NULL;
   luaL_setmetatable(L, COMPACTOR);
-  int result = lua_gettop(L);
-  work *storage = new_work(L);
+  result = lua_gettop(L);
+  storage = new_work(L);
   lua_pushvalue(L, 1);
   lua_setiuservalue(L, storage->index, 3);
-  ailo_compactor_config config = ailo_compactor_default_config();
+  config = ailo_compactor_default_config();
   config.namespace_id = string(L, 1, "namespace_id");
   config.current_key = read_compaction_key(L, 1);
   config.ttl_seconds = (ailo_u32)integer(L, 1, "ttl_seconds");
   config.max_item_bytes = (size_t)integer(L, 1, "max_item_bytes");
   lua_getfield(L, 1, "old_keys");
-  int keys = lua_gettop(L);
+  keys = lua_gettop(L);
   config.old_key_count = lua_rawlen(L, keys);
   if (config.old_key_count) {
     storage->keys =
         allocate(L, config.old_key_count, sizeof(ailo_compaction_key));
-    for (size_t i = 0; i < config.old_key_count; ++i) {
-      lua_geti(L, keys, (lua_Integer)i + 1);
-      storage->keys[i] = read_compaction_key(L, lua_gettop(L));
-      lua_pop(L, 1);
+    {
+      size_t i = 0;
+      for (; i < config.old_key_count; ++i) {
+        lua_geti(L, keys, (lua_Integer)i + 1);
+        storage->keys[i] = read_compaction_key(L, lua_gettop(L));
+        lua_pop(L, 1);
+      }
     }
     config.old_keys = storage->keys;
   }
-  ailo_error error = {0};
-  ailo_status status = ailo_compactor_new(&config, &out->native, &error);
+
+  status = ailo_compactor_new(&config, &out->native, &error);
   release_work(storage);
   if (status != AILO_OK)
     return failure(L, status, error.message);
@@ -387,9 +434,12 @@ static int client_gc(lua_State *L) {
     value->unref(&value->logger);
     value->unref = NULL;
   }
-  for (int slot = 4; slot <= 10; ++slot) {
-    lua_pushnil(L);
-    lua_setiuservalue(L, 1, slot);
+  {
+    int slot = 4;
+    for (; slot <= 10; ++slot) {
+      lua_pushnil(L);
+      lua_setiuservalue(L, 1, slot);
+    }
   }
   return 0;
 }
@@ -422,9 +472,10 @@ static void end(client *value) {
   value->busy = 0;
 }
 static int progress_thunk(lua_State *L) {
+  const ailo_u64 *counts;
   lua_getiuservalue(L, 1, 1);
   /* The native callback passes a stack-owned record valid through pcall. */
-  const ailo_u64 *counts = lua_touserdata(L, 2);
+  counts = lua_touserdata(L, 2);
   lua_createtable(L, 0, 4);
   set_integer(L, "shard", counts[0].lo);
   set_integer(L, "shards", counts[0].hi);
@@ -439,11 +490,17 @@ static int progress(void *data, unsigned int shard, unsigned int shards,
                     ailo_u64 received, ailo_u64 total) {
   client *value = data;
   lua_State *L = value->active;
+  ailo_u64 counts[3];
+  int result;
   if (!L || !lua_checkstack(L, 5)) {
     value->progress_failed = 1;
     return 0;
   }
-  ailo_u64 counts[3] = {{shards, shard}, received, total};
+
+  counts[0].hi = shards;
+  counts[0].lo = shard;
+  counts[1] = received;
+  counts[2] = total;
   lua_pushcfunction(L, progress_thunk);
   lua_pushvalue(L, value->active_index);
   lua_pushlightuserdata(L, counts);
@@ -452,7 +509,7 @@ static int progress(void *data, unsigned int shard, unsigned int shards,
     lua_setiuservalue(L, value->active_index, 3);
     return 0;
   }
-  int result = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
+  result = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
   lua_pop(L, 1);
   return result;
 }
@@ -524,12 +581,14 @@ static ailo_status repository_error(lua_State *L, client *owner, int index,
     lua_getfield(L, index, "code");
     if (lua_type(L, -1) == LUA_TSTRING) {
       const char *code = lua_tostring(L, -1);
-      for (int status = AILO_INVALID_ARGUMENT; status <= AILO_NOT_FOUND;
-           ++status)
-        if (strcmp(code, ailo_status_name(status)) == 0) {
-          lua_pop(L, 1);
-          return (ailo_status)status;
-        }
+      {
+        int status = AILO_INVALID_ARGUMENT;
+        for (; status <= AILO_NOT_FOUND; ++status)
+          if (strcmp(code, ailo_status_name(status)) == 0) {
+            lua_pop(L, 1);
+            return (ailo_status)status;
+          }
+      }
     }
     lua_pop(L, 1);
   }
@@ -537,24 +596,31 @@ static ailo_status repository_error(lua_State *L, client *owner, int index,
 }
 static int repository_emit(lua_State *L) {
   read_emitter *emit = lua_touserdata(L, lua_upvalueindex(1));
+  size_t size;
+  const char *bytes;
   if (!emit->active)
     return luaL_error(L, "repository read emitter is no longer active");
   luaL_checktype(L, 1, LUA_TSTRING);
-  size_t size = 0;
-  const char *bytes = lua_tolstring(L, 1, &size);
+  size = 0;
+  bytes = lua_tolstring(L, 1, &size);
   if (!emit->rejected) {
     /* The provider calls this closure from a nested Lua frame. Re-anchor the
      * sink work and receiver in that frame while delivering bytes. */
     int top = lua_gettop(L);
+    client *owner;
+    int owner_index;
+    work *storage;
+    int saved_owner, saved_work;
     lua_getiuservalue(L, lua_upvalueindex(1), 1);
-    client *owner = lua_touserdata(L, -1);
+    owner = lua_touserdata(L, -1);
     if (L != owner->active)
       return luaL_error(
           L, "repository read emitter must run on invoking Lua thread");
-    int owner_index = lua_gettop(L);
+    owner_index = lua_gettop(L);
     lua_getiuservalue(L, owner_index, 10);
-    work *storage = lua_touserdata(L, -1);
-    int saved_owner = owner->active_index, saved_work = storage->index;
+    storage = lua_touserdata(L, -1);
+    saved_owner = owner->active_index;
+    saved_work = storage->index;
     owner->active_index = owner_index;
     storage->index = lua_gettop(L);
     emit->result = emit->sink(emit->user, bytes, size);
@@ -594,10 +660,12 @@ static int repository_thunk(lua_State *L) {
                                    "response_input_items"};
   client *owner = lua_touserdata(L, 1);
   repository_call *call = lua_touserdata(L, 2);
+  int arguments;
+  ailo_status status;
   lua_getiuservalue(L, 1, 4);
   lua_getfield(L, -1, names[call->operation]);
   lua_getfield(L, -2, "receiver");
-  int arguments = 1;
+  arguments = 1;
   switch (call->operation) {
   case REPOSITORY_RESERVE: {
     repository_metadata(L, call->metadata);
@@ -621,9 +689,12 @@ static int repository_thunk(lua_State *L) {
       lua_setfield(L, -2, "response");
     }
     lua_createtable(L, (int)c->input_count, 0);
-    for (size_t n = 0; n < c->input_count; ++n) {
-      lua_pushstring(L, c->input_ids[n]);
-      lua_seti(L, -2, (lua_Integer)n + 1);
+    {
+      size_t n = 0;
+      for (; n < c->input_count; ++n) {
+        lua_pushstring(L, c->input_ids[n]);
+        lua_seti(L, -2, (lua_Integer)n + 1);
+      }
     }
     lua_setfield(L, -2, "input_ids");
     arguments = 2;
@@ -659,10 +730,13 @@ static int repository_thunk(lua_State *L) {
     push_u64(L, q->now);
     lua_setfield(L, -2, "now");
     lua_createtable(L, 0, (int)q->metadata_count);
-    for (size_t n = 0; n < q->metadata_count; ++n) {
-      lua_pushlstring(L, q->metadata[n].key, q->metadata[n].key_size);
-      lua_pushlstring(L, q->metadata[n].value, q->metadata[n].value_size);
-      lua_settable(L, -3);
+    {
+      size_t n = 0;
+      for (; n < q->metadata_count; ++n) {
+        lua_pushlstring(L, q->metadata[n].key, q->metadata[n].key_size);
+        lua_pushlstring(L, q->metadata[n].value, q->metadata[n].value_size);
+        lua_settable(L, -3);
+      }
     }
     lua_setfield(L, -2, "metadata");
     arguments = 2;
@@ -694,10 +768,15 @@ static int repository_thunk(lua_State *L) {
     arguments = 4;
     break;
   case REPOSITORY_READ: {
+    read_emitter *emit;
     lua_getiuservalue(L, 1, 6);
     lua_pushstring(L, sections[call->section]);
-    read_emitter *emit = lua_newuserdatauv(L, sizeof(*emit), 1);
-    *emit = (read_emitter){call->sink, call->user, 1, 0, 1};
+    emit = lua_newuserdatauv(L, sizeof(*emit), 1);
+    emit->sink = call->sink;
+    emit->user = call->user;
+    emit->active = 1;
+    emit->rejected = 0;
+    emit->result = 1;
     call->emitter = emit;
     lua_pushvalue(L, -1);
     lua_setiuservalue(L, 1, 9);
@@ -712,90 +791,96 @@ static int repository_thunk(lua_State *L) {
     arguments = 2;
     break;
   }
-  const int expiry =
-      call->operation == REPOSITORY_OPEN || call->operation == REPOSITORY_SCAN;
-  lua_call(L, arguments,
-           call->operation == REPOSITORY_EDIT ? 4
-           : expiry                           ? 3
-                                              : 2);
-  ailo_status status = AILO_OK;
-  if (call->operation == REPOSITORY_EDIT) {
-    const int tx = lua_gettop(L) - 3, reader = tx + 1;
-    if (lua_isnil(L, tx) && !lua_isnil(L, reader) && lua_isnil(L, tx + 2) &&
-        lua_isnil(L, tx + 3)) {
-      lua_pushinteger(L, repository_error(L, owner, reader, 0));
-      return 1;
-    }
-    if (!lua_isnil(L, tx)) {
-      lua_pushvalue(L, tx);
-      lua_setiuservalue(L, 1, 5);
-      *call->handle = owner;
-    }
-    if (!lua_isnil(L, reader)) {
-      lua_pushvalue(L, reader);
-      lua_setiuservalue(L, 1, 6);
-      *call->reader = owner;
-    }
-    if (!lua_isnil(L, tx + 3))
-      status = repository_error(L, owner, tx + 3, 0);
-    else if (lua_isnil(L, tx) || lua_isnil(L, reader)) {
-      if (lua_isnil(L, tx) && !lua_isnil(L, reader))
-        status = repository_error(L, owner, reader, 0);
-      else
-        return luaL_error(L, "repository edit must return "
-                             "transaction,reader,expiry or nil,error");
-    } else
-      *call->expires = unsigned_value(L, tx + 2);
-  } else if (call->operation == REPOSITORY_RESERVE ||
-             call->operation == REPOSITORY_OPEN ||
-             call->operation == REPOSITORY_AMEND ||
-             call->operation == REPOSITORY_QUERY ||
-             call->operation == REPOSITORY_SCAN) {
-    const int opened = call->operation == REPOSITORY_OPEN ||
-                       call->operation == REPOSITORY_QUERY ||
+  {
+    const int expiry = call->operation == REPOSITORY_OPEN ||
                        call->operation == REPOSITORY_SCAN;
-    int handle = lua_gettop(L) - (expiry ? 2 : 1);
-    if (!lua_isnil(L, handle)) {
-      lua_pushvalue(L, handle);
-      lua_setiuservalue(L, 1, opened ? 6 : 5);
-      *call->handle = owner;
+    lua_call(L, arguments,
+             call->operation == REPOSITORY_EDIT ? 4
+             : expiry                           ? 3
+                                                : 2);
+    status = AILO_OK;
+    if (call->operation == REPOSITORY_EDIT) {
+      const int tx = lua_gettop(L) - 3, reader = tx + 1;
+      if (lua_isnil(L, tx) && !lua_isnil(L, reader) && lua_isnil(L, tx + 2) &&
+          lua_isnil(L, tx + 3)) {
+        lua_pushinteger(L, repository_error(L, owner, reader, 0));
+        return 1;
+      }
+      if (!lua_isnil(L, tx)) {
+        lua_pushvalue(L, tx);
+        lua_setiuservalue(L, 1, 5);
+        *call->handle = owner;
+      }
+      if (!lua_isnil(L, reader)) {
+        lua_pushvalue(L, reader);
+        lua_setiuservalue(L, 1, 6);
+        *call->reader = owner;
+      }
+      if (!lua_isnil(L, tx + 3))
+        status = repository_error(L, owner, tx + 3, 0);
+      else if (lua_isnil(L, tx) || lua_isnil(L, reader)) {
+        if (lua_isnil(L, tx) && !lua_isnil(L, reader))
+          status = repository_error(L, owner, reader, 0);
+        else
+          return luaL_error(L, "repository edit must return "
+                               "transaction,reader,expiry or nil,error");
+      } else
+        *call->expires = unsigned_value(L, tx + 2);
+    } else if (call->operation == REPOSITORY_RESERVE ||
+               call->operation == REPOSITORY_OPEN ||
+               call->operation == REPOSITORY_AMEND ||
+               call->operation == REPOSITORY_QUERY ||
+               call->operation == REPOSITORY_SCAN) {
+      const int opened = call->operation == REPOSITORY_OPEN ||
+                         call->operation == REPOSITORY_QUERY ||
+                         call->operation == REPOSITORY_SCAN;
+      int handle = lua_gettop(L) - (expiry ? 2 : 1);
+      int problem;
+      if (!lua_isnil(L, handle)) {
+        lua_pushvalue(L, handle);
+        lua_setiuservalue(L, 1, opened ? 6 : 5);
+        *call->handle = owner;
+      }
+      problem = lua_gettop(L);
+      if (expiry && lua_isnil(L, handle) && lua_isnil(L, problem))
+        problem = handle + 1;
+      if (!lua_isnil(L, problem))
+        status = repository_error(L, owner, problem, 0);
+      else if (lua_isnil(L, handle))
+        return luaL_error(L, "repository must return a handle or nil,error");
+      else if (expiry)
+        *call->expires = unsigned_value(L, handle + 1);
+    } else {
+      const int cleanup = call->operation == REPOSITORY_ABORT ||
+                          call->operation == REPOSITORY_CLOSE;
+      if (!lua_isnil(L, -1))
+        status = repository_error(L, owner, -1, cleanup);
+      else if (!cleanup && !(lua_isboolean(L, -2) && lua_toboolean(L, -2)))
+        return luaL_error(L,
+                          "repository callback must return true or nil,error");
+      else if (cleanup && lua_isboolean(L, -2) && !lua_toboolean(L, -2))
+        return luaL_error(L, "repository cleanup callback must not fail");
+      if (call->operation == REPOSITORY_COMMIT && status == AILO_OK) {
+        lua_pushnil(L);
+        lua_setiuservalue(L, 1, 5);
+      }
     }
-    int problem = lua_gettop(L);
-    if (expiry && lua_isnil(L, handle) && lua_isnil(L, problem))
-      problem = handle + 1;
-    if (!lua_isnil(L, problem))
-      status = repository_error(L, owner, problem, 0);
-    else if (lua_isnil(L, handle))
-      return luaL_error(L, "repository must return a handle or nil,error");
-    else if (expiry)
-      *call->expires = unsigned_value(L, handle + 1);
-  } else {
-    const int cleanup = call->operation == REPOSITORY_ABORT ||
-                        call->operation == REPOSITORY_CLOSE;
-    if (!lua_isnil(L, -1))
-      status = repository_error(L, owner, -1, cleanup);
-    else if (!cleanup && !(lua_isboolean(L, -2) && lua_toboolean(L, -2)))
-      return luaL_error(L, "repository callback must return true or nil,error");
-    else if (cleanup && lua_isboolean(L, -2) && !lua_toboolean(L, -2))
-      return luaL_error(L, "repository cleanup callback must not fail");
-    if (call->operation == REPOSITORY_COMMIT && status == AILO_OK) {
-      lua_pushnil(L);
-      lua_setiuservalue(L, 1, 5);
-    }
+    lua_pushinteger(L, status);
+    return 1;
   }
-  lua_pushinteger(L, status);
-  return 1;
 }
 static ailo_status repository_invoke(client *owner, repository_call *call) {
   lua_State *L = owner->active;
   const int cleanup = call->operation == REPOSITORY_ABORT ||
                       call->operation == REPOSITORY_CLOSE;
+  int top;
+  ailo_status status;
   if (!L)
     return AILO_IO_FAILED;
   if (!cleanup && owner->cleanup_failed)
     return AILO_IO_FAILED;
-  int top = lua_gettop(L);
-  ailo_status status = AILO_IO_FAILED;
+  top = lua_gettop(L);
+  status = AILO_IO_FAILED;
   if (lua_checkstack(L, 16)) {
     lua_pushcfunction(L, repository_thunk);
     lua_pushvalue(L, owner->active_index);
@@ -831,8 +916,9 @@ static ailo_status repository_invoke(client *owner, repository_call *call) {
 }
 static ailo_status repository_reserve(void *u, const ailo_record_metadata *m,
                                       void **tx, ailo_error *error) {
-  (void)error;
   repository_call call = {0};
+  (void)error;
+
   call.operation = REPOSITORY_RESERVE;
   call.metadata = m;
   call.handle = tx;
@@ -841,9 +927,10 @@ static ailo_status repository_reserve(void *u, const ailo_record_metadata *m,
 static ailo_status repository_write(void *u, void *tx,
                                     ailo_record_section section, const void *p,
                                     size_t n, ailo_error *error) {
+  repository_call call = {0};
   (void)tx;
   (void)error;
-  repository_call call = {0};
+
   call.operation = REPOSITORY_WRITE;
   call.section = section;
   call.bytes = p;
@@ -853,9 +940,10 @@ static ailo_status repository_write(void *u, void *tx,
 static ailo_status repository_amend(void *u,
                                     const ailo_conversation_change *change,
                                     void **tx, ailo_error *error) {
+  repository_call call = {0};
   (void)error;
   *tx = NULL;
-  repository_call call = {0};
+
   call.operation = REPOSITORY_AMEND;
   call.change = change;
   call.handle = tx;
@@ -864,26 +952,29 @@ static ailo_status repository_amend(void *u,
 static ailo_status repository_query(void *u,
                                     const ailo_conversation_query *query,
                                     void **handle, ailo_error *error) {
+  repository_call call = {0};
   (void)error;
   *handle = NULL;
-  repository_call call = {0};
+
   call.operation = REPOSITORY_QUERY;
   call.query = query;
   call.handle = handle;
   return repository_invoke(u, &call);
 }
 static ailo_status repository_commit(void *u, void *tx, ailo_error *error) {
+  repository_call call = {0};
   (void)tx;
   (void)error;
-  repository_call call = {0};
+
   call.operation = REPOSITORY_COMMIT;
   return repository_invoke(u, &call);
 }
 static ailo_status repository_scan(void *u, const ailo_record_query *query,
                                    void **reader, ailo_u64 *expiry,
                                    ailo_error *error) {
-  (void)error;
   repository_call call = {0};
+  (void)error;
+
   call.operation = REPOSITORY_SCAN;
   call.record_query = query;
   call.handle = reader;
@@ -893,8 +984,9 @@ static ailo_status repository_scan(void *u, const ailo_record_query *query,
 static ailo_status repository_edit(void *u, const ailo_record_edit *edit,
                                    void **tx, void **reader, ailo_u64 *expiry,
                                    ailo_error *error) {
-  (void)error;
   repository_call call = {0};
+  (void)error;
+
   call.operation = REPOSITORY_EDIT;
   call.edit = edit;
   call.handle = tx;
@@ -903,8 +995,9 @@ static ailo_status repository_edit(void *u, const ailo_record_edit *edit,
   return repository_invoke(u, &call);
 }
 static void repository_abort(void *u, void *tx) {
-  (void)tx;
   repository_call call = {0};
+  (void)tx;
+
   call.operation = REPOSITORY_ABORT;
   (void)repository_invoke(u, &call);
 }
@@ -912,8 +1005,9 @@ static ailo_status repository_open(void *u, const char *ns,
                                    ailo_record_protocol protocol,
                                    const char *id, void **handle,
                                    ailo_u64 *expires, ailo_error *error) {
-  (void)error;
   repository_call call = {0};
+  (void)error;
+
   call.operation = REPOSITORY_OPEN;
   call.namespace_id = ns;
   call.protocol = protocol;
@@ -926,9 +1020,10 @@ static ailo_status repository_read(void *u, void *handle,
                                    ailo_record_section section,
                                    ailo_output_sink sink, void *user,
                                    ailo_error *error) {
+  repository_call call = {0};
   (void)handle;
   (void)error;
-  repository_call call = {0};
+
   call.operation = REPOSITORY_READ;
   call.section = section;
   call.sink = sink;
@@ -936,16 +1031,18 @@ static ailo_status repository_read(void *u, void *handle,
   return repository_invoke(u, &call);
 }
 static void repository_close(void *u, void *handle) {
-  (void)handle;
   repository_call call = {0};
+  (void)handle;
+
   call.operation = REPOSITORY_CLOSE;
   (void)repository_invoke(u, &call);
 }
 static ailo_status repository_erase(void *u, const char *ns,
                                     ailo_record_protocol protocol,
                                     const char *id, ailo_error *error) {
-  (void)error;
   repository_call call = {0};
+  (void)error;
+
   call.operation = REPOSITORY_ERASE;
   call.namespace_id = ns;
   call.protocol = protocol;
@@ -955,11 +1052,11 @@ static ailo_status repository_erase(void *u, const char *ns,
 /* Resolve only public provider symbols supplied by package.loadlib. */
 #define RESOLVE(field, type, out)                                              \
   do {                                                                         \
+    lua_CFunction raw;                                                         \
     lua_getfield(L, helpers, field);                                           \
-    lua_CFunction raw = lua_tocfunction(L, -1);                                \
+    raw = lua_tocfunction(L, -1);                                              \
     lua_pop(L, 1);                                                             \
-    _Static_assert(sizeof(raw) == sizeof(type),                                \
-                   "function pointer representation");                         \
+    (void)sizeof(char[sizeof(raw) == sizeof(type) ? 1 : -1]);                  \
     if (!raw)                                                                  \
       return failure(L, AILO_UNSUPPORTED,                                      \
                      "missing public pslog interop helper");                   \
@@ -967,30 +1064,49 @@ static ailo_status repository_erase(void *u, const char *ns,
   } while (0)
 static void read_compaction_policy(lua_State *, int, ailo_compaction_policy *);
 static int new_client(lua_State *L) {
+  check_logger_fn check;
+  ref_logger_fn retain;
+  unref_logger_fn unref;
+  int logger_index;
+  client *value;
+  int client_index;
+  work *storage;
+  ailo_client_config config;
+  ailo_gpu_config gpu = {0};
+  ailo_openai_config api;
+  ailo_compaction_policy api_compaction;
+  int s;
+  int hashes;
+  size_t count;
+  ailo_error error = {0};
+  ailo_status status;
   luaL_checktype(L, 1, LUA_TTABLE);
-  check_logger_fn check = NULL;
-  ref_logger_fn retain = NULL;
-  unref_logger_fn unref = NULL;
+  check = NULL;
+  retain = NULL;
+  unref = NULL;
   lua_getfield(L, 1, "logger");
-  int logger_index = lua_gettop(L);
+  logger_index = lua_gettop(L);
   if (!lua_isnil(L, logger_index)) {
+    int helpers;
     lua_getfield(L, 1, "helpers");
-    int helpers = lua_gettop(L);
+    helpers = lua_gettop(L);
     luaL_checktype(L, helpers, LUA_TTABLE);
     RESOLVE("check_logger", check_logger_fn, check);
     RESOLVE("ref_logger", ref_logger_fn, retain);
     RESOLVE("unref_logger", unref_logger_fn, unref);
-    pslog_lua_logger_view view = {sizeof(view), PSLOG_LUA_INTEROP_ABI_VERSION,
-                                  NULL, 0};
-    if (check(L, logger_index, &view) != 0 ||
-        !(view.flags & PSLOG_LUA_LOGGER_NATIVE_SINK))
-      return failure(
-          L, AILO_INVALID_ARGUMENT,
-          "logger must be a live pslog logger with a qualified native sink");
+    {
+      pslog_lua_logger_view view = {sizeof(view), PSLOG_LUA_INTEROP_ABI_VERSION,
+                                    NULL, 0};
+      if (check(L, logger_index, &view) != 0 ||
+          !(view.flags & PSLOG_LUA_LOGGER_NATIVE_SINK))
+        return failure(
+            L, AILO_INVALID_ARGUMENT,
+            "logger must be a live pslog logger with a qualified native sink");
+    }
   }
-  client *value = lua_newuserdatauv(L, sizeof(*value), 10);
+  value = lua_newuserdatauv(L, sizeof(*value), 10);
   memset(value, 0, sizeof(*value));
-  int client_index = lua_gettop(L);
+  client_index = lua_gettop(L);
   luaL_setmetatable(L, CLIENT);
   value->logger.size = sizeof(value->logger);
   value->logger.abi_version = PSLOG_LUA_INTEROP_ABI_VERSION;
@@ -1000,10 +1116,10 @@ static int new_client(lua_State *L) {
   value->unref = unref;
   if (retain && retain(L, logger_index, NULL, 0, &value->logger) != 0)
     return failure(L, AILO_INVALID_ARGUMENT, "cannot retain pslog logger");
-  work *storage = new_work(L);
+  storage = new_work(L);
   lua_pushvalue(L, 1);
   lua_setiuservalue(L, client_index, 2);
-  ailo_client_config config = ailo_client_default_config();
+  config = ailo_client_default_config();
   config.model_id = string(L, 1, "model_id");
   config.chat_template = string(L, 1, "chat_template");
   config.model_metadata = string(L, 1, "model_metadata");
@@ -1013,7 +1129,7 @@ static int new_client(lua_State *L) {
   config.threads = (int)integer(L, 1, "threads");
   config.context_tokens = (ailo_u32)integer(L, 1, "context_tokens");
   config.batch_tokens = (ailo_u32)integer(L, 1, "batch_tokens");
-  ailo_gpu_config gpu = {0};
+
   lua_getfield(L, 1, "gpu");
   if (!lua_isnil(L, -1)) {
     int index = lua_gettop(L);
@@ -1024,10 +1140,13 @@ static int new_client(lua_State *L) {
     if (gpu.device_count > 16)
       return failure(L, AILO_INVALID_ARGUMENT, "Too many GPU devices");
     storage->allowed = allocate(L, gpu.device_count, sizeof(char *));
-    for (size_t n = 0; n < gpu.device_count; ++n) {
-      lua_geti(L, -1, (lua_Integer)n + 1);
-      storage->allowed[n] = luaL_checkstring(L, -1);
-      lua_pop(L, 1);
+    {
+      size_t n = 0;
+      for (; n < gpu.device_count; ++n) {
+        lua_geti(L, -1, (lua_Integer)n + 1);
+        storage->allowed[n] = luaL_checkstring(L, -1);
+        lua_pop(L, 1);
+      }
     }
     gpu.devices = storage->allowed;
     lua_pop(L, 1);
@@ -1037,10 +1156,13 @@ static int new_client(lua_State *L) {
     if (gpu.weight_count > 16)
       return failure(L, AILO_INVALID_ARGUMENT, "Too many GPU weights");
     storage->weights = allocate(L, gpu.weight_count, sizeof(double));
-    for (size_t n = 0; n < gpu.weight_count; ++n) {
-      lua_geti(L, -1, (lua_Integer)n + 1);
-      storage->weights[n] = luaL_checknumber(L, -1);
-      lua_pop(L, 1);
+    {
+      size_t n = 0;
+      for (; n < gpu.weight_count; ++n) {
+        lua_geti(L, -1, (lua_Integer)n + 1);
+        storage->weights[n] = luaL_checknumber(L, -1);
+        lua_pop(L, 1);
+      }
     }
     gpu.weights = storage->weights;
     lua_pop(L, 1);
@@ -1048,159 +1170,166 @@ static int new_client(lua_State *L) {
   }
   lua_pop(L, 1);
   config.disable_prompt_cache = boolean(L, 1, "disable_prompt_cache");
-  ailo_openai_config api = ailo_openai_default_config();
-  ailo_compaction_policy api_compaction = ailo_compaction_default_policy();
-  ailo_record_repository provider = {value,
-                                     repository_reserve,
-                                     repository_write,
-                                     repository_commit,
-                                     repository_abort,
-                                     repository_open,
-                                     repository_read,
-                                     repository_close,
-                                     repository_erase,
-                                     NULL,
-                                     NULL,
-                                     NULL,
-                                     NULL};
-  lua_getfield(L, 1, "openai");
-  if (!lua_isnil(L, -1)) {
-    int api_index = lua_gettop(L);
-    api.namespace_id = string(L, api_index, "namespace_id");
-    api.zero_data_retention = boolean(L, api_index, "zero_data_retention");
-    api.chat_store_opt_in = boolean(L, api_index, "chat_store_opt_in");
-    api.max_output_memory_bytes =
-        (size_t)integer(L, api_index, "max_output_memory_bytes");
-    api.max_record_bytes = (size_t)integer(L, api_index, "max_record_bytes");
-    lua_getfield(L, api_index, "compaction");
+  api = ailo_openai_default_config();
+  api_compaction = ailo_compaction_default_policy();
+  {
+    ailo_record_repository provider = {NULL,
+                                       repository_reserve,
+                                       repository_write,
+                                       repository_commit,
+                                       repository_abort,
+                                       repository_open,
+                                       repository_read,
+                                       repository_close,
+                                       repository_erase,
+                                       NULL,
+                                       NULL,
+                                       NULL,
+                                       NULL};
+    provider.user_data = value;
+    lua_getfield(L, 1, "openai");
     if (!lua_isnil(L, -1)) {
-      read_compaction_policy(L, lua_gettop(L), &api_compaction);
-      api.compaction = &api_compaction;
-    }
-    lua_pop(L, 1);
-    lua_getfield(L, api_index, "response_retention_seconds");
-    api.response_retention_seconds = unsigned_value(L, -1);
-    lua_pop(L, 1);
-    lua_getfield(L, api_index, "chat_retention_seconds");
-    api.chat_retention_seconds = unsigned_value(L, -1);
-    lua_pop(L, 1);
-    lua_getfield(L, api_index, "repository");
-    if (!lua_isnil(L, -1)) {
-      lua_getfield(L, -1, "amend");
+      int api_index = lua_gettop(L);
+      api.namespace_id = string(L, api_index, "namespace_id");
+      api.zero_data_retention = boolean(L, api_index, "zero_data_retention");
+      api.chat_store_opt_in = boolean(L, api_index, "chat_store_opt_in");
+      api.max_output_memory_bytes =
+          (size_t)integer(L, api_index, "max_output_memory_bytes");
+      api.max_record_bytes = (size_t)integer(L, api_index, "max_record_bytes");
+      lua_getfield(L, api_index, "compaction");
       if (!lua_isnil(L, -1)) {
-        provider.amend = repository_amend;
-        provider.query = repository_query;
+        read_compaction_policy(L, lua_gettop(L), &api_compaction);
+        api.compaction = &api_compaction;
       }
       lua_pop(L, 1);
-      lua_getfield(L, -1, "scan");
-      if (!lua_isnil(L, -1))
-        provider.scan = repository_scan;
+      lua_getfield(L, api_index, "response_retention_seconds");
+      api.response_retention_seconds = unsigned_value(L, -1);
       lua_pop(L, 1);
-      lua_getfield(L, -1, "edit");
-      if (!lua_isnil(L, -1))
-        provider.edit = repository_edit;
+      lua_getfield(L, api_index, "chat_retention_seconds");
+      api.chat_retention_seconds = unsigned_value(L, -1);
       lua_pop(L, 1);
-      lua_setiuservalue(L, client_index, 4);
-      api.repository = &provider;
+      lua_getfield(L, api_index, "repository");
+      if (!lua_isnil(L, -1)) {
+        lua_getfield(L, -1, "amend");
+        if (!lua_isnil(L, -1)) {
+          provider.amend = repository_amend;
+          provider.query = repository_query;
+        }
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "scan");
+        if (!lua_isnil(L, -1))
+          provider.scan = repository_scan;
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "edit");
+        if (!lua_isnil(L, -1))
+          provider.edit = repository_edit;
+        lua_pop(L, 1);
+        lua_setiuservalue(L, client_index, 4);
+        api.repository = &provider;
+      } else
+        lua_pop(L, 1);
+      config.openai = &api;
+    }
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "compactor");
+    if (!lua_isnil(L, -1)) {
+      compactor *owner = luaL_checkudata(L, -1, COMPACTOR);
+      if (!owner->native)
+        return failure(L, AILO_INVALID_ARGUMENT, "compactor is closed");
+      config.compactor = owner->native;
+    }
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "cache");
+    if (!lua_isnil(L, -1)) {
+      cache *owner = luaL_checkudata(L, -1, CACHE);
+      if (!owner->native)
+        return failure(L, AILO_INVALID_ARGUMENT, "cache is closed");
+      config.cache = owner->native;
+    }
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "source");
+    s = lua_gettop(L);
+    luaL_checktype(L, s, LUA_TTABLE);
+    config.source.local_path = string(L, s, "local_path");
+    config.source.repo = string(L, s, "repo");
+    config.source.revision = string(L, s, "revision");
+    config.source.filename = string(L, s, "filename");
+    config.source.cache_root = string(L, s, "cache_root");
+    config.source.bearer_token = string(L, s, "bearer_token");
+    config.source.allow_download = boolean(L, s, "allow_download");
+    config.source.split_shards = boolean(L, s, "split_shards");
+    config.source.max_attempts = (unsigned int)integer(L, s, "max_attempts");
+    config.source.connect_timeout_ms =
+        (long)integer(L, s, "connect_timeout_ms");
+    config.source.transfer_timeout_ms =
+        (long)integer(L, s, "transfer_timeout_ms");
+    lua_getfield(L, s, "max_bytes");
+    if (lua_istable(L, -1)) {
+      config.source.max_bytes.hi = (ailo_u32)integer(L, lua_gettop(L), "hi");
+      config.source.max_bytes.lo = (ailo_u32)integer(L, lua_gettop(L), "lo");
+    } else {
+      uint64_t n = (uint64_t)luaL_checkinteger(L, -1);
+      config.source.max_bytes.hi = n >> 32;
+      config.source.max_bytes.lo = (ailo_u32)n;
+    }
+    lua_pop(L, 1);
+    lua_getfield(L, s, "sha256");
+    hashes = lua_gettop(L);
+    count = lua_rawlen(L, hashes);
+    if (count) {
+      storage->strings = allocate(L, count, sizeof(char *));
+      {
+        size_t i = 0;
+        for (; i < count; ++i) {
+          lua_geti(L, hashes, (lua_Integer)i + 1);
+          storage->strings[i] =
+              lua_isboolean(L, -1) ? NULL : luaL_checkstring(L, -1);
+          lua_pop(L, 1);
+        }
+      }
+      config.source.sha256 = storage->strings;
+      config.source.sha256_count = count;
+    }
+    lua_getfield(L, s, "progress");
+    if (!lua_isnil(L, -1)) {
+      luaL_checktype(L, -1, LUA_TFUNCTION);
+      lua_setiuservalue(L, client_index, 1);
+      config.source.progress = progress;
+      config.source.user_data = value;
     } else
       lua_pop(L, 1);
-    config.openai = &api;
-  }
-  lua_pop(L, 1);
-  lua_getfield(L, 1, "compactor");
-  if (!lua_isnil(L, -1)) {
-    compactor *owner = luaL_checkudata(L, -1, COMPACTOR);
-    if (!owner->native)
-      return failure(L, AILO_INVALID_ARGUMENT, "compactor is closed");
-    config.compactor = owner->native;
-  }
-  lua_pop(L, 1);
-  lua_getfield(L, 1, "cache");
-  if (!lua_isnil(L, -1)) {
-    cache *owner = luaL_checkudata(L, -1, CACHE);
-    if (!owner->native)
-      return failure(L, AILO_INVALID_ARGUMENT, "cache is closed");
-    config.cache = owner->native;
-  }
-  lua_pop(L, 1);
-  lua_getfield(L, 1, "source");
-  int s = lua_gettop(L);
-  luaL_checktype(L, s, LUA_TTABLE);
-  config.source.local_path = string(L, s, "local_path");
-  config.source.repo = string(L, s, "repo");
-  config.source.revision = string(L, s, "revision");
-  config.source.filename = string(L, s, "filename");
-  config.source.cache_root = string(L, s, "cache_root");
-  config.source.bearer_token = string(L, s, "bearer_token");
-  config.source.allow_download = boolean(L, s, "allow_download");
-  config.source.split_shards = boolean(L, s, "split_shards");
-  config.source.max_attempts = (unsigned int)integer(L, s, "max_attempts");
-  config.source.connect_timeout_ms = (long)integer(L, s, "connect_timeout_ms");
-  config.source.transfer_timeout_ms =
-      (long)integer(L, s, "transfer_timeout_ms");
-  lua_getfield(L, s, "max_bytes");
-  if (lua_istable(L, -1)) {
-    config.source.max_bytes.hi = (ailo_u32)integer(L, lua_gettop(L), "hi");
-    config.source.max_bytes.lo = (ailo_u32)integer(L, lua_gettop(L), "lo");
-  } else {
-    uint64_t n = (uint64_t)luaL_checkinteger(L, -1);
-    config.source.max_bytes.hi = n >> 32;
-    config.source.max_bytes.lo = (ailo_u32)n;
-  }
-  lua_pop(L, 1);
-  lua_getfield(L, s, "sha256");
-  int hashes = lua_gettop(L);
-  size_t count = lua_rawlen(L, hashes);
-  if (count) {
-    storage->strings = allocate(L, count, sizeof(char *));
-    for (size_t i = 0; i < count; ++i) {
-      lua_geti(L, hashes, (lua_Integer)i + 1);
-      storage->strings[i] =
-          lua_isboolean(L, -1) ? NULL : luaL_checkstring(L, -1);
-      lua_pop(L, 1);
+
+    begin(L, value, client_index);
+    status = ailo_client_new_with_logger(&config, value->logger.borrowed,
+                                         &value->native, &error);
+    end(value);
+    release_work(storage);
+    if (status != AILO_OK) {
+      if (value->progress_failed) {
+        status = AILO_SINK_FAILED;
+        strcpy(error.message, "model progress callback failed");
+      }
+      failure(L, status, error.message);
+      cause(L, client_index, 3);
+      if (value->unref) {
+        value->unref(&value->logger);
+        value->unref = NULL;
+      }
+      return 2;
     }
-    config.source.sha256 = storage->strings;
-    config.source.sha256_count = count;
+    /* C copied the config. Progress lives in uservalue1, logger in provider
+     * ref.
+     */
+    lua_pushnil(L);
+    lua_setiuservalue(L, client_index, 2);
+    lua_pushvalue(L, client_index);
+    return 1;
   }
-  lua_getfield(L, s, "progress");
-  if (!lua_isnil(L, -1)) {
-    luaL_checktype(L, -1, LUA_TFUNCTION);
-    lua_setiuservalue(L, client_index, 1);
-    config.source.progress = progress;
-    config.source.user_data = value;
-  } else
-    lua_pop(L, 1);
-  ailo_error error = {0};
-  begin(L, value, client_index);
-  ailo_status status = ailo_client_new_with_logger(
-      &config, value->logger.borrowed, &value->native, &error);
-  end(value);
-  release_work(storage);
-  if (status != AILO_OK) {
-    if (value->progress_failed) {
-      status = AILO_SINK_FAILED;
-      strcpy(error.message, "model progress callback failed");
-    }
-    failure(L, status, error.message);
-    cause(L, client_index, 3);
-    if (value->unref) {
-      value->unref(&value->logger);
-      value->unref = NULL;
-    }
-    return 2;
-  }
-  /* C copied the config. Progress lives in uservalue1, logger in provider ref.
-   */
-  lua_pushnil(L);
-  lua_setiuservalue(L, client_index, 2);
-  lua_pushvalue(L, client_index);
-  return 1;
 }
 static void compaction_info(lua_State *, const ailo_compaction_info *);
 static void push_item(lua_State *, const ailo_item *);
 static int event_thunk(lua_State *L) {
   const ailo_event *value = lua_touserdata(L, 2);
-  lua_getiuservalue(L, 1, 1);
   static const char *names[] = {"run_begin",
                                 "choice_begin",
                                 "text_delta",
@@ -1217,6 +1346,8 @@ static int event_thunk(lua_State *L) {
                                 "reasoning_delta",
                                 "compaction",
                                 "output_progress"};
+  lua_getiuservalue(L, 1, 1);
+
   lua_createtable(L, 0, 14);
   set_string(L, "kind", names[value->kind]);
   push_u64(L, value->sequence);
@@ -1247,9 +1378,12 @@ static int event_thunk(lua_State *L) {
     compaction_info(L, value->compaction);
     lua_setfield(L, -2, "compaction");
     lua_createtable(L, (int)value->compacted_item_count, 0);
-    for (size_t i = 0; i < value->compacted_item_count; ++i) {
-      push_item(L, &value->compacted_items[i]);
-      lua_seti(L, -2, (lua_Integer)i + 1);
+    {
+      size_t i = 0;
+      for (; i < value->compacted_item_count; ++i) {
+        push_item(L, &value->compacted_items[i]);
+        lua_seti(L, -2, (lua_Integer)i + 1);
+      }
     }
     lua_setfield(L, -2, "compacted_items");
   }
@@ -1268,15 +1402,18 @@ static int event_thunk(lua_State *L) {
     lua_pushnumber(L, token->chosen.logprob);
     lua_setfield(L, -2, "logprob");
     lua_createtable(L, (int)token->top_count, 0);
-    for (size_t i = 0; i < token->top_count; ++i) {
-      const ailo_token_probability *p = &token->top[i];
-      lua_createtable(L, 0, 3);
-      set_integer(L, "token_id", p->token_id);
-      lua_pushlstring(L, p->data, p->size);
-      lua_setfield(L, -2, "data");
-      lua_pushnumber(L, p->logprob);
-      lua_setfield(L, -2, "logprob");
-      lua_seti(L, -2, (lua_Integer)i + 1);
+    {
+      size_t i = 0;
+      for (; i < token->top_count; ++i) {
+        const ailo_token_probability *p = &token->top[i];
+        lua_createtable(L, 0, 3);
+        set_integer(L, "token_id", p->token_id);
+        lua_pushlstring(L, p->data, p->size);
+        lua_setfield(L, -2, "data");
+        lua_pushnumber(L, p->logprob);
+        lua_setfield(L, -2, "logprob");
+        lua_seti(L, -2, (lua_Integer)i + 1);
+      }
     }
     lua_setfield(L, -2, "top_logprobs");
     lua_setfield(L, -2, "token");
@@ -1287,6 +1424,7 @@ static int event_thunk(lua_State *L) {
 static int event(void *data, const ailo_event *value) {
   work *storage = data;
   lua_State *L = storage->L;
+  int result;
   if (!lua_checkstack(L, 5)) {
     storage->failed = 1;
     return -1;
@@ -1299,54 +1437,74 @@ static int event(void *data, const ailo_event *value) {
     lua_setiuservalue(L, storage->index, 4);
     return -1;
   }
-  int result = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
+  result = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
   lua_pop(L, 1);
   return result;
 }
 static void read_items(lua_State *L, work *storage, int request_index,
                        ailo_request *request) {
+  int items;
+  size_t count, parts;
+  size_t offset;
   lua_getfield(L, request_index, "items");
-  int items = lua_gettop(L);
-  size_t count = lua_rawlen(L, items), parts = 0;
+  items = lua_gettop(L);
+  count = lua_rawlen(L, items);
+  parts = 0;
   storage->items = allocate(L, count, sizeof(ailo_item));
-  for (size_t i = 0; i < count; ++i) {
-    lua_geti(L, items, (lua_Integer)i + 1);
-    lua_getfield(L, -1, "content");
-    size_t n = lua_rawlen(L, -1);
-    if (n > SIZE_MAX - parts)
-      luaL_error(L, "too many content parts");
-    parts += n;
-    lua_pop(L, 2);
-  }
-  storage->content = allocate(L, parts, sizeof(ailo_content));
-  size_t offset = 0;
-  for (size_t i = 0; i < count; ++i) {
-    lua_geti(L, items, (lua_Integer)i + 1);
-    int index = lua_gettop(L);
-    ailo_item *item = &storage->items[i];
-    item->kind = (ailo_item_kind)integer(L, index, "kind");
-    item->role = (ailo_role)integer(L, index, "role");
-    item->id = string(L, index, "id");
-    item->call_id = string(L, index, "call_id");
-    item->name = string(L, index, "name");
-    item->arguments = string(L, index, "arguments");
-    item->encrypted_content = string(L, index, "encrypted_content");
-    item->pinned = boolean(L, index, "pinned");
-    lua_getfield(L, index, "content");
-    int content = lua_gettop(L);
-    size_t n = lua_rawlen(L, content);
-    item->content = n ? storage->content + offset : NULL;
-    item->content_count = n;
-    for (size_t j = 0; j < n; ++j) {
-      lua_geti(L, content, (lua_Integer)j + 1);
-      int part = lua_gettop(L);
-      ailo_content *out = &storage->content[offset++];
-      out->kind = (ailo_content_kind)integer(L, part, "kind");
-      lua_getfield(L, part, "data");
-      out->data = luaL_checklstring(L, -1, &out->size);
+  {
+    size_t i = 0;
+    for (; i < count; ++i) {
+      size_t n;
+      lua_geti(L, items, (lua_Integer)i + 1);
+      lua_getfield(L, -1, "content");
+      n = lua_rawlen(L, -1);
+      if (n > SIZE_MAX - parts)
+        luaL_error(L, "too many content parts");
+      parts += n;
       lua_pop(L, 2);
     }
-    lua_pop(L, 2);
+  }
+  storage->content = allocate(L, parts, sizeof(ailo_content));
+  offset = 0;
+  {
+    size_t i = 0;
+    for (; i < count; ++i) {
+      int index;
+      ailo_item *item;
+      int content;
+      size_t n;
+      lua_geti(L, items, (lua_Integer)i + 1);
+      index = lua_gettop(L);
+      item = &storage->items[i];
+      item->kind = (ailo_item_kind)integer(L, index, "kind");
+      item->role = (ailo_role)integer(L, index, "role");
+      item->id = string(L, index, "id");
+      item->call_id = string(L, index, "call_id");
+      item->name = string(L, index, "name");
+      item->arguments = string(L, index, "arguments");
+      item->encrypted_content = string(L, index, "encrypted_content");
+      item->pinned = boolean(L, index, "pinned");
+      lua_getfield(L, index, "content");
+      content = lua_gettop(L);
+      n = lua_rawlen(L, content);
+      item->content = n ? storage->content + offset : NULL;
+      item->content_count = n;
+      {
+        size_t j = 0;
+        for (; j < n; ++j) {
+          int part;
+          ailo_content *out;
+          lua_geti(L, content, (lua_Integer)j + 1);
+          part = lua_gettop(L);
+          out = &storage->content[offset++];
+          out->kind = (ailo_content_kind)integer(L, part, "kind");
+          lua_getfield(L, part, "data");
+          out->data = luaL_checklstring(L, -1, &out->size);
+          lua_pop(L, 2);
+        }
+      }
+      lua_pop(L, 2);
+    }
   }
   request->items = storage->items;
   request->item_count = count;
@@ -1376,17 +1534,20 @@ static continuation *new_continuation_shell(lua_State *L) {
 static int new_continuation(lua_State *L) {
   client *value = get_client(L);
   int failed = ready(L, value);
+  ailo_continuation_config config;
+  continuation *out;
+  ailo_error error = {0};
+  ailo_status status;
   if (failed)
     return failed;
   luaL_checktype(L, 2, LUA_TTABLE);
-  ailo_continuation_config config = ailo_continuation_default_config();
+  config = ailo_continuation_default_config();
   config.max_items = (size_t)integer(L, 2, "max_items");
   config.max_bytes = (size_t)integer(L, 2, "max_bytes");
-  continuation *out = new_continuation_shell(L);
-  ailo_error error = {0};
+  out = new_continuation_shell(L);
+
   begin(L, value, 1);
-  ailo_status status =
-      ailo_continuation_new(value->native, &config, &out->native, &error);
+  status = ailo_continuation_new(value->native, &config, &out->native, &error);
   end(value);
   if (status != AILO_OK) {
     if (value->progress_failed) {
@@ -1428,18 +1589,22 @@ static int continuation_info(lua_State *L) {
 }
 static int continuation_append(lua_State *L) {
   continuation *value = luaL_checkudata(L, 1, CONTINUATION);
+  work *storage;
+  ailo_request request;
+  ailo_error error = {0};
+  ailo_status status;
   if (!value->native)
     return failure(L, AILO_INVALID_ARGUMENT, "continuation is closed");
   if (value->busy)
     return failure(L, AILO_BUSY, "continuation is active");
-  work *storage = new_work(L);
+  storage = new_work(L);
   lua_pushvalue(L, 2);
   lua_setiuservalue(L, storage->index, 3);
-  ailo_request request = ailo_request_default();
+  request = ailo_request_default();
   read_items(L, storage, 2, &request);
-  ailo_error error = {0};
-  ailo_status status = ailo_continuation_append(value->native, request.items,
-                                                request.item_count, &error);
+
+  status = ailo_continuation_append(value->native, request.items,
+                                    request.item_count, &error);
   release_work(storage);
   if (status != AILO_OK)
     return failure(L, status, error.message);
@@ -1462,12 +1627,15 @@ static void push_item(lua_State *L, const ailo_item *item) {
   lua_pushboolean(L, item->pinned);
   lua_setfield(L, -2, "pinned");
   lua_createtable(L, (int)item->content_count, 0);
-  for (size_t i = 0; i < item->content_count; ++i) {
-    lua_createtable(L, 0, 2);
-    set_string(L, "kind", "text");
-    lua_pushlstring(L, item->content[i].data, item->content[i].size);
-    lua_setfield(L, -2, "data");
-    lua_seti(L, -2, (lua_Integer)i + 1);
+  {
+    size_t i = 0;
+    for (; i < item->content_count; ++i) {
+      lua_createtable(L, 0, 2);
+      set_string(L, "kind", "text");
+      lua_pushlstring(L, item->content[i].data, item->content[i].size);
+      lua_setfield(L, -2, "data");
+      lua_seti(L, -2, (lua_Integer)i + 1);
+    }
   }
   lua_setfield(L, -2, "content");
 }
@@ -1481,6 +1649,7 @@ static int item_thunk(lua_State *L) {
 static int item_visit(void *user, const ailo_item *item) {
   work *storage = user;
   lua_State *L = storage->L;
+  int result;
   if (!lua_checkstack(L, 5)) {
     storage->failed = 1;
     return -1;
@@ -1493,26 +1662,28 @@ static int item_visit(void *user, const ailo_item *item) {
     lua_setiuservalue(L, storage->index, 4);
     return -1;
   }
-  int result = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
+  result = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
   lua_pop(L, 1);
   return result;
 }
 static int continuation_visit(lua_State *L) {
   continuation *value = luaL_checkudata(L, 1, CONTINUATION);
+  work *storage;
+  ailo_error error = {0};
+  ailo_status status;
   if (!value->native)
     return failure(L, AILO_INVALID_ARGUMENT, "continuation is closed");
   if (value->busy)
     return failure(L, AILO_BUSY, "continuation is active");
   luaL_checktype(L, 2, LUA_TFUNCTION);
-  work *storage = new_work(L);
+  storage = new_work(L);
   lua_pushvalue(L, 2);
   lua_setiuservalue(L, storage->index, 1);
   lua_pushvalue(L, 1);
   lua_setiuservalue(L, storage->index, 2);
-  ailo_error error = {0};
+
   value->busy = 1;
-  ailo_status status =
-      ailo_continuation_visit(value->native, item_visit, storage, &error);
+  status = ailo_continuation_visit(value->native, item_visit, storage, &error);
   value->busy = 0;
   if (status != AILO_OK) {
     failure(L, status, error.message);
@@ -1553,17 +1724,35 @@ static void read_compaction_policy(lua_State *L, int index,
 static int generate_or_compact(lua_State *L, int compacting) {
   client *value = get_client(L);
   int error_result = ready(L, value);
+  work *storage;
+  ailo_request request;
+  ailo_auto_compaction_policy automatic;
+  continuation *history;
+  int tools;
+  int allowed;
+  int biases;
+  int stops;
+  size_t count;
+  ailo_run_info output = {0};
+  ailo_compaction_info compact_info = {0};
+  ailo_compaction_policy policy;
+  continuation *window;
+  ailo_error error = {0};
+  ailo_status status;
   if (error_result)
     return error_result;
   luaL_checktype(L, 2, LUA_TTABLE);
   luaL_checktype(L, 3, compacting ? LUA_TTABLE : LUA_TFUNCTION);
-  work *storage = new_work(L);
-  for (int i = 1; i <= 3; ++i) {
-    lua_pushvalue(L, i == 1 ? 3 : i == 2 ? 1 : 2);
-    lua_setiuservalue(L, storage->index, i);
+  storage = new_work(L);
+  {
+    int i = 1;
+    for (; i <= 3; ++i) {
+      lua_pushvalue(L, i == 1 ? 3 : i == 2 ? 1 : 2);
+      lua_setiuservalue(L, storage->index, i);
+    }
   }
-  ailo_request request = ailo_request_default();
-  ailo_auto_compaction_policy automatic = ailo_auto_compaction_default_policy();
+  request = ailo_request_default();
+  automatic = ailo_auto_compaction_default_policy();
   lua_getfield(L, 2, "auto_compaction");
   if (!lua_isnil(L, -1)) {
     int automatic_index = lua_gettop(L);
@@ -1592,8 +1781,7 @@ static int generate_or_compact(lua_State *L, int compacting) {
   request.reasoning_effort = string(L, 2, "reasoning_effort");
   request.max_reasoning_tokens = (size_t)integer(L, 2, "max_reasoning_tokens");
   lua_getfield(L, 2, "continuation");
-  continuation *history =
-      lua_isnil(L, -1) ? NULL : luaL_checkudata(L, -1, CONTINUATION);
+  history = lua_isnil(L, -1) ? NULL : luaL_checkudata(L, -1, CONTINUATION);
   if (history && !history->native)
     return failure(L, AILO_INVALID_ARGUMENT, "continuation is closed");
   if (history && history->busy)
@@ -1605,80 +1793,93 @@ static int generate_or_compact(lua_State *L, int compacting) {
   request.parallel_tool_calls = boolean(L, 2, "parallel_tool_calls");
   request.max_tool_calls = (size_t)integer(L, 2, "max_tool_calls");
   lua_getfield(L, 2, "tools");
-  int tools = lua_gettop(L);
+  tools = lua_gettop(L);
   request.tool_count = lua_rawlen(L, tools);
   if (request.tool_count) {
     storage->tools =
         allocate(L, request.tool_count, sizeof(ailo_function_tool));
-    for (size_t i = 0; i < request.tool_count; ++i) {
-      lua_geti(L, tools, (lua_Integer)i + 1);
-      int tool = lua_gettop(L);
-      storage->tools[i].name = string(L, tool, "name");
-      storage->tools[i].description = string(L, tool, "description");
-      storage->tools[i].parameters = string(L, tool, "parameters");
-      storage->tools[i].strict = boolean(L, tool, "strict");
-      lua_pop(L, 1);
+    {
+      size_t i = 0;
+      for (; i < request.tool_count; ++i) {
+        int tool;
+        lua_geti(L, tools, (lua_Integer)i + 1);
+        tool = lua_gettop(L);
+        storage->tools[i].name = string(L, tool, "name");
+        storage->tools[i].description = string(L, tool, "description");
+        storage->tools[i].parameters = string(L, tool, "parameters");
+        storage->tools[i].strict = boolean(L, tool, "strict");
+        lua_pop(L, 1);
+      }
     }
     request.tools = storage->tools;
   }
   lua_getfield(L, 2, "allowed_tools");
-  int allowed = lua_gettop(L);
+  allowed = lua_gettop(L);
   request.allowed_tool_count = lua_rawlen(L, allowed);
   if (request.allowed_tool_count) {
     storage->allowed = allocate(L, request.allowed_tool_count, sizeof(char *));
-    for (size_t i = 0; i < request.allowed_tool_count; ++i) {
-      lua_geti(L, allowed, (lua_Integer)i + 1);
-      storage->allowed[i] = luaL_checkstring(L, -1);
-      lua_pop(L, 1);
+    {
+      size_t i = 0;
+      for (; i < request.allowed_tool_count; ++i) {
+        lua_geti(L, allowed, (lua_Integer)i + 1);
+        storage->allowed[i] = luaL_checkstring(L, -1);
+        lua_pop(L, 1);
+      }
     }
     request.allowed_tools = storage->allowed;
   }
   lua_getfield(L, 2, "logit_bias");
-  int biases = lua_gettop(L);
+  biases = lua_gettop(L);
   request.logit_bias_count = lua_rawlen(L, biases);
   if (request.logit_bias_count) {
     storage->biases =
         allocate(L, request.logit_bias_count, sizeof(ailo_logit_bias));
-    for (size_t i = 0; i < request.logit_bias_count; ++i) {
-      lua_geti(L, biases, (lua_Integer)i + 1);
-      int bias = lua_gettop(L);
-      storage->biases[i].token_id = (ailo_i32)integer(L, bias, "token_id");
-      storage->biases[i].bias = number(L, bias, "bias");
-      lua_pop(L, 1);
+    {
+      size_t i = 0;
+      for (; i < request.logit_bias_count; ++i) {
+        int bias;
+        lua_geti(L, biases, (lua_Integer)i + 1);
+        bias = lua_gettop(L);
+        storage->biases[i].token_id = (ailo_i32)integer(L, bias, "token_id");
+        storage->biases[i].bias = number(L, bias, "bias");
+        lua_pop(L, 1);
+      }
     }
     request.logit_bias = storage->biases;
   }
   read_items(L, storage, 2, &request);
   lua_getfield(L, 2, "stop");
-  int stops = lua_gettop(L);
-  size_t count = lua_rawlen(L, stops);
+  stops = lua_gettop(L);
+  count = lua_rawlen(L, stops);
   if (count) {
     storage->strings = allocate(L, count, sizeof(char *));
-    for (size_t i = 0; i < count; ++i) {
-      lua_geti(L, stops, (lua_Integer)i + 1);
-      storage->strings[i] = luaL_checkstring(L, -1);
-      lua_pop(L, 1);
+    {
+      size_t i = 0;
+      for (; i < count; ++i) {
+        lua_geti(L, stops, (lua_Integer)i + 1);
+        storage->strings[i] = luaL_checkstring(L, -1);
+        lua_pop(L, 1);
+      }
     }
     request.stop = storage->strings;
     request.stop_count = count;
   }
-  ailo_run_info output = {0};
-  ailo_compaction_info compact_info = {0};
-  ailo_compaction_policy policy = ailo_compaction_default_policy();
-  continuation *window = NULL;
+
+  policy = ailo_compaction_default_policy();
+  window = NULL;
   if (compacting) {
     read_compaction_policy(L, 3, &policy);
     window = new_continuation_shell(L);
   }
-  ailo_error error = {0};
+
   if (history)
     history->busy = 1;
   begin(L, value, 1);
-  ailo_status status =
-      compacting ? ailo_client_compact(value->native, &request, &policy,
-                                       &window->native, &compact_info, &error)
-                 : ailo_client_generate(value->native, &request, event, storage,
-                                        &output, &error);
+  status = compacting
+               ? ailo_client_compact(value->native, &request, &policy,
+                                     &window->native, &compact_info, &error)
+               : ailo_client_generate(value->native, &request, event, storage,
+                                      &output, &error);
   end(value);
   if (history)
     history->busy = 0;
@@ -1723,7 +1924,10 @@ static int bytes_thunk(lua_State *L) {
 static int api_bytes_sink(void *user, const void *data, size_t size) {
   work *storage = user;
   lua_State *L = storage->L;
-  api_bytes bytes = {data, size};
+  api_bytes bytes;
+  int accepted;
+  bytes.data = data;
+  bytes.size = size;
   if (!lua_checkstack(L, 5)) {
     storage->failed = 1;
     return -1;
@@ -1736,7 +1940,7 @@ static int api_bytes_sink(void *user, const void *data, size_t size) {
     lua_setiuservalue(L, storage->index, 4);
     return -1;
   }
-  int accepted = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
+  accepted = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
   lua_pop(L, 1);
   return accepted;
 }
@@ -1751,19 +1955,247 @@ static void api_info(lua_State *L, const ailo_api_info *out) {
   lua_pushboolean(L, out->stored);
   lua_setfield(L, -2, "stored");
 }
+typedef struct http_callback {
+  work *storage;
+  int kind;
+  const ailo_http_response *headers;
+  const void *bytes;
+  size_t size;
+} http_callback;
+static int http_thunk(lua_State *L) {
+  static const char *names[] = {"begin", "write", "finish", "abort"};
+  const http_callback *call = lua_touserdata(L, 2);
+  const ailo_http_response *headers = call->headers;
+  int arguments = 1;
+  lua_getiuservalue(L, 1, 1);
+  lua_getfield(L, -1, names[call->kind]);
+  lua_pushvalue(L, -2);
+  if (call->kind == 0) {
+    lua_createtable(L, 0, 6);
+    set_integer(L, "status", headers->status);
+    set_string(L, "content_type", headers->content_type);
+    set_string(L, "allow", headers->allow);
+    set_string(L, "cache_control", headers->cache_control);
+    set_string(L, "request_id", headers->request_id);
+    set_string(L, "retry_after", headers->retry_after);
+    ++arguments;
+  } else if (call->kind == 1) {
+    lua_pushlstring(L, call->bytes, call->size);
+    ++arguments;
+  }
+  lua_call(L, arguments, 1);
+  return 1;
+}
+static int http_invoke(http_callback *call) {
+  work *storage = call->storage;
+  lua_State *L = storage->L;
+  int accepted;
+  if (!lua_checkstack(L, 5)) {
+    storage->failed = 1;
+    return -1;
+  }
+  lua_pushcfunction(L, http_thunk);
+  lua_pushvalue(L, storage->index);
+  lua_pushlightuserdata(L, call);
+  if (lua_pcall(L, 2, 1, 0) != LUA_OK) {
+    if (!storage->failed)
+      lua_setiuservalue(L, storage->index, 4);
+    else
+      lua_pop(L, 1);
+    storage->failed = 1;
+    return -1;
+  }
+  accepted = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
+  lua_pop(L, 1);
+  return accepted;
+}
+static int http_begin(void *user, const ailo_http_response *headers) {
+  http_callback call;
+  memset(&call, 0, sizeof(call));
+  call.storage = user;
+  call.headers = headers;
+  return http_invoke(&call);
+}
+static int http_write(void *user, const void *bytes, size_t size) {
+  http_callback call;
+  memset(&call, 0, sizeof(call));
+  call.storage = user;
+  call.kind = 1;
+  call.bytes = bytes;
+  call.size = size;
+  return http_invoke(&call);
+}
+static int http_finish(void *user) {
+  http_callback call;
+  memset(&call, 0, sizeof(call));
+  call.storage = user;
+  call.kind = 2;
+  return http_invoke(&call);
+}
+static void http_abort(void *user) {
+  http_callback call;
+  memset(&call, 0, sizeof(call));
+  call.storage = user;
+  call.kind = 3;
+  http_invoke(&call);
+}
+static int handler_gc(lua_State *L) {
+  handler *value = luaL_checkudata(L, 1, HANDLER);
+  if (value->native) {
+    ailo_handler_destroy(value->native);
+    value->native = NULL;
+    --value->owner->handlers;
+  }
+  return 0;
+}
+static int handler_close(lua_State *L) {
+  handler *value = luaL_checkudata(L, 1, HANDLER);
+  if (value->busy)
+    return failure(L, AILO_BUSY, "handler is active");
+  handler_gc(L);
+  lua_pushnil(L);
+  lua_setiuservalue(L, 1, 1);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+static int new_handler(lua_State *L) {
+  client *owner = get_client(L);
+  handler *value;
+  ailo_handler_config config = ailo_handler_default_config();
+  ailo_error error = {0};
+  ailo_status status;
+  int checked = ready(L, owner);
+  if (checked)
+    return checked;
+  luaL_checktype(L, 2, LUA_TTABLE);
+  config.client = owner->native;
+  config.max_body_bytes = (size_t)integer(L, 2, "max_body_bytes");
+  config.max_target_bytes = (size_t)integer(L, 2, "max_target_bytes");
+  value = lua_newuserdatauv(L, sizeof(*value), 1);
+  memset(value, 0, sizeof(*value));
+  luaL_setmetatable(L, HANDLER);
+  value->owner = owner;
+  lua_pushvalue(L, 1);
+  lua_setiuservalue(L, -2, 1);
+  status = ailo_handler_new(&config, &value->native, &error);
+  if (status != AILO_OK)
+    return failure(L, status, error.message);
+  ++owner->handlers;
+  return 1;
+}
+static void handler_info(lua_State *L, const ailo_handler_info *out) {
+  api_info(L, &out->api);
+  set_integer(L, "http_status", out->http_status);
+  set_string(L, "request_id", out->request_id);
+  push_u64(L, out->bytes_written);
+  lua_setfield(L, -2, "bytes_written");
+  lua_pushboolean(L, out->started);
+  lua_setfield(L, -2, "started");
+  lua_pushboolean(L, out->completed);
+  lua_setfield(L, -2, "completed");
+  lua_pushboolean(L, out->aborted);
+  lua_setfield(L, -2, "aborted");
+}
+static int handler_handle(lua_State *L) {
+  static const char *names[] = {"begin", "write", "finish", "abort"};
+  handler *value = luaL_checkudata(L, 1, HANDLER);
+  ailo_http_request request;
+  ailo_http_transport transport;
+  ailo_handler_info out;
+  ailo_error error = {0};
+  ailo_status status;
+  work *storage;
+  int i, owner_index;
+  if (!value->native)
+    return failure(L, AILO_INVALID_ARGUMENT, "handler is closed");
+  if (value->busy || value->owner->busy)
+    return failure(L, AILO_BUSY, "handler or receiver is active");
+  luaL_checktype(L, 2, LUA_TTABLE);
+  luaL_checktype(L, 3, LUA_TTABLE);
+  for (i = 0; i < 4; ++i) {
+    lua_getfield(L, 3, names[i]);
+    luaL_checktype(L, -1, LUA_TFUNCTION);
+    lua_pop(L, 1);
+  }
+  memset(&request, 0, sizeof(request));
+  request.method = string(L, 2, "method");
+  request.target = string(L, 2, "target");
+  request.content_type = string(L, 2, "content_type");
+  request.content_encoding = string(L, 2, "content_encoding");
+  lua_getfield(L, 2, "body");
+  request.body = luaL_optlstring(L, -1, "", &request.body_size);
+  storage = new_work(L);
+  lua_pushvalue(L, 3);
+  lua_setiuservalue(L, storage->index, 1);
+  lua_getiuservalue(L, 1, 1);
+  owner_index = lua_gettop(L);
+  begin(L, value->owner, owner_index);
+  value->busy = 1;
+  transport.user_data = storage;
+  transport.begin = http_begin;
+  transport.write = http_write;
+  transport.finish = http_finish;
+  transport.abort = http_abort;
+  status =
+      ailo_handler_handle(value->native, &request, &transport, &out, &error);
+  value->busy = 0;
+  end(value->owner);
+  release_work(storage);
+  if (status == AILO_OK && value->owner->cleanup_failed) {
+    status = AILO_IO_FAILED;
+    strcpy(error.message, "Repository cleanup callback failed");
+  }
+  if (storage->failed || value->owner->progress_failed) {
+    status = AILO_SINK_FAILED;
+    strcpy(error.message, "HTTP transport or model progress callback failed");
+  }
+  if (status != AILO_OK) {
+    failure(L, status, error.message);
+    handler_info(L, &out);
+    lua_setfield(L, -2, "info");
+    if (storage->failed)
+      cause(L, storage->index, 4);
+    else if (value->owner->progress_failed)
+      cause(L, owner_index, 3);
+    else if (value->owner->repository_failed)
+      cause(L, owner_index, 7);
+    if (value->owner->cleanup_failed) {
+      lua_getiuservalue(L, owner_index, 8);
+      lua_setfield(L, -2, "cleanup_cause");
+      lua_pushnil(L);
+      lua_setiuservalue(L, owner_index, 8);
+    }
+    lua_pushnil(L);
+    lua_setiuservalue(L, owner_index, 7);
+    return 2;
+  }
+  handler_info(L, &out);
+  return 1;
+}
 static int api_operation(lua_State *L, int operation) {
   client *value = get_client(L);
   int checked = ready(L, value);
+  size_t size;
+  const char *json;
+  int sink_index;
+  const char *id, *item;
+  const char *method, *target;
+  work *storage;
+  ailo_api_info out = {0};
+  ailo_error error = {0};
+  ailo_status status;
   if (checked)
     return checked;
-  size_t size = 0;
-  const char *json = luaL_checklstring(L, 2, &size);
+  size = 0;
+  json = luaL_checklstring(L, 2, &size);
   if (operation != 0 && operation != 3 && operation != 6 && operation != 7 &&
       operation != 15 && memchr(json, 0, size))
     return failure(L, AILO_INVALID_ARGUMENT, "completion ID contains NUL");
-  int sink_index = operation == 1 ? 4 : 3;
-  const char *id = json, *item = NULL;
-  const char *method = NULL, *target = NULL;
+  sink_index = operation == 1 ? 4 : 3;
+  id = json;
+  item = NULL;
+  method = NULL;
+  target = NULL;
   if (operation == 19) {
     size_t target_size = 0;
     method = json;
@@ -1790,17 +2222,19 @@ static int api_operation(lua_State *L, int operation) {
   if (operation == 1)
     luaL_checktype(L, 3, LUA_TBOOLEAN);
   luaL_checktype(L, sink_index, LUA_TFUNCTION);
-  work *storage = new_work(L);
-  for (int i = 1; i <= 3; ++i) {
-    lua_pushvalue(L, i == 1 ? sink_index : i == 2 ? 1 : 2);
-    lua_setiuservalue(L, storage->index, i);
+  storage = new_work(L);
+  {
+    int i = 1;
+    for (; i <= 3; ++i) {
+      lua_pushvalue(L, i == 1 ? sink_index : i == 2 ? 1 : 2);
+      lua_setiuservalue(L, storage->index, i);
+    }
   }
-  ailo_api_info out = {0};
-  ailo_error error = {0};
+
   lua_pushvalue(L, storage->index);
   lua_setiuservalue(L, 1, 10);
   begin(L, value, 1);
-  ailo_status status =
+  status =
       operation == 0
           ? ailo_client_chat_completions(value->native, json, size,
                                          api_bytes_sink, storage, &out, &error)
@@ -1934,16 +2368,19 @@ static int handle(lua_State *L) { return api_operation(L, 19); }
 static int metadata(lua_State *L, int kind) {
   client *value = get_client(L);
   int error_result = ready(L, value);
+  work *storage;
+  ailo_error error = {0};
+  ailo_status status;
   if (error_result)
     return error_result;
-  work *storage = new_work(L);
-  ailo_error error = {0};
+  storage = new_work(L);
+
   begin(L, value, 1);
-  ailo_status status =
-      kind == 0 ? ailo_client_model_card(value->native, &storage->json, &error)
-      : kind == 1
-          ? ailo_client_capabilities(value->native, &storage->json, &error)
-          : ailo_client_devices(value->native, &storage->json, &error);
+  status = kind == 0
+               ? ailo_client_model_card(value->native, &storage->json, &error)
+           : kind == 1
+               ? ailo_client_capabilities(value->native, &storage->json, &error)
+               : ailo_client_devices(value->native, &storage->json, &error);
   end(value);
   if (status != AILO_OK) {
     release_work(storage);
@@ -1966,14 +2403,15 @@ static int devices(lua_State *L) { return metadata(L, 2); }
 static int client_cache_operation(lua_State *L, int kind) {
   client *value = get_client(L);
   int failed = ready(L, value);
-  if (failed)
-    return failed;
   ailo_cache_stats output = {0};
   ailo_error error = {0};
+  ailo_status status;
+  if (failed)
+    return failed;
+
   begin(L, value, 1);
-  ailo_status status =
-      kind == 0 ? ailo_client_cache_stats(value->native, &output, &error)
-                : ailo_client_cache_clear(value->native, &error);
+  status = kind == 0 ? ailo_client_cache_stats(value->native, &output, &error)
+                     : ailo_client_cache_clear(value->native, &error);
   end(value);
   if (status != AILO_OK)
     return failure(L, status, error.message);
@@ -1991,15 +2429,19 @@ static int client_cache_clear(lua_State *L) {
 static int client_snapshot(lua_State *L, int importing) {
   client *value = get_client(L);
   int failed = ready(L, value);
+  const char *slot;
+  const char *key;
+  ailo_error error = {0};
+  ailo_status status;
   if (failed)
     return failed;
-  const char *slot = luaL_checkstring(L, 2);
-  const char *key = lua_isnoneornil(L, 3) ? NULL : luaL_checkstring(L, 3);
-  ailo_error error = {0};
+  slot = luaL_checkstring(L, 2);
+  key = lua_isnoneornil(L, 3) ? NULL : luaL_checkstring(L, 3);
+
   begin(L, value, 1);
-  ailo_status status =
-      importing ? ailo_client_snapshot_import(value->native, slot, key, &error)
-                : ailo_client_snapshot_export(value->native, slot, &error);
+  status = importing
+               ? ailo_client_snapshot_import(value->native, slot, key, &error)
+               : ailo_client_snapshot_export(value->native, slot, &error);
   end(value);
   if (status != AILO_OK) {
     if (value->progress_failed) {
@@ -2025,12 +2467,15 @@ static int cancel(lua_State *L) {
 }
 static int close_client(lua_State *L) {
   client *value = get_client(L);
-  if (value->busy)
+  if (value->busy || value->handlers)
     return failure(L, AILO_BUSY, "receiver is active");
   client_gc(L);
-  for (int i = 1; i <= 3; ++i) {
-    lua_pushnil(L);
-    lua_setiuservalue(L, 1, i);
+  {
+    int i = 1;
+    for (; i <= 3; ++i) {
+      lua_pushnil(L);
+      lua_setiuservalue(L, 1, i);
+    }
   }
   lua_pushboolean(L, 1);
   return 1;
@@ -2045,45 +2490,15 @@ static int version(lua_State *L) {
 #define EXPORT __attribute__((visibility("default")))
 #endif
 EXPORT int luaopen_ailo_core(lua_State *L) {
-  luaL_checkversion(L);
-  if (sizeof(lua_Integer) != 8)
-    return luaL_error(L, "ailo requires Lua 5.5 with 64-bit integers");
-  luaL_newmetatable(L, WORK);
-  lua_pushcfunction(L, work_gc);
-  lua_setfield(L, -2, "__gc");
-  lua_pop(L, 1);
-  luaL_newmetatable(L, CACHE);
   static const luaL_Reg cache_methods[] = {{"stats", cache_stats},
                                            {"clear", cache_clear},
                                            {"prune", cache_prune},
                                            {"close", close_cache},
                                            {NULL, NULL}};
-  luaL_setfuncs(L, cache_methods, 0);
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, cache_gc);
-  lua_setfield(L, -2, "__gc");
-  lua_pushcfunction(L, close_cache);
-  lua_setfield(L, -2, "__close");
-  lua_pushliteral(L, "ailo.cache");
-  lua_setfield(L, -2, "__metatable");
-  lua_pop(L, 1);
-  luaL_newmetatable(L, CONTINUATION);
   static const luaL_Reg continuation_methods[] = {
       {"append", continuation_append}, {"clone", continuation_clone},
       {"info", continuation_info},     {"visit", continuation_visit},
       {"close", continuation_close},   {NULL, NULL}};
-  luaL_setfuncs(L, continuation_methods, 0);
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, continuation_gc);
-  lua_setfield(L, -2, "__gc");
-  lua_pushcfunction(L, continuation_close);
-  lua_setfield(L, -2, "__close");
-  lua_pushliteral(L, "ailo.continuation");
-  lua_setfield(L, -2, "__metatable");
-  lua_pop(L, 1);
-  luaL_newmetatable(L, CLIENT);
   static const luaL_Reg methods[] = {
       {"generate", generate},
       {"chat_completions", chat_completions},
@@ -2106,6 +2521,7 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
       {"chat_messages_list", chat_messages_list},
       {"response_input_items_list", response_input_items_list},
       {"handle", handle},
+      {"new_handler", new_handler},
       {"new_continuation", new_continuation},
       {"compact", compact},
       {"model_card", card},
@@ -2118,6 +2534,61 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
       {"cancel", cancel},
       {"close", close_client},
       {NULL, NULL}};
+  static const luaL_Reg compactor_methods[] = {
+      {"info", compactor_info}, {"close", compactor_close}, {NULL, NULL}};
+  static const luaL_Reg module[] = {{"new", new_client},
+                                    {"new_cache", new_cache},
+                                    {"new_compactor", new_compactor},
+                                    {"version", version},
+                                    {NULL, NULL}};
+  luaL_checkversion(L);
+  if (sizeof(lua_Integer) != 8)
+    return luaL_error(L, "ailo requires Lua 5.5 with 64-bit integers");
+  luaL_newmetatable(L, WORK);
+  lua_pushcfunction(L, work_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pop(L, 1);
+  luaL_newmetatable(L, HANDLER);
+  {
+    static const luaL_Reg handler_methods[] = {
+        {"handle", handler_handle}, {"close", handler_close}, {NULL, NULL}};
+    luaL_setfuncs(L, handler_methods, 0);
+  }
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, handler_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pushcfunction(L, handler_close);
+  lua_setfield(L, -2, "__close");
+  lua_pushliteral(L, "ailo.handler");
+  lua_setfield(L, -2, "__metatable");
+  lua_pop(L, 1);
+  luaL_newmetatable(L, CACHE);
+
+  luaL_setfuncs(L, cache_methods, 0);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, cache_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pushcfunction(L, close_cache);
+  lua_setfield(L, -2, "__close");
+  lua_pushliteral(L, "ailo.cache");
+  lua_setfield(L, -2, "__metatable");
+  lua_pop(L, 1);
+  luaL_newmetatable(L, CONTINUATION);
+
+  luaL_setfuncs(L, continuation_methods, 0);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, continuation_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pushcfunction(L, continuation_close);
+  lua_setfield(L, -2, "__close");
+  lua_pushliteral(L, "ailo.continuation");
+  lua_setfield(L, -2, "__metatable");
+  lua_pop(L, 1);
+  luaL_newmetatable(L, CLIENT);
+
   luaL_setfuncs(L, methods, 0);
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
@@ -2127,8 +2598,7 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
   lua_setfield(L, -2, "__metatable");
   lua_pop(L, 1);
   luaL_newmetatable(L, COMPACTOR);
-  static const luaL_Reg compactor_methods[] = {
-      {"info", compactor_info}, {"close", compactor_close}, {NULL, NULL}};
+
   luaL_setfuncs(L, compactor_methods, 0);
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
@@ -2139,11 +2609,7 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
   lua_pushliteral(L, "ailo.compactor");
   lua_setfield(L, -2, "__metatable");
   lua_pop(L, 1);
-  static const luaL_Reg module[] = {{"new", new_client},
-                                    {"new_cache", new_cache},
-                                    {"new_compactor", new_compactor},
-                                    {"version", version},
-                                    {NULL, NULL}};
+
   luaL_newlib(L, module);
   return 1;
 }

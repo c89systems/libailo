@@ -132,6 +132,28 @@ int main(int argc, char **argv) {
         responses,
         R"({"input":[{"role":"assistant","content":[{"type":"output_text","text":"x","logprobs":[{"token":"x","logprob":1}]}]}]})",
         AILO_INVALID_ARGUMENT);
+    const std::string telemetry =
+        R"({"input":"Hi","client_metadata":{"namespace_id":"forged","turn_id":"test"},"metadata":{"purpose":"test"}})";
+    openai_request telemetry_request(responses, telemetry.data(),
+                                     telemetry.size(), "local-model");
+    CHECK(telemetry_request.metadata.size() == 1 &&
+          telemetry_request.metadata.at("purpose") == "test");
+    CHECK(telemetry_request.generation.item_count == 1);
+    reject(responses, R"({"input":"Hi","client_metadata":{"x":{}}})",
+           AILO_INVALID_ARGUMENT);
+    reject(responses, R"({"input":"Hi","client_metadata":{"x":1}})",
+           AILO_INVALID_ARGUMENT);
+    reject(responses, R"({"input":"Hi","client_metadata":null})",
+           AILO_INVALID_ARGUMENT);
+    reject(responses,
+           "{\"input\":\"Hi\",\"client_metadata\":{\"x\":\"" +
+               std::string(4097, 'x') + "\"}}",
+           AILO_INVALID_ARGUMENT);
+    std::string many_telemetry = "{\"input\":\"Hi\",\"client_metadata\":{";
+    for (unsigned n = 0; n < 17; ++n)
+      many_telemetry +=
+          (n ? "," : "") + std::string("\"k") + std::to_string(n) + "\":\"v\"";
+    reject(responses, many_telemetry + "}}", AILO_INVALID_ARGUMENT);
     std::string implicit = R"({"input":"Hi","tools":[
       {"type":"function","name":"implicit","parameters":{"type":"object","properties":{"x":{"type":"integer"},"nested":{"type":"object","properties":{"s":{"type":"string"}}}}}},
       {"type":"function","name":"explicit_false","strict":false,"parameters":{"type":"object"}},
