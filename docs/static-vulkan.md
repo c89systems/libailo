@@ -136,9 +136,14 @@ Bootlin resolver as the CMake build, explicit compiler sysroots and target-only
 pkg-config roots. Meson/Ninja/pkg-config are host prerequisites; ambient compiler
 flags and include/library search overrides are cleared for target builds.
 This command does not yet build Mesa or add libdrm to the shipped SDK.
-Upstream amdgpu marketing-name lookup still reads an external `amdgpu.ids`
-table using the configured install path. Embed that data before SDK integration;
-the current relocated consumer proves linkage and invalid-device handling only.
+The libdrm patch embeds its pinned marketing-name table as constant data, with
+no runtime `amdgpu.ids` file or environment override. The existing kernel
+`/proc/cpuinfo` fallback for integrated devices is retained. A CMake source
+generator checks the table format and PCI device/revision ranges before emitting
+the header; Meson tracks both the input and generator. Tests cover known and
+unknown IDs, revision-specific names, duplicate-row ordering, ignored external
+overrides and malformed generator inputs. The metadata tests execute on both
+x86-64 libc profiles; AArch64 currently has compile/link evidence only.
 
 Keep the already pinned Khronos headers/loader/SPIR-V headers coherent with
 the chosen Mesa version and prove generation/compilation compatibility.

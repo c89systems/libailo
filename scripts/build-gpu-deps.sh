@@ -14,7 +14,7 @@ done
 [[ "$component" == libdrm ]] || { printf 'gpu-deps: unknown component %s\n' "$component" >&2; exit 2; }
 jobs=${AILO_JOBS:-2}
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { printf 'gpu-deps: AILO_JOBS must be positive\n' >&2; exit 2; }
-for tool in meson ninja pkg-config; do
+for tool in cmake meson ninja pkg-config patch; do
   command -v "$tool" >/dev/null || { printf 'gpu-deps: required host tool missing: %s\n' "$tool" >&2; exit 2; }
 done
 "$root/scripts/cpkt-toolchains.sh" ensure "$target" >/dev/null
@@ -23,6 +23,11 @@ cmake -DAILO_TARGET_ID="$target" -P "$root/cmake/AiloMesonToolchain.cmake"
 base="$root/.cache/deps-build/$target/$component"
 prefix="$root/.cache/deps/$target/$component/install"
 cross="$root/build/deps/$target/meson.ini"
+patch_file="$root/vendor/libdrm/patches/0001-embed-marketing-names.patch"
+if ! patch --directory="$base/source" --dry-run --reverse --silent -p1 -i "$patch_file" >/dev/null 2>&1; then
+  patch --directory="$base/source" --batch --forward -p1 -i "$patch_file"
+fi
+cmake -E copy_if_different "$root/cmake/AiloEmbedDrmIds.cmake" "$base/source/amdgpu/ailo_embed_ids.cmake"
 # Ambient host include/library paths must not enter target dependency discovery.
 target_env=(env -u CFLAGS -u CXXFLAGS -u CPPFLAGS -u LDFLAGS -u CPATH
   -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH -u LIBRARY_PATH
@@ -39,3 +44,6 @@ configure=(setup)
   -Dcairo-tests=disabled -Dvalgrind=disabled -Dpkgconfig.relocatable=true
 "${target_env[@]}" meson compile -C "$base/build" -j "$jobs"
 "${target_env[@]}" meson install -C "$base/build" --no-rebuild
+# This data file is no longer part of this profile, including in an existing
+# owned dependency install prepared before the embedded-table cutover.
+cmake -E rm -f "$prefix/share/libdrm/amdgpu.ids"

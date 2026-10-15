@@ -60,6 +60,7 @@ Makefile
 README.md
 cmake/AiloArchive.cmake
 cmake/AiloDependencies.cmake
+cmake/AiloEmbedDrmIds.cmake
 cmake/AiloMesonToolchain.cmake
 cmake/meson-cross.ini.in
 cmake/AiloInstall.cmake
@@ -204,6 +205,7 @@ tests/native_storage.cpp
 tests/scalar-matrix/CMakeLists.txt
 tests/test_archive_cache.py
 tests/test_build_drivers.cmake
+tests/test_drm_ids.c
 tests/test_gpu_deps.c
 tests/test_gpu_deps.cmake
 tests/test_cache_defaults.cmake
@@ -234,6 +236,7 @@ vendor/llama/patches/0005-format-vulkan-handles-portably.patch
 vendor/llama/patches/0006-route-scoped-logging-through-workers.patch
 vendor/llama/patches/0007-expose-vulkan-physical-identity.patch
 vendor/llama/patches/series
+vendor/libdrm/patches/0001-embed-marketing-names.patch
 lua/CMakeLists.txt
 lua/README.md
 lua/ailo/init.lua
