@@ -48,7 +48,7 @@ local function guarded(fn, ...)
   return table.unpack(result,2,result.n)
 end
 local source_keys=keys("local_path repo revision filename cache_root sha256 allow_download split_shards bearer_token max_bytes connect_timeout_ms transfer_timeout_ms max_attempts progress")
-local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger")
+local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache")
 local backends={auto=0,cpu=1,vulkan=2}
 local function source(input)
   object(input,source_keys,"source")
@@ -100,15 +100,27 @@ function M.new(config)
     out.threads=number(config.threads,"threads",0,true,0,0x7fffffff)
     out.context_tokens=number(config.context_tokens,"context_tokens",0,true,0,0xffffffff)
     out.batch_tokens=number(config.batch_tokens,"batch_tokens",0,true,0,0xffffffff)
+    out.disable_prompt_cache=boolean(config.disable_prompt_cache,"disable_prompt_cache")
+    out.cache=config.cache
     local native,err=core.new(out)
     if not native then return nil,err end
     return setmetatable({_native=native},{__index=methods,__close=function(self) self:close() end})
   end)
 end
+function M.new_cache(config)
+  return guarded(function()
+    object(config,keys("namespace_id max_memory_bytes max_entries idle_ttl_seconds"),"cache")
+    return core.new_cache{
+      namespace_id=str(config.namespace_id,"namespace_id",false),
+      max_memory_bytes=number(config.max_memory_bytes,"max_memory_bytes",64*1024*1024,true,0,math.maxinteger),
+      max_entries=number(config.max_entries,"max_entries",8,true,0,4096),
+      idle_ttl_seconds=number(config.idle_ttl_seconds,"idle_ttl_seconds",300,true,0,0xffffffff)}
+  end)
+end
 local roles={user=0,system=1,developer=2,assistant=3,tool=4}
 local kinds={message=0,function_call=1,function_result=2,reasoning=3,compaction=4}
 local content_kinds={text=0,image=1,audio=2,refusal=3}
-local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls")
+local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls prompt_cache_key")
 local item_keys=keys("kind role id call_id name content arguments")
 local function request(input)
   object(input,request_keys,"request")
@@ -138,6 +150,7 @@ local function request(input)
   out.max_output_bytes=number(input.max_output_bytes,"max_output_bytes",0,true,0,math.maxinteger)
   out.output_format=enumeration(input.output_format,{text=0,json_object=1,json_schema=2},0,"output_format")
   out.json_schema=str(input.json_schema,"json_schema",true)
+  out.prompt_cache_key=str(input.prompt_cache_key,"prompt_cache_key",true)
   out.tool_choice=enumeration(input.tool_choice,{auto=0,none=1,required=2,named=3},0,"tool_choice")
   out.tool_name=str(input.tool_name,"tool_name",true)
   out.parallel_tool_calls=input.parallel_tool_calls==nil or boolean(input.parallel_tool_calls,"parallel_tool_calls")
@@ -177,7 +190,7 @@ function methods:generate(input,sink)
     return self._native:generate(request(input),sink)
   end)
 end
-for _,name in ipairs{"model_card","capabilities","devices","cancel","close"} do
+for _,name in ipairs{"model_card","capabilities","devices","cache_stats","cache_clear","cancel","close"} do
   methods[name]=function(self) return self._native[name](self._native) end
 end
 return M

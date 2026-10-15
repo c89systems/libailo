@@ -42,6 +42,16 @@ rg -q 'duplicate artifact' "$work/result"
 mkdir "$work/changed"
 tar -xzf "$work/original.tar.gz" -C "$work/changed"
 sdk="$work/changed/${name%.tar.gz}"
+cp "$sdk/PACKAGE-MANIFEST.sha256" "$work/complete-ledger"
+mv "$sdk/include/ailo/cache.h" "$work/cache-header"
+sed '\#  include/ailo/cache.h$#d' "$work/complete-ledger" > "$sdk/PACKAGE-MANIFEST.sha256"
+tar -czf "$work/changed/$name" -C "$work/changed" "${name%.tar.gz}"
+if "$root/scripts/verify_sdk_archive.sh" "$work/changed/$name" >"$work/result" 2>&1; then
+  printf 'package-test: SDK missing the cache header was accepted\n' >&2; exit 1
+fi
+rg -q 'missing required file include/ailo/cache.h' "$work/result"
+mv "$work/cache-header" "$sdk/include/ailo/cache.h"
+cp "$work/complete-ledger" "$sdk/PACKAGE-MANIFEST.sha256"
 printf 'corrupt\n' >> "$sdk/share/doc/ailo/LICENSE"
 tar -czf "$work/changed/$name" -C "$work/changed" "${name%.tar.gz}"
 if "$root/scripts/verify_sdk_archive.sh" "$work/changed/$name" >"$work/result" 2>&1; then

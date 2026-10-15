@@ -1,3 +1,4 @@
+#include "ailo_cache_internal.hpp"
 #include "ailo_client_internal.hpp"
 #include "ailo_logging_internal.hpp"
 #include <algorithm>
@@ -105,6 +106,17 @@ state::state(const ailo_client_config &input, pslog_logger *logger)
     throw failure(status, error.message);
   if (logger)
     logging = std::make_unique<logging_state>(logger, id);
+  if (input.cache && input.disable_prompt_cache)
+    throw failure(AILO_INVALID_ARGUMENT,
+                  "Choose an explicit cache or disable caching");
+  if (input.cache)
+    cache = retain_cache(input.cache);
+  else if (!input.disable_prompt_cache) {
+    auto options = ailo_cache_default_config();
+    options.namespace_id = "private";
+    cache = std::make_shared<cache_state>(options);
+  }
+  config.cache = nullptr; // the retained owner, not the caller's shell, is used
 }
 
 state::~state() {
@@ -180,7 +192,8 @@ void state::ensure_loaded() {
       cp.n_threads = cp.n_threads_batch = config.threads ? config.threads : 2;
       cp.abort_callback = abort_inference;
       cp.abort_callback_data = this;
-      context.reset(llama_init_from_model(model.get(), cp));
+      context_parameters = cp;
+      context = new_context();
     }
     if (cancelled.load()) {
       context.reset();
@@ -197,6 +210,10 @@ void state::ensure_loaded() {
     actual = AILO_BACKEND_CPU;
     selected.assign(1, nullptr);
   }
+}
+
+std::unique_ptr<llama_context, decltype(&llama_free)> state::new_context() {
+  return {llama_init_from_model(model.get(), context_parameters), llama_free};
 }
 
 operation::operation(ailo_client *client)
@@ -268,6 +285,8 @@ AILO_PUBLIC ailo_status ailo_client_new_with_logger(
     shell->model_card = ailo_client_model_card;
     shell->capabilities = ailo_client_capabilities;
     shell->devices = ailo_client_devices;
+    shell->cache_stats = ailo_client_cache_stats;
+    shell->cache_clear = ailo_client_cache_clear;
     shell->cancel = ailo_client_cancel;
     shell->destroy = ailo_client_destroy;
     *output = shell.release();
@@ -312,6 +331,28 @@ ailo_status json_operation(ailo_client *client, char **output,
 }
 } // namespace
 
+AILO_PUBLIC ailo_status ailo_client_cache_stats(ailo_client *client,
+                                                ailo_cache_stats *output,
+                                                ailo_error *error) {
+  if (output)
+    *output = {};
+  if (!output)
+    return ailo_error_set(error, AILO_INVALID_ARGUMENT,
+                          "Cache statistics output is required");
+  return ailo::client::boundary(error, [&]() {
+    ailo::client::operation call(client);
+    if (call.self.cache)
+      call.self.cache->stats(*output);
+  });
+}
+AILO_PUBLIC ailo_status ailo_client_cache_clear(ailo_client *client,
+                                                ailo_error *error) {
+  return ailo::client::boundary(error, [&]() {
+    ailo::client::operation call(client);
+    if (call.self.cache)
+      call.self.cache->clear();
+  });
+}
 AILO_PUBLIC ailo_status ailo_client_model_card(ailo_client *client,
                                                char **output,
                                                ailo_error *error) {

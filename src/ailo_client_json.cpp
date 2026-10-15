@@ -137,7 +137,13 @@ void feature_fields(json &out) {
   out.key("compaction");
   out.boolean(false);
   out.key("prompt_cache");
-  out.boolean(false);
+  out.boolean(true);
+  out.key("default_prompt_cache_bytes");
+  out.number(64 * 1024 * 1024);
+  out.key("default_prompt_cache_entries");
+  out.number(8);
+  out.key("default_prompt_cache_idle_seconds");
+  out.number(300);
   out.key("persistent_snapshots");
   out.boolean(false);
   out.key("media");

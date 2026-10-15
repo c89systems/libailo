@@ -37,6 +37,16 @@ local mutated=request()
 ok(client:generate(mutated,function()mutated.items=nil;mutated.logit_bias=nil;collectgarbage("collect")end))
 assert(client:close() and client:close())
 collectgarbage("collect");assert(not weak[1])
+do
+  local cache=ok(ailo.new_cache{namespace_id="memory-tenant"})
+  local weak_cache=setmetatable({cache},{__mode="v"})
+  local cached=ok(ailo.new(config{cache=cache}))
+  ok(cached:generate(request(),function()end))
+  cache=nil;collectgarbage("collect");assert(not weak_cache[1])
+  assert(ok(cached:generate(request(),function()end)).usage.cached_tokens>0)
+  local stats=ok(cached:cache_stats());assert(stats.entries>0)
+  assert(cached:cache_clear());cached:close()
+end
 -- The new tool/allowed-name arrays and protected argument callback share the
 -- same work userdata ownership, including a failure after native generation.
 do

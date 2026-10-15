@@ -1,6 +1,7 @@
 #ifndef AILO_CLIENT_H
 #define AILO_CLIENT_H
 
+#include "ailo/cache.h"
 #include "ailo/model.h"
 #include <stddef.h>
 
@@ -80,6 +81,10 @@ typedef struct ailo_client_config {
   ailo_u32 batch_tokens;
   /** Zero selects two CPU threads. */
   int threads;
+  /** NULL creates a private default cache. An explicit owner is retained. */
+  ailo_cache *cache;
+  /** Disable the private default cache; cannot accompany an explicit owner. */
+  ailo_bool disable_prompt_cache;
 } ailo_client_config;
 
 typedef struct ailo_logit_bias {
@@ -158,6 +163,9 @@ typedef struct ailo_request {
   ailo_bool parallel_tool_calls;
   /** Per candidate, zero selects 128 (one when parallel calls are disabled). */
   size_t max_tool_calls;
+  /** Optional application partition within the explicit/private owner. UTF-8,
+   * at most 256 bytes. Never bypasses token/model/configuration identity. */
+  const char *prompt_cache_key;
 } ailo_request;
 
 typedef enum ailo_finish_reason {
@@ -265,6 +273,8 @@ struct ailo_client {
   ailo_status (*model_card)(ailo_client *, char **, ailo_error *);
   ailo_status (*capabilities)(ailo_client *, char **, ailo_error *);
   ailo_status (*devices)(ailo_client *, char **, ailo_error *);
+  ailo_status (*cache_stats)(ailo_client *, ailo_cache_stats *, ailo_error *);
+  ailo_status (*cache_clear)(ailo_client *, ailo_error *);
   void (*cancel)(ailo_client *);
   void (*destroy)(ailo_client *);
 };
@@ -290,6 +300,9 @@ ailo_status ailo_client_generate(ailo_client *client,
                                  const ailo_request *request,
                                  ailo_event_sink sink, void *user_data,
                                  ailo_run_info *output, ailo_error *error);
+ailo_status ailo_client_cache_stats(ailo_client *, ailo_cache_stats *,
+                                    ailo_error *);
+ailo_status ailo_client_cache_clear(ailo_client *, ailo_error *);
 /** Owned JSON outputs; release with ailo_string_free. model_card forces a
  * configured lazy load; devices and capabilities never download model files. */
 ailo_status ailo_client_model_card(ailo_client *client, char **output,

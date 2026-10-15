@@ -97,13 +97,70 @@ support means the named helper recognizes it or the interpreter can parse it;
 rendering can still reject a conversation the template does not accept.
 
 Capabilities currently advertise text, streaming, multiple candidates, logit
-bias, log probabilities and constrained output, with their limits.
-Tool generation, separated reasoning, media, prompt/KV reuse,
-persistent snapshots and compaction are reported unavailable. Reasoning, media
+bias, log probabilities, constrained output, qualified tool generation and
+bounded prompt/KV reuse, with their limits.
+Separated reasoning, media, persistent snapshots and compaction are reported
+unavailable. Reasoning, media
 and compaction input kinds return unsupported rather than losing semantics.
 Completed function histories are supported as described below. The rest remain
-implementation requirements in the full specification; no cache/compaction or
+implementation requirements in the full specification; no durable snapshots,
+compaction or
 protocol handler is claimed by this initial core.
+
+## Prompt/KV cache
+
+Every client gets a private in-memory cache by default: 64 MiB, eight entries,
+and 300 seconds idle expiry. `disable_prompt_cache` disables it. An explicit
+`ailo_cache` receiver can be attached with `config.cache`; the client retains
+its owner so the caller can destroy the shell afterwards. Explicit owners
+require a trusted application `namespace_id`; there is no global tenant cache.
+Use `ailo_cache_default_config()` then change bounds as needed. Zero memory,
+entry or TTL limits disable storage. Expiry is checked on cache operations;
+there is no background worker.
+
+This cache stores prompt checkpoints, not generated answers or retained API
+records. It never writes files or deletes model weights. `prompt_cache_key`
+adds a request partition within the owner; it does not authorize access or
+override identity. Identity binds actual model/shard bytes (verified digests
+or hashes), tokenizer/template, native patches/build/settings, effective
+context and actual device/layer placement. Loaded model files must remain
+immutable for the client's lifetime, as required by native memory mapping.
+
+Checkpoints stop before the last prompt token. A hit restores host-portable
+sequence data into a disposable matching context and replays the final token
+to obtain logits. Full-attention models can trim to a shorter common prefix;
+sliding-window, hybrid and recurrent models reuse only a whole saved prefix,
+never a rewind of partial recurrent state. A failed native restore is evicted
+and recomputed using the unchanged live context. Busy shared owners are
+bypassed. Samplers, grammar and output parsers are always fresh per candidate.
+
+`usage.cached_tokens` reports skipped evaluation in the first candidate;
+`prompt_tokens` still reports the complete logical prompt. Owner statistics
+count cache operations and evaluated/cached tokens across candidates/clients,
+with entries, charged memory, evictions, oversize/invalid/busy skips, lookup,
+capture and total prefill microseconds. Timing components overlap; they are
+not billing data. Read them through the cache receiver or client `cache_stats`;
+`clear`/`prune` affect only KV entries. Client operations retain the normal busy
+contract. Cache methods return busy on overlap; inference never waits for a
+cache lock.
+
+The memory charge includes serialized native buffers, tokens and entry metadata. Oversized
+states are skipped before allocating their payload; eviction happens before a
+new buffer is allocated. Native state serialization materializes one bounded
+state buffer before generation and is not described as streaming export.
+The disposable restore context temporarily coexists with the live context;
+model/context allocations are separate from this cache budget. If allocation
+fails, inference recomputes with its live context. Buffers and tokens are wiped
+on eviction. Default cache hits/identity/trim/
+expiry/limits/corruption fallback are tested on the deterministic full-attention
+fixture; other architecture and GPU qualification remains separate.
+Encrypted disk snapshots and OpenAI response retention are separate required
+features and are not implemented by this memory cache.
+
+The cached SmolLM2-135M instruct model was also checked through the installed
+Lua ABI: a warm request reused 40 of 41 prompt tokens, evaluated only the final
+prompt token, and matched the cold run's generated token IDs and log
+probabilities (tolerance 1e-6). The serialized cache entry charged 923,207 bytes.
 
 ## Conversation and function history
 

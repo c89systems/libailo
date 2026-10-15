@@ -20,9 +20,10 @@ callback adapters and callable native views; no gaps remain in
 download/cache helpers are implemented in [include/ailo/model.h](include/ailo/model.h).
 The initial inference receiver is implemented in [include/ailo/client.h](include/ailo/client.h):
 model acquisition/loading, Jinja templates, real token streaming, sampling,
-multiple candidates, cancellation, model cards and device/capability queries.
+multiple candidates, log probabilities, constrained JSON, generated function
+calls, bounded prompt/KV reuse, cancellation, model cards and capability queries.
 [docs/client.md](docs/client.md) describes its supported surface and verification.
-Tools/schema support, inference caching, snapshots, compaction, protocol adapters
+Encrypted snapshots, compaction, protocol adapters
 and release completeness remain pending. Native install-tree CMake/pkg-config
 consumers are available.
 

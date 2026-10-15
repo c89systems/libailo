@@ -32,6 +32,7 @@ struct source_copy {
 };
 
 struct logging_state;
+struct cache_state;
 
 struct state {
   std::mutex mutex;
@@ -49,9 +50,13 @@ struct state {
   bool backend_owned = false;
   bool progress_failed = false;
   std::unique_ptr<logging_state> logging;
+  std::shared_ptr<cache_state> cache;
+  std::string cache_identity;
+  llama_context_params context_parameters{};
   explicit state(const ailo_client_config &input, pslog_logger *logger);
   ~state();
   void ensure_loaded();
+  std::unique_ptr<llama_context, decltype(&llama_free)> new_context();
 };
 
 template <typename Work> ailo_status boundary(ailo_error *error, Work work) {

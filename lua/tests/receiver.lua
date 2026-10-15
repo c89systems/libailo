@@ -9,6 +9,26 @@ local function config(extra)
   return c
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
+do
+  fails("invalid_argument",function()return ailo.new_cache{}end)
+  local cache=ok(ailo.new_cache{namespace_id="lua-tenant",max_entries=2})
+  local first=ok(ailo.new(config{cache=cache}))
+  local second=ok(ailo.new(config{cache=cache}))
+  local cold=ok(first:generate(request(),function()end));assert(cold.usage.cached_tokens==0)
+  local warm=ok(second:generate(request(),function()end));assert(warm.usage.cached_tokens==warm.usage.prompt_tokens-1)
+  local stats=ok(cache:stats());assert(stats.hits==1 and stats.misses==1 and stats.entries==1)
+  local partition=request();partition.prompt_cache_key="another-application"
+  assert(ok(first:generate(partition,function()end)).usage.cached_tokens==0)
+  assert(cache:prune());assert(cache:close() and cache:close())
+  fails("invalid_argument",function()return cache:stats()end)
+  fails("invalid_argument",function()return ailo.new(config{cache=cache})end)
+  assert(ok(first:generate(request(),function()end)).usage.cached_tokens>0)
+  assert(first:cache_clear() and ok(second:cache_stats()).entries==0)
+  first:close();second:close()
+  local disabled=ok(ailo.new(config{disable_prompt_cache=true}))
+  ok(disabled:generate(request(),function()end));assert(ok(disabled:generate(request(),function()end)).usage.cached_tokens==0)
+  assert(ok(disabled:cache_stats()).entries==0);disabled:close()
+end
 local tool_template=[[{% if tools %}{{ tools | tojson }}{% endif %}{% for m in messages %}{{ m.role }}:{{ m.content }}{% if m.tool_calls is defined %}{% for c in m.tool_calls %}<call>{"name":{{ c.function.name | tojson }},"arguments":{% if c.function.arguments is string %}{{ c.function.arguments }}{% else %}{{ c.function.arguments | tojson }}{% endif %}}</call>{% endfor %}{% endif %}|{% endfor %}{% if add_generation_prompt %}assistant:{% endif %}]]
 do
   local tools=ok(ailo.new(config{chat_template=tool_template,context_tokens=1024}))

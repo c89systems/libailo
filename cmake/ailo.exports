@@ -1,3 +1,11 @@
+ailo_cache_clear
+ailo_cache_default_config
+ailo_cache_destroy
+ailo_cache_get_stats
+ailo_cache_new
+ailo_cache_prune
+ailo_client_cache_clear
+ailo_client_cache_stats
 ailo_client_cancel
 ailo_client_capabilities
 ailo_client_default_config

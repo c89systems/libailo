@@ -39,6 +39,26 @@ Constructor options also include `model_id`, `chat_template`, `lazy`, backend
 and an optional pslog `logger`. Defaults match the C factories. Unknown keys,
 wrong types, holes and out-of-range values return `nil, error`.
 
+Each client has a private prompt/KV cache (64 MiB/eight entries/300 seconds idle).
+Set `disable_prompt_cache=true` to disable it, or attach an explicit owner:
+
+```lua
+local cache = assert(ailo.new_cache {namespace_id="trusted-tenant", max_entries=4})
+local client = assert(ailo.new {source={local_path="model.gguf"}, cache=cache})
+cache:close() -- client retains the underlying owner
+local stats = assert(client:cache_stats())
+assert(client:cache_clear())
+client:close()
+```
+
+`new_cache` also accepts `max_memory_bytes` and `idle_ttl_seconds`; zero in any
+limit disables storage. Its `stats`, `clear`, `prune` and idempotent `close`
+methods never download weights. Requests can supply `prompt_cache_key` to
+partition entries; identity/configuration checks still apply. Statistics expose
+hits/misses/evictions, cached/evaluated token counts, bytes and microseconds;
+`usage.cached_tokens` counts actually skipped evaluation in the first candidate.
+This memory cache does not retain response records or create disk snapshots.
+
 Requests contain ordered `items` (kind, role, id, call_id, name, arguments and
 content), `max_tokens`, `candidates`, `temperature`, `top_p`, `seed`,
 `frequency_penalty`, `presence_penalty`, `stop`, `max_output_bytes`, `output_format`

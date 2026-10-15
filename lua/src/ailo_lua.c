@@ -11,6 +11,10 @@
 
 #define CLIENT "ailo.client"
 #define WORK "ailo.work"
+#define CACHE "ailo.cache"
+typedef struct cache {
+  ailo_cache *native;
+} cache;
 typedef int (*check_logger_fn)(lua_State *, int, pslog_lua_logger_view *);
 typedef int (*ref_logger_fn)(lua_State *, int, const pslog_field *, size_t,
                              pslog_lua_logger_ref *);
@@ -124,6 +128,74 @@ static int boolean(lua_State *L, int index, const char *key) {
   lua_pop(L, 1);
   return value;
 }
+static int cache_gc(lua_State *L) {
+  cache *value = luaL_checkudata(L, 1, CACHE);
+  ailo_cache_destroy(value->native);
+  value->native = NULL;
+  return 0;
+}
+static int close_cache(lua_State *L) {
+  cache_gc(L);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+static int new_cache(lua_State *L) {
+  luaL_checktype(L, 1, LUA_TTABLE);
+  cache *value = lua_newuserdatauv(L, sizeof(*value), 0);
+  value->native = NULL;
+  luaL_setmetatable(L, CACHE);
+  ailo_cache_config config = ailo_cache_default_config();
+  config.namespace_id = string(L, 1, "namespace_id");
+  config.max_memory_bytes = (size_t)integer(L, 1, "max_memory_bytes");
+  config.max_entries = (size_t)integer(L, 1, "max_entries");
+  config.idle_ttl_seconds = (ailo_u32)integer(L, 1, "idle_ttl_seconds");
+  ailo_error error = {0};
+  ailo_status status = ailo_cache_new(&config, &value->native, &error);
+  if (status != AILO_OK)
+    return failure(L, status, error.message);
+  return 1;
+}
+static int cache_statistics(lua_State *L, const ailo_cache_stats *value) {
+  lua_createtable(L, 0, 13);
+#define COUNT(name)                                                            \
+  push_u64(L, value->name);                                                    \
+  lua_setfield(L, -2, #name)
+  COUNT(hits);
+  COUNT(misses);
+  COUNT(evictions);
+  COUNT(oversized);
+  COUNT(invalid);
+  COUNT(busy_skips);
+  COUNT(cached_tokens);
+  COUNT(evaluated_tokens);
+  COUNT(lookup_microseconds);
+  COUNT(capture_microseconds);
+  COUNT(prefill_microseconds);
+#undef COUNT
+  set_integer(L, "entries", (lua_Integer)value->entries);
+  set_integer(L, "memory_bytes", (lua_Integer)value->memory_bytes);
+  return 1;
+}
+static int cache_operation(lua_State *L, int kind) {
+  cache *value = luaL_checkudata(L, 1, CACHE);
+  if (!value->native)
+    return failure(L, AILO_INVALID_ARGUMENT, "cache is closed");
+  ailo_cache_stats output = {0};
+  ailo_error error = {0};
+  ailo_status status =
+      kind == 0   ? ailo_cache_get_stats(value->native, &output, &error)
+      : kind == 1 ? ailo_cache_clear(value->native, &error)
+                  : ailo_cache_prune(value->native, &error);
+  if (status != AILO_OK)
+    return failure(L, status, error.message);
+  if (kind == 0)
+    return cache_statistics(L, &output);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+static int cache_stats(lua_State *L) { return cache_operation(L, 0); }
+static int cache_clear(lua_State *L) { return cache_operation(L, 1); }
+static int cache_prune(lua_State *L) { return cache_operation(L, 2); }
 static void release_work(work *value) {
   free(value->items);
   free(value->content);
@@ -298,6 +370,15 @@ static int new_client(lua_State *L) {
   config.threads = (int)integer(L, 1, "threads");
   config.context_tokens = (ailo_u32)integer(L, 1, "context_tokens");
   config.batch_tokens = (ailo_u32)integer(L, 1, "batch_tokens");
+  config.disable_prompt_cache = boolean(L, 1, "disable_prompt_cache");
+  lua_getfield(L, 1, "cache");
+  if (!lua_isnil(L, -1)) {
+    cache *owner = luaL_checkudata(L, -1, CACHE);
+    if (!owner->native)
+      return failure(L, AILO_INVALID_ARGUMENT, "cache is closed");
+    config.cache = owner->native;
+  }
+  lua_pop(L, 1);
   lua_getfield(L, 1, "source");
   int s = lua_gettop(L);
   luaL_checktype(L, s, LUA_TTABLE);
@@ -484,6 +565,7 @@ static int generate(lua_State *L) {
   request.max_output_bytes = (size_t)integer(L, 2, "max_output_bytes");
   request.output_format = (ailo_output_format)integer(L, 2, "output_format");
   request.json_schema = string(L, 2, "json_schema");
+  request.prompt_cache_key = string(L, 2, "prompt_cache_key");
   request.tool_choice = (ailo_tool_choice)integer(L, 2, "tool_choice");
   request.tool_name = string(L, 2, "tool_name");
   request.parallel_tool_calls = boolean(L, 2, "parallel_tool_calls");
@@ -644,6 +726,31 @@ static int metadata(lua_State *L, int kind) {
 static int card(lua_State *L) { return metadata(L, 0); }
 static int capabilities(lua_State *L) { return metadata(L, 1); }
 static int devices(lua_State *L) { return metadata(L, 2); }
+static int client_cache_operation(lua_State *L, int kind) {
+  client *value = get_client(L);
+  int failed = ready(L, value);
+  if (failed)
+    return failed;
+  ailo_cache_stats output = {0};
+  ailo_error error = {0};
+  begin(L, value, 1);
+  ailo_status status =
+      kind == 0 ? ailo_client_cache_stats(value->native, &output, &error)
+                : ailo_client_cache_clear(value->native, &error);
+  end(value);
+  if (status != AILO_OK)
+    return failure(L, status, error.message);
+  if (kind == 0)
+    return cache_statistics(L, &output);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+static int client_cache_stats(lua_State *L) {
+  return client_cache_operation(L, 0);
+}
+static int client_cache_clear(lua_State *L) {
+  return client_cache_operation(L, 1);
+}
 static int cancel(lua_State *L) {
   client *value = get_client(L);
   if (value->native)
@@ -680,11 +787,29 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
   lua_pushcfunction(L, work_gc);
   lua_setfield(L, -2, "__gc");
   lua_pop(L, 1);
+  luaL_newmetatable(L, CACHE);
+  static const luaL_Reg cache_methods[] = {{"stats", cache_stats},
+                                           {"clear", cache_clear},
+                                           {"prune", cache_prune},
+                                           {"close", close_cache},
+                                           {NULL, NULL}};
+  luaL_setfuncs(L, cache_methods, 0);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, cache_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pushcfunction(L, close_cache);
+  lua_setfield(L, -2, "__close");
+  lua_pushliteral(L, "ailo.cache");
+  lua_setfield(L, -2, "__metatable");
+  lua_pop(L, 1);
   luaL_newmetatable(L, CLIENT);
   static const luaL_Reg methods[] = {{"generate", generate},
                                      {"model_card", card},
                                      {"capabilities", capabilities},
                                      {"devices", devices},
+                                     {"cache_stats", client_cache_stats},
+                                     {"cache_clear", client_cache_clear},
                                      {"cancel", cancel},
                                      {"close", close_client},
                                      {NULL, NULL}};
@@ -696,8 +821,10 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
   lua_pushliteral(L, "ailo.client");
   lua_setfield(L, -2, "__metatable");
   lua_pop(L, 1);
-  static const luaL_Reg module[] = {
-      {"new", new_client}, {"version", version}, {NULL, NULL}};
+  static const luaL_Reg module[] = {{"new", new_client},
+                                    {"new_cache", new_cache},
+                                    {"version", version},
+                                    {NULL, NULL}};
   luaL_newlib(L, module);
   return 1;
 }

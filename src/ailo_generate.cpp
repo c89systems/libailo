@@ -1,3 +1,4 @@
+#include "ailo_cache_internal.hpp"
 #include "ailo_client_internal.hpp"
 #include "ailo_conversation_internal.hpp"
 #include "ailo_sampling_internal.hpp"
@@ -125,7 +126,7 @@ struct emitter {
 };
 
 void evaluate(state &self, const llama_token *tokens, size_t size,
-              size_t position) {
+              size_t position, bool prompt = false) {
   const size_t batch_size = llama_n_batch(self.context.get());
   for (size_t offset = 0; offset < size;) {
     if (self.cancelled.load())
@@ -148,6 +149,8 @@ void evaluate(state &self, const llama_token *tokens, size_t size,
     if (llama_decode(self.context.get(), batch))
       throw failure(self.cancelled.load() ? AILO_CANCELLED : AILO_MODEL_FAILED,
                     "Native token evaluation failed");
+    if (prompt && self.cache)
+      self.cache->evaluated_tokens.fetch_add(static_cast<size_t>(n));
     offset += static_cast<size_t>(n);
   }
 }
@@ -181,6 +184,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     stops.emplace_back(request.stop[i], size);
   }
   const auto answer_grammar = output_grammar(request);
+  const auto partition = cache_partition(request.prompt_cache_key);
   auto tools = prepare_tools(request);
   const auto input = prepare_conversation(request);
   const std::string prompt = render(self, input, tools);
@@ -200,6 +204,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   if (llama_tokenize(vocab, prompt.data(), static_cast<int32_t>(prompt.size()),
                      tokens.data(), count, true, true) != count)
     throw failure(AILO_MODEL_FAILED, "Prompt tokenization failed");
+  identify_cache(self);
   info.usage.prompt_tokens =
       detail::from_unsigned(static_cast<uint64_t>(count));
   info.actual_backend = self.actual;
@@ -223,7 +228,30 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     output.send(AILO_EVENT_CHOICE_BEGIN);
     if (tools.definitions.empty())
       output.begin_message();
-    evaluate(self, tokens.data(), tokens.size(), 0);
+    {
+      struct prefill_timing {
+        cache_state *cache;
+        std::chrono::steady_clock::time_point start =
+            std::chrono::steady_clock::now();
+        ~prefill_timing() {
+          if (cache)
+            cache->prefill_microseconds.fetch_add(elapsed_us(start));
+        }
+      } timing{self.cache.get()};
+      const size_t reused =
+          self.cache ? self.cache->restore(self, tokens, partition) : 0;
+      if (!candidate)
+        info.usage.cached_tokens = detail::from_unsigned(reused);
+      const size_t checkpoint = tokens.size() - 1;
+      if (reused < checkpoint)
+        evaluate(self, tokens.data() + reused, checkpoint - reused, reused,
+                 true);
+      if (self.cache)
+        self.cache->capture(self, tokens, checkpoint, partition);
+      // Sequence states don't include fresh logits. Always replay the last
+      // token.
+      evaluate(self, tokens.data() + checkpoint, 1, checkpoint, true);
+    }
     std::unique_ptr<sampling> additional;
     if (candidate)
       additional = std::make_unique<sampling>(
