@@ -6,6 +6,7 @@ gpu-tools                        Build pinned host shader tools and matching Mes
 test-gpu-tools                   Verify real shader compilation and invalid-input failures.
 gpu-deps [TARGET=id]              Build static libdrm core/amdgpu with pinned Bootlin.
 test-gpu-deps [TARGET=id]         Check relocated static dependency linkage (no GPU needed).
+test-static-mesa [TARGET=id]      Build/check static RADV/ANV, common archives and relocation.
 build [PRESET=name]                Build through serialized Bash/CMake drivers.
                                   PRESET=library excludes Python test/tool checks.
 build-debug                       Build default Vulkan+CPU configuration.

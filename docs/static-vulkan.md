@@ -1,6 +1,6 @@
 # Static Vulkan implementation and acceptance contract
 
-Updated 2026-10-14. This extends [architecture.md](architecture.md).
+Updated 2026-10-15. This extends [architecture.md](architecture.md).
 Implement the complete CPU/RADV/ANV deployment and multi-GPU layer splitting,
 then test it thoroughly. The investigation establishes an implementation path;
 it does not establish an already working static GPU artifact.
@@ -8,8 +8,9 @@ it does not establish an already working static GPU artifact.
 Receiver placement controls are implemented: copied UUID selection and weights,
 layer/single-device strategies, explicit no-fallback commitments, positive
 participant ownership/residency checks, and detailed model-card allocations.
-See [the receiver contract](client.md#gpu-placement). The static driver/dispatch
-build below remains required implementation; these controls do not establish it.
+See [the receiver contract](client.md#gpu-placement). Static RADV/ANV dependency
+archives now build across the four Linux targets. Built-in loader dispatch and
+integration into libailo and its SDK remain required implementation.
 
 Focused 2026-10-15 foundation evidence used the existing shared-driver build on
 Intel Graphics RPL-U, ANV, PCI `0000:00:02.0`, device UUID
@@ -84,9 +85,12 @@ sizes, startup time, pipeline compilation latency and peak RSS in qualification.
 
 Retain the pinned Khronos loader's existing Vulkan handle dispatch and multi-ICD
 machinery. Apply a focused static integration rather than implementing a new
-Vulkan loader. Mesa 26.2.4 builds its final RADV and ANV drivers with
-shared_library; change the selected driver products to private static archives,
-with PIC variants suitable for shared libailo.
+Vulkan loader. Mesa 26.2.4 normally builds its final RADV and ANV drivers with
+shared_library. The selected profile changes these to private static PIC
+archives suitable for both standalone executables and shared libailo. Common
+runtime/compiler archives are installed separately and linked once; the two ICD
+entrypoints are namespaced as `ailo_radv_icdGetInstanceProcAddr` and
+`ailo_anv_icdGetInstanceProcAddr`.
 
 Create a built-in registry of independently namespaced RADV and ANV provider
 entrypoints. Reuse the loader's
@@ -135,7 +139,13 @@ and its ELF dependencies. The four supported Linux targets use the same pinned
 Bootlin resolver as the CMake build, explicit compiler sysroots and target-only
 pkg-config roots. Meson/Ninja/pkg-config are host prerequisites; ambient compiler
 flags and include/library search overrides are cleared for target builds.
-This command does not yet build Mesa or add libdrm to the shipped SDK.
+`make test-static-mesa TARGET=<id>` additionally prepares the matching host tools,
+builds both Mesa drivers and checks a relocated, fully static dependency
+consumer. Mesa's installed `ailo-mesa.pc` supplies the complete archive order,
+including one copy of its common runtime. The probe directly creates an instance
+for each provider and enumerates device properties; it does not execute shaders
+or use the libailo dispatcher. Neither command adds these archives to the shipped
+SDK yet.
 The libdrm patch embeds its pinned marketing-name table as constant data, with
 no runtime `amdgpu.ids` file or environment override. The existing kernel
 `/proc/cpuinfo` fallback for integrated devices is retained. A CMake source
@@ -209,12 +219,16 @@ ANV initializes device UUIDs by locating its ELF build-ID note through Mesa's
 build_id_find_nhdr_for_addr. That uses dladdr/dl_iterate_phdr and cannot simply
 be assumed to work in static musl. ANV initialization fails if the note is absent
 or too short. Supply a deterministic embedded per-driver build identity and
-adapt UUID/cache identity generation to use it. RADV already has a
+adapt UUID/cache identity generation to use it. This adaptation is implemented
+for the selected profile. RADV already has a
 RADV_BUILD_ID_OVERRIDE path. Include source revision, patches and relevant
 compiler/configuration identity in the input; preserve the upstream device and
 configuration contributions to cache UUIDs. Disabling disk cache does not remove
 this initialization requirement. Prove reproducibility and invalidation when
-shader/compiler inputs change, without runtime DSO introspection.
+shader/compiler inputs change, without runtime DSO introspection. Focused tests
+verify unchanged-input identity and file timestamp stability, distinct provider
+identities, and invalidation on compiler or target changes. Binding this closure
+to libailo's inference-cache identity remains part of SDK/backend integration.
 
 ANV also conditionally supports flushing noncoherent host-visible memory under
 SUPPORT_INTEL_INTEGRATED_GPUS. Otherwise such a memory configuration fails
@@ -320,7 +334,16 @@ The existing foundation compiled CPU/Vulkan SDKs across the four targets and
 ran native synthetic GPU inference through a shared loader and host Intel driver.
 The source audit identified permissible RADV/ANV dependency profiles, the
 embedded shader measurement and the static integration changes above. libdrm
-core/amdgpu now build as static archives for all four Linux targets. Mesa
-drivers and built-in dispatch remain unimplemented. Receiver placement and
-model-card reporting have trained-model proof through the host Intel driver,
-as recorded above; this does not qualify the static drivers or multi-GPU use.
+core/amdgpu and the selected static RADV/ANV profile now build for all four Linux
+targets. Their relocated static consumers pass archive, metadata and ELF checks:
+no dynamic interpreter or `DT_NEEDED`, no shared driver or ICD manifest payload,
+one copy of selected common runtime/compiler symbols, and no unresolved dynamic
+loading, ELF, LLVM or OpenMP dependency in the Mesa archives. Both x86-64 libc
+profiles create instances for each provider and enumerate one Intel Graphics
+RPL-U device through ANV and zero devices through RADV. AArch64 evidence is
+compile/link only.
+
+Built-in loader dispatch, SDK integration and static-driver trained inference
+remain pending. Receiver placement and model-card reporting have trained-model
+proof through the host Intel driver, as recorded above; this does not qualify
+the static drivers, AMD execution or multi-GPU use.

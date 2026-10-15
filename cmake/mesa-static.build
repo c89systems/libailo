@@ -1,0 +1,26 @@
+# Link the complete native dependency graph, including both ICDs and one copy
+# of Mesa's shared runtime/compiler libraries. This is a dependency probe, not
+# the libailo dispatcher or an installed public API.
+executable(
+  'ailo-static-icds', 'static_icds.c',
+  include_directories : [inc_include, inc_src],
+  link_with : [libvulkan_radeon, libvulkan_intel],
+  link_whole : [libvulkan_lite_runtime, libvulkan_runtime, libvulkan_instance, libvulkan_wsi],
+  link_args : ['-static'],
+  install : false,
+)
+
+pkg.generate(
+  name : 'ailo-mesa',
+  filebase : 'ailo-mesa',
+  description : 'Private headless static RADV/ANV closure',
+  libraries : ['-Wl,--start-group', '-Wl,--whole-archive', libvulkan_lite_runtime, libvulkan_runtime,
+               libvulkan_instance, libvulkan_wsi, '-Wl,--no-whole-archive',
+               libvulkan_radeon, libvulkan_intel, libamd_common, libamdgpu_addrlib,
+               _libmesa_util, libmesa_util_simd, blake3, _libmesa_util_c11,
+               _libnir, libcompiler, _libaco, libvulkan_util, _libxmlconfig, libvtn,
+               libisl, libintel_dev, libintel_perf, libintel_shaders, libblorp,
+               libintel_compiler_gen, _libmda, libintel_common, libintel_driver_ds,
+               libintel_compiler_brw, libintel_compiler_nir, libintel_decoder_gen,
+               libintel_decoder, libintel_compiler_jay, '-Wl,--end-group'],
+)

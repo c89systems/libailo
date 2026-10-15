@@ -1,0 +1,4 @@
+[binaries]
+mesa_clc = @MESON_MESA_CLC@
+vtn_bindgen2 = @MESON_VTN_BINDGEN@
+glslangValidator = @MESON_GLSLANG@

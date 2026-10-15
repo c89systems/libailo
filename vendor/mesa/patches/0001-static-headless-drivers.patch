@@ -1,0 +1,359 @@
+Build the fixed libailo headless static RADV/ANV profile.
+
+--- a/meson.build
++++ b/meson.build
+@@ -1760 +1760 @@
+-# check for dl support
++# libailo's fixed static profile has no DSO loading or ELF self-introspection.
+@@ -1762,15 +1761,0 @@
+-if host_machine.system() != 'windows'
+-  if not cc.has_function('dlopen')
+-    dep_dl = cc.find_library('dl', required : true)
+-  endif
+-  if cc.has_function('dladdr', dependencies : dep_dl)
+-    # This is required for src/util
+-    pre_args += '-DHAVE_DLADDR'
+-  endif
+-endif
+-
+-if cc.has_function('dl_iterate_phdr')
+-  pre_args += '-DHAVE_DL_ITERATE_PHDR'
+-elif with_intel_vk or with_intel_hasvk
+-  error('Intel "Anvil" Vulkan driver requires the dl_iterate_phdr function')
+-endif
+@@ -1957 +1942 @@
+-dep_libudev = dependency('libudev', required : false)
++dep_libudev = null_dep
+@@ -2128,6 +2113 @@
+-dep_lua = dependency('lua54', 'lua5.4', 'lua-5.4',
+-                     'lua53', 'lua5.3', 'lua-5.3',
+-                     'lua', required: false,
+-                     allow_fallback: with_tools.contains('freedreno'),
+-                     disabler : true,
+-                     version: '>=5.3')
++dep_lua = null_dep
+@@ -2142,4 +2122 @@
+-dep_elf = dependency('libelf', required : false)
+-if not with_platform_windows and not dep_elf.found()
+-  dep_elf = cc.find_library('elf', required : false)
+-endif
++dep_elf = null_dep
+@@ -2274,6 +2250,0 @@
+-if host_machine.cpu_family() == 'x86_64' and cc.get_id() == 'gcc'
+-  dep_openmp = dependency('openmp', required : false)
+-  if dep_openmp.found()
+-    pre_args += ['-DHAVE_OPENMP']
+-  endif
+-endif
+@@ -2425,4 +2396 @@
+-renderdoc_integration_supported = [
+-  'linux',
+-  'android',
+-].contains(host_machine.system())
++renderdoc_integration_supported = false
+@@ -2537,0 +2506 @@
++subdir('ailo-static')
+--- a/src/amd/addrlib/meson.build
++++ b/src/amd/addrlib/meson.build
+@@ -79,0 +80 @@
++  install : true,
+--- a/src/amd/common/meson.build
++++ b/src/amd/common/meson.build
+@@ -234,0 +235 @@
++  install : true,
+--- a/src/amd/compiler/meson.build
++++ b/src/amd/compiler/meson.build
+@@ -87,0 +88 @@
++  install : true,
+--- a/src/amd/vulkan/meson.build
++++ b/src/amd/vulkan/meson.build
+@@ -278 +278 @@
+-libvulkan_radeon = shared_library(
++libvulkan_radeon = static_library(
+@@ -281 +280,0 @@
+-  vs_module_defs : vulkan_api_def,
+--- a/src/amd/vulkan/radv_instance.c
++++ b/src/amd/vulkan/radv_instance.c
+@@ -436,0 +437 @@
++VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL ailo_radv_icdGetInstanceProcAddr(VkInstance instance, const char *pName);
+@@ -439 +440 @@
+-vk_icdGetInstanceProcAddr(VkInstance instance, const char *pName)
++ailo_radv_icdGetInstanceProcAddr(VkInstance instance, const char *pName)
+--- a/src/amd/vulkan/radv_physical_device.c
++++ b/src/amd/vulkan/radv_physical_device.c
+@@ -11,0 +12 @@
++#include "ailo_mesa_build_id.h"
+@@ -362 +363,2 @@
+-   ac_compute_driver_uuid(uuid, VK_UUID_SIZE);
++   static const uint8_t build_id[] = AILO_RADV_BUILD_ID_BYTES;
++   memcpy(uuid, build_id, VK_UUID_SIZE);
+--- a/src/c11/impl/meson.build
++++ b/src/c11/impl/meson.build
+@@ -21,0 +22 @@
++  install : true,
+--- a/src/compiler/meson.build
++++ b/src/compiler/meson.build
+@@ -49,0 +50 @@
++  install : true,
+--- a/src/compiler/nir/meson.build
++++ b/src/compiler/nir/meson.build
+@@ -380,0 +381 @@
++  install : true,
+--- a/src/compiler/spirv/meson.build
++++ b/src/compiler/spirv/meson.build
+@@ -54,0 +55 @@
++  install : true,
+--- a/src/intel/blorp/meson.build
++++ b/src/intel/blorp/meson.build
+@@ -57,0 +58 @@
++  install : true,
+--- a/src/intel/common/intel_uuid.c
++++ b/src/intel/common/intel_uuid.c
+@@ -24,0 +25 @@
++#include "ailo_mesa_build_id.h"
+@@ -77 +78 @@
+-   const char* intelDriver = PACKAGE_VERSION MESA_GIT_SHA1;
++   const char* intelDriver = PACKAGE_VERSION MESA_GIT_SHA1 AILO_ANV_BUILD_ID_HEX;
+--- a/src/intel/common/meson.build
++++ b/src/intel/common/meson.build
+@@ -54,0 +55 @@
++  install : true,
+--- a/src/intel/compiler/brw/meson.build
++++ b/src/intel/compiler/brw/meson.build
+@@ -133,0 +134 @@
++  install : true,
+--- a/src/intel/compiler/gen/meson.build
++++ b/src/intel/compiler/gen/meson.build
+@@ -53,0 +54 @@
++  install : true,
+--- a/src/intel/compiler/jay/meson.build
++++ b/src/intel/compiler/jay/meson.build
+@@ -82,0 +83 @@
++  install : true,
+--- a/src/intel/compiler/meson.build
++++ b/src/intel/compiler/meson.build
+@@ -23,0 +24 @@
++  install : true,
+--- a/src/intel/decoder/meson.build
++++ b/src/intel/decoder/meson.build
+@@ -30,0 +31 @@
++  install : true,
+@@ -45,0 +47 @@
++  install : true,
+--- a/src/intel/dev/meson.build
++++ b/src/intel/dev/meson.build
+@@ -64,0 +65 @@
++  install : true,
+--- a/src/intel/ds/meson.build
++++ b/src/intel/ds/meson.build
+@@ -44,0 +45 @@
++  install : true,
+--- a/src/intel/isl/meson.build
++++ b/src/intel/isl/meson.build
+@@ -129,0 +130 @@
++  install : true,
+--- a/src/intel/mda/meson.build
++++ b/src/intel/mda/meson.build
+@@ -15,0 +16 @@
++  install : true,
+--- a/src/intel/perf/meson.build
++++ b/src/intel/perf/meson.build
+@@ -48,0 +49 @@
++  install : true,
+--- a/src/intel/shaders/meson.build
++++ b/src/intel/shaders/meson.build
+@@ -77,0 +78 @@
++  install : true,
+--- a/src/intel/vulkan/anv_instance.c
++++ b/src/intel/vulkan/anv_instance.c
+@@ -311,0 +312 @@
++VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL ailo_anv_icdGetInstanceProcAddr(VkInstance instance, const char *pName);
+@@ -313 +314 @@
+-VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstanceProcAddr(
++VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL ailo_anv_icdGetInstanceProcAddr(
+--- a/src/intel/vulkan/anv_physical_device.c
++++ b/src/intel/vulkan/anv_physical_device.c
+@@ -5,0 +6 @@
++#include "ailo_mesa_build_id.h"
+@@ -2552,14 +2553,3 @@
+-   const struct build_id_note *note =
+-      build_id_find_nhdr_for_addr(anv_physical_device_init_uuids);
+-   if (!note) {
+-      return vk_errorf(device, VK_ERROR_INITIALIZATION_FAILED,
+-                       "Failed to find build-id");
+-   }
+-
+-   unsigned build_id_len = build_id_length(note);
+-   if (build_id_len < BUILD_ID_EXPECTED_HASH_LENGTH) {
+-      return vk_errorf(device, VK_ERROR_INITIALIZATION_FAILED,
+-                       "build-id too short.  It needs to be a SHA");
+-   }
+-
+-   copy_build_id_to_sha1(device->driver_build_sha1, note);
++   static const uint8_t build_id[] = AILO_ANV_BUILD_ID_BYTES;
++   STATIC_ASSERT(sizeof(build_id) == sizeof(device->driver_build_sha1));
++   memcpy(device->driver_build_sha1, build_id, sizeof(build_id));
+@@ -2575 +2565 @@
+-   _mesa_blake3_update(&blake3_ctx, build_id_data(note), build_id_len);
++   _mesa_blake3_update(&blake3_ctx, build_id, sizeof(build_id));
+--- a/src/intel/vulkan/meson.build
++++ b/src/intel/vulkan/meson.build
+@@ -305 +305 @@
+-libvulkan_intel = shared_library(
++libvulkan_intel = static_library(
+--- a/src/util/blake3/meson.build
++++ b/src/util/blake3/meson.build
+@@ -44,0 +45 @@
++  install : true,
+--- a/src/util/meson.build
++++ b/src/util/meson.build
+@@ -365,0 +366 @@
++  install : true,
+@@ -375,0 +377 @@
++  install : true,
+@@ -412,0 +415 @@
++  install : true,
+--- a/src/util/u_dl.c
++++ b/src/util/u_dl.c
+@@ -30,9 +30 @@
+-#include "detect_os.h"
+-
+-#if DETECT_OS_POSIX_LITE
+-#include <dlfcn.h>
+-#endif
+-#if DETECT_OS_WINDOWS
+-#include <windows.h>
+-#endif
+-
++#include <stddef.h>
+@@ -40,3 +31,0 @@
+-#include "u_pointer.h"
+-#include "u_string.h"
+-
+@@ -44,2 +33 @@
+-struct util_dl_library *
+-util_dl_open(const char *filename)
++struct util_dl_library *util_dl_open(const char *filename)
+@@ -47,5 +35 @@
+-#if DETECT_OS_POSIX_LITE
+-   return (struct util_dl_library *)dlopen(filename, RTLD_LAZY | RTLD_LOCAL);
+-#elif DETECT_OS_WINDOWS
+-   return (struct util_dl_library *)LoadLibraryA(filename);
+-#else
++   (void)filename;
+@@ -53 +36,0 @@
+-#endif
+@@ -56,4 +39 @@
+-
+-util_dl_proc
+-util_dl_get_proc_address(struct util_dl_library *library,
+-                         const char *procname)
++util_dl_proc util_dl_get_proc_address(struct util_dl_library *library, const char *procname)
+@@ -61,7 +41,3 @@
+-#if DETECT_OS_POSIX_LITE
+-   return (util_dl_proc) pointer_to_func(dlsym((void *)library, procname));
+-#elif DETECT_OS_WINDOWS
+-   return (util_dl_proc)GetProcAddress((HMODULE)library, procname);
+-#else
+-   return (util_dl_proc)NULL;
+-#endif
++   (void)library;
++   (void)procname;
++   return NULL;
+@@ -70,2 +46 @@
+-char *
+-util_dl_get_path_from_proc(const void *func_proc)
++char *util_dl_get_path_from_proc(const void *func_proc)
+@@ -73,27 +48 @@
+-#if defined(HAVE_DLADDR)
+-   Dl_info info;
+-   if (dladdr(func_proc, &info) == 0) {
+-      return NULL;
+-   }
+-
+-   return realpath(info.dli_fname, NULL);
+-#elif DETECT_OS_WINDOWS
+-   HMODULE mod = NULL;
+-   GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+-                      (LPCWSTR)func_proc,
+-                      &mod);
+-   if (!mod)
+-      return NULL;
+-
+-   WCHAR filename[MAX_PATH];
+-   DWORD filename_length = GetModuleFileNameW(mod, filename, ARRAY_SIZE(filename));
+-   if (filename_length == 0 || filename_length == ARRAY_SIZE(filename))
+-      return NULL;
+-
+-   WCHAR filename_full[MAX_PATH];
+-   DWORD filename_full_length = GetFullPathNameW(filename, ARRAY_SIZE(filename_full), filename_full, NULL);
+-   if (filename_full_length == 0 || filename_full_length == ARRAY_SIZE(filename_full))
+-      return NULL;
+-
+-   return strdup_wstr_utf8(filename_full);
+-#else
++   (void)func_proc;
+@@ -101 +49,0 @@
+-#endif
+@@ -104,2 +52 @@
+-void
+-util_dl_close(struct util_dl_library *library)
++void util_dl_close(struct util_dl_library *library)
+@@ -107,5 +53,0 @@
+-#if DETECT_OS_POSIX_LITE
+-   dlclose((void *)library);
+-#elif DETECT_OS_WINDOWS
+-   FreeLibrary((HMODULE)library);
+-#else
+@@ -113 +54,0 @@
+-#endif
+@@ -116,3 +57 @@
+-
+-const char *
+-util_dl_error(void)
++const char *util_dl_error(void)
+@@ -120,7 +59 @@
+-#if DETECT_OS_POSIX_LITE
+-   return dlerror();
+-#elif DETECT_OS_WINDOWS
+-   return "unknown error";
+-#else
+-   return "unknown error";
+-#endif
++   return "Dynamic library loading is disabled in libailo's static Vulkan profile";
+--- a/src/vulkan/meson.build
++++ b/src/vulkan/meson.build
+@@ -57,4 +56,0 @@
+-if system_has_kms_drm and not with_platform_android
+-  vulkan_wsi_deps += [dep_libdrm, dep_display_info]
+-  vulkan_wsi_list += '-DVK_USE_PLATFORM_DISPLAY_KHR'
+-endif
+--- a/src/vulkan/runtime/meson.build
++++ b/src/vulkan/runtime/meson.build
+@@ -203,0 +204 @@
++  install : true,
+@@ -252 +253 @@
+-    link_whole : [libvulkan_lite_runtime, libvulkan_lite_instance],
++    link_with : [libvulkan_lite_runtime, libvulkan_lite_instance],
+@@ -303,0 +305 @@
++  install : true,
+@@ -313,0 +316 @@
++  install : true,
+@@ -327 +330 @@
+-    link_whole : [libvulkan_lite_runtime, libvulkan_runtime, libvulkan_instance],
++    link_with : [libvulkan_lite_runtime, libvulkan_runtime, libvulkan_instance],
+--- a/src/vulkan/util/meson.build
++++ b/src/vulkan/util/meson.build
+@@ -127,0 +128 @@
++  install : true,
+--- a/src/vulkan/wsi/meson.build
++++ b/src/vulkan/wsi/meson.build
+@@ -41,3 +40,0 @@
+-if system_has_kms_drm and not with_platform_android
+-  files_vulkan_wsi += files('wsi_common_display.c')
+-endif
+@@ -59,0 +57 @@
++  install : true,
+@@ -89 +87 @@
+-    link_whole : libvulkan_wsi,
++    link_with : libvulkan_wsi,

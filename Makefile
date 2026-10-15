@@ -37,6 +37,10 @@ gpu-deps:
 	scripts/build-gpu-deps.sh --target "$(TARGET)"
 test-gpu-deps: gpu-deps
 	cmake -DAILO_TARGET_ID="$(TARGET)" -P tests/test_gpu_deps.cmake
+.PHONY: test-static-mesa
+test-static-mesa:
+	scripts/build-gpu-deps.sh --target "$(TARGET)" --component mesa
+	cmake -DAILO_TARGET_ID="$(TARGET)" -P tests/test_static_mesa.cmake
 build:
 	scripts/build.sh --preset "$(PRESET)"
 build-debug:
