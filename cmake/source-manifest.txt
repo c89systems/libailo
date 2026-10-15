@@ -60,6 +60,8 @@ Makefile
 README.md
 cmake/AiloArchive.cmake
 cmake/AiloDependencies.cmake
+cmake/AiloMesonToolchain.cmake
+cmake/meson-cross.ini.in
 cmake/AiloInstall.cmake
 cmake/AiloPolicy.cmake
 cmake/AiloPreset.cmake
@@ -104,6 +106,7 @@ scripts/cpkt-afl-runtime.sh
 scripts/cpkt-aflpp.sh
 scripts/cpkt-toolchains.sh
 scripts/deps.sh
+scripts/build-gpu-deps.sh
 scripts/discover_target_tools.sh
 scripts/format.sh
 scripts/generate_native.py
@@ -201,6 +204,8 @@ tests/native_storage.cpp
 tests/scalar-matrix/CMakeLists.txt
 tests/test_archive_cache.py
 tests/test_build_drivers.cmake
+tests/test_gpu_deps.c
+tests/test_gpu_deps.cmake
 tests/test_cache_defaults.cmake
 tests/test_clean.cmake
 tests/test_install_privacy.cmake

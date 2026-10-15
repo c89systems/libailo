@@ -127,6 +127,20 @@
       }
     }
   },
+  "mesa": {
+    "version": "26.2.4",
+    "upstream": "https://gitlab.freedesktop.org/mesa/mesa",
+    "url": "https://archive.mesa3d.org/mesa-26.2.4.tar.xz",
+    "sha256": "bce5f7fbebb934373b86c999a064d52fb5065878dc57f287f95346648ec832e9",
+    "build_system": "meson"
+  },
+  "libdrm": {
+    "version": "2.4.134",
+    "upstream": "https://gitlab.freedesktop.org/mesa/drm",
+    "url": "https://dri.freedesktop.org/libdrm/libdrm-2.4.134.tar.xz",
+    "sha256": "ac5e74d157830eb8bee44c6a6bf3ad49774ef0dd2a72bdad74a8f20308b52a95",
+    "build_system": "meson"
+  },
   "lua-pslog": {
     "version": "v0.12.0",
     "upstream": "https://github.com/sa6mwa/libpslog",

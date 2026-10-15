@@ -46,8 +46,9 @@ discussed here, and no runtime substitution is required by this decision.
   [`f44204e18ebf8ace9b1534973df0ca9a69c10651`](https://github.com/ROCm/rocm-systems/tree/f44204e18ebf8ace9b1534973df0ca9a69c10651),
   including the static HIP and HSA-thunk dependency declarations.
 
-These are investigation inputs. They do not add dependency pins or artifacts
-to the current libailo SDK.
+Mesa and libdrm are now checksum-pinned source inputs. libdrm core/amdgpu have
+a separate static dependency build; they are not yet added to the libailo SDK.
+Mesa driver integration remains pending. The ROCm source is audit evidence only.
 
 ## Permissive Mesa runtime profile
 

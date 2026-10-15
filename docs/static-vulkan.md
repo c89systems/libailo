@@ -124,8 +124,22 @@ provided by an unmodified upstream static archive.
 
 Use Mesa 26.2.4 and libdrm 2.4.134 as the investigated integration baseline;
 archive identities and license evidence are in
-[gpu-userspace-dependencies.md](gpu-userspace-dependencies.md). Promote those
-inputs into checksum-pinned dependency declarations during implementation.
+[gpu-userspace-dependencies.md](gpu-userspace-dependencies.md). These
+inputs are now checksum-pinned in `cmake/dependencies.json` and use the existing
+verified global archive cache. Meson source readiness is checked independently
+of CMake sources.
+
+`make gpu-deps TARGET=<id>` currently builds libdrm core and amdgpu as static PIC
+archives. `make test-gpu-deps TARGET=<id>` also checks a relocated static consumer
+and its ELF dependencies. The four supported Linux targets use the same pinned
+Bootlin resolver as the CMake build, explicit compiler sysroots and target-only
+pkg-config roots. Meson/Ninja/pkg-config are host prerequisites; ambient compiler
+flags and include/library search overrides are cleared for target builds.
+This command does not yet build Mesa or add libdrm to the shipped SDK.
+Upstream amdgpu marketing-name lookup still reads an external `amdgpu.ids`
+table using the configured install path. Embed that data before SDK integration;
+the current relocated consumer proves linkage and invalid-device handling only.
+
 Keep the already pinned Khronos headers/loader/SPIR-V headers coherent with
 the chosen Mesa version and prove generation/compilation compatibility.
 
@@ -283,7 +297,8 @@ weights nor aggregate memory establishes frontier-level accuracy or throughput.
 The existing foundation compiled CPU/Vulkan SDKs across the four targets and
 ran native synthetic GPU inference through a shared loader and host Intel driver.
 The source audit identified permissible RADV/ANV dependency profiles, the
-embedded shader measurement and the static integration changes above. Mesa
-drivers have not been built or tested as this static profile; mixed multi-GPU,
-the receiver, model cards and trained fixture execution remain unimplemented
-or unproven. This spec update does not change that evidence boundary.
+embedded shader measurement and the static integration changes above. libdrm
+core/amdgpu now build as static archives for all four Linux targets. Mesa
+drivers and built-in dispatch remain unimplemented. Receiver placement and
+model-card reporting have trained-model proof through the host Intel driver,
+as recorded above; this does not qualify the static drivers or multi-GPU use.

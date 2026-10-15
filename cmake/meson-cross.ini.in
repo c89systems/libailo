@@ -1,0 +1,37 @@
+[binaries]
+c = [@MESON_CC@]
+cpp = [@MESON_CXX@]
+ar = @MESON_AR@
+strip = @MESON_STRIP@
+pkg-config = @MESON_PKG_CONFIG@
+
+[host_machine]
+system = 'linux'
+cpu_family = '@MESON_CPU@'
+cpu = '@MESON_CPU@'
+endian = 'little'
+
+[properties]
+needs_exe_wrapper = true
+pkg_config_libdir = [@MESON_PKG_DIRS@]
+
+# Meson's CMake fallback must obey the same target boundary as pkg-config.
+[cmake]
+CMAKE_SYSROOT = @MESON_SYSROOT@
+CMAKE_FIND_ROOT_PATH = [@MESON_CMAKE_ROOTS@]
+CMAKE_FIND_ROOT_PATH_MODE_PROGRAM = 'NEVER'
+CMAKE_FIND_ROOT_PATH_MODE_LIBRARY = 'ONLY'
+CMAKE_FIND_ROOT_PATH_MODE_INCLUDE = 'ONLY'
+CMAKE_FIND_ROOT_PATH_MODE_PACKAGE = 'ONLY'
+CMAKE_FIND_USE_PACKAGE_REGISTRY = 'OFF'
+CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY = 'OFF'
+CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH = 'OFF'
+
+[built-in options]
+c_args = [@MESON_SYSROOT_ARG@, @MESON_PREFIX_ARG@]
+cpp_args = [@MESON_SYSROOT_ARG@, @MESON_PREFIX_ARG@]
+c_link_args = [@MESON_SYSROOT_ARG@]
+cpp_link_args = [@MESON_SYSROOT_ARG@]
+pkg_config_path = []
+default_library = 'static'
+b_staticpic = true

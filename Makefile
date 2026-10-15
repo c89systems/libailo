@@ -27,6 +27,11 @@ release-matrix:
 	scripts/run_linux_release_matrix.sh
 deps:
 	scripts/deps.sh --target "$(TARGET)" --component "$(DEPENDENCY)"
+.PHONY: gpu-deps test-gpu-deps
+gpu-deps:
+	scripts/build-gpu-deps.sh --target "$(TARGET)"
+test-gpu-deps: gpu-deps
+	cmake -DAILO_TARGET_ID="$(TARGET)" -P tests/test_gpu_deps.cmake
 build:
 	scripts/build.sh --preset "$(PRESET)"
 build-debug:

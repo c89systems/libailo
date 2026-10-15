@@ -2,6 +2,8 @@
 set -euo pipefail
 cat <<'HELP'
 deps [DEPENDENCY=name] [TARGET=id]  Acquire verified pinned components.
+gpu-deps [TARGET=id]              Build static libdrm core/amdgpu with pinned Bootlin.
+test-gpu-deps [TARGET=id]         Check relocated static dependency linkage (no GPU needed).
 build [PRESET=name]                Build through serialized Bash/CMake drivers.
                                   PRESET=library excludes Python test/tool checks.
 build-debug                       Build default Vulkan+CPU configuration.

@@ -28,13 +28,25 @@ foreach(preset base nonexistent "../debug" armhf-linux-gnu-release armhf-linux-m
     message(FATAL_ERROR "Invalid/hidden preset ${preset} was accepted")
   endif()
 endforeach()
-foreach(driver build deps format)
+foreach(driver build deps format build-gpu-deps)
   execute_process(COMMAND "${root}/scripts/${driver}.sh" --unknown
     RESULT_VARIABLE result OUTPUT_QUIET ERROR_QUIET)
   if(NOT result EQUAL 2)
     message(FATAL_ERROR "${driver}: invalid options must produce a usage error")
   endif()
 endforeach()
+foreach(arguments "--target;armhf-linux-gnu" "--component;unknown")
+  execute_process(COMMAND "${root}/scripts/build-gpu-deps.sh" ${arguments}
+    RESULT_VARIABLE result OUTPUT_QUIET ERROR_QUIET)
+  if(NOT result EQUAL 2)
+    message(FATAL_ERROR "GPU dependency driver accepted invalid arguments: ${arguments}")
+  endif()
+endforeach()
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env AILO_JOBS=0 "${root}/scripts/build-gpu-deps.sh"
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_QUIET)
+if(NOT result EQUAL 2)
+  message(FATAL_ERROR "Invalid GPU dependency worker count was accepted")
+endif()
 foreach(target armhf-linux-gnu armhf-linux-musl)
   execute_process(COMMAND "${root}/scripts/deps.sh" --target "${target}" --component cpkt
     RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
@@ -103,6 +115,52 @@ foreach(iteration RANGE 1 3)
     file(WRITE "${work}/pins.json" "{\"${component}\": {\"url\": \"https://invalid.invalid/different-name.tar.gz\", \"sha256\": \"${sha}\"}}")
   endif()
 endforeach()
+file(REMOVE_RECURSE "${prepared}" "${install}")
+file(REMOVE "${contract}" "${contract}.lock")
+
+# The same verified archive path supports Meson without requiring CMake inputs.
+# An unsupported recipe or missing build entry point must fail before a ready
+# contract is published. All URLs deliberately fail if the cache is bypassed.
+set(component "meson-fixture-${random}")
+set(prepared "${root}/.cache/deps-build/x86_64-linux-gnu/${component}")
+set(install "${root}/.cache/deps/x86_64-linux-gnu/${component}")
+set(contract "${root}/.cache/dependency-contracts/x86_64-linux-gnu/${component}.txt")
+file(MAKE_DIRECTORY "${work}/meson-seed/${component}")
+file(WRITE "${work}/meson-seed/${component}/meson.build" "project('fixture', 'c')\n")
+execute_process(COMMAND "${CMAKE_COMMAND}" -E tar czf "${work}/meson.tar.gz" "${component}"
+  WORKING_DIRECTORY "${work}/meson-seed" COMMAND_ERROR_IS_FATAL ANY)
+file(SHA256 "${work}/meson.tar.gz" sha)
+file(MAKE_DIRECTORY "${work}/shared/archives/sha256/${sha}")
+file(COPY "${work}/meson.tar.gz" DESTINATION "${work}/shared/archives/sha256/${sha}")
+foreach(build_system unknown cmake meson)
+  file(WRITE "${work}/pins.json" "{\"${component}\": {\"url\": \"https://invalid.invalid/meson.tar.gz\", \"sha256\": \"${sha}\", \"build_system\": \"${build_system}\"}}")
+  execute_process(COMMAND "${CMAKE_COMMAND}" -DAILO_TARGET_ID=x86_64-linux-gnu
+    "-DAILO_DEPENDENCY_LOCK=${work}/pins.json" "-DAILO_DEPENDENCY=${component}"
+    "-DCPKT_DEPENDENCY_CACHE=${work}/shared" -P "${root}/cmake/AiloDependencies.cmake"
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+  if(build_system STREQUAL meson)
+    if(NOT result EQUAL 0 OR NOT EXISTS "${prepared}/source/meson.build" OR NOT EXISTS "${contract}")
+      message(FATAL_ERROR "Meson source preparation failed: ${output} ${error}")
+    endif()
+  elseif(build_system STREQUAL cmake)
+    if(result EQUAL 0 OR NOT error MATCHES "prepared archive is missing" OR EXISTS "${contract}")
+      message(FATAL_ERROR "CMake source without build entry point was accepted: ${error}")
+    endif()
+  elseif(result EQUAL 0 OR NOT error MATCHES "unsupported source build system" OR EXISTS "${contract}")
+    message(FATAL_ERROR "Unknown build system was accepted: ${build_system}: ${error}")
+  endif()
+endforeach()
+file(REMOVE_RECURSE "${prepared}" "${install}")
+file(REMOVE "${contract}" "${contract}.lock")
+# A valid archive with the wrong build entry point must not become ready.
+file(WRITE "${work}/pins.json" "{\"${component}\": {\"url\": \"https://invalid.invalid/missing.tar.gz\", \"sha256\": \"${sha}\"}}")
+execute_process(COMMAND "${CMAKE_COMMAND}" -DAILO_TARGET_ID=x86_64-linux-gnu
+  "-DAILO_DEPENDENCY_LOCK=${work}/pins.json" "-DAILO_DEPENDENCY=${component}"
+  "-DCPKT_DEPENDENCY_CACHE=${work}/shared" -P "${root}/cmake/AiloDependencies.cmake"
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(result EQUAL 0 OR NOT error MATCHES "prepared archive is missing" OR EXISTS "${contract}")
+  message(FATAL_ERROR "Source without required build entry point was accepted: ${error}")
+endif()
 file(REMOVE_RECURSE "${prepared}" "${install}" "${work}")
 file(REMOVE "${contract}" "${contract}.lock")
 message(STATUS "Bash/CMake drivers, preset inheritance, and offline dependency reconstruction: passed")
