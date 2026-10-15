@@ -54,7 +54,7 @@ local function guarded(fn, ...)
   return table.unpack(result,2,result.n)
 end
 local source_keys=keys("local_path repo revision filename cache_root sha256 allow_download split_shards bearer_token max_bytes connect_timeout_ms transfer_timeout_ms max_attempts progress")
-local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache compactor openai gpu")
+local config_keys=keys("source model_id chat_template model_metadata backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache compactor openai gpu")
 local backends={auto=0,cpu=1,vulkan=2}
 local function gpu(input)
   if input==nil then return nil end
@@ -153,7 +153,7 @@ function M.new(config)
     object(config,config_keys,"client")
     local out={source=source(config.source),logger=config.logger}
     out.helpers=logger_helpers(config.logger)
-    for _,k in ipairs{"model_id","chat_template"} do out[k]=str(config[k],k,true) end
+    for _,k in ipairs{"model_id","chat_template","model_metadata"} do out[k]=str(config[k],k,true) end
     out.backend=enumeration(config.backend,backends,0,"backend")
     out.lazy=boolean(config.lazy,"lazy")
     out.gpu_layers=number(config.gpu_layers,"gpu_layers",0,true,-1,0x7fffffff)

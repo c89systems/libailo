@@ -249,6 +249,12 @@ The supported Linux cache filesystem must provide atomic no-replace rename.
 These helpers validate acquisition integrity; actual model loading remains a
 separate native operation.
 
+Model cards accept copied supplemental `model_metadata` JSON and expose claim
+origins/conflicts. Their first lookup can acquire selected publisher metadata
+for the same immutable Hugging Face revision, respecting `allow_download` and
+reusing a matching sidecar offline. Generation does not wait for this optional
+enrichment. The schema and limits are in [docs/client.md](docs/client.md#model-cards-and-current-capabilities).
+
 `ailo_model_cache_example --local MODEL` shows local use. Hugging Face use takes
 `--repo OWNER/REPO --revision COMMIT --file FILE [--cache ABSOLUTE-PATH]`;
 `--download` is required for a miss, and `--sha256 HEX` pins a single-file checksum.

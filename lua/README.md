@@ -34,6 +34,13 @@ No implicit downloads or token environment lookup. Default cache is
 `$XDG_CACHE_HOME/ailo` or `$HOME/.cache/ailo`. Full unsigned 64-bit `max_bytes`
 accepts `{hi=...,lo=...}`; other integers are checked exactly.
 
+`model_metadata` accepts bounded supplemental JSON with `name`, `license` and
+`source.base_models` claims. The constructor copies and validates it through the
+C ABI. `client:model_card()` reports claim origins/conflicts and can enrich a
+pinned remote model from revision-bound cached Hub metadata, respecting
+`allow_download`. See [model cards](../docs/client.md#model-cards-and-current-capabilities)
+for the schema and limits.
+
 `client:chat_completions(json, sink)` accepts raw OpenAI-shaped request JSON and
 forwards JSON/SSE byte strings through the installed C ABI. Set `stream=true`
 for immediate deltas and `store=false` for stateless use. It returns ID, HTTP

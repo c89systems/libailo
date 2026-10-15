@@ -6,6 +6,7 @@
 #include "ailo_error_internal.h"
 #include "ailo_gpu_internal.hpp"
 #include "ailo_integer_bridge.hpp"
+#include "ailo_model_metadata_internal.hpp"
 #include "gguf.h"
 #include "llama.h"
 #include <atomic>
@@ -48,6 +49,9 @@ struct state {
   source_copy source;
   std::string id, template_override, path;
   ailo_client_config config;
+  metadata_claims supplemental;
+  publisher_metadata publisher;
+  bool publisher_requested = false;
   gpu_selection gpu;
   ailo_gpu_config gpu_config{};
   std::shared_ptr<llama_model> model;
@@ -69,6 +73,7 @@ struct state {
   explicit state(const ailo_client_config &input, pslog_logger *logger);
   ~state();
   void ensure_loaded();
+  void ensure_metadata();
   std::unique_ptr<llama_context, decltype(&llama_free)> new_context();
 };
 

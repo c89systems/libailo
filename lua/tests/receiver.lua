@@ -49,6 +49,17 @@ if arg[4]=='--vulkan' then
 end
 dofile(assert(arg[3])).exercise(ailo,path,false)
 do
+  local metadata='{"name":"caller model","license":{"id":"MIT"},"source":{"base_models":["fixture/base"]}}'
+  local receiver=ok(ailo.new(config{model_metadata=metadata,lazy=true}))
+  metadata=nil;collectgarbage('collect')
+  local card=ok(receiver:model_card())
+  assert(card:find('"name":"ailo%-deterministic%-test"'))
+  assert(card:find('"origin":"caller"')and card:find('"claim":"caller model"'))
+  assert(card:find('"base_models":%["fixture/base"%]'))
+  receiver:close()
+  fails('invalid_argument',function()return ailo.new(config{model_metadata='{"architecture":"fake"}',lazy=true})end)
+end
+do
   local receiver=ok(ailo.new(config()))
   local json='{"model":"local-model","messages":[{"role":"user","content":"Hi"}],"store":false,"stream":true,"max_completion_tokens":8,"temperature":0,"logprobs":true,"top_logprobs":2,"logit_bias":{"100":100},"stream_options":{"include_usage":true,"include_obfuscation":false}}'
   local parts={}

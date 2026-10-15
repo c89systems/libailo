@@ -104,6 +104,7 @@ struct transfer {
   int file;
   const plan &settings;
   unsigned shard;
+  std::string *buffer = nullptr;
   uint64_t received = 0;
   ailo_status status = AILO_OK;
   const char *message = "";
@@ -133,16 +134,25 @@ size_t write_bytes(char *data, size_t size, size_t count,
     t.fail(AILO_DOWNLOAD_FAILED, "Downloaded model exceeds its size limit");
     return 0;
   }
-  size_t offset = 0;
-  while (offset < bytes) {
-    ssize_t written = write(t.file, data + offset, bytes - offset);
-    if (written < 0 && errno == EINTR)
-      continue;
-    if (written <= 0) {
-      t.fail(AILO_IO_FAILED, "Cannot write downloaded model bytes");
+  if (t.buffer) {
+    try {
+      t.buffer->append(data, bytes);
+    } catch (...) {
+      t.fail(AILO_NO_MEMORY, "Cannot allocate bounded publisher metadata");
       return 0;
     }
-    offset += static_cast<size_t>(written);
+  } else {
+    size_t offset = 0;
+    while (offset < bytes) {
+      ssize_t written = write(t.file, data + offset, bytes - offset);
+      if (written < 0 && errno == EINTR)
+        continue;
+      if (written <= 0) {
+        t.fail(AILO_IO_FAILED, "Cannot write downloaded model bytes");
+        return 0;
+      }
+      offset += static_cast<size_t>(written);
+    }
   }
   t.received += bytes;
   return bytes;
@@ -190,8 +200,10 @@ void retry_delay(const plan &p, unsigned shard, unsigned attempt) {
 }
 } // namespace
 
-void download(int destination, const file &f, const plan &p, unsigned shard,
-              const transport_policy &policy) {
+static void download_resource(int destination, const plan &p, unsigned shard,
+                              const transport_policy &policy,
+                              const std::string &route,
+                              std::string *buffer = nullptr) {
   if (!policy.origin)
     throw failure(AILO_INTERNAL_ERROR, "Model transport origin is required");
   runtime lifetime;
@@ -199,14 +211,13 @@ void download(int destination, const file &f, const plan &p, unsigned shard,
   while (!base.empty() && base.back() == '/')
     base.pop_back();
   const std::string origin = https_origin(base);
-  const std::string initial = base + "/" + encode_path(p.repo, true) +
-                              "/resolve/" + encode_path(p.revision, false) +
-                              "/" + encode_path(f.name, true) +
-                              "?download=true";
+  const std::string initial = base + route;
   CURLcode last_code = CURLE_OK;
   long last_http = 0;
   for (unsigned attempt = 0; attempt < p.attempts; ++attempt) {
-    if (ftruncate(destination, 0) || lseek(destination, 0, SEEK_SET) < 0)
+    if (buffer)
+      buffer->clear();
+    else if (ftruncate(destination, 0) || lseek(destination, 0, SEEK_SET) < 0)
       io_failure("Cannot reset model partial file before an attempt");
     const auto started = std::chrono::steady_clock::now();
     std::string url = initial;
@@ -225,7 +236,7 @@ void download(int destination, const file &f, const plan &p, unsigned shard,
           curl_easy_init(), curl_easy_cleanup);
       if (!curl)
         throw std::bad_alloc();
-      transfer t = {curl.get(), destination, p, shard};
+      transfer t = {curl.get(), destination, p, shard, buffer};
       option(curl.get(), CURLOPT_URL, url.c_str());
       option(curl.get(), CURLOPT_PROTOCOLS_STR, "https");
       option(curl.get(), CURLOPT_REDIR_PROTOCOLS_STR, "https");
@@ -306,6 +317,21 @@ void download(int destination, const file &f, const plan &p, unsigned shard,
                       curl_easy_strerror(last_code));
   throw failure(AILO_DOWNLOAD_FAILED, "Model origin returned HTTP status " +
                                           std::to_string(last_http));
+}
+void download(int destination, const file &f, const plan &p, unsigned shard,
+              const transport_policy &policy) {
+  download_resource(destination, p, shard, policy,
+                    "/" + encode_path(p.repo, true) + "/resolve/" +
+                        encode_path(p.revision, false) + "/" +
+                        encode_path(f.name, true) + "?download=true");
+}
+std::string download_metadata(const plan &p, const transport_policy &policy) {
+  std::string buffer;
+  download_resource(-1, p, 1, policy,
+                    "/api/models/" + encode_path(p.repo, true) + "/revision/" +
+                        encode_path(p.revision, false),
+                    &buffer);
+  return buffer;
 }
 } // namespace model
 } // namespace ailo

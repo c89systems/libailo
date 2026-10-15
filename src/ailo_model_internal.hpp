@@ -90,6 +90,7 @@ struct transport_policy {
 };
 void download(int destination, const file &f, const plan &p, unsigned shard,
               const transport_policy &policy);
+std::string download_metadata(const plan &p, const transport_policy &policy);
 ailo_status acquire(const ailo_model_source *source, char **output,
                     ailo_error *error, const transport_policy &policy);
 } // namespace model

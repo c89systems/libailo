@@ -87,6 +87,8 @@ state::state(const ailo_client_config &input, pslog_logger *logger)
     : source(input.source), id(copy_string(input.model_id)),
       template_override(copy_string(input.chat_template)), config(input),
       gpu(input.gpu, input.backend) {
+  supplemental = parse_supplemental_metadata(input.model_metadata);
+  config.model_metadata = nullptr; // normalized owned claims, no borrowed JSON
   if (config.backend < AILO_BACKEND_AUTO ||
       config.backend > AILO_BACKEND_VULKAN || config.threads < 0 ||
       config.gpu_layers < -1 || config.context_tokens > INT_MAX ||
@@ -245,6 +247,25 @@ void state::ensure_loaded() {
     selected_info.clear();
     selected.assign(1, nullptr);
   }
+}
+
+void state::ensure_metadata() {
+  if (publisher_requested)
+    return;
+  auto options = source.value;
+  options.progress = acquisition_progress;
+  options.user_data = this;
+  try {
+    publisher = load_publisher_metadata(options, path);
+  } catch (...) {
+    if (progress_failed)
+      throw failure(AILO_INTERNAL_ERROR,
+                    "Acquisition progress callback raised an exception");
+    throw;
+  }
+  if (is_cancelled())
+    throw failure(AILO_CANCELLED, "Publisher metadata acquisition cancelled");
+  publisher_requested = true;
 }
 
 std::unique_ptr<llama_context, decltype(&llama_free)> state::new_context() {

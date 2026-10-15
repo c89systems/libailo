@@ -129,6 +129,10 @@ typedef struct ailo_client_config {
   /** NULL uses default layer splitting/automatic selection. Explicit placement
    * is never silently retried on CPU. Cannot accompany backend=CPU. */
   const ailo_gpu_config *gpu;
+  /** Optional UTF-8 JSON object, at most 1 MiB. Copied and validated at
+   * construction. Name/license/source-lineage claims supplement missing GGUF
+   * facts; conflicts are recorded, never used to replace loaded facts. */
+  const char *model_metadata;
 } ailo_client_config;
 
 typedef struct ailo_logit_bias {

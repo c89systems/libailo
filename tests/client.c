@@ -101,6 +101,9 @@ static int run(const char *path) {
   char *card = NULL;
   char *owned_path = NULL;
   char model_id[] = "receiver-test";
+  char supplemental[] = "{\"name\":\"caller "
+                        "model\",\"license\":{\"id\":\"MIT\"},\"source\":{"
+                        "\"base_models\":[\"fixture/base\"]}}";
   const char *stops[] = {"aa"};
   int result = 0, mode;
   memset(&writer, 0, sizeof(writer));
@@ -126,9 +129,11 @@ static int run(const char *path) {
   strcpy(owned_path, path);
   config.source.local_path = owned_path;
   config.model_id = model_id;
+  config.model_metadata = supplemental;
   CHECK(ailo_client_new(&config, &client, &error) == AILO_OK && client);
   owned_path[0] = '!';
   model_id[0] = '!';
+  supplemental[0] = '!';
   CHECK(client->capabilities(client, &card, &error) == AILO_OK);
   CHECK(strstr(card, "\"streaming\":true") != NULL);
   ailo_string_free(card);
@@ -147,6 +152,11 @@ static int run(const char *path) {
   CHECK(strstr(card, "\"configured_tokens\":128") != NULL);
   CHECK(strstr(card, "\"effective_tokens\":256") != NULL);
   CHECK(strstr(card, "\"checksum_validated\":false") != NULL);
+  CHECK(strstr(card, "\"id\":\"MIT\"") != NULL);
+  CHECK(strstr(card, "\"origin\":\"caller\"") != NULL);
+  CHECK(strstr(card, "\"name\":\"ailo-deterministic-test\"") != NULL);
+  CHECK(strstr(card, "\"claim\":\"caller model\"") != NULL);
+  CHECK(strstr(card, "\"base_models\":[\"fixture/base\"]") != NULL);
   CHECK(strstr(card, path) == NULL);
   ailo_string_free(card);
   card = NULL;
@@ -219,6 +229,7 @@ static int run(const char *path) {
 
   config.source.local_path = path;
   config.model_id = "receiver-test";
+  config.model_metadata = NULL;
   config.lazy = 0;
   CHECK(ailo_llama_backend_init(&error) == AILO_OK);
   CHECK(ailo_client_new(&config, &other, &error) == AILO_OK);

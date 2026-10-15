@@ -152,6 +152,8 @@ src/ailo_callback_internal.hpp
 src/ailo_client.cpp
 src/ailo_client_internal.hpp
 src/ailo_client_json.cpp
+src/ailo_model_metadata.cpp
+src/ailo_model_metadata_internal.hpp
 src/ailo_error_internal.h
 src/ailo_integer.c
 src/ailo_generate.cpp
@@ -204,6 +206,9 @@ tests/macros_native.cpp
 tests/model.c
 tests/model_cache.c
 tests/model_download_driver.cpp
+tests/model_metadata.cpp
+tests/metadata_fixture.py
+tests/test_model_metadata.sh
 tests/model_fixture.cpp
 tests/native.c
 tests/native_callbacks.cpp

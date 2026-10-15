@@ -1006,6 +1006,7 @@ static int new_client(lua_State *L) {
   ailo_client_config config = ailo_client_default_config();
   config.model_id = string(L, 1, "model_id");
   config.chat_template = string(L, 1, "chat_template");
+  config.model_metadata = string(L, 1, "model_metadata");
   config.backend = (ailo_backend_policy)integer(L, 1, "backend");
   config.lazy = boolean(L, 1, "lazy");
   config.gpu_layers = (int)integer(L, 1, "gpu_layers");

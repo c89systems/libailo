@@ -157,7 +157,8 @@ JSON strings. Free them with `ailo_string_free`. Cards report loaded GGUF/native
 identity, source, license, architecture, parameter count, actual tensor types,
 context limits, template fingerprint and file/checksum provenance. They do not
 infer facts from filenames or expose local paths or credentials. Unknown facts
-remain null. Publisher metadata enrichment is not yet implemented. Template
+remain null. Bounded supplemental and revision-bound publisher claims are
+supported as described below. Template
 support means the named helper recognizes it or the interpreter can parse it;
 rendering can still reject a conversation the template does not accept.
 
@@ -169,6 +170,58 @@ replay and standalone semantic compaction, with their limits. Media remains unav
 Media items fail rather than losing semantics. Completed function histories are
 supported as described below. Protocol handlers remain implementation requirements
 in the full specification.
+
+Set `config.model_metadata` (Lua: `model_metadata`) to a UTF-8 JSON object:
+
+```json
+{"name":"Example model","license":{"id":"apache-2.0","name":null,"url":null},"source":{"base_models":["publisher/base-model"]}}
+```
+
+All fields are optional or nullable. Unknown fields, duplicate members, wrong
+types, invalid UTF-8 and inputs over 1 MiB fail construction, including lazy
+construction. Strings are at most 4,096 bytes, without control characters.
+Lineage is a bounded array of at most 64 distinct Hugging Face repository IDs.
+License links require public HTTPS URLs without credentials, queries or
+fragments. The constructor keeps normalized owned claims; the input JSON may be
+released immediately. It cannot supply architecture, parameter counts or other
+loaded-model facts.
+
+The first model-card request also reads a matching publisher sidecar. If it is
+missing and downloads are permitted, the library requests structured Hub metadata
+for an explicit 40-character lowercase commit revision. A mutable branch/tag is
+reported as `unresolved_revision`, with no publisher request. The Hub's returned
+repository and commit must match. Metadata uses the same verified HTTPS and
+same-origin bearer policy as model acquisition, one attempt, the configured
+connect timeout and a transfer timeout capped at 15 seconds. Input stays in
+bounded memory; only selected claims are atomically published beside the model.
+Sidecars bind repository, revision, ordered shard names and configured checksums;
+later cwd/XDG changes cannot redirect their lookup. No raw repository response,
+Markdown or YAML is retained. Optional lookup never precedes a generation delta.
+The endpoint is the Hub's revision-specific model-info operation in its
+[official API documentation](https://huggingface.co/docs/hub/api).
+
+The card's name and entire license tuple prefer GGUF, then caller, then publisher
+claims. License tuples are not combined across origins. `source.base_models` is
+the selected lineage array or null, with `source.lineage_origin` identifying its
+claim source. `provenance.name_origin` identifies the selected name;
+`supplemental_metadata` and `publisher_metadata` preserve normalized claims.
+Publisher `status` is `local`, `unresolved_revision`, `offline_missing`, `cached`,
+`fetched`, `invalid` or `unavailable`. Invalid/missing/failed publisher metadata
+does not invalidate loaded weights and is never silently substituted from a
+different identity. Existing corrupt sidecars are preserved for explicit repair.
+Cancellation and allocation/callback failures still return errors; a cancelled
+lookup can be retried. Successful/advisory lookup is retained for that client.
+
+`provenance.conflicts` contains differing known claims, with `field`,
+`selected_origin`, `selected`, `claim_origin` and `claim`; values are strings,
+or arrays for lineage. Unknown fields remain null. Card serialization has a
+4 MiB bound and performs no inference. The native metadata integration test
+exercises HTTPS, identity mismatch, malformed/oversized metadata, corrupt and
+symlink sidecars, offline reuse, cancellation and weight-load independence;
+static/shared C89 and installed Lua tests exercise ownership and provenance.
+The pinned SmolLM2 model also passed a live lookup through the ordinary model-card
+API. Its selected publisher license and base-model lineage were reused with
+socket creation denied, with identical card facts apart from the lookup status.
 
 ## Prompt/KV cache
 

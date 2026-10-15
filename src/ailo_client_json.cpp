@@ -327,17 +327,39 @@ std::string devices() {
 }
 
 std::string model_card(state &self) {
+  self.ensure_metadata();
   const auto *model = self.model.get();
   const std::string architecture = metadata(model, "general.architecture");
-  const std::string license = metadata(model, "general.license");
-  const std::string license_name = metadata(model, "general.license.name");
-  const std::string license_url = metadata(model, "general.license.link");
+  metadata_claims native;
+  native.name = metadata(model, "general.name");
+  native.license_id = metadata(model, "general.license");
+  native.license_name = metadata(model, "general.license.name");
+  native.license_url = metadata(model, "general.license.link");
+  const auto has_license = [](const metadata_claims &c) {
+    return !c.license_id.empty() || !c.license_name.empty() ||
+           !c.license_url.empty();
+  };
+  const auto &supplemental = self.supplemental;
+  const auto &publisher = self.publisher.claims;
+  const auto &name = !native.name.empty()         ? native.name
+                     : !supplemental.name.empty() ? supplemental.name
+                                                  : publisher.name;
+  const char *name_origin = !native.name.empty()         ? "gguf"
+                            : !supplemental.name.empty() ? "caller"
+                                                         : "huggingface";
+  const auto &license = has_license(native)         ? native
+                        : has_license(supplemental) ? supplemental
+                                                    : publisher;
+  const char *license_origin = has_license(native)         ? "gguf"
+                               : has_license(supplemental) ? "caller"
+                                                           : "huggingface";
+  const auto &lineage = supplemental.lineage_known ? supplemental : publisher;
   json out;
   out.object();
   out.key("id");
   out.string(self.id);
   out.key("name");
-  out.nullable(metadata(model, "general.name"));
+  out.nullable(name);
   out.key("source");
   out.object();
   out.key("kind");
@@ -347,25 +369,35 @@ std::string model_card(state &self) {
   out.key("requested_revision");
   out.nullable(self.source.revision);
   out.key("resolved_revision");
-  bool immutable = self.source.revision.size() == 40;
-  for (char ch : self.source.revision)
-    immutable =
-        immutable && ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f'));
-  out.nullable(immutable ? self.source.revision : "");
+  out.nullable(immutable_revision(self.source.revision) ? self.source.revision
+                                                        : "");
+  out.key("base_models");
+  if (lineage.lineage_known) {
+    out.array();
+    for (const auto &id : lineage.base_models)
+      out.string(id);
+    out.end_array();
+  } else
+    out.null();
+  out.key("lineage_origin");
+  if (lineage.lineage_known)
+    out.string(supplemental.lineage_known ? "caller" : "huggingface");
+  else
+    out.null();
   out.end_object();
   out.key("license");
-  if (license.empty() && license_name.empty() && license_url.empty()) {
+  if (!has_license(license)) {
     out.null();
   } else {
     out.object();
     out.key("id");
-    out.nullable(license);
+    out.nullable(license.license_id);
     out.key("name");
-    out.nullable(license_name);
+    out.nullable(license.license_name);
     out.key("url");
-    out.nullable(license_url);
+    out.nullable(license.license_url);
     out.key("origin");
-    out.string("gguf");
+    out.string(license_origin);
     out.end_object();
   }
   out.key("architecture");
@@ -461,10 +493,73 @@ std::string model_card(state &self) {
   out.object();
   out.key("model_facts");
   out.string("loaded_gguf_native_model");
+  out.key("name_origin");
+  if (name.empty())
+    out.null();
+  else
+    out.string(name_origin);
+  out.key("supplemental_metadata");
+  out.object();
+  write_claims(out, supplemental);
+  out.end_object();
   out.key("publisher_metadata");
-  out.null();
+  out.object();
+  out.key("status");
+  out.string(self.publisher.status);
+  write_claims(out, publisher);
+  out.end_object();
   out.key("conflicts");
   out.array();
+  const auto conflict = [&](const char *field, const std::string &selected,
+                            const char *origin, const std::string &claim,
+                            const char *claim_origin) {
+    if (selected.empty() || claim.empty() || selected == claim)
+      return;
+    out.object();
+    out.key("field");
+    out.string(field);
+    out.key("selected_origin");
+    out.string(origin);
+    out.key("selected");
+    out.string(selected);
+    out.key("claim_origin");
+    out.string(claim_origin);
+    out.key("claim");
+    out.string(claim);
+    out.end_object();
+  };
+  const std::pair<const metadata_claims *, const char *> claims[] = {
+      {&supplemental, "caller"}, {&publisher, "huggingface"}};
+  for (const auto &claim : claims) {
+    conflict("name", name, name_origin, claim.first->name, claim.second);
+    conflict("license.id", license.license_id, license_origin,
+             claim.first->license_id, claim.second);
+    conflict("license.name", license.license_name, license_origin,
+             claim.first->license_name, claim.second);
+    conflict("license.url", license.license_url, license_origin,
+             claim.first->license_url, claim.second);
+  }
+  if (supplemental.lineage_known && publisher.lineage_known &&
+      supplemental.base_models != publisher.base_models) {
+    out.object();
+    out.key("field");
+    out.string("source.base_models");
+    out.key("selected_origin");
+    out.string("caller");
+    out.key("selected");
+    out.array();
+    for (const auto &id : supplemental.base_models)
+      out.string(id);
+    out.end_array();
+    out.key("claim_origin");
+    out.string("huggingface");
+    out.key("claim");
+    out.array();
+    for (const auto &id : publisher.base_models)
+      out.string(id);
+    out.end_array();
+    out.end_object();
+  }
   out.end_array();
   out.end_object();
   out.key("placement");
