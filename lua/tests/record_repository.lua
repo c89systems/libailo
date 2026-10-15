@@ -154,6 +154,7 @@ function M.exercise(ailo,path,memory)
   collectgarbage("collect");assert(weak[1]==nil)
   assert(not pcall(late,"after close"));c=nil;collectgarbage("collect")
   M.compaction(ailo,path,memory)
+  M.conversations(ailo,path,memory)
 end
 function M.compaction(ailo,path,memory)
   local function ok(v,e)assert(v,e and (e.code..": "..e.message));return v end
@@ -243,5 +244,221 @@ function M.compaction(ailo,path,memory)
   local transient=thinking:sub(1,-2)..',"store":false}'
   frames={};assert(not ok(c:responses(transient,function(s)frames[#frames+1]=s end)).stored)
   assert(table.concat(frames):find('"encrypted_content":"'));c:close()
+end
+-- Small, explicitly materialized test repository. The scanner extracts values
+-- from library-written JSON objects; it is not used by the shipped binding.
+local function value_end(s,p)
+  local first=s:sub(p,p)
+  if first=='"' then
+    p=p+1
+    while p<=#s do local c=s:sub(p,p);if c=='\\' then p=p+2 elseif c=='"' then return p else p=p+1 end end
+  elseif first=='{' or first=='[' then
+    local close=first=='{' and '}' or ']';p=p+1
+    while p<=#s do local c=s:sub(p,p);if c==close then return p elseif c==',' or c==':' or c:match('%s')then p=p+1 else p=value_end(s,p)+1 end end
+  else
+    while p<=#s and not s:sub(p,p):match('[,%]}%s]')do p=p+1 end
+    return p-1
+  end
+  error('incomplete fixture JSON')
+end
+local function rows(s)
+  local out={};local p=2
+  while p<#s do
+    if s:sub(p,p)==',' or s:sub(p,p):match('%s')then p=p+1 else
+      local endp=value_end(s,p);out[#out+1]=s:sub(p,endp);p=endp+1
+    end
+  end
+  return out
+end
+local function member(s,name)
+  local p=2
+  while p<#s do
+    if s:sub(p,p)==',' or s:sub(p,p):match('%s')then p=p+1 else
+      local endp=value_end(s,p);local keyname=s:sub(p+1,endp-1);p=endp+1
+      while s:sub(p,p)==':' or s:sub(p,p):match('%s')do p=p+1 end
+      endp=value_end(s,p);if keyname==name then return s:sub(p,endp)end;p=endp+1
+    end
+  end
+end
+function M.conversation_repository()
+  local r=M.new();r.locks={}
+  local base_commit,base_abort,base_read=r.commit,r.abort,r.read
+  function r:amend(c)
+    local k=key(c.namespace_id,'conversation',c.id)
+    if self.amend_hook then self.amend_hook(c)end
+    local old=self.records[k]
+    if self.locks[k] or (c.action=='create' and old) or (c.action~='create' and old and old.revision~=c.revision)then return nil,{code='busy'}end
+    if c.action~='create' and not old then return nil,{code='not_found'}end
+    local present={};for _,row in ipairs(old and old.rows or {})do present[row.id]=true end
+    for _,id in ipairs(c.input_ids)do if present[id]then return nil,{code='invalid_argument'}end;present[id]=true end
+    if c.action=='delete_item' and not present[c.item_id]then return nil,{code='not_found'}end
+    local tx={change=c,key=k,old=old,parts={output={},input={},metadata={},conversation_state={},conversation_items={}},bytes=0,metadata={max_bytes=c.max_bytes}}
+    self.reserved=self.reserved+1;self.active[tx]=true;self.locks[k]=tx
+    if self.fault=='amend' then return tx,self.marker end
+    return tx
+  end
+  function r:commit(tx)
+    if not tx.change then return base_commit(self,tx)end
+    if self.fault=='commit' then return nil,self.marker end
+    local c=tx.change;local old=tx.old
+    local entries={};for _,entry in ipairs(old and old.rows or {})do if entry.id~=c.item_id then entries[#entries+1]=entry end end
+    local seen={};for _,entry in ipairs(entries)do seen[entry.id]=true end
+    for _,row in ipairs(rows(table.concat(tx.parts.conversation_items)))do
+      local id=assert(member(row,'id')):sub(2,-2)
+      assert(not seen[id]);seen[id]=true
+      entries[#entries+1]={id=id,wire=assert(member(row,'wire')),canonical=assert(member(row,'canonical'))}
+    end
+    local output=table.concat(tx.parts.output)
+    if c.response then
+      local m=c.response
+      self.records[key(m.namespace_id,m.protocol,m.id)]={parts={input=table.concat(tx.parts.input),output=output,metadata=table.concat(tx.parts.metadata)},expires=m.expires_at}
+      output=old.parts.output
+    elseif output=='' then output=old.parts.output end
+    self.records[tx.key]={parts={output=output,input=table.concat(tx.parts.conversation_state)},expires=0,revision=c.revision+1,rows=entries}
+    self.active[tx]=nil;self.locks[tx.key]=nil;self.committed=self.committed+1;return true
+  end
+  function r:abort(tx)
+    if tx.change then self.locks[tx.key]=nil end
+    return base_abort(self,tx)
+  end
+  function r:query(q)
+    local old=self.records[key(q.namespace_id,'conversation',q.id)]
+    if not old then return nil,{code='not_found'}end
+    local selected={};local eligible={}
+    for _,row in ipairs(old.rows)do if (not q.item_id or row.id==q.item_id)and(not q.canonical or row.canonical~='null')then eligible[#eligible+1]=row end end
+    if q.descending then local rev={};for i=#eligible,1,-1 do rev[#rev+1]=eligible[i]end;eligible=rev end
+    local started=not q.after
+    for _,row in ipairs(eligible)do
+      if started then selected[#selected+1]=q.canonical and row.canonical or row.wire
+      elseif row.id==q.after then started=true end
+      if q.limit>0 and #selected>=q.limit+1 then break end
+    end
+    if not started then return nil,{code='not_found'}end
+    local handle={parts={output='['..table.concat(selected,',')..']'},query=true}
+    if self.bad_query then handle.parts.output='[{"id":"broken"' end
+    self.reading[handle]=true
+    if self.fault=='query' then return handle,self.marker end
+    return handle
+  end
+  function r:read(handle,section,emit)
+    self.in_query=handle.query
+    self.query_total=handle.query and #handle.parts.output or 0;self.query_sent=0
+    local result,err=base_read(self,handle,section,function(s)self.query_sent=self.query_sent+#s;return emit(s)end)
+    self.in_query=false;return result,err
+  end
+  return r
+end
+function M.conversations(ailo,path,memory)
+  local function ok(v,e)assert(v,e and(e.code..': '..e.message));return v end
+  local r=M.conversation_repository()
+  local function client(ns,zdr)
+    return ok(ailo.new{source={local_path=path},backend='cpu',threads=1,context_tokens=512,lazy=true,
+      openai={namespace_id=ns or 'C',repository=r,zero_data_retention=zdr,max_record_bytes=16384}})
+  end
+  local c=client();local output={}
+  local function sink(s)output[#output+1]=s end
+  local created=ok(c:conversation_create('{"metadata":{"topic":"test"},"items":[{"role":"user","content":"Hello"}]}',sink))
+  local id=created.id;assert(id:match('^conv_')and created.stored)
+  local function text()local s=table.concat(output);output={};return s end
+  assert(text():find('"topic":"test"'))
+  ok(c:conversation_retrieve(id,sink));assert(text():find(id,1,true))
+  ok(c:conversation_items_list(id,sink,'{"order":"asc","limit":1}'))
+  local listed=text();local first=assert(listed:match('"first_id":"([^"]+)"'));assert(listed:find('"type":"message"')and listed:find('"content":%['))
+  ok(c:conversation_item_retrieve(id,first,sink));assert(text():find('Hello'))
+  ok(c:conversation_update(id,'{"metadata":{"owner":"new"}}',sink));assert(text():find('"owner":"new"'))
+  local unsupported_deliveries=0
+  local av,ae=c:responses('{"conversation":"'..id..'","input":"No permanent keys","store":false,"context_management":[{"type":"compaction"}]}',function()unsupported_deliveries=unsupported_deliveries+1 end)
+  assert(av==nil and ae.code=='invalid_argument'and unsupported_deliveries==0 and not next(r.active))
+  local reserved=r.reserved
+  local bv,be=c:conversation_create('{"items":['..string.rep('{"role":"user","content":"x"},',20)..'{"role":"user","content":"x"}]}',function()end)
+  assert(bv==nil and be.code=='invalid_argument'and r.reserved==reserved)
+  bv,be=c:conversation_update(id,'{}',function()end);assert(bv==nil and be.code=='invalid_argument')
+  for _,options in ipairs{'{"limit":0}','{"order":"bad"}','{"include":["unsupported"]}'}do
+    bv,be=c:conversation_items_list(id,function()end,options);assert(bv==nil and be)
+  end
+  r.marker={amend_failure=true};r.fault='amend';local aborted=r.aborted
+  bv,be=c:conversation_update(id,'{"metadata":null}',function()end)
+  assert(bv==nil and be.cause==r.marker and r.aborted==aborted+1 and not next(r.active)and not next(r.locks));r.fault=nil
+  r.amend_hook=function(change)
+    r.amend_hook=nil
+    local k=key(change.namespace_id,'conversation',change.id);local old=r.records[k]
+    local copied={parts={output=old.parts.output,input=old.parts.input:gsub('"ailo_revision":%d+','"ailo_revision":'..(old.revision+1),1)},expires=0,revision=old.revision+1,rows=old.rows}
+    r.records[k]=copied
+  end
+  bv,be=c:conversation_update(id,'{"metadata":null}',function()end);assert(bv==nil and be.code=='busy')
+  local run=ok(c:responses('{"conversation":"'..id..'","input":"Next","store":false,"stream":true,"max_output_tokens":2,"temperature":0,"stream_options":{"include_obfuscation":false}}',sink))
+  assert(not run.stored and text():find('event: response.incomplete')and not next(r.active))
+  local stored=ok(c:responses('{"conversation":{"id":"'..id..'"},"input":"Again","max_output_tokens":2,"temperature":0}',sink));assert(stored.stored);text()
+  local streaming=false;local chunks={}
+  ok(c:conversation_items_list(id,function(s)chunks[#chunks+1]=s;if table.concat(chunks):find('Hello')and r.in_query and r.query_sent<r.query_total then streaming=true end end,'{"order":"asc","limit":100}'))
+  assert(streaming and r.records[key('C','conversation',id)].expires==0)
+  local marker={query_sink=true}
+  bv,be=c:conversation_items_list(id,function()error(marker)end)
+  assert(bv==nil and be.code=='sink_failed'and be.cause==marker and not next(r.reading))
+  r.bad_query=true;bv,be=c:conversation_items_list(id,function()end);assert(bv==nil and be and not next(r.reading));r.bad_query=false
+  r.marker={query_failure=true};r.fault='query';local closed=r.closed
+  local qv,qe=c:conversation_items_list(id,function()end);assert(qv==nil and qe.cause==r.marker and r.closed==closed+1 and not next(r.reading));r.fault=nil
+  c:close();c=client()
+  ok(c:conversation_items_list(id,sink,'{"order":"asc","limit":1}'));assert(text():find('"has_more":true'))
+  ok(c:conversation_items_list(id,sink,'{"order":"asc","after":"'..first..'","limit":2}'));assert(not text():find('Hello'))
+  ok(c:conversation_items_create(id,'{"items":[{"role":"assistant","content":"Added"}]}',sink));assert(text():find('Added'))
+  local before=r.committed;r.marker={conversation=true};r.fault='commit'
+  local v,e=c:responses('{"conversation":"'..id..'","input":"Failed","max_output_tokens":2,"temperature":0}',function()end)
+  assert(v==nil and e.code=='io_failed'and e.cause==r.marker and r.committed==before and not next(r.active)and not next(r.locks));r.fault=nil
+  v,e=c:responses('{"conversation":"'..id..'","input":"Cancelled","stream":true,"max_output_tokens":2,"temperature":0}',function()return false end)
+  assert(v==nil and e.code=='cancelled'and r.committed==before and not next(r.active)and not next(r.locks))
+  local deliveries=0
+  v,e=c:responses('{"conversation":"'..id..'","input":[{"id":"'..first..'","role":"user","content":"Duplicate"}],"store":false,"max_output_tokens":2}',function()deliveries=deliveries+1 end)
+  assert(v==nil and e.code=='invalid_argument'and deliveries==0)
+  local second=client();local checked=false
+  local response=ok(c:responses('{"conversation":"'..id..'","input":"Check locks","store":false,"stream":true,"max_output_tokens":2,"temperature":0,"stream_options":{"include_obfuscation":false}}',function()
+    if not checked then checked=true;local v,e=second:conversation_update(id,'{"metadata":null}',function()end);assert(v==nil and e.code=='busy')end
+  end));assert(not response.stored and checked);second:close()
+  local isolated=client('other');v,e=isolated:conversation_retrieve(id,function()end);assert(v==nil and e.code=='not_found');isolated:close()
+  ok(c:conversation_item_delete(id,first,sink));text()
+  v,e=c:conversation_item_retrieve(id,first,function()end);assert(v==nil and e.code=='not_found')
+  local all={};ok(c:conversation_items_list(id,function(s)all[#all+1]=s end,'{"limit":100}'));assert(not table.concat(all):find('Hello'))
+  assert(not ok(c:responses('{"conversation":"'..id..'","input":"After deletion","store":false,"max_output_tokens":2,"temperature":0}',function()end)).stored)
+  ok(c:conversation_delete(id,sink));assert(text():find('"deleted":true'))
+  v,e=c:conversation_retrieve(id,function()end);assert(v==nil and e.code=='not_found')
+  local remaining={};ok(c:conversation_items_list(id,function(s)remaining[#remaining+1]=s end));local retained=table.concat(remaining);assert(#retained>50)
+  local orphan=assert(retained:match('"first_id":"([^"]+)"'))
+  ok(c:conversation_item_delete(id,orphan,sink));text()
+  v,e=c:conversation_retrieve(id,function()end);assert(v==nil and e.code=='not_found')
+  ok(c:response_delete(stored.id,function()end));c:close()
+  local zdr=client('C',true);local zroot=ok(zdr:conversation_create('{}',function()end))
+  local zr=ok(zdr:responses('{"conversation":"'..zroot.id..'","input":"ZDR explicit conversation","store":true,"max_output_tokens":2,"temperature":0}',function()end))
+  assert(not zr.stored and r.records[key('C','conversation',zroot.id)].expires==0 and not r.records[key('C','response',zr.id)])
+  ok(zdr:conversation_delete(zroot.id,function()end));zdr:close()
+  if memory then return end
+  -- Joint compaction/reasoning behavior has native memory coverage already;
+  -- these additional semantic roundtrips run in the functional/rock gates.
+  local function keyed(suffix,thinking)
+    local owner=ok(ailo.new_compactor{namespace_id='conversations',key_id='one',key=string.rep('k',32)})
+    local template=thinking and "{% for m in messages %}{{m.role}}:{% if m.reasoning_content is defined %}<think>{{m.reasoning_content}}</think>{% endif %}{{m.content}}|{% endfor %}{% if add_generation_prompt %}assistant:{% if enable_thinking %}<think>{% endif %}{% endif %}" or "{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"
+    local receiver=ok(ailo.new{source={local_path=path..suffix},backend='cpu',threads=1,context_tokens=4096,compactor=owner,chat_template=template,
+      openai={namespace_id='J',repository=r,max_record_bytes=65536,compaction={target_tokens=800,summary_context_tokens=8192}}})
+    owner:close();return receiver
+  end
+  local joint=keyed('-auto-compaction',false)
+  local history={};for i,s in ipairs{'Finish ticket T-1. '..string.rep('x',1000),'old answer','older','answer','recent','answer','newest','answer','current'}do history[i]='{"role":"'..(i%2==1 and 'user' or 'assistant')..'","content":"'..s..'"}'end
+  local root=ok(joint:conversation_create('{"items":['..table.concat(history,',')..']}',function()end))
+  local compacted=ok(joint:responses('{"conversation":"'..root.id..'","instructions":"Only this request","input":"Next","stream":true,"max_output_tokens":2,"temperature":0,"context_management":[{"type":"compaction","compact_threshold":900}]}',function()end))
+  assert(compacted.stored and compacted.usage.compaction_passes>0);joint:close();joint=keyed('-auto-compaction',false)
+  assert(not ok(joint:responses('{"conversation":"'..root.id..'","input":"After checkpoint","store":false,"max_output_tokens":2,"temperature":0}',function()end)).stored)
+  local different=keyed('',false)
+  local cv,ce=different:responses('{"conversation":"'..root.id..'","input":"Switch models","store":false,"stream":true,"max_output_tokens":2,"temperature":0}',function()return false end)
+  assert(cv==nil and ce.code=='cancelled'and ce.info.usage.prompt_tokens>800)
+  different:close()
+  local page={};ok(joint:conversation_items_list(root.id,function(s)page[#page+1]=s end,'{"order":"asc","limit":1}'))
+  local goal=assert(table.concat(page):match('"first_id":"([^"]+)"'))
+  ok(joint:conversation_item_delete(root.id,goal,function()end))
+  ok(joint:responses('{"conversation":"'..root.id..'","input":"After removal","store":false,"max_output_tokens":2,"temperature":0}',function()end))
+  ok(joint:response_delete(compacted.id,function()end));ok(joint:conversation_delete(root.id,function()end));joint:close()
+  joint=keyed('-reasoning',true);root=ok(joint:conversation_create('{}',function()end))
+  local reason=ok(joint:responses('{"conversation":"'..root.id..'","input":"Hi","store":false,"max_output_tokens":2,"temperature":0}',function()end));assert(not reason.stored and reason.usage.reasoning_tokens>0)
+  joint:close();joint=keyed('-reasoning',true)
+  ok(joint:responses('{"conversation":"'..root.id..'","input":"Next","store":false,"max_output_tokens":2,"temperature":0}',function()end))
+  ok(joint:conversation_delete(root.id,function()end));joint:close()
 end
 return M

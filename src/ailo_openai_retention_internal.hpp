@@ -13,6 +13,7 @@ struct openai_retention_policy {
   bool zero_data_retention = false;
   bool chat_store_by_default = true;
   bool repository_readable = false, repository_writable = false;
+  bool conversation_readable = false, conversation_writable = false;
   std::string namespace_id;
   uint64_t response_retention_seconds = openai_response_retention_seconds;
   // No published Chat record TTL: zero means retain until explicit deletion.

@@ -198,6 +198,7 @@ int main(int argc, char **argv) {
     c.store = 0;
     policy_fails(compact, AILO_UNSUPPORTED);
     policy.repository_readable = policy.repository_writable = true;
+    policy.conversation_readable = policy.conversation_writable = true;
     auto attached = resolve_retention(compact, policy, 100);
     CHECK(!attached.store_response && attached.read_conversation &&
           attached.append_conversation && attached.reserve_record_storage &&

@@ -94,11 +94,12 @@ struct item {
   bool has_content = false, content_null = false, has_arguments = false,
        has_encrypted = false, has_calls = false, has_summary = false;
   bool encrypted_null = false;
+  bool content_string = false;
 };
 class decoder {
   openai_request &out;
   bool chat;
-  bool compact, null_model = false;
+  bool compact, control, null_model = false;
   const char *selected_items;
   std::vector<item> input;
   std::vector<openai_function> allowed;
@@ -112,6 +113,7 @@ class decoder {
        schema_fields = false, conversation_object = false;
   size_t key_count = 0;
   std::unique_ptr<bounded_json> capture;
+  std::unique_ptr<bounded_json> item_capture;
   std::string *capture_target = nullptr;
   size_t capture_depth = 0;
   std::exception_ptr error;
@@ -161,6 +163,21 @@ class decoder {
           self.capture.reset();
         }
       }
+      if (self.item_capture && (K == kind::object || K == kind::array)) {
+        if (K == kind::object)
+          self.item_capture->end_object();
+        else
+          self.item_capture->end_array();
+        if (p->segment_count == 2) {
+          self.out.wire_items.push_back(self.item_capture->finish());
+          self.out.wire_status.push_back(!self.input.back().status.empty());
+          self.out.wire_simple.push_back(self.input.back().content_string &&
+                                         self.input.back().type !=
+                                             "function_call_output");
+          self.out.wire_type.push_back(!self.input.back().type.empty());
+          self.item_capture.reset();
+        }
+      }
       if (K == kind::object)
         self.object_keys.pop_back();
     });
@@ -200,6 +217,8 @@ class decoder {
         self.root_keys.insert(self.key);
       if (self.capture)
         self.capture->key(self.key);
+      if (self.item_capture)
+        self.item_capture->key(self.key);
     });
   }
   void fragment(std::string &target, const path &p, kind k) {
@@ -386,6 +405,7 @@ class decoder {
         m.has_content = true;
         m.content_field = field;
         m.content_null = k == kind::null;
+        m.content_string = k == kind::string;
         if (k == kind::string)
           m.parts.push_back({chat ? "text" : "input_text", v, true});
         else if (k != kind::null || !chat)
@@ -643,7 +663,46 @@ class decoder {
       out.generation.reasoning = AILO_REASONING_ENABLED;
     }
   }
+  void metadata_value(const path &p, kind k, const std::string &v) {
+    if (p.size() == 1) {
+      if (k != kind::null)
+        expect(k, kind::object);
+    } else if (p.size() == 2) {
+      expect(k, kind::string);
+      if (out.metadata.size() >= 16 || characters(p[1]) > 64 ||
+          characters(v) > 512)
+        invalid(
+            "Metadata exceeds 16 entries or its key/value character limits");
+      out.metadata.emplace(p[1], v);
+    } else
+      unsupported();
+  }
   void value(const path &p, kind k, const std::string &v) {
+    if (out.capture_wire && p.size() == 2 &&
+        (p[0] == "input" || p[0] == "items") && k == kind::object)
+      item_capture = std::make_unique<bounded_json>(8 * 1024 * 1024);
+    if (item_capture) {
+      switch (k) {
+      case kind::object:
+        item_capture->object();
+        break;
+      case kind::array:
+        item_capture->array();
+        break;
+      case kind::string:
+        item_capture->string(v);
+        break;
+      case kind::number:
+        item_capture->number_text(v);
+        break;
+      case kind::boolean:
+        item_capture->boolean(v == "1");
+        break;
+      case kind::null:
+        item_capture->null();
+        break;
+      }
+    }
     if (capture) {
       switch (k) {
       case kind::object:
@@ -682,8 +741,73 @@ class decoder {
       } else if (p.size() == 1 && field == "ailo_automatic") {
         expect(k, kind::boolean);
         out.record_automatic = v == "1";
+      } else if (p.size() == 1 &&
+                 (field == "ailo_revision" || field == "created_at")) {
+        expect(k, kind::number);
+        uint64_t n = 0;
+        const auto parsed = std::from_chars(v.data(), v.data() + v.size(), n);
+        if (parsed.ec != std::errc{} || parsed.ptr != v.data() + v.size())
+          invalid("Invalid retained conversation timestamp/revision");
+        (field == "ailo_revision" ? out.record_revision : out.record_created) =
+            n;
+      } else if (p.size() == 1 &&
+                 (field == "ailo_deleted" || field == "ailo_rebuild")) {
+        expect(k, kind::boolean);
+        (field == "ailo_deleted" ? out.record_deleted : out.record_rebuild) =
+            v == "1";
+      } else if (p.size() == 1 && field == "id") {
+        expect(k, kind::string);
+        text_limit(v, 256, true);
+        out.record_id = v;
+      } else if (field == "metadata") {
+        metadata_value(p, k, v);
       }
       return;
+    }
+    if (control) {
+      const auto protocol = out.protocol;
+      if (field == "metadata" &&
+          (protocol == openai_protocol::conversation ||
+           protocol == openai_protocol::conversation_update)) {
+        metadata_value(p, k, v);
+        return;
+      }
+      if (field == "items" &&
+          (protocol == openai_protocol::conversation ||
+           protocol == openai_protocol::conversation_items)) {
+        if (!(protocol == openai_protocol::conversation && p.size() == 1 &&
+              k == kind::null))
+          message(p, k, v);
+        return;
+      }
+      if (protocol != openai_protocol::conversation_query)
+        unsupported();
+      if (p.size() == 1 && field == "after") {
+        if (k != kind::null) {
+          expect(k, kind::string);
+          text_limit(v, 256, true);
+          out.after = v;
+        }
+        return;
+      }
+      if (p.size() == 1 && field == "limit") {
+        if (k != kind::null) {
+          expect(k, kind::number);
+          out.page_limit = integer(v, 1, 100);
+        }
+        return;
+      }
+      if (p.size() == 1 && field == "order") {
+        if (k != kind::null) {
+          expect(k, kind::string);
+          if (!one_of(v, {"asc", "desc"}))
+            invalid("Unknown item order");
+          out.descending = v == "desc";
+        }
+        return;
+      }
+      if (field != "include")
+        unsupported();
     }
     if (compact && !one_of(field, {"model", "input", "instructions",
                                    "previous_response_id", "prompt_cache_key",
@@ -712,17 +836,7 @@ class decoder {
       return;
     }
     if (field == "metadata" && (k != kind::null || p.size() > 1)) {
-      if (p.size() == 1)
-        expect(k, kind::object);
-      else if (p.size() == 2) {
-        expect(k, kind::string);
-        if (out.metadata.size() >= 16 || characters(p[1]) > 64 ||
-            characters(v) > 512)
-          invalid(
-              "Metadata exceeds 16 entries or its key/value character limits");
-        out.metadata.emplace(p[1], v);
-      } else
-        unsupported();
+      metadata_value(p, k, v);
       return;
     }
     if (field == "stream_options") {
@@ -833,6 +947,8 @@ class decoder {
             invalid("Duplicate include value");
           if (v == "message.output_text.logprobs")
             out.generation.logprobs = 1;
+          else
+            out.include_reasoning = true;
         }
       } else
         unsupported();
@@ -996,6 +1112,7 @@ public:
   explicit decoder(openai_request &request, const char *selected)
       : out(request), chat(request.protocol == openai_protocol::chat),
         compact(request.protocol == openai_protocol::compact),
+        control(request.protocol >= openai_protocol::conversation),
         selected_items(selected) {}
   void parse(const void *data, size_t size, const std::string &served_model) {
     if ((!data && size) || !size || size > 8 * 1024 * 1024)
@@ -1036,8 +1153,20 @@ public:
                                                       : AILO_INVALID_JSON,
           "API request contains malformed JSON or exceeds parser limits");
     if (selected_items) {
-      if (!input_present)
+      if (!input_present && std::strcmp(selected_items, "__header__"))
         invalid("Retained record has no item array");
+      out.model = served_model;
+      finish_input();
+      return;
+    }
+    if (control) {
+      if (out.protocol == openai_protocol::conversation_update &&
+          !root_keys.count("metadata"))
+        invalid("Conversation update requires metadata");
+      if (out.protocol == openai_protocol::conversation_items && !input_present)
+        invalid("Conversation items requires an items array");
+      if (input.size() > 20)
+        invalid("At most 20 conversation items may be added at once");
       out.model = served_model;
       finish_input();
       return;
@@ -1132,8 +1261,11 @@ public:
 
 openai_request::openai_request(openai_protocol format, const void *json,
                                size_t size, const std::string &served_model,
-                               const char *selected_items)
+                               const char *selected_items, bool retain_wire)
     : protocol(format) {
+  capture_wire = retain_wire;
+  raw_json = json;
+  raw_size = size;
   generation.temperature = 1;
   generation.top_p = 1;
   decoder(*this, selected_items).parse(json, size, served_model);

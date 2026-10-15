@@ -310,6 +310,14 @@ AILO_PUBLIC ailo_status ailo_client_new_with_logger(
     shell->response_retrieve = ailo_client_response_retrieve;
     shell->response_delete = ailo_client_response_delete;
     shell->response_compact = ailo_client_response_compact;
+    shell->conversation_create = ailo_client_conversation_create;
+    shell->conversation_retrieve = ailo_client_conversation_retrieve;
+    shell->conversation_update = ailo_client_conversation_update;
+    shell->conversation_delete = ailo_client_conversation_delete;
+    shell->conversation_items_create = ailo_client_conversation_items_create;
+    shell->conversation_item_retrieve = ailo_client_conversation_item_retrieve;
+    shell->conversation_item_delete = ailo_client_conversation_item_delete;
+    shell->conversation_items_list = ailo_client_conversation_items_list;
     *output = shell.release();
   });
 }

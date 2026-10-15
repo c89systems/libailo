@@ -6,8 +6,7 @@ without an HTTP server. `client->chat_completions` and
 caller-owned `ailo_api_info`. The
 request mapper supports the qualified text, function, schema, sampling and
 reasoning controls in [the receiver contract](client.md). Unavailable controls
-fail explicitly. Model/HTTP dispatch, stored-record list/update routes,
-conversation objects
+fail explicitly. Model/HTTP dispatch and stored-response list/update routes
 remain required work.
 
 ```c
@@ -170,10 +169,91 @@ wire logprob diagnostics do not consume the lineage input budget. Each original
 stored output retains its logprobs.
 
 Standalone compaction and canonical-window replay are implemented below.
-Conversation objects, input-item pagination and HTTP routes are still
+Stored-response input-item pagination and HTTP routes are still
 unavailable integrations; requests for those controls fail explicitly. Capability
 fields distinguish implemented Responses operations, configured record storage,
-and the unavailable conversation path.
+and configured conversation support.
+
+## Conversations
+
+The receiver exposes conversation create/retrieve/update/delete and item
+create/retrieve/delete/list, through the corresponding
+`ailo_client_conversation_*` free functions and receiver methods in
+[`ailo/openai.h`](../include/ailo/openai.h). Create/update/item-create accept raw
+JSON bodies; item retrieval/list accept an optional raw JSON query object.
+No HTTP listener is introduced. Operations return the same `ailo_api_info` and
+byte-sink/error contract as the other adapters.
+
+This follows the official [conversation state guide](https://developers.openai.com/api/docs/guides/conversation-state)
+and [Conversations reference](https://developers.openai.com/api/reference/resources/conversations).
+Conversation roots and item rows have no automatic expiry. Responses create
+accepts a conversation ID string or `{ "id": "conv_..." }`, prepends its saved
+context, and appends new input/output items on success, including `store=false`
+and trusted ZDR. The response record, if requested, retains its separate lifetime.
+`previous_response_id` and `conversation` are mutually exclusive. Per-request
+top-level instructions are not inherited; explicit system/developer items are.
+
+Create and item-create accept at most 20 items. IDs omitted on input are assigned
+before admission; duplicate input IDs are rejected. Easy messages are normalized
+to item objects with IDs, type, status and content arrays. Supplied wire diagnostics
+are preserved for item retrieval while canonical model input omits diagnostics.
+Updates replace the metadata map; null clears it. Query options are `after`,
+`limit` (1..100, default 20), `order` (`asc`/`desc`, default `desc`) and `include`
+(`reasoning.encrypted_content`, `message.output_text.logprobs`). Pages return
+`object:list`, data, first/last IDs and `has_more`. Item bodies and string values
+pass incrementally from provider to sink; no complete item or page is assembled
+by libailo.
+
+Deleting a [conversation](https://developers.openai.com/api/reference/resources/conversations/methods/delete)
+does not delete its item rows. The root becomes unavailable to retrieval,
+updates and new responses. A minimal tombstone clears root metadata/context and
+preserves the parent identity needed to retrieve or explicitly delete surviving
+items. Deleting an item invalidates the inference checkpoint; the next response
+reconstructs context from the remaining canonical item rows. Original history
+survives automatic compaction. Generated compaction control items are omitted
+from reconstruction so deleted history cannot reappear through an old checkpoint.
+An imported opaque window still obeys its authentication/binding constraints.
+
+The bounded inference checkpoint is distinct from the full durable item archive.
+Context decoding remains capped at 8 MiB serialized / 4 MiB owned item data and
+4096 items/parts. Oversized reconstruction fails explicitly; it does not evict or
+silently truncate stored items. A changed model/template can rebuild ordinary
+canonical history instead of trying to open an incompatible compacted checkpoint.
+Conversation reasoning/compaction requires configured stable keys with no expiry,
+so persisted replay state does not expire before its conversation.
+
+Configure the optional `amend` and `query` callback pair on the existing record
+repository. Both are required to enable conversations. `conversation_api`
+advertises implementation; `response_conversations` reports the configured pair.
+Existing record-only providers need not implement it. All operations use the
+trusted client namespace, not a request metadata/user field.
+
+`amend(change)` admits the whole operation before inference. The change contains
+namespace, conversation ID, action, prior revision, byte allowance, new input IDs,
+optional item ID and optional response-record metadata. It atomically compares
+the revision, checks IDs and holds the conversation until commit/abort; conflicts
+return `AILO_BUSY` before inference. `open` readers must be stable snapshots across
+all section reads. A response plus its conversation mutation commits atomically,
+before successful done/terminal events. Cancellation or failed publication aborts
+both. A disconnect after commit does not undo durable state.
+
+Transactions write ordinary response sections when response storage is requested.
+`AILO_RECORD_CONVERSATION_STATE` replaces the private context checkpoint/revision.
+`AILO_RECORD_CONVERSATION_ITEMS` appends rows shaped `{id,wire,canonical}`: the
+original wire item plus its durable native view. Generated compaction control
+rows have null canonical views. Without a response record, ordinary OUTPUT writes
+the conversation object; an omitted OUTPUT preserves the existing object.
+Providers treat checkpoints as opaque library state and maintain revision/ID
+constraints, durability, authorization, quota admission and atomic publication.
+
+`query(query)` opens a stable reader of an item array scoped to namespace and
+parent conversation, optionally one item or a cursor page. It uses ordinary
+`read(OUTPUT, emit)` and `close`. Return at most `limit+1` rows so libailo can compute
+`has_more`; internal limit zero requests ascending canonical history, excluding
+null canonical rows. Item IDs are namespace-wide unique and parent association
+must also be checked. These reads carry no TTL. The per-transaction byte allowance
+covers all sections together; total archive capacity is the provider's admission
+policy. No database, key file or repository is silently created by the library.
 
 ## Standalone Responses compaction
 

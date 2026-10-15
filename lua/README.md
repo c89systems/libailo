@@ -65,9 +65,16 @@ completed item's ID, empty summary and encrypted content through ordinary input;
 its plaintext content is optional and must match if supplied. This also works
 for reasoning-only incomplete responses. Stored reasoning requests require the
 same stable-key/retention policy. See [encrypted reasoning replay](../docs/openai.md#encrypted-reasoning-replay).
-Conversation objects
-remain unavailable integrations;
-capabilities report those separately.
+Conversation methods are `conversation_create(json,sink)`,
+`conversation_retrieve(id,sink)`, `conversation_update(id,json,sink)`,
+`conversation_delete(id,sink)`, `conversation_items_create(id,json,sink)`,
+`conversation_item_retrieve(id,item_id,sink,query_json)`,
+`conversation_item_delete(id,item_id,sink)` and
+`conversation_items_list(id,sink,query_json)`. Queries default to `{}`. Configure
+both provider `amend(change)` and `query(query)` methods to enable them. These
+return transaction and read handles using the ordinary protected repository
+bridge. See [the conversation contract](../docs/openai.md#conversations) for
+atomic mutation, permanent item retention and callback section/query shapes.
 
 Constructor options also include `model_id`, `chat_template`, `lazy`, backend
 `auto`/`cpu`/`vulkan`, `gpu_layers`, `context_tokens`, `batch_tokens`, `threads`

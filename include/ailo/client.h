@@ -376,6 +376,36 @@ struct ailo_client {
   ailo_status (*response_compact)(ailo_client *, const void *, size_t,
                                   ailo_output_sink, void *,
                                   struct ailo_api_info *, ailo_error *);
+  ailo_status (*conversation_create)(ailo_client *, const void *, size_t,
+                                     ailo_output_sink, void *,
+                                     struct ailo_api_info *, ailo_error *);
+  ailo_status (*conversation_retrieve)(ailo_client *, const char *,
+                                       ailo_output_sink, void *,
+                                       struct ailo_api_info *, ailo_error *);
+  ailo_status (*conversation_update)(ailo_client *, const char *, const void *,
+                                     size_t, ailo_output_sink, void *,
+                                     struct ailo_api_info *, ailo_error *);
+  ailo_status (*conversation_delete)(ailo_client *, const char *,
+                                     ailo_output_sink, void *,
+                                     struct ailo_api_info *, ailo_error *);
+  ailo_status (*conversation_items_create)(ailo_client *, const char *,
+                                           const void *, size_t,
+                                           ailo_output_sink, void *,
+                                           struct ailo_api_info *,
+                                           ailo_error *);
+  ailo_status (*conversation_item_retrieve)(ailo_client *, const char *,
+                                            const char *, const void *, size_t,
+                                            ailo_output_sink, void *,
+                                            struct ailo_api_info *,
+                                            ailo_error *);
+  ailo_status (*conversation_item_delete)(ailo_client *, const char *,
+                                          const char *, ailo_output_sink,
+                                          void *, struct ailo_api_info *,
+                                          ailo_error *);
+  ailo_status (*conversation_items_list)(ailo_client *, const char *,
+                                         const void *, size_t, ailo_output_sink,
+                                         void *, struct ailo_api_info *,
+                                         ailo_error *);
 };
 
 ailo_client_config ailo_client_default_config(void);

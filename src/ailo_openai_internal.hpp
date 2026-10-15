@@ -32,6 +32,10 @@ public:
   void key(const std::string &);
   void string(const std::string &);
   void string(const void *, size_t);
+  void string_begin();
+  void string_chunk(const void *, size_t);
+  void string_end();
+  void number_text(const std::string &);
   void number(uint64_t);
   void real(double);
   void boolean(bool);
@@ -54,12 +58,17 @@ byte_sink api_sink(state &, ailo_output_sink, void *, ailo_api_info &);
 void read_record(openai_state &, ailo_record_protocol, const char *,
                  ailo_record_section, byte_sink);
 void erase_record(openai_state &, ailo_record_protocol, const char *);
+void query_conversation(openai_state &, const ailo_conversation_query &,
+                        byte_sink);
+void read_conversation_snapshot(openai_state &, const char *, byte_sink state,
+                                byte_sink header);
 void api_canonical_item(wire_json &, const ailo_item &);
 void api_prior_input(state &, openai_request &);
 void api_expand_compaction(state &, openai_request &);
 void api_expand_reasoning(state &, openai_request &);
-void api_prepare_reasoning(state &, const openai_request &, bool store);
-void api_require_replay_storage(state &);
+void api_prepare_reasoning(state &, const openai_request &, bool store,
+                           bool forever = false);
+void api_require_replay_storage(state &, bool forever = false);
 std::string api_seal_reasoning(state &, const std::string &id,
                                const std::string &text);
 struct sealed_summary;
@@ -76,10 +85,28 @@ class record_transaction {
 
 public:
   record_transaction(openai_state &, const ailo_record_metadata &);
+  record_transaction(openai_state &, const ailo_conversation_change &);
   ~record_transaction();
   byte_sink section(ailo_record_section);
   void commit();
 };
+struct conversation_snapshot {
+  std::string id;
+  uint64_t created = 0, revision = 0;
+  bool deleted = false, rebuild = false;
+  std::map<std::string, std::string> metadata;
+  std::string state_json;
+  transcript incoming;
+  std::vector<std::string> wire_items;
+  std::vector<const char *> input_ids;
+};
+std::unique_ptr<conversation_snapshot>
+api_load_conversation(openai_state &, const char *, bool deleted = false);
+std::unique_ptr<conversation_snapshot>
+api_attach_conversation(state &, openai_request &);
+void api_conversation_header(wire_json &, const conversation_snapshot &);
+void api_conversation_items(wire_json &, const conversation_snapshot &,
+                            const std::vector<ailo_item> &canonical);
 } // namespace client
 } // namespace ailo
 #endif

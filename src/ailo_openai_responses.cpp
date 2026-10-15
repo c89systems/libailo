@@ -196,6 +196,7 @@ class response_writer {
   std::vector<response_item> items;
   std::deque<pending_probability> pending;
   std::unique_ptr<record_transaction> record;
+  conversation_snapshot *conversation = nullptr;
   std::exception_ptr problem;
 
   void charge(size_t n) {
@@ -379,6 +380,15 @@ class response_writer {
     out.boolean(request.generation.parallel_tool_calls);
     out.key("previous_response_id");
     nullable(out, request.previous_response_id);
+    out.key("conversation");
+    if (request.conversation_id.empty())
+      out.null();
+    else {
+      out.object();
+      out.key("id");
+      out.string(request.conversation_id);
+      out.end_object();
+    }
     if (request.automatic_compaction) {
       out.key("context_management");
       out.array();
@@ -673,6 +683,41 @@ class response_writer {
     }
     flush_done();
   }
+  void checkpoint(wire_json &input, bool conversation_state) {
+    input.object();
+    if (conversation_state) {
+      input.key("ailo_revision");
+      input.number(conversation->revision + 1);
+    }
+    input.key("ailo_model_identity");
+    input.string(self.conversation_identity);
+    input.key("input");
+    input.array();
+    const auto source = active_control == SIZE_MAX
+                            ? request.items
+                            : items[active_control].window->views();
+    const bool compacted =
+        std::any_of(source.begin(), source.end(), [](const ailo_item &i) {
+          return i.kind == AILO_ITEM_COMPACTION;
+        });
+    if (compacted) {
+      const auto lineage =
+          api_compacted_window(self, source, request.instruction_items);
+      for (const auto &i : lineage.items)
+        canonical_item(input, i->view());
+    } else
+      for (size_t i = request.instruction_items; i < request.items.size(); ++i)
+        canonical_item(input, request.items[i]);
+    input.end_array();
+    input.key("output");
+    input.array();
+    for (const auto &i : items)
+      if (i.kind != AILO_ITEM_COMPACTION)
+        item(input, i, true, false);
+    input.end_array();
+    input.end_object();
+    input.finish();
+  }
   void completed() {
     if (!pending.empty())
       throw failure(AILO_INTERNAL_ERROR,
@@ -687,48 +732,45 @@ class response_writer {
                              : "completed";
     if (record) {
       identify_cache(self, true);
-      wire_json input(record->section(AILO_RECORD_INPUT),
-                      self.openai->record_limit);
-      input.object();
-      input.key("ailo_model_identity");
-      input.string(self.conversation_identity);
-      input.key("input");
-      input.array();
-      const auto source = active_control == SIZE_MAX
-                              ? request.items
-                              : items[active_control].window->views();
-      const bool compacted =
-          std::any_of(source.begin(), source.end(), [](const ailo_item &i) {
-            return i.kind == AILO_ITEM_COMPACTION;
-          });
-      if (compacted) {
-        const auto lineage =
-            api_compacted_window(self, source, request.instruction_items);
-        for (const auto &i : lineage.items)
-          canonical_item(input, i->view());
-      } else
-        for (size_t i = request.instruction_items; i < request.items.size();
-             ++i)
-          canonical_item(input, request.items[i]);
-      input.end_array();
-      input.key("output");
-      input.array();
-      for (const auto &i : items)
-        if (i.kind != AILO_ITEM_COMPACTION)
-          item(input, i, true, false);
-      input.end_array();
-      input.end_object();
-      input.finish();
-      wire_json metadata(record->section(AILO_RECORD_METADATA),
+      if (store) {
+        wire_json input(record->section(AILO_RECORD_INPUT),
+                        self.openai->record_limit);
+        checkpoint(input, false);
+        wire_json metadata(record->section(AILO_RECORD_METADATA),
+                           self.openai->record_limit);
+        attributes(metadata);
+        metadata.finish();
+        wire_json stored(record->section(AILO_RECORD_OUTPUT),
                          self.openai->record_limit);
-      attributes(metadata);
-      metadata.finish();
-      wire_json stored(record->section(AILO_RECORD_OUTPUT),
+        response(stored, status);
+        stored.finish();
+      }
+      if (conversation) {
+        wire_json saved(record->section(AILO_RECORD_CONVERSATION_STATE),
+                        self.openai->record_limit);
+        checkpoint(saved, true);
+        wire_json rows(record->section(AILO_RECORD_CONVERSATION_ITEMS),
                        self.openai->record_limit);
-      response(stored, status);
-      stored.finish();
+        rows.array();
+        api_conversation_items(rows, *conversation, request.items);
+        for (const auto &i : items) {
+          rows.object();
+          rows.key("id");
+          rows.string(i.id);
+          rows.key("wire");
+          item(rows, i, true);
+          rows.key("canonical");
+          if (i.kind == AILO_ITEM_COMPACTION)
+            rows.null();
+          else
+            item(rows, i, true, false);
+          rows.end_object();
+        }
+        rows.end_array();
+        rows.finish();
+      }
       record->commit();
-      info.stored = 1;
+      info.stored = store;
       record.reset();
     }
     flush_done();
@@ -889,10 +931,11 @@ public:
   }
   response_writer(state &s, openai_request &r, ailo_api_info &i,
                   ailo_output_sink callback, void *user, uint64_t now,
-                  const openai_retention_plan &plan)
+                  const openai_retention_plan &plan,
+                  conversation_snapshot *snapshot)
       : self(s), request(r), info(i), sink(api_sink(s, callback, user, i)),
-        created(now), store(plan.store_response) {
-    if (store) {
+        created(now), store(plan.store_response), conversation(snapshot) {
+    if (store || conversation) {
       ailo_record_metadata metadata{
           self.openai->policy.namespace_id.c_str(),
           info.id,
@@ -900,7 +943,20 @@ public:
           detail::from_unsigned(now),
           detail::from_unsigned(plan.response_expires_at),
           self.openai->record_limit};
-      record = std::make_unique<record_transaction>(*self.openai, metadata);
+      if (conversation) {
+        ailo_conversation_change change{
+            self.openai->policy.namespace_id.c_str(),
+            conversation->id.c_str(),
+            AILO_CONVERSATION_APPEND,
+            detail::from_unsigned(conversation->revision),
+            self.openai->record_limit,
+            store ? &metadata : nullptr,
+            nullptr,
+            conversation->input_ids.data(),
+            conversation->input_ids.size()};
+        record = std::make_unique<record_transaction>(*self.openai, change);
+      } else
+        record = std::make_unique<record_transaction>(*self.openai, metadata);
     }
   }
   static int event(void *user, const ailo_event *e) noexcept {
@@ -960,24 +1016,25 @@ AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
                            call.self.id);
     const auto now = api_now();
     const auto plan = resolve_retention(request, call.self.openai->policy, now);
-    if (!request.conversation_id.empty())
-      throw failure(AILO_UNSUPPORTED,
-                    "Conversation repository is not yet connected");
     info->content_type =
         request.streaming ? "text/event-stream" : "application/json";
     api_identity(*info, "resp_");
-    response_writer output(call.self, request, *info, sink, user, now, plan);
+    auto conversation = api_attach_conversation(call.self, request);
+    response_writer output(call.self, request, *info, sink, user, now, plan,
+                           conversation.get());
     log_scope logs(call.self.logging.get(), log_phase::generate);
     try {
       prior_input(call.self, request);
       bool compacted = false;
       for (const auto &i : request.items)
         compacted |= i.kind == AILO_ITEM_COMPACTION;
-      if ((compacted || request.automatic_compaction) && plan.store_response)
-        api_require_replay_storage(call.self);
+      if ((compacted || request.automatic_compaction) &&
+          (plan.store_response || conversation))
+        api_require_replay_storage(call.self, conversation != nullptr);
       api_expand_compaction(call.self, request);
       api_expand_reasoning(call.self, request);
-      api_prepare_reasoning(call.self, request, plan.store_response);
+      api_prepare_reasoning(call.self, request, plan.store_response,
+                            conversation != nullptr);
       auto native = request.generation;
       if (native.logprobs)
         native.top_logprobs = 20;

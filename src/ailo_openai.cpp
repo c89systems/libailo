@@ -57,6 +57,14 @@ void wire_json::string(const std::string &value) {
 void wire_json::string(const void *value, size_t size) {
   check(writer.string(&writer, value, size, nullptr));
 }
+void wire_json::string_begin() { check(writer.string_begin(&writer, nullptr)); }
+void wire_json::string_chunk(const void *p, size_t n) {
+  check(writer.string_chunk(&writer, p, n, nullptr));
+}
+void wire_json::string_end() { check(writer.string_end(&writer, nullptr)); }
+void wire_json::number_text(const std::string &n) {
+  check(writer.number_text(&writer, n.data(), n.size(), nullptr));
+}
 void wire_json::number(uint64_t n) { check(writer.u64(&writer, n, nullptr)); }
 void wire_json::real(double n) { check(writer.f64(&writer, n, nullptr)); }
 void wire_json::boolean(bool v) { check(writer.bool_fn(&writer, v, nullptr)); }
@@ -108,6 +116,11 @@ openai_state::openai_state(const ailo_openai_config *input) {
                     "A repository requires a namespace and all "
                     "transaction/read/delete callbacks");
     policy.repository_readable = policy.repository_writable = true;
+    if (!!repository.amend != !!repository.query)
+      throw failure(AILO_INVALID_ARGUMENT,
+                    "Conversation repository requires both amend and query");
+    policy.conversation_readable = policy.conversation_writable =
+        repository.amend && repository.query;
   }
 }
 uint64_t api_now() {
@@ -190,6 +203,24 @@ record_transaction::~record_transaction() {
   if (transaction)
     owner.repository.abort(owner.repository.user_data, transaction);
 }
+record_transaction::record_transaction(openai_state &state,
+                                       const ailo_conversation_change &change)
+    : owner(state) {
+  try {
+    if (!owner.repository.amend)
+      throw failure(AILO_UNSUPPORTED,
+                    "No conversation mutation repository is configured");
+    api_check(owner.repository.amend(owner.repository.user_data, &change,
+                                     &transaction, nullptr));
+    if (!transaction)
+      throw failure(AILO_INTERNAL_ERROR,
+                    "Repository returned no conversation transaction");
+  } catch (...) {
+    if (transaction)
+      owner.repository.abort(owner.repository.user_data, transaction);
+    throw;
+  }
+}
 byte_sink record_transaction::section(ailo_record_section section) {
   return [this, section](const void *data, size_t size) {
     if (size > owner.record_limit - bytes)
@@ -255,6 +286,9 @@ struct record_handle {
       if (!value)
         throw failure(AILO_INTERNAL_ERROR,
                       "Repository returned no read handle");
+      if (protocol == AILO_RECORD_CONVERSATION &&
+          ailo::detail::to_native(expires))
+        throw failure(AILO_IO_FAILED, "Conversation storage must not expire");
       if (ailo::detail::to_native(expires) &&
           ailo::detail::to_native(expires) <= api_now())
         throw failure(AILO_NOT_FOUND, "Retained completion expired");
@@ -290,6 +324,48 @@ void erase_record(openai_state &owner, ailo_record_protocol protocol,
   api_check(owner.repository.erase(owner.repository.user_data,
                                    owner.policy.namespace_id.c_str(), protocol,
                                    id, nullptr));
+}
+void query_conversation(openai_state &owner,
+                        const ailo_conversation_query &query, byte_sink sink) {
+  if (!owner.repository.query)
+    throw failure(AILO_UNSUPPORTED,
+                  "No conversation item repository is configured");
+  void *handle = nullptr;
+  struct cleanup {
+    openai_state &owner;
+    void *&handle;
+    ~cleanup() {
+      if (handle)
+        owner.repository.close(owner.repository.user_data, handle);
+    }
+  } guard{owner, handle};
+  api_check(owner.repository.query(owner.repository.user_data, &query, &handle,
+                                   nullptr));
+  if (!handle)
+    throw failure(AILO_INTERNAL_ERROR, "Repository returned no query reader");
+  read_forward output{std::move(sink), owner.record_limit, 0, {}};
+  const auto status = owner.repository.read(
+      owner.repository.user_data, handle, AILO_RECORD_OUTPUT,
+      read_forward::send, &output, nullptr);
+  if (output.problem)
+    std::rethrow_exception(output.problem);
+  api_check(status);
+}
+void read_conversation_snapshot(openai_state &owner, const char *id,
+                                byte_sink state, byte_sink header) {
+  live_repository(owner, id);
+  record_handle handle(owner, AILO_RECORD_CONVERSATION, id);
+  for (auto part : {std::pair<ailo_record_section, byte_sink>{AILO_RECORD_INPUT,
+                                                              std::move(state)},
+                    {AILO_RECORD_OUTPUT, std::move(header)}}) {
+    read_forward output{std::move(part.second), owner.record_limit, 0, {}};
+    const auto status =
+        owner.repository.read(owner.repository.user_data, handle.value,
+                              part.first, read_forward::send, &output, nullptr);
+    if (output.problem)
+      std::rethrow_exception(output.problem);
+    api_check(status);
+  }
 }
 } // namespace client
 } // namespace ailo

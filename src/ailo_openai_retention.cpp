@@ -30,8 +30,10 @@ openai_retention_plan resolve_retention(const openai_request &request,
           AILO_INVALID_ARGUMENT,
           "Retained API state requires a trusted repository namespace");
     require_utf8(policy.namespace_id.data(), policy.namespace_id.size());
-    if ((reads && !policy.repository_readable) ||
-        (result.reserve_record_storage && !policy.repository_writable))
+    if ((result.read_previous_response && !policy.repository_readable) ||
+        (result.store_response && !policy.repository_writable) ||
+        (result.read_conversation && !policy.conversation_readable) ||
+        (result.append_conversation && !policy.conversation_writable))
       throw failure(
           AILO_UNSUPPORTED,
           "A repository with the required state operations is unavailable");

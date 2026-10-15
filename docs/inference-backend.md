@@ -26,8 +26,8 @@ and 32768 object members; expanded owned input uses the continuation's 4 MiB and
 conflicting, duplicate and unavailable semantics fail instead of being ignored.
 This is request materialization, not generated-output buffering. Public Chat
 and Responses JSON/SSE and C repository operations are now connected through
-[the adapter surface](openai.md). Handler/model routing, stored list/update,
-conversation objects remain required. Standalone and
+[the adapter surface](openai.md). Handler/model routing and stored-response
+list/update remain required. Conversation objects/items, standalone and
 automatic Responses compaction and authenticated reasoning replay are connected. Lua
 exposes the same retention profile,
 repository receiver and direct retrieval/deletion primitives through the C ABI.
@@ -169,7 +169,8 @@ repository capabilities, and rejects Responses TTLs below 30 days or overflowing
 expiry timestamps. Chat now connects repository reservation, atomic writes,
 retrieval and deletion; Responses now connects these operations and accumulated
 `previous_response_id` lineage, excluding prior top-level instructions. Explicit
-conversation persistence remains separate required integration. Neither
+conversation persistence now uses atomic revision-checked mutations and a
+separate item archive, including store=false. Neither
 request `user` nor `safety_identifier` grants access.
 
 Current [OpenAI migration guidance](https://developers.openai.com/api/docs/guides/migrate-to-responses)

@@ -23,25 +23,28 @@ bool follows_reasoning(const ailo_item &item) {
          (item.kind == AILO_ITEM_MESSAGE && item.role == AILO_ROLE_ASSISTANT);
 }
 } // namespace
-void api_require_replay_storage(state &self) {
+void api_require_replay_storage(state &self, bool forever) {
   if (self.compactor->ephemeral ||
       (self.compactor->ttl_seconds &&
-       self.compactor->ttl_seconds <
-           self.openai->policy.response_retention_seconds))
-    throw failure(AILO_INVALID_ARGUMENT,
-                  "Stored replayable Responses require stable keys and a "
-                  "compaction TTL covering response retention");
+       (forever || self.compactor->ttl_seconds <
+                       self.openai->policy.response_retention_seconds)))
+    throw failure(
+        AILO_INVALID_ARGUMENT,
+        forever
+            ? "Conversation replay state requires stable keys without expiry"
+            : "Stored replayable Responses require stable keys and a "
+              "compaction TTL covering response retention");
 }
 void api_prepare_reasoning(state &self, const openai_request &request,
-                           bool store) {
+                           bool store, bool forever) {
   self.ensure_loaded();
   auto tools = prepare_tools(request.generation);
   const auto plan =
       render_prompt(self, prepare_replay(self, request.generation), tools,
                     request.generation);
   if (plan.active) {
-    if (store)
-      api_require_replay_storage(self);
+    if (store || forever)
+      api_require_replay_storage(self, forever);
     // Do model identity work before token generation, including with KV reuse
     // disabled. Sealing a done item must not hash model files between deltas.
     identify_cache(self, true);

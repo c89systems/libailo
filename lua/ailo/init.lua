@@ -83,6 +83,12 @@ local function openai(input)
       if type(provider[name])~="function" then invalid("repository requires method "..name)end
       out.repository[name]=provider[name]
     end
+    if provider.amend~=nil or provider.query~=nil then
+      for _,name in ipairs{"amend","query"}do
+        if type(provider[name])~="function" then invalid("conversation repository requires method "..name)end
+        out.repository[name]=provider[name]
+      end
+    end
   end
   return out
 end
@@ -341,6 +347,34 @@ function methods:response_compact(json,sink)
     if type(sink)~="function" then invalid("sink must be a function")end
     return self._native:response_compact(str(json,"Responses compaction JSON",false,true),sink)
   end)
+end
+local function api_sink_function(sink)
+  if type(sink)~="function" then invalid("sink must be a function")end
+  return sink
+end
+function methods:conversation_create(json,sink)
+  return guarded(function()return self._native:conversation_create(str(json,"conversation JSON",false,true),api_sink_function(sink))end)
+end
+function methods:conversation_retrieve(id,sink)
+  return guarded(function()return self._native:conversation_retrieve(str(id,"conversation ID",false),api_sink_function(sink))end)
+end
+function methods:conversation_update(id,json,sink)
+  return guarded(function()return self._native:conversation_update(str(id,"conversation ID",false),str(json,"conversation update JSON",false,true),api_sink_function(sink))end)
+end
+function methods:conversation_delete(id,sink)
+  return guarded(function()return self._native:conversation_delete(str(id,"conversation ID",false),api_sink_function(sink))end)
+end
+function methods:conversation_items_create(id,json,sink)
+  return guarded(function()return self._native:conversation_items_create(str(id,"conversation ID",false),str(json,"conversation items JSON",false,true),api_sink_function(sink))end)
+end
+function methods:conversation_item_retrieve(id,item,sink,query)
+  return guarded(function()return self._native:conversation_item_retrieve(str(id,"conversation ID",false),str(item,"item ID",false),str(query or "{}","item query JSON",false,true),api_sink_function(sink))end)
+end
+function methods:conversation_item_delete(id,item,sink)
+  return guarded(function()return self._native:conversation_item_delete(str(id,"conversation ID",false),str(item,"item ID",false),api_sink_function(sink))end)
+end
+function methods:conversation_items_list(id,sink,query)
+  return guarded(function()return self._native:conversation_items_list(str(id,"conversation ID",false),str(query or "{}","item query JSON",false,true),api_sink_function(sink))end)
 end
 function methods:compact(input,policy)
   return guarded(function()

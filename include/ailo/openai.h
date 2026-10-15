@@ -7,12 +7,15 @@ extern "C" {
 
 typedef enum ailo_record_protocol {
   AILO_RECORD_CHAT = 0,
-  AILO_RECORD_RESPONSE
+  AILO_RECORD_RESPONSE,
+  AILO_RECORD_CONVERSATION
 } ailo_record_protocol;
 typedef enum ailo_record_section {
   AILO_RECORD_OUTPUT = 0,
   AILO_RECORD_INPUT,
-  AILO_RECORD_METADATA
+  AILO_RECORD_METADATA,
+  AILO_RECORD_CONVERSATION_STATE,
+  AILO_RECORD_CONVERSATION_ITEMS
 } ailo_record_section;
 /** Borrowed reservation arguments. The repository scopes every operation to
  * namespace_id and enforces authorization and the promised retention/quota.
@@ -26,6 +29,46 @@ typedef struct ailo_record_metadata {
   ailo_u64 expires_at;
   size_t max_bytes;
 } ailo_record_metadata;
+typedef enum ailo_conversation_action {
+  AILO_CONVERSATION_CREATE = 0,
+  AILO_CONVERSATION_UPDATE,
+  AILO_CONVERSATION_DELETE,
+  AILO_CONVERSATION_APPEND,
+  AILO_CONVERSATION_DELETE_ITEM
+} ailo_conversation_action;
+/** Optimistic atomic mutation. revision=0 creates; other actions compare the
+ * exact prior revision and hold the conversation until commit/abort. BUSY
+ * rejects a conflicting writer before inference. response is optional and is
+ * published in the SAME transaction. Conversation state/items never expire.
+ * input_ids are new explicit input IDs to admit before inference. */
+typedef struct ailo_conversation_change {
+  const char *namespace_id;
+  const char *id;
+  ailo_conversation_action action;
+  ailo_u64 revision;
+  size_t max_bytes;
+  const ailo_record_metadata *response;
+  const char *item_id;
+  const char *const *input_ids;
+  size_t input_count;
+} ailo_conversation_change;
+/** Query OUTPUT is an array of original wire items, ordered and scoped to this
+ * namespace/conversation. Return at most limit+1 rows for pagination. A zero
+ * limit is an internal ascending full-history read for context reconstruction.
+ * Deleting a conversation retains its item rows; queries may read those rows.
+ * The returned handle uses ordinary read/close, without a TTL. */
+typedef struct ailo_conversation_query {
+  const char *namespace_id;
+  const char *id;
+  const char *item_id;
+  const char *after;
+  size_t limit;
+  ailo_bool descending;
+  /** Internal context reconstruction selects stored canonical item views;
+   * generated compaction control rows have no canonical item and are skipped.
+   */
+  ailo_bool canonical;
+} ailo_conversation_query;
 /** Application-owned durable repository, not an evictable cache. Callbacks are
  * synchronous, must not throw/longjmp, and consume borrowed data before return.
  * reserve admits the full max_bytes and TTL BEFORE inference. It sets a unique
@@ -35,11 +78,12 @@ typedef struct ailo_record_metadata {
  * it consumes it.
  * abort consumes unpublished state, must not fail, and tolerates NULL.
  * open returns NOT_FOUND for unavailable/unauthorized records and a non-NULL
- * read handle on success; close consumes it, including after failed reads.
- * read forwards the original section bytes to the sink, honors cancellation,
- * and must never return success after a rejected sink call. All callbacks are
- * required when configuring a repository. Resources live until client destroy;
- * distinct clients may call the same provider concurrently. */
+ * stable snapshot handle on success; close consumes it, including after failed
+ * reads. read forwards the original section bytes to the sink, honors
+ * cancellation, and must never return success after a rejected sink call. The
+ * eight record callbacks are required; the conversation pair is optional.
+ * Resources live until client destroy; distinct clients may call the same
+ * provider concurrently. */
 typedef struct ailo_record_repository {
   void *user_data;
   ailo_status (*reserve)(void *, const ailo_record_metadata *, void **,
@@ -54,6 +98,20 @@ typedef struct ailo_record_repository {
                       void *, ailo_error *);
   void (*close)(void *, void *);
   ailo_status (*erase)(void *, const char *, ailo_record_protocol, const char *,
+                       ailo_error *);
+  /** Optional pair enabling conversations. amend owns a transaction using
+   * write/commit/abort. STATE replaces private context; ITEMS appends item
+   * rows. Each row is {id,wire,canonical}; generated compaction control rows
+   * have canonical=null and canonical queries skip them. IDs are namespace-wide
+   * unique; item queries must also verify parent ID.
+   * Without response, OUTPUT replaces the conversation object. Keep
+   * deleted roots as minimal tombstones (private deleted flag); never erase
+   * item rows as a side effect. query owns a reader using read/close. All
+   * revisions and item IDs must be checked atomically, including cross-client
+   * callers. */
+  ailo_status (*amend)(void *, const ailo_conversation_change *, void **,
+                       ailo_error *);
+  ailo_status (*query)(void *, const ailo_conversation_query *, void **,
                        ailo_error *);
 } ailo_record_repository;
 
@@ -125,6 +183,37 @@ ailo_status ailo_client_response_delete(ailo_client *, const char *,
 ailo_status ailo_client_response_compact(ailo_client *, const void *, size_t,
                                          ailo_output_sink, void *,
                                          ailo_api_info *, ailo_error *);
+ailo_status ailo_client_conversation_create(ailo_client *, const void *, size_t,
+                                            ailo_output_sink, void *,
+                                            ailo_api_info *, ailo_error *);
+ailo_status ailo_client_conversation_retrieve(ailo_client *, const char *,
+                                              ailo_output_sink, void *,
+                                              ailo_api_info *, ailo_error *);
+ailo_status ailo_client_conversation_update(ailo_client *, const char *,
+                                            const void *, size_t,
+                                            ailo_output_sink, void *,
+                                            ailo_api_info *, ailo_error *);
+ailo_status ailo_client_conversation_delete(ailo_client *, const char *,
+                                            ailo_output_sink, void *,
+                                            ailo_api_info *, ailo_error *);
+ailo_status ailo_client_conversation_items_create(ailo_client *, const char *,
+                                                  const void *, size_t,
+                                                  ailo_output_sink, void *,
+                                                  ailo_api_info *,
+                                                  ailo_error *);
+ailo_status ailo_client_conversation_item_retrieve(ailo_client *, const char *,
+                                                   const char *, const void *,
+                                                   size_t, ailo_output_sink,
+                                                   void *, ailo_api_info *,
+                                                   ailo_error *);
+ailo_status ailo_client_conversation_item_delete(ailo_client *, const char *,
+                                                 const char *, ailo_output_sink,
+                                                 void *, ailo_api_info *,
+                                                 ailo_error *);
+ailo_status ailo_client_conversation_items_list(ailo_client *, const char *,
+                                                const void *, size_t,
+                                                ailo_output_sink, void *,
+                                                ailo_api_info *, ailo_error *);
 #ifdef __cplusplus
 }
 #endif
