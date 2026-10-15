@@ -157,6 +157,7 @@ function M.exercise(ailo,path,memory)
   M.compaction(ailo,path,memory)
   M.conversations(ailo,path,memory)
   M.record_operations(ailo,path,memory)
+  M.routes(ailo,path)
 end
 function M.compaction(ailo,path,memory)
   local function ok(v,e)assert(v,e and (e.code..": "..e.message));return v end
@@ -638,5 +639,59 @@ function M.replay_input_page(c,id)
   local deliveries=0
   v,e=c:responses('{"input":'..changed..',"store":false,"max_output_tokens":2}',function()deliveries=deliveries+1 end)
   assert(v==nil and e.code=='invalid_argument'and deliveries==0)
+end
+function M.routes(ailo,path)
+  local function ok(v,e)assert(v,e and(e.code..': '..e.message));return v end
+  local function client(repository)
+    return ok(ailo.new{source={local_path=path},backend='cpu',threads=1,context_tokens=512,lazy=true,
+      openai={namespace_id='routes',repository=repository,chat_retention_seconds=60,max_record_bytes=32768}})
+  end
+  local r=M.record_repository();local c=client(r)
+  local function call(method,target,body)
+    local chunks={}
+    local info=ok(c:handle(method,target,body,function(s)chunks[#chunks+1]=s end))
+    return info,table.concat(chunks)
+  end
+  local json='{"model":"local-model","messages":[{"role":"user","content":"Hi"}],"stream":true,"max_completion_tokens":2,"temperature":0,"metadata":{"ticket":"one"},"stream_options":{"include_obfuscation":false}}'
+  local created=call('POST','/v1/chat/completions',json)
+  assert(created.stored and r.last_metadata.expires_at==r.last_metadata.created_at+60)
+  local _,text=call('GET','/v1/chat/completions/'..created.id)
+  assert(text:find('"object":"chat.completion"')and text:find(created.id,1,true))
+  call('POST','/v1/chat/completions/'..created.id,'{"metadata":{"ticket":"a+b"}}')
+  _,text=call('GET','/v1/chat/completions?metadata%5Bticket%5D=a%2Bb&limit=01&model=local%2Dmodel&order=asc')
+  assert(text:find(created.id,1,true))
+  _,text=call('GET','/v1/chat/completions/'..created.id..'/messages?limit=1')
+  assert(text:find('Hi'))
+  local response=call('POST','/v1/responses','{"input":"Hello","stream":true,"max_output_tokens":2,"temperature":0}')
+  assert(response.stored and r.last_metadata.expires_at>=r.last_metadata.created_at+2592000)
+  _,text=call('GET','/v1/responses/'..response.id);assert(text:find(response.id,1,true))
+  _,text=call('GET','/v1/responses/'..response.id..'/input_items?include%5B%5D=reasoning.encrypted_content&limit=1')
+  assert(text:find('Hello'))
+  _,text=call('POST','/v1/responses/compact','{"model":"local-model","input":[{"role":"user","content":"Hi"}]}')
+  assert(text:find('"object":"response.compaction"'))
+  call('DELETE','/v1/chat/completions/'..created.id)
+  call('DELETE','/v1/responses/'..response.id)
+  local v,e=c:handle('GET','/v1/responses/'..response.id,nil,function()error('must not emit')end)
+  assert(v==nil and e.code=='not_found'and e.info.http_status==404 and not e.info.started)
+  local marker={router_sink=true}
+  v,e=c:handle('GET','/v1/models',nil,function()error(marker)end)
+  assert(v==nil and e.code=='sink_failed'and e.cause==marker and e.info.started)
+  v,e=c:handle('PATCH','/v1/models',nil,function()end)
+  assert(v==nil and e.code=='unsupported'and e.info.http_status==405 and e.info.allow=='GET')
+  assert(not next(r.active)and not next(r.reading));c:close()
+  r=M.conversation_repository();c=client(r)
+  created=call('POST','/v1/conversations')
+  local prefix='/v1/conversations/'..created.id
+  call('GET',prefix)
+  call('POST',prefix,'{"metadata":{"owner":"route"}}')
+  call('POST',prefix..'/items','{"items":[{"id":"one+two","role":"user","content":"First"},{"id":"three","role":"user","content":"Second"}]}')
+  _,text=call('GET',prefix..'/items?limit=1&order=asc');assert(text:find('First')and text:find('"has_more":true'))
+  _,text=call('GET',prefix..'/items?after=one%2Btwo&limit=1&order=asc');assert(text:find('Second'))
+  _,text=call('GET',prefix..'/items/one+two?include[]=message.output_text.logprobs');assert(text:find('First'))
+  call('DELETE',prefix..'/items/one%2Btwo')
+  call('DELETE',prefix)
+  v,e=c:handle('GET',prefix,nil,function()end);assert(v==nil and e.code=='not_found')
+  _,text=call('GET',prefix..'/items');assert(text:find('Second'))
+  assert(not next(r.active)and not next(r.reading));c:close()
 end
 return M

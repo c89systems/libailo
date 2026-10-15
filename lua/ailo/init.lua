@@ -334,6 +334,12 @@ function methods:chat_completions(json,sink)
     return self._native:chat_completions(str(json,"Chat Completions JSON",false,true),sink)
   end)
 end
+function methods:handle(method,target,json,sink)
+  return guarded(function()
+    if type(sink)~="function" then invalid("sink must be a function")end
+    return self._native:handle(str(method,"HTTP method",false),str(target,"API target",false),str(json,"request JSON",true,true),sink)
+  end)
+end
 function methods:chat_retrieve(id,sink,options)
   return guarded(function()
     if type(sink)~="function" then invalid("sink must be a function")end

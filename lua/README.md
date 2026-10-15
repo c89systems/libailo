@@ -41,6 +41,14 @@ pinned remote model from revision-bound cached Hub metadata, respecting
 `allow_download`. See [model cards](../docs/client.md#model-cards-and-current-capabilities)
 for the schema and limits.
 
+`client:handle(method, target, json_or_nil, sink)` dispatches `/v1/...` paths
+through those same C ABI operations, including model discovery, stored queries,
+Responses compaction and conversations. Query strings use ordinary percent/form
+encoding, `metadata[key]` filters and repeated `include[]` values. It returns
+normal API info; a 405 error includes `error.info.allow`. Model discovery never
+loads weights. The [route contract](../docs/openai.md#transport-neutral-handler)
+documents supported targets, limits and the embedding server's responsibilities.
+
 `client:chat_completions(json, sink)` accepts raw OpenAI-shaped request JSON and
 forwards JSON/SSE byte strings through the installed C ABI. Set `stream=true`
 for immediate deltas and `store=false` for stateless use. It returns ID, HTTP

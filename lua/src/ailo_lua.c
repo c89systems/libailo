@@ -1745,6 +1745,7 @@ static void api_info(lua_State *L, const ailo_api_info *out) {
   set_string(L, "id", out->id[0] ? out->id : NULL);
   set_integer(L, "http_status", out->http_status);
   set_string(L, "content_type", out->content_type);
+  set_string(L, "allow", out->allow);
   lua_pushboolean(L, out->started);
   lua_setfield(L, -2, "started");
   lua_pushboolean(L, out->stored);
@@ -1762,7 +1763,17 @@ static int api_operation(lua_State *L, int operation) {
     return failure(L, AILO_INVALID_ARGUMENT, "completion ID contains NUL");
   int sink_index = operation == 1 ? 4 : 3;
   const char *id = json, *item = NULL;
-  if (operation == 9 || operation == 11 || operation == 14 || operation >= 16) {
+  const char *method = NULL, *target = NULL;
+  if (operation == 19) {
+    size_t target_size = 0;
+    method = json;
+    target = luaL_checklstring(L, 3, &target_size);
+    if (memchr(target, 0, target_size))
+      return failure(L, AILO_INVALID_ARGUMENT, "API target contains NUL");
+    json = luaL_optlstring(L, 4, "", &size);
+    sink_index = 5;
+  } else if (operation == 9 || operation == 11 || operation == 14 ||
+             operation >= 16) {
     json = luaL_checklstring(L, 3, &size);
     sink_index = 4;
   } else if (operation == 12 || operation == 13) {
@@ -1849,9 +1860,12 @@ static int api_operation(lua_State *L, int operation) {
           ? ailo_client_chat_messages_list(value->native, id, json, size,
                                            api_bytes_sink, storage, &out,
                                            &error)
-          : ailo_client_response_input_items_list(value->native, id, json, size,
+      : operation == 18
+          ? ailo_client_response_input_items_list(value->native, id, json, size,
                                                   api_bytes_sink, storage, &out,
-                                                  &error);
+                                                  &error)
+          : ailo_client_handle(value->native, method, target, json, size,
+                               api_bytes_sink, storage, &out, &error);
   end(value);
   lua_pushnil(L);
   lua_setiuservalue(L, 1, 10);
@@ -1916,6 +1930,7 @@ static int chat_messages_list(lua_State *L) { return api_operation(L, 17); }
 static int response_input_items_list(lua_State *L) {
   return api_operation(L, 18);
 }
+static int handle(lua_State *L) { return api_operation(L, 19); }
 static int metadata(lua_State *L, int kind) {
   client *value = get_client(L);
   int error_result = ready(L, value);
@@ -2090,6 +2105,7 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
       {"chat_update", chat_update},
       {"chat_messages_list", chat_messages_list},
       {"response_input_items_list", response_input_items_list},
+      {"handle", handle},
       {"new_continuation", new_continuation},
       {"compact", compact},
       {"model_card", card},

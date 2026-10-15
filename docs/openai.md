@@ -6,9 +6,9 @@ without an HTTP server. `client->chat_completions` and
 caller-owned `ailo_api_info`. The
 request mapper supports the qualified text, function, schema, sampling and
 reasoning controls in [the receiver contract](client.md). Unavailable controls
-fail explicitly. Model/HTTP dispatch remains required work; stored Chat list/
-metadata update and paginated Chat messages/Responses input items are receiver
-operations, ready for an embedding transport.
+fail explicitly. The transport-neutral dispatcher routes the implemented model,
+Chat, Responses and conversation operations, including stored queries and
+metadata updates. An embedding server supplies the HTTP transport.
 
 ```c
 /* After constructing client; sink consumes every byte before returning. */
@@ -67,6 +67,69 @@ before output starts, or closes an already-started response on failure. A
 failed/cancelled stream has no successful terminal finish or `[DONE]`. Reentry
 and overlapping operations use the client's ordinary busy contract.
 
+## Transport-neutral handler
+
+`client->handle` / `ailo_client_handle` accepts an uppercase method, origin-form
+target (`/v1/path?query`), borrowed JSON bytes, sink and `ailo_api_info`. It routes
+one configured receiver/model. A server serving several models selects the
+receiver and aggregates its model catalog at its own boundary. No listener,
+authentication, TLS, HTTP framing, CORS or connection management is introduced.
+The same adapter methods own retention, repository admission and immediate
+delta delivery. The dispatcher adds no output buffer or second evaluation path.
+
+| Target | Methods |
+| --- | --- |
+| `/v1/models`, `/v1/models/{model}` | GET |
+| `/v1/chat/completions` | GET list, POST generate |
+| `/v1/chat/completions/{id}` | GET retrieve, POST metadata update, DELETE |
+| `/v1/chat/completions/{id}/messages` | GET |
+| `/v1/responses` | POST |
+| `/v1/responses/compact` | POST |
+| `/v1/responses/{id}` | GET, DELETE |
+| `/v1/responses/{id}/input_items` | GET |
+| `/v1/conversations` | POST |
+| `/v1/conversations/{id}` | GET, POST metadata update, DELETE |
+| `/v1/conversations/{id}/items` | GET list, POST append |
+| `/v1/conversations/{id}/items/{item}` | GET, DELETE |
+
+Model discovery returns this receiver's configured served ID without loading
+weights, reading its card or downloading metadata. The model shape follows
+[the official Models reference](https://developers.openai.com/api/reference/resources/models/methods/list).
+`created=0` represents an unknown model creation time; `owned_by="local"` is the
+local serving label, not a claim about training authorship or weight licensing.
+Use the separate model card for verified artifact facts and publisher claims.
+
+Targets are limited to 16 KiB and JSON bodies to 8 MiB. Path components are
+percent-decoded separately, so a slash inside an encoded model ID remains part
+of that ID. Literal `+` is preserved in paths; query form encoding maps `+` to
+space and `%2B` to a literal plus. Invalid percent encoding, UTF-8 or control
+characters fail before output. Methods are case sensitive; trailing/double
+slashes are not normalized into alternative routes.
+
+Stored Chat list accepts `after`, `limit`, `order`, `model` and
+`metadata[key]=value`, following the [official query contract](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/list).
+Chat messages accepts `after`, `limit`, `order`. Response input pages and
+conversation item pages additionally accept repeated `include[]=value`;
+single conversation-item retrieval accepts `include[]` alone. Existing adapter
+validation enforces values and capabilities. Duplicate scalar/metadata filters,
+unknown queries and unavailable options fail explicitly. GET and DELETE accept
+no body; an absent POST body becomes `{}` and the owning adapter validates its
+required fields. Retained-response retrieval currently accepts no query options;
+background retrieval/resumption is not implemented.
+
+Unknown routes return NOT_FOUND/404. Unsupported methods on known routes return
+UNSUPPORTED/405, with `info.allow` pointing to a static method list for the
+server's `Allow` header. Other preflight failures retain ordinary adapter status
+mapping and emit no bytes. The embedding server builds its HTTP error response;
+once `info.started` is true, it owns closing a failed response. Sink cancellation,
+callback errors and receiver busy/lifetime rules are unchanged.
+Cancellation admitted during route validation carries into the owning adapter;
+its callbacks still reject same-client reentry as busy.
+
+Lua uses `client:handle(method, target, json_or_nil, sink)` and returns the same
+API information/error table as direct adapter calls, including `allow` on 405.
+The binding passes bytes and callback failures through the shared C ABI.
+
 ## Retained records
 
 Set `config.openai` to an `ailo_openai_config`. Strings and the repository method
@@ -111,8 +174,9 @@ collecting the stored JSON. The library rejects expired records before sending
 bytes, closes read handles on every path, and enforces its read byte limit.
 Missing/unauthorized/expired records return `AILO_NOT_FOUND` and HTTP 404.
 `chat_delete` emits the documented deletion object after the provider deletes
-the record. These are primitives for a later transport handler, not registered
-HTTP routes. The paginated operations below use separate query primitives.
+the record. The in-process handler routes these operations; an HTTP listener
+remains the embedding application's responsibility. Paginated operations below
+use separate query primitives.
 
 ## Stored lists, input pages and metadata updates
 

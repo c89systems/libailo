@@ -98,6 +98,17 @@ struct operation {
   std::unique_lock<std::mutex> lock;
   explicit operation(ailo_client *client);
 };
+/** Transfer one admitted operation into its owning public adapter. The next
+ * operation consumes the lock once; subsequent callback reentry stays busy. */
+class operation_handoff {
+  operation *source;
+
+public:
+  explicit operation_handoff(operation &);
+  ~operation_handoff();
+  operation_handoff(const operation_handoff &) = delete;
+  operation_handoff &operator=(const operation_handoff &) = delete;
+};
 
 std::string metadata(const llama_model *model, const char *key);
 void owned_json(const std::string &value, char **output);

@@ -196,9 +196,23 @@ typedef struct ailo_api_info {
   ailo_bool stored;
   char id[64];
   ailo_run_info run;
+  /** Static method list for the embedding transport's Allow header on 405.
+   * NULL on other outcomes. No HTTP headers are written by the library. */
+  const char *allow;
 } ailo_api_info;
 
 ailo_openai_config ailo_openai_default_config(void);
+/** Transport-neutral routing over this receiver's served model and existing
+ * OpenAI operations. target is an origin-form /v1/path?query, at most 16 KiB.
+ * Method/path strings and body are borrowed for the synchronous call. Query
+ * strings use percent encoding and bracketed metadata/include arrays; unknown
+ * or duplicate scalar parameters fail before output. GET/DELETE accept no
+ * body. Preflight errors emit no bytes; use status/error to build the HTTP
+ * error response. The embedding server owns authentication and HTTP framing.
+ * Model discovery does not load weights or acquire publisher metadata. */
+ailo_status ailo_client_handle(ailo_client *, const char *, const char *,
+                               const void *, size_t, ailo_output_sink, void *,
+                               ailo_api_info *, ailo_error *);
 /** JSON input is borrowed for the synchronous call; output is direct JSON or
  * SSE according to stream. No sockets/HTTP runtime. out_info is cleared on
  * entry, provides status/usage on failure. Preflight errors emit no bytes.

@@ -447,6 +447,9 @@ struct ailo_client {
                                            ailo_output_sink, void *,
                                            struct ailo_api_info *,
                                            ailo_error *);
+  ailo_status (*handle)(ailo_client *, const char *, const char *, const void *,
+                        size_t, ailo_output_sink, void *,
+                        struct ailo_api_info *, ailo_error *);
 };
 
 ailo_client_config ailo_client_default_config(void);

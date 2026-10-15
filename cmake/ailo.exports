@@ -12,6 +12,7 @@ ailo_client_default_config
 ailo_client_destroy
 ailo_client_devices
 ailo_client_generate
+ailo_client_handle
 ailo_client_chat_completions
 ailo_client_responses
 ailo_client_response_retrieve

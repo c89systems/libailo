@@ -16,6 +16,7 @@
 namespace ailo {
 namespace client {
 namespace {
+thread_local operation *pending_operation = nullptr;
 std::string copy_string(const char *input) {
   if (!input)
     return {};
@@ -273,11 +274,36 @@ std::unique_ptr<llama_context, decltype(&llama_free)> state::new_context() {
 }
 
 operation::operation(ailo_client *client)
-    : self(get_state(client)), lock(self.mutex, std::try_to_lock) {
+    : self(get_state(client)), lock(self.mutex, std::defer_lock) {
+  const bool inherited = pending_operation != nullptr;
+  if (inherited) {
+    if (&pending_operation->self != &self)
+      throw failure(AILO_INTERNAL_ERROR,
+                    "API operation handoff changed its receiver");
+    lock = std::move(pending_operation->lock);
+    pending_operation = nullptr;
+  } else
+    lock = std::unique_lock<std::mutex>(self.mutex, std::try_to_lock);
   if (!lock.owns_lock() || self.destroying.load())
     throw failure(AILO_BUSY, "The client is already executing an operation");
-  self.cancelled.store(false);
-  self.progress_failed = false;
+  if (inherited && self.is_cancelled())
+    throw failure(AILO_CANCELLED,
+                  "API operation cancelled during route preflight");
+  if (!inherited) {
+    self.cancelled.store(false);
+    self.progress_failed = false;
+  }
+}
+
+operation_handoff::operation_handoff(operation &input) : source(&input) {
+  if (pending_operation || !input.lock.owns_lock())
+    throw failure(AILO_INTERNAL_ERROR,
+                  "API operation cannot transfer its lock");
+  pending_operation = source;
+}
+operation_handoff::~operation_handoff() {
+  if (pending_operation == source)
+    pending_operation = nullptr;
 }
 
 std::string metadata(const llama_model *model, const char *key) {
@@ -367,6 +393,7 @@ AILO_PUBLIC ailo_status ailo_client_new_with_logger(
     shell->chat_update = ailo_client_chat_update;
     shell->chat_messages_list = ailo_client_chat_messages_list;
     shell->response_input_items_list = ailo_client_response_input_items_list;
+    shell->handle = ailo_client_handle;
     *output = shell.release();
   });
 }

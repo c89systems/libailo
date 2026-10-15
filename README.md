@@ -28,7 +28,9 @@ capability queries.
 [docs/client.md](docs/client.md) describes its supported surface and verification.
 Chat Completions and Responses JSON/SSE adapters, retention repositories and
 conversation/compaction operations are implemented; [docs/openai.md](docs/openai.md)
-records their supported profile. HTTP server integration and release acceptance
+records their supported profile. The in-process `handle` dispatcher supplies
+model discovery and routes these operations without an output buffer. HTTP
+server integration and release acceptance
 remain subsequent work. Native install-tree CMake/pkg-config consumers are available.
 The C89/Lua compactor key owner, authenticated envelopes and opaque-item replay
 through generation/continuations, standalone model-driven semantic compaction

@@ -35,6 +35,7 @@ src/ailo_openai_reasoning.cpp
 src/ailo_openai_conversations.cpp
 src/ailo_openai_items.cpp
 src/ailo_openai_records.cpp
+src/ailo_openai_router.cpp
 src/ailo_gpu.cpp
 src/ailo_gpu_internal.hpp
 tests/openai_compaction.cpp

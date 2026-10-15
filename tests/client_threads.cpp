@@ -1,4 +1,5 @@
 #include "ailo/client.h"
+#include "ailo/openai.h"
 #include "ailo_client_internal.hpp"
 #include "ailo_conversation_internal.hpp"
 #include <chrono>
@@ -53,6 +54,41 @@ int accept(void *data, const ailo_event *event) {
 }
 int throwing_progress(void *, unsigned, unsigned, ailo_u64, ailo_u64) {
   throw std::runtime_error("private acquisition text");
+}
+
+void routed_cancellation(const char *path) {
+  auto config = ailo_client_default_config();
+  config.source.local_path = path;
+  config.backend = AILO_BACKEND_CPU;
+  config.lazy = 1;
+  ailo_client *raw = nullptr;
+  ailo_error error{};
+  CHECK(ailo_client_new(&config, &raw, &error) == AILO_OK);
+  std::unique_ptr<ailo_client, client_deleter> owner(raw);
+  const char *body = "{\"model\":\"local-model\",\"messages\":[{\"role\":"
+                     "\"user\",\"content\":\"Hi\"}],\"store\":false,\"stream\":"
+                     "true,\"max_completion_tokens\":2,\"temperature\":0}";
+  ailo_api_info info{};
+  unsigned deliveries = 0;
+  auto sink = [](void *u, const void *, size_t) {
+    ++*static_cast<unsigned *>(u);
+    return 1;
+  };
+  {
+    ailo::client::operation admitted(raw);
+    // A cancellation arriving during active route preflight must survive the
+    // public adapter's operation constructor, before any bytes or evaluation.
+    raw->cancel(raw);
+    ailo::client::operation_handoff transfer(admitted);
+    CHECK(ailo_client_chat_completions(raw, body, std::strlen(body), sink,
+                                       &deliveries, &info,
+                                       &error) == AILO_CANCELLED);
+    CHECK(!deliveries && !info.started && !info.run.usage.completion_tokens.lo);
+  }
+  CHECK(raw->handle(raw, "POST", "/v1/chat/completions", body,
+                    std::strlen(body), sink, &deliveries, &info,
+                    &error) == AILO_OK);
+  CHECK(deliveries && info.run.usage.completion_tokens.lo == 2);
 }
 
 void gpu_placement(const char *path) {
@@ -362,6 +398,7 @@ int main(int argc, char **argv) {
   try {
     gpu_placement(argv[1]);
     card_location(argv[1]);
+    routed_cancellation(argv[1]);
     run(argv[1]);
     std::puts("Cross-thread cancellation, busy state, callback recovery and "
               "stored Jinja semantics: passed");

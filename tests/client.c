@@ -1,5 +1,6 @@
 #include "ailo/client.h"
 #include "ailo/native.h"
+#include "ailo/openai.h"
 #include <lonejson.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +26,113 @@ typedef struct observation {
   size_t size;
   lonejson_writer *writer;
 } observation;
+
+typedef struct route_output {
+  char bytes[16384];
+  size_t size;
+  ailo_api_info *info;
+  ailo_client *client;
+  int action, first, failed;
+} route_output;
+
+static int route_bytes(void *data, const void *bytes, size_t size) {
+  route_output *out = (route_output *)data;
+  if (size >= sizeof(out->bytes) - out->size)
+    return -1;
+  memcpy(out->bytes + out->size, bytes, size);
+  out->size += size;
+  out->bytes[out->size] = '\0';
+  if (!out->first && strstr(out->bytes, "\"content\":\"a")) {
+    ailo_api_info nested;
+    ailo_error problem;
+    out->first = 1;
+    if (out->info->run.usage.completion_tokens.lo != 1 ||
+        out->client->handle(out->client, "GET", "/v1/models", NULL, 0,
+                            route_bytes, out, &nested, &problem) != AILO_BUSY)
+      out->failed = 1;
+    return out->action;
+  }
+  return 1;
+}
+
+static int router(ailo_client *client) {
+  ailo_client_config cfg = ailo_client_default_config();
+  ailo_client *catalog = NULL;
+  ailo_api_info info;
+  ailo_error error;
+  route_output out;
+  const char *json =
+      "{\"model\":\"receiver-test\",\"messages\":[{\"role\":\"user\","
+      "\"content\":\"hello\"}],\"store\":false,\"stream\":true,\"max_"
+      "completion_tokens\":8,\"temperature\":0,\"stream_options\":{\"include_"
+      "obfuscation\":false}}";
+  const char *bad[] = {"/unknown",
+                       "/v1/models/unknown",
+                       "/v1/models/%GG",
+                       "/v1/models/%00",
+                       "/v1/models/%ff",
+                       "/v1/models?x=1",
+                       "/v1/chat/completions?limit=1&limit=2",
+                       "/v1/chat/completions?limit=0",
+                       "/v1/chat/completions?limit=1.5",
+                       "/v1/chat/completions?after=bad%GG",
+                       "https://example.com/v1/models",
+                       "/v1/models#fragment"};
+  size_t n;
+  int action, result = 0;
+  cfg.source.local_path = "/ailo-catalog-never-load-this-file.gguf";
+  cfg.model_id = "model/one+two";
+  cfg.backend = AILO_BACKEND_CPU;
+  cfg.lazy = 1;
+  CHECK(ailo_client_new(&cfg, &catalog, &error) == AILO_OK);
+  memset(&out, 0, sizeof(out));
+  CHECK(catalog->handle(catalog, "GET", "/v1/models", NULL, 0, route_bytes,
+                        &out, &info, &error) == AILO_OK);
+  CHECK(info.http_status == 200 && info.started && !info.allow &&
+        strstr(out.bytes, "\"id\":\"model/one+two\"") &&
+        !strstr(out.bytes, "never-load"));
+  memset(&out, 0, sizeof(out));
+  CHECK(ailo_client_handle(catalog, "GET", "/v1/models/model%2Fone+two", NULL,
+                           0, route_bytes, &out, &info, &error) == AILO_OK);
+  CHECK(strstr(out.bytes, "\"object\":\"model\"") &&
+        !strstr(out.bytes, "\"data\""));
+  for (n = 0; n < sizeof(bad) / sizeof(bad[0]); ++n) {
+    memset(&out, 0, sizeof(out));
+    CHECK(catalog->handle(catalog, "GET", bad[n], NULL, 0, route_bytes, &out,
+                          &info, &error) != AILO_OK);
+    CHECK(!info.started && !out.size &&
+          info.http_status == (n < 2 ? 404 : 400));
+  }
+  CHECK(catalog->handle(catalog, "POST", "/v1/models", NULL, 0, route_bytes,
+                        &out, &info, &error) == AILO_UNSUPPORTED);
+  CHECK(info.http_status == 405 && info.allow && !strcmp(info.allow, "GET"));
+  CHECK(catalog->handle(catalog, "PUT", "/v1/chat/completions", NULL, 0,
+                        route_bytes, &out, &info, &error) == AILO_UNSUPPORTED);
+  CHECK(info.http_status == 405 && !strcmp(info.allow, "GET, POST"));
+  CHECK(catalog->handle(catalog, "GET", "/v1/models", "{}", 2, route_bytes,
+                        &out, &info, &error) == AILO_INVALID_ARGUMENT &&
+        !info.started);
+  CHECK(catalog->handle(catalog, "BAD METHOD", "/v1/models", NULL, 0,
+                        route_bytes, &out, &info,
+                        &error) == AILO_INVALID_ARGUMENT);
+  for (action = -1; action <= 1; ++action) {
+    memset(&out, 0, sizeof(out));
+    out.client = client;
+    out.info = &info;
+    out.action = action;
+    CHECK(client->handle(client, "POST", "/v1/chat/completions", json,
+                         strlen(json), route_bytes, &out, &info,
+                         &error) == (action < 0    ? AILO_SINK_FAILED
+                                     : action == 0 ? AILO_CANCELLED
+                                                   : AILO_OK));
+    CHECK(out.first && !out.failed && info.started && !info.stored);
+    CHECK((strstr(out.bytes, "data: [DONE]") != NULL) == (action == 1));
+    CHECK(info.run.usage.completion_tokens.lo == (action == 1 ? 8U : 1U));
+  }
+cleanup:
+  ailo_client_destroy(catalog);
+  return result;
+}
 
 static lonejson_status json_bytes(void *data, const void *bytes, size_t size,
                                   lonejson_error *error) {
@@ -160,6 +268,8 @@ static int run(const char *path) {
   CHECK(strstr(card, path) == NULL);
   ailo_string_free(card);
   card = NULL;
+
+  CHECK(router(client) == 0);
 
   seen.client = client;
   seen.request = &request;

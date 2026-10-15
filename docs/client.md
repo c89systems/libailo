@@ -3,7 +3,8 @@
 `include/ailo/client.h` provides the first implemented shared inference core.
 It calls the pinned llama library in the embedding process. The
 [Chat Completions and Responses adapters](openai.md) provide public JSON/SSE
-operations and retained-record hooks. Remaining handler work follows the broader
+operations and retained-record hooks. The transport-neutral `handle` dispatcher
+exposes their routes and lazy model discovery; see the broader
 [backend contract](inference-backend.md).
 
 Construct an `ailo_client` with `ailo_client_new`, then call its `generate`,
@@ -168,8 +169,8 @@ bounded prompt/KV reuse, encrypted persistent snapshots and canonical
 continuation state, qualified reasoning separation and authenticated compaction
 replay and standalone semantic compaction, with their limits. Media remains unavailable.
 Media items fail rather than losing semantics. Completed function histories are
-supported as described below. Protocol handlers remain implementation requirements
-in the full specification.
+supported as described below. The in-process protocol dispatcher is implemented;
+HTTP transport remains the embedding application's responsibility.
 
 Set `config.model_metadata` (Lua: `model_metadata`) to a UTF-8 JSON object:
 
