@@ -51,7 +51,8 @@ the C `unsupported` outcome. Token payloads are never assembled into a complete
 answer. Events have `kind`, monotonic `sequence`, zero-based `candidate`,
 `model_id`, `data`, `finish_reason`, and `usage`. Kinds are `run_begin`,
 `choice_begin`, `item_begin`, `content_begin`, `text_delta`, `content_end`,
-`item_end`, `choice_end`, `usage`, `run_end`, and optional `token`.
+`item_end`, `choice_end`, `usage`, `run_end`, `function_name_delta`,
+`function_arguments_delta`, and optional `token`.
 Every event has a stable `run_id`, also returned as `info.id`. Active items have
 `item_id`, `item_kind`, `item_index`, and `content_index`; payload and identifier
 strings are copied into that event's Lua table. No output history is retained.
@@ -78,8 +79,25 @@ Completed tool histories use items with `kind="function_call"`, `call_id`,
 have an independent item `id`. Complete parallel result groups can arrive in a
 different order. Incomplete groups, duplicate identities and orphan results fail
 before events. A compatible Jinja `chat_template` is required; unsupported
-templates fail instead of dropping fields. This input support does not yet
-enable new tool-call generation or execute functions.
+templates fail instead of dropping fields. The library never executes functions.
+
+For generation, supply `tools={{name="lookup",description="...",
+parameters='{"type":"object"}',strict=true}}`. Parameter schemas are JSON
+strings; strict mode uses the declared C schema subset. `tool_choice` is `auto`
+(default), `none`, `required` or `named`; named also needs `tool_name`.
+`allowed_tools={"lookup"}` restricts calls while keeping all definitions in the
+prompt. `parallel_tool_calls` defaults true; false allows one call.
+`max_tool_calls` is 0-128, with zero selecting 128 (one when parallel is false).
+Limits are per candidate; named always allows at most one call.
+
+The template must qualify for an unambiguous marked JSON envelope; unsupported
+formats fail before events. Function items have `item_kind="function_call"`,
+stable independent `item_id`/`call_id`, and a `name` prefix that is final at
+`item_end`. `function_name_delta` supplies decoded name fragments;
+`function_arguments_delta` supplies original JSON bytes immediately, before
+the call or run completes. These events are not message content. A successful
+call-producing choice reports `tool_calls`; length may leave a partial call.
+Only execute a call after its successful completion.
 
 `generate` is synchronous: the sink receives each available delta immediately,
 including before the next decode. Only boolean false cancels; nil continues.
@@ -129,7 +147,7 @@ The CPU-only local memory gate checks all lost/reachable allocation kinds. A nar
 matched suppression covers loader metadata and libstdc++'s emergency exception
 pool retained after module loading (87,320 bytes in 22 blocks on the pinned
 x86_64 Bootlin runtime). `tests/load_only.lua` reproduces exactly that baseline
-without constructing a client or logger. The full callback/finalizer/OOM suite
+without constructing a client or logger. The focused callback/finalizer/OOM suite
 retains the same baseline, with zero lost allocations; Lua, libailo and pslog
 allocation sites are not suppressed.
 

@@ -6,6 +6,7 @@
 namespace ailo {
 namespace client {
 std::string output_grammar(const ailo_request &request);
+std::string schema_document(const char *source, bool normalize);
 
 // Push-fed lonejson validation with a discard sink. No output is retained.
 class json_validation {

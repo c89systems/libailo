@@ -83,7 +83,13 @@ void feature_fields(json &out) {
   out.key("logprobs");
   out.boolean(true);
   out.key("tools");
-  out.boolean(false);
+  out.boolean(true);
+  out.key("tool_template_qualification");
+  out.string("probed_json_envelope");
+  out.key("max_function_tools");
+  out.number(128);
+  out.key("max_tool_calls");
+  out.number(128);
   out.key("structured_output");
   out.boolean(true);
   out.key("schema_keywords");

@@ -37,6 +37,19 @@ local mutated=request()
 ok(client:generate(mutated,function()mutated.items=nil;mutated.logit_bias=nil;collectgarbage("collect")end))
 assert(client:close() and client:close())
 collectgarbage("collect");assert(not weak[1])
+-- The new tool/allowed-name arrays and protected argument callback share the
+-- same work userdata ownership, including a failure after native generation.
+do
+  local template=[[{% if tools %}{{ tools | tojson }}{% endif %}{% for m in messages %}{{ m.role }}:{{ m.content }}{% if m.tool_calls is defined %}{% for c in m.tool_calls %}<call>{"name":{{ c.function.name | tojson }},"arguments":{% if c.function.arguments is string %}{{ c.function.arguments }}{% else %}{{ c.function.arguments | tojson }}{% endif %}}</call>{% endfor %}{% endif %}|{% endfor %}{% if add_generation_prompt %}assistant:{% endif %}]]
+  local tool=ok(ailo.new(config{chat_template=template,context_tokens=1024}))
+  local input={items={{content="hello"}},max_tokens=128,temperature=0,
+    tools={{name="lookup",parameters='{"const":{}}',strict=true}},allowed_tools={"lookup"},
+    tool_choice="required",parallel_tool_calls=false,
+    logit_bias={{token_id=2,bias=100},{token_id=35,bias=-100},{token_id=13,bias=-100},{token_id=12,bias=-100},{token_id=16,bias=-100}}}
+  local failure=fails("sink_failed",function()return tool:generate(input,function(e)if e.kind=="function_arguments_delta" then error(marker)end end)end)
+  assert(failure.cause==marker)
+  ok(tool:generate(input,function()collectgarbage("collect")end));tool:close()
+end
 
 -- The retained logger belongs to the main registry, not a dead coroutine.
 local lazy

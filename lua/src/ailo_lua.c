@@ -29,6 +29,8 @@ typedef struct work {
   ailo_content *content;
   const char **strings;
   ailo_logit_bias *biases;
+  ailo_function_tool *tools;
+  const char **allowed;
   char *json;
   lua_State *L;
   int index;
@@ -127,11 +129,15 @@ static void release_work(work *value) {
   free(value->content);
   free(value->strings);
   free(value->biases);
+  free(value->tools);
+  free(value->allowed);
   ailo_string_free(value->json);
   value->items = NULL;
   value->content = NULL;
   value->strings = NULL;
   value->biases = NULL;
+  value->tools = NULL;
+  value->allowed = NULL;
   value->json = NULL;
 }
 static int work_gc(lua_State *L) {
@@ -368,10 +374,19 @@ static int new_client(lua_State *L) {
 static int event_thunk(lua_State *L) {
   const ailo_event *value = lua_touserdata(L, 2);
   lua_getiuservalue(L, 1, 1);
-  static const char *names[] = {"run_begin",  "choice_begin",  "text_delta",
-                                "choice_end", "run_end",       "token",
-                                "item_begin", "content_begin", "content_end",
-                                "item_end",   "usage"};
+  static const char *names[] = {"run_begin",
+                                "choice_begin",
+                                "text_delta",
+                                "choice_end",
+                                "run_end",
+                                "token",
+                                "item_begin",
+                                "content_begin",
+                                "content_end",
+                                "item_end",
+                                "usage",
+                                "function_name_delta",
+                                "function_arguments_delta"};
   lua_createtable(L, 0, 14);
   set_string(L, "kind", names[value->kind]);
   push_u64(L, value->sequence);
@@ -379,6 +394,8 @@ static int event_thunk(lua_State *L) {
   set_integer(L, "candidate", value->candidate);
   set_string(L, "model_id", value->model_id);
   set_string(L, "run_id", value->run_id);
+  set_string(L, "call_id", value->call_id);
+  set_string(L, "name", value->name);
   if (value->item_id) {
     static const char *kinds[] = {"message", "function_call", "function_result",
                                   "reasoning", "compaction"};
@@ -467,6 +484,39 @@ static int generate(lua_State *L) {
   request.max_output_bytes = (size_t)integer(L, 2, "max_output_bytes");
   request.output_format = (ailo_output_format)integer(L, 2, "output_format");
   request.json_schema = string(L, 2, "json_schema");
+  request.tool_choice = (ailo_tool_choice)integer(L, 2, "tool_choice");
+  request.tool_name = string(L, 2, "tool_name");
+  request.parallel_tool_calls = boolean(L, 2, "parallel_tool_calls");
+  request.max_tool_calls = (size_t)integer(L, 2, "max_tool_calls");
+  lua_getfield(L, 2, "tools");
+  int tools = lua_gettop(L);
+  request.tool_count = lua_rawlen(L, tools);
+  if (request.tool_count) {
+    storage->tools =
+        allocate(L, request.tool_count, sizeof(ailo_function_tool));
+    for (size_t i = 0; i < request.tool_count; ++i) {
+      lua_geti(L, tools, (lua_Integer)i + 1);
+      int tool = lua_gettop(L);
+      storage->tools[i].name = string(L, tool, "name");
+      storage->tools[i].description = string(L, tool, "description");
+      storage->tools[i].parameters = string(L, tool, "parameters");
+      storage->tools[i].strict = boolean(L, tool, "strict");
+      lua_pop(L, 1);
+    }
+    request.tools = storage->tools;
+  }
+  lua_getfield(L, 2, "allowed_tools");
+  int allowed = lua_gettop(L);
+  request.allowed_tool_count = lua_rawlen(L, allowed);
+  if (request.allowed_tool_count) {
+    storage->allowed = allocate(L, request.allowed_tool_count, sizeof(char *));
+    for (size_t i = 0; i < request.allowed_tool_count; ++i) {
+      lua_geti(L, allowed, (lua_Integer)i + 1);
+      storage->allowed[i] = luaL_checkstring(L, -1);
+      lua_pop(L, 1);
+    }
+    request.allowed_tools = storage->allowed;
+  }
   lua_getfield(L, 2, "logit_bias");
   int biases = lua_gettop(L);
   request.logit_bias_count = lua_rawlen(L, biases);

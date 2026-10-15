@@ -18,7 +18,9 @@ struct conversation {
 };
 conversation prepare_conversation(const ailo_request &request);
 std::string apply_template(const char *source, const llama_vocab *vocab,
-                           const conversation &input);
+                           const conversation &input,
+                           const std::string &tools = "[]",
+                           bool generation = true);
 } // namespace client
 } // namespace ailo
 #endif

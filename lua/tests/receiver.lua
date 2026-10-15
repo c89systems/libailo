@@ -9,6 +9,34 @@ local function config(extra)
   return c
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
+local tool_template=[[{% if tools %}{{ tools | tojson }}{% endif %}{% for m in messages %}{{ m.role }}:{{ m.content }}{% if m.tool_calls is defined %}{% for c in m.tool_calls %}<call>{"name":{{ c.function.name | tojson }},"arguments":{% if c.function.arguments is string %}{{ c.function.arguments }}{% else %}{{ c.function.arguments | tojson }}{% endif %}}</call>{% endfor %}{% endif %}|{% endfor %}{% if add_generation_prompt %}assistant:{% endif %}]]
+do
+  local tools=ok(ailo.new(config{chat_template=tool_template,context_tokens=1024}))
+  local function tool_request()
+    return {items={{content="hello"}},max_tokens=256,temperature=0,
+      tools={{name="lookup",parameters='{"const":{"answer":4}}',strict=true}},
+      allowed_tools={"lookup"},tool_choice="named",tool_name="lookup",parallel_tool_calls=false,
+      logit_bias={{token_id=2,bias=100},{token_id=35,bias=-100},{token_id=13,bias=-100},
+        {token_id=12,bias=-100},{token_id=16,bias=-100}}}
+  end
+  local name,arguments,id,deltas,done="","",nil,0,false
+  local original=tool_request()
+  local result=ok(tools:generate(original,function(e)
+    original.tools=nil;original.allowed_tools=nil;collectgarbage("collect")
+    if e.kind=="item_begin" then assert(e.item_kind=="function_call");id=e.call_id;assert(id~=e.item_id) end
+    if e.kind=="function_name_delta" then name=name..e.data end
+    if e.kind=="function_arguments_delta" then
+      assert(not done and e.call_id==id and name=="lookup")
+      arguments=arguments..e.data;deltas=deltas+1
+    end
+    if e.kind=="item_end" then assert(e.call_id==id and e.name==name);done=true end
+  end))
+  assert(done and deltas>1 and arguments=='{"answer":4}' and result.finish_reason=="tool_calls")
+  fails("cancelled",function()return tools:generate(tool_request(),function(e)if e.kind=="function_arguments_delta" then return false end end)end)
+  local bad=tool_request();bad.tool_name="missing"
+  fails("invalid_argument",function()return tools:generate(bad,function()error("preflight emitted an event")end)end)
+  ok(tools:generate(tool_request(),function()end));tools:close()
+end
 assert(type(ailo.version())=="string")
 fails("invalid_argument",function() return ailo.new{} end)
 fails("invalid_argument",function() return ailo.new(config{typo=true}) end)

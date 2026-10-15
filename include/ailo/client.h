@@ -93,6 +93,22 @@ typedef enum ailo_output_format {
   AILO_OUTPUT_JSON_SCHEMA
 } ailo_output_format;
 
+typedef struct ailo_function_tool {
+  const char *name;
+  const char *description;
+  /** JSON-object parameter schema. NULL selects an unconstrained object. */
+  const char *parameters;
+  /** Constrain arguments with the published schema subset. */
+  ailo_bool strict;
+} ailo_function_tool;
+
+typedef enum ailo_tool_choice {
+  AILO_TOOLS_AUTO = 0,
+  AILO_TOOLS_NONE,
+  AILO_TOOLS_REQUIRED,
+  AILO_TOOLS_NAMED
+} ailo_tool_choice;
+
 /** Keep borrowed request data unchanged throughout the synchronous call.
  * Zero max_tokens/candidates selects 128/1.
  * Zero temperature is greedy; top_p zero selects 1.0. The default factory uses
@@ -129,6 +145,19 @@ typedef struct ailo_request {
   /** Required only for JSON_SCHEMA: a UTF-8 JSON schema, at most 64 KiB.
    * Unsupported constraints fail before events/evaluation. */
   const char *json_schema;
+  /** At most 128 unique functions; definitions total at most 4 MiB. */
+  const ailo_function_tool *tools;
+  size_t tool_count;
+  ailo_tool_choice tool_choice;
+  /** Required only for NAMED. */
+  const char *tool_name;
+  /** Optional callable subset; definitions remain in the rendered prompt. */
+  const char *const *allowed_tools;
+  size_t allowed_tool_count;
+  /** Factory default true. False allows at most one call per candidate. */
+  ailo_bool parallel_tool_calls;
+  /** Per candidate, zero selects 128 (one when parallel calls are disabled). */
+  size_t max_tool_calls;
 } ailo_request;
 
 typedef enum ailo_finish_reason {
@@ -149,7 +178,9 @@ typedef enum ailo_event_kind {
   AILO_EVENT_CONTENT_BEGIN,
   AILO_EVENT_CONTENT_END,
   AILO_EVENT_ITEM_END,
-  AILO_EVENT_USAGE
+  AILO_EVENT_USAGE,
+  AILO_EVENT_FUNCTION_NAME_DELTA,
+  AILO_EVENT_FUNCTION_ARGUMENTS_DELTA
 } ailo_event_kind;
 
 /** A token piece is arbitrary bytes, possibly incomplete UTF-8 or empty.
@@ -203,6 +234,10 @@ typedef struct ailo_event {
   ailo_item_kind item_kind;
   unsigned int item_index;
   unsigned int content_index;
+  /** Stable receiver-owned identity for a function-call item. Name is the
+   * bounded prefix known at this event; final at ITEM_END. */
+  const char *call_id;
+  const char *name;
 } ailo_event;
 
 /** Return zero to cancel; a negative value reports sink failure. The consumer

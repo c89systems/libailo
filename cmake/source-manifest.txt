@@ -99,6 +99,9 @@ src/ailo_json_stream.cpp
 src/ailo_json_stream_internal.hpp
 src/ailo_tool_json.cpp
 src/ailo_tool_json_internal.hpp
+src/ailo_tools.cpp
+src/ailo_tools_internal.hpp
+src/ailo_tool_output.cpp
 src/ailo_conversation.cpp
 src/ailo_conversation_internal.hpp
 src/ailo_template_support.cpp
@@ -123,6 +126,7 @@ tests/client.c
 tests/generation_controls.cpp
 tests/schema.cpp
 tests/json_stream.cpp
+tests/tools.cpp
 tests/conversation.cpp
 tests/client_threads.cpp
 tests/install-consumer/CMakeLists.txt

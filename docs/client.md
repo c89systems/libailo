@@ -132,8 +132,59 @@ arguments for its model, while the caller's original input bytes stay unchanged.
 For parallel-call formats that omit explicit result IDs, the prompt presents
 results in the original call order so the model cannot swap their association.
 The caller's ordered items stay unchanged; explicit-ID formats retain that order.
-The core never executes a function. New function-call generation/argument events
-remain the next implementation step; accepting history does not claim them.
+The core never executes a function.
+
+## Generated function calls
+
+`tools` supplies up to 128 unique `ailo_function_tool` definitions, with names,
+optional descriptions and parameter-schema JSON. Each schema/description is at
+most 64 KiB; definitions total at most 4 MiB. Original schema annotations remain
+in the prompt. `strict` compiles the published subset into argument constraints;
+non-strict schemas guide the model while permitting any JSON-object arguments.
+The callable `allowed_tools` subset leaves every definition in the prompt.
+Unknown/duplicate subset names and contradictory controls fail before inference.
+
+`tool_choice` is auto, none, required or named; named requires `tool_name` and
+returns at most one call. Required generates at least one call when generation
+finishes normally. `parallel_tool_calls` defaults true in the factory; false
+allows one call per candidate. `max_tool_calls` bounds each candidate at 1-128
+(zero selects 128, or one when parallel calls are disabled).
+
+Compatible Jinja templates are qualified from small rendered text/call probes,
+including a parallel probe when enabled. Qualification requires an unambiguous
+literal opening marker and JSON call envelopes: flat, function-wrapped,
+function-name-keyed or array-wrapped. Unsupported/tagged argument formats and
+templates that discard tool definitions fail before events. This qualification
+establishes format fidelity, not the model's ability to choose useful functions.
+
+An eager grammar reserves the opening marker for constrained call syntax and
+bounds the number of calls. It never uses the native lazy grammar's retained
+pre-trigger output. A public lonejson push visitor validates the envelope and
+object arguments. Name/ID metadata is bounded; argument bytes flow directly,
+unchanged, through `FUNCTION_ARGUMENTS_DELTA` as they arrive, with at most 4 KiB
+chunks and a partial UTF-8 character as carry. No entire call is collected.
+
+Each function item has stable, independent receiver-owned `item_id` and `call_id`.
+`ITEM_BEGIN` precedes decoded `FUNCTION_NAME_DELTA` and original JSON argument
+deltas; `ITEM_END` carries the final name. Function items have no message content
+events. Text between calls remains ordinary message items, indexed in output
+order. Names can be partial until item end; consumers must never execute a call
+before successful completion. A normal choice containing calls finishes with
+`TOOL_CALLS`. Length exhaustion may leave a partial call and reports `LENGTH`;
+an unfinished forced opening marker is not exposed as answer text. Cancellation,
+sink failure, quota exhaustion and an interrupted/invalid envelope cannot produce
+a successful run end. JSON response formats constrain the ordinary answer branch
+separately from function argument schemas.
+
+A trained CPU check used
+[`bartowski/Qwen2.5-0.5B-Instruct-GGUF`](https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/blob/c6f6d6134e86f8c53897f3d892b3a3da0143e8bc/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf),
+revision `c6f6d6134e86f8c53897f3d892b3a3da0143e8bc`, Q4_K_M file SHA-256
+`6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653`.
+Libailo acquired it through its Hugging Face cache facility. The installed Lua
+facade generated a named strict call through the stored template: five argument
+deltas, first at completion token 12 of 18. Replaying that call and its result
+produced 25 immediate text deltas. This proves that model/template integration;
+it is not a qualification of every model, tool format or GPU backend.
 
 ## Constrained output
 

@@ -44,13 +44,15 @@ bool template_supported(const char *source) {
 }
 
 std::string apply_template(const char *source, const llama_vocab *vocab,
-                           const conversation &input) {
+                           const conversation &input, const std::string &tools,
+                           bool generation) {
   std::string result;
+  const bool rich = input.rich || tools != "[]";
   if (is_jinja(source)) {
     try {
       auto program = parse(source);
       jinja::caps caps;
-      if (input.rich) {
+      if (rich) {
         caps = jinja::caps_get(program);
         if (input.max_parallel_calls && !caps.supports_tool_calls)
           throw failure(
@@ -61,13 +63,13 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
                                           "parallel function-call history");
       }
       jinja::context context(source);
-      context.is_get_stats = input.rich;
+      context.is_get_stats = rich;
       common_json inputs{
           {"messages", common_json::array()},
-          {"tools", common_json::array()},
+          {"tools", common_json::parse(tools)},
           {"bos_token", token_text(vocab, llama_vocab_bos(vocab))},
           {"eos_token", token_text(vocab, llama_vocab_eos(vocab))},
-          {"add_generation_prompt", true},
+          {"add_generation_prompt", generation},
           {"enable_thinking", false}};
       for (const auto &message : input.messages) {
         common_json value{{"role", message.role}, {"content", message.content}};
@@ -90,12 +92,27 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
         }
         inputs["messages"].push_back(std::move(value));
       }
-      jinja::global_from_json(context, inputs, input.rich);
+      jinja::global_from_json(context, inputs, rich);
       jinja::runtime runtime(context);
       result = jinja::runtime::gather_string_parts(runtime.execute(program))
                    ->as_string()
                    .str();
-      if (input.rich) {
+      if (rich) {
+        if (tools != "[]" && !context.get_val("tools")->stats.used)
+          throw failure(AILO_UNSUPPORTED,
+                        "This chat template ignores tool definitions");
+        for (size_t i = 0; i < inputs["tools"].size(); ++i) {
+          auto function = context.get_val("tools")->at(i)->at("function");
+          if (!function->at("name")->stats.used ||
+              !function->at("parameters")->stats.used ||
+              (!inputs["tools"][i]["function"]["description"]
+                    .get<std::string>()
+                    .empty() &&
+               !function->at("description")->stats.used))
+            throw failure(
+                AILO_UNSUPPORTED,
+                "This chat template ignores a function definition field");
+        }
         auto messages = context.get_val("messages");
         for (size_t i = 0; i < input.messages.size(); ++i) {
           const auto &message = input.messages[i];
@@ -125,7 +142,7 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
         std::unique_ptr<conversation> ordered;
         for (size_t i = 0; i < input.messages.size(); ++i) {
           const auto &calls = input.messages[i].calls;
-          if (calls.size() < 2)
+          if (calls.size() < 2 || i + calls.size() >= input.messages.size())
             continue;
           const size_t first = i + 1;
           if (calls.size() > input.messages.size() - first)
@@ -156,7 +173,7 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
           }
         }
         if (ordered)
-          return apply_template(source, vocab, *ordered);
+          return apply_template(source, vocab, *ordered, tools, generation);
       }
     } catch (const failure &) {
       throw;
@@ -168,7 +185,7 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
                     "The chat template cannot render this conversation");
     }
   } else {
-    if (input.rich)
+    if (rich)
       throw failure(
           AILO_UNSUPPORTED,
           "Named text templates cannot represent participant names or function "
@@ -177,14 +194,15 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
     for (const auto &message : input.messages)
       messages.push_back({message.role.c_str(), message.content.c_str()});
     const int32_t size = llama_chat_apply_template(
-        source, messages.data(), messages.size(), true, nullptr, 0);
+        source, messages.data(), messages.size(), generation, nullptr, 0);
     if (size < 0)
       throw failure(AILO_UNSUPPORTED, "Unknown named chat template");
     if (size > 8 * 1024 * 1024)
       throw failure(AILO_OUT_OF_RANGE, "Rendered prompt exceeds 8 MiB");
     std::vector<char> buffer(static_cast<size_t>(size) + 1);
     if (llama_chat_apply_template(source, messages.data(), messages.size(),
-                                  true, buffer.data(), buffer.size()) != size)
+                                  generation, buffer.data(),
+                                  buffer.size()) != size)
       throw failure(AILO_MODEL_FAILED, "Chat template rendering failed");
     result.assign(buffer.data(), static_cast<size_t>(size));
   }

@@ -3,6 +3,7 @@
 #include "ailo_sampling_internal.hpp"
 #include "ailo_schema_internal.hpp"
 #include "ailo_text_stream_internal.hpp"
+#include "ailo_tools_internal.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -12,7 +13,7 @@
 namespace ailo {
 namespace client {
 namespace {
-std::string render(state &self, const conversation &input) {
+std::string render(state &self, const conversation &input, tool_plan &tools) {
   self.ensure_loaded();
   const char *tmpl = self.config.chat_template
                          ? self.config.chat_template
@@ -21,7 +22,9 @@ std::string render(state &self, const conversation &input) {
     throw failure(
         AILO_UNSUPPORTED,
         "The model has no chat template; configure an explicit template");
-  return apply_template(tmpl, llama_model_get_vocab(self.model.get()), input);
+  qualify_tools(tools, tmpl, llama_model_get_vocab(self.model.get()));
+  return apply_template(tmpl, llama_model_get_vocab(self.model.get()), input,
+                        tools.definitions_json);
 }
 
 struct emitter {
@@ -31,7 +34,9 @@ struct emitter {
   ailo_run_info &info;
   uint64_t sequence = 0;
   unsigned candidate = 0;
-  std::string run_id{}, item_id{};
+  std::string run_id{}, item_id{}, call_id{}, name{};
+  ailo_item_kind item_kind = AILO_ITEM_MESSAGE;
+  unsigned item_index = 0;
   bool item_active = false;
   emitter(state &value, ailo_event_sink callback, void *context,
           ailo_run_info &run)
@@ -65,7 +70,12 @@ struct emitter {
     event.token = token;
     event.run_id = run_id.c_str();
     event.item_id = item_active ? item_id.c_str() : nullptr;
-    event.item_kind = AILO_ITEM_MESSAGE;
+    event.item_kind = item_kind;
+    event.item_index = item_index;
+    event.call_id = item_active && item_kind == AILO_ITEM_FUNCTION_CALL
+                        ? call_id.c_str()
+                        : nullptr;
+    event.name = event.call_id ? name.c_str() : nullptr;
     const int accepted = sink(user, &event);
     if (accepted < 0)
       throw failure(AILO_SINK_FAILED, "The event sink failed");
@@ -73,16 +83,44 @@ struct emitter {
       throw failure(AILO_CANCELLED, "Generation cancelled by the event sink");
   }
   void begin_message() {
-    item_id =
-        "msg_" + run_id.substr(4) + "_" + std::to_string(candidate) + "_0";
+    begin_item(AILO_ITEM_MESSAGE);
+    send(AILO_EVENT_CONTENT_BEGIN);
+  }
+  void begin_item(ailo_item_kind kind) {
+    item_kind = kind;
+    const auto suffix = run_id.substr(4) + "_" + std::to_string(candidate) +
+                        "_" + std::to_string(item_index);
+    item_id = (kind == AILO_ITEM_MESSAGE ? "msg_" : "fc_") + suffix;
+    call_id = "call_" + suffix;
+    name.clear();
     item_active = true;
     send(AILO_EVENT_ITEM_BEGIN);
-    send(AILO_EVENT_CONTENT_BEGIN);
   }
   void end_message(ailo_finish_reason finish) {
     send(AILO_EVENT_CONTENT_END, nullptr, 0, finish);
     send(AILO_EVENT_ITEM_END, nullptr, 0, finish);
     item_active = false;
+    ++item_index;
+  }
+  void tool(const tool_output_event &event) {
+    if (event.kind == tool_output_kind::text) {
+      if (!item_active)
+        begin_message();
+      send(AILO_EVENT_TEXT_DELTA, event.data, event.size);
+    } else if (event.kind == tool_output_kind::begin) {
+      if (item_active)
+        end_message(AILO_FINISH_NONE);
+      begin_item(AILO_ITEM_FUNCTION_CALL);
+    } else if (event.kind == tool_output_kind::name) {
+      name.append(event.data, event.size);
+      send(AILO_EVENT_FUNCTION_NAME_DELTA, event.data, event.size);
+    } else if (event.kind == tool_output_kind::arguments) {
+      send(AILO_EVENT_FUNCTION_ARGUMENTS_DELTA, event.data, event.size);
+    } else {
+      send(AILO_EVENT_ITEM_END, nullptr, 0, AILO_FINISH_TOOL_CALLS);
+      item_active = false;
+      ++item_index;
+    }
   }
 };
 
@@ -142,9 +180,12 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     require_utf8(request.stop[i], size);
     stops.emplace_back(request.stop[i], size);
   }
-  const std::string grammar = output_grammar(request);
+  const auto answer_grammar = output_grammar(request);
+  auto tools = prepare_tools(request);
   const auto input = prepare_conversation(request);
-  const std::string prompt = render(self, input);
+  const std::string prompt = render(self, input, tools);
+  const std::string grammar =
+      tools.definitions.empty() ? answer_grammar : tool_grammar(tools, request);
   const auto *vocab = llama_model_get_vocab(self.model.get());
   int32_t count =
       llama_tokenize(vocab, prompt.data(), static_cast<int32_t>(prompt.size()),
@@ -177,9 +218,11 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
       request.max_output_bytes ? request.max_output_bytes : 16 * 1024 * 1024;
   for (unsigned candidate = 0; candidate < candidates; ++candidate) {
     output.candidate = candidate;
+    output.item_index = 0;
     llama_memory_clear(llama_get_memory(self.context.get()), true);
     output.send(AILO_EVENT_CHOICE_BEGIN);
-    output.begin_message();
+    if (tools.definitions.empty())
+      output.begin_message();
     evaluate(self, tokens.data(), tokens.size(), 0);
     std::unique_ptr<sampling> additional;
     if (candidate)
@@ -189,11 +232,28 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     for (llama_token token : tokens)
       sampler.accept(token);
     std::unique_ptr<json_validation> validation;
-    if (!grammar.empty())
+    if (request.output_format != AILO_OUTPUT_TEXT)
       validation = std::make_unique<json_validation>(output_limit);
+    bool validated_text = false;
+    std::unique_ptr<tool_output_stream> tool_output;
+    if (!tools.definitions.empty())
+      tool_output = std::make_unique<tool_output_stream>(
+          tools, output_limit, [&](const tool_output_event &event) {
+            if (validation && event.kind == tool_output_kind::text) {
+              validation->push(event.data, event.size);
+              validated_text = true;
+            }
+            output.tool(event);
+          });
     text_stream carry(stops, [&](const char *data, size_t size) {
-      if (validation)
+      if (tool_output) {
+        tool_output->push(data, size);
+        return;
+      }
+      if (validation) {
         validation->push(data, size);
+        validated_text = true;
+      }
       output.send(AILO_EVENT_TEXT_DELTA, data, size);
     });
     ailo_finish_reason finish = AILO_FINISH_LENGTH;
@@ -225,7 +285,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
         break;
       }
       if (carry.push(piece)) {
-        if (validation)
+        if (validation || (tool_output && !tool_output->between_calls()))
           throw failure(AILO_MODEL_FAILED,
                         "A stop sequence interrupted constrained output");
         finish = AILO_FINISH_STOP;
@@ -235,9 +295,21 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
         evaluate(self, &token, 1, position++);
     }
     (void)carry.push({}, true);
-    if (validation && finish == AILO_FINISH_STOP)
+    if (tool_output) {
+      tool_output->finish(finish == AILO_FINISH_LENGTH);
+      if (finish == AILO_FINISH_STOP && tool_output->count())
+        finish = AILO_FINISH_TOOL_CALLS;
+    }
+    if (validation && validated_text && finish == AILO_FINISH_STOP)
       validation->finish();
-    output.end_message(finish);
+    if (output.item_active) {
+      if (output.item_kind == AILO_ITEM_MESSAGE)
+        output.end_message(finish);
+      else {
+        output.send(AILO_EVENT_ITEM_END, nullptr, 0, finish);
+        output.item_active = false;
+      }
+    }
     output.send(AILO_EVENT_CHOICE_END, nullptr, 0, finish);
     info.finish_reason = finish;
     ++info.completed_candidates;

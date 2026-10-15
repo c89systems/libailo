@@ -254,35 +254,26 @@ void checked(lonejson_status status) {
 }
 } // namespace
 
-std::string output_grammar(const ailo_request &request) {
-  if (request.output_format < AILO_OUTPUT_TEXT ||
-      request.output_format > AILO_OUTPUT_JSON_SCHEMA)
-    invalid("Unknown output format");
-  if (request.output_format != AILO_OUTPUT_JSON_SCHEMA && request.json_schema)
-    invalid("JSON schema requires JSON_SCHEMA output format");
-  if (request.output_format == AILO_OUTPUT_TEXT)
-    return {};
+std::string schema_document(const char *source, bool normalize) {
   try {
     json schema = {{"type", "object"}};
-    if (request.output_format == AILO_OUTPUT_JSON_SCHEMA) {
-      if (!request.json_schema)
-        invalid("JSON_SCHEMA output requires a schema");
-      const size_t size = strnlen(request.json_schema, 65537);
+    if (source) {
+      const size_t size = strnlen(source, 65537);
       if (size > 65536)
         throw failure(AILO_OUT_OF_RANGE, "JSON schema exceeds 64 KiB");
-      require_utf8(request.json_schema, size);
+      require_utf8(source, size);
       auto config = lonejson_default_config();
       config.max_depth = 64;
       std::unique_ptr<lonejson, decltype(&lonejson_free)> runtime(
           lonejson_new(&config, nullptr), lonejson_free);
       if (!runtime)
         throw std::bad_alloc();
-      if (lonejson_validate_buffer(runtime.get(), request.json_schema, size,
-                                   nullptr) != LONEJSON_STATUS_OK)
+      if (lonejson_validate_buffer(runtime.get(), source, size, nullptr) !=
+          LONEJSON_STATUS_OK)
         invalid("JSON schema is malformed or exceeds JSON limits");
       std::vector<std::set<std::string>> objects;
       schema = json::parse(
-          request.json_schema, request.json_schema + size,
+          source, source + size,
           [&](int, json::parse_event_t event, json &value) {
             if (event == json::parse_event_t::object_start)
               objects.emplace_back();
@@ -294,12 +285,9 @@ std::string output_grammar(const ailo_request &request) {
             return true;
           });
     }
-    const auto normalized = normalizer(schema).visit(schema);
-    auto grammar =
-        json_schema_to_grammar(common_json::parse(normalized.dump()), true);
-    if (grammar.size() > 4 * 1024 * 1024)
-      throw failure(AILO_OUT_OF_RANGE, "Compiled JSON grammar exceeds 4 MiB");
-    return grammar;
+    if (!schema.is_object())
+      invalid("JSON schemas must be objects");
+    return (normalize ? normalizer(schema).visit(schema) : schema).dump();
   } catch (const failure &) {
     throw;
   } catch (const std::bad_alloc &) {
@@ -307,6 +295,23 @@ std::string output_grammar(const ailo_request &request) {
   } catch (...) {
     invalid("JSON schema cannot be compiled by the pinned grammar helper");
   }
+}
+
+std::string output_grammar(const ailo_request &request) {
+  if (request.output_format < AILO_OUTPUT_TEXT ||
+      request.output_format > AILO_OUTPUT_JSON_SCHEMA)
+    invalid("Unknown output format");
+  if (request.output_format != AILO_OUTPUT_JSON_SCHEMA && request.json_schema)
+    invalid("JSON schema requires JSON_SCHEMA output format");
+  if (request.output_format == AILO_OUTPUT_TEXT)
+    return {};
+  if (request.output_format == AILO_OUTPUT_JSON_SCHEMA && !request.json_schema)
+    invalid("JSON_SCHEMA output requires a schema");
+  auto grammar = json_schema_to_grammar(
+      common_json::parse(schema_document(request.json_schema, true)), true);
+  if (grammar.size() > 4 * 1024 * 1024)
+    throw failure(AILO_OUT_OF_RANGE, "Compiled JSON grammar exceeds 4 MiB");
+  return grammar;
 }
 
 json_validation::json_validation(size_t limit) {

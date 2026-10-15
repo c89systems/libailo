@@ -239,6 +239,7 @@ AILO_PUBLIC ailo_request ailo_request_default(void) {
   result.temperature = 0.8;
   result.top_p = 0.95;
   result.seed = LLAMA_DEFAULT_SEED;
+  result.parallel_tool_calls = 1;
   return result;
 }
 
