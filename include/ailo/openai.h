@@ -104,6 +104,19 @@ ailo_status ailo_client_chat_retrieve(ailo_client *, const char *, ailo_bool,
 ailo_status ailo_client_chat_delete(ailo_client *, const char *,
                                     ailo_output_sink, void *, ailo_api_info *,
                                     ailo_error *);
+/** Responses output is explicitly retained within max_output_memory_bytes for
+ * full done/terminal repeats; every available delta is still sent immediately.
+ * Stored records default to at least 30 days. previous_response_id reads the
+ * trusted repository and does not inherit prior top-level instructions. */
+ailo_status ailo_client_responses(ailo_client *, const void *, size_t,
+                                  ailo_output_sink, void *, ailo_api_info *,
+                                  ailo_error *);
+ailo_status ailo_client_response_retrieve(ailo_client *, const char *,
+                                          ailo_output_sink, void *,
+                                          ailo_api_info *, ailo_error *);
+ailo_status ailo_client_response_delete(ailo_client *, const char *,
+                                        ailo_output_sink, void *,
+                                        ailo_api_info *, ailo_error *);
 #ifdef __cplusplus
 }
 #endif

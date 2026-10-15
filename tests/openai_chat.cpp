@@ -1,4 +1,5 @@
 #include "ailo/openai.h"
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <lonejson.h>
@@ -6,6 +7,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #define CHECK(c)                                                               \
   do {                                                                         \
@@ -37,13 +39,21 @@ struct output {
   ailo_client *receiver = nullptr;
   bool busy = false;
   bool cancel_after_commit = false;
+  bool response_mode = false;
+  unsigned first_argument_at = 0;
   static int send(void *u, const void *p, size_t n) {
     auto &out = *static_cast<output *>(u);
     if (out.cancel_after_commit && out.info && out.info->stored)
       return 0;
     out.bytes.append(static_cast<const char *>(p), n);
+    if (out.info && !out.first_argument_at &&
+        out.bytes.find("event: response.function_call_arguments.delta") !=
+            std::string::npos)
+      out.first_argument_at = out.info->run.usage.completion_tokens.lo;
     if (out.info && !out.first &&
-        out.bytes.find("\"content\":\"a") != std::string::npos) {
+        out.bytes.find(out.response_mode
+                           ? "\"delta\":\"a"
+                           : "\"content\":\"a") != std::string::npos) {
       out.first = true;
       if (out.receiver) {
         char *metadata = nullptr;
@@ -121,10 +131,18 @@ struct repository {
   struct record {
     std::string ns, id, parts[3];
     ailo_u64 expires{};
+    ailo_record_protocol protocol = AILO_RECORD_CHAT;
   };
+  static std::string key(const char *ns, ailo_record_protocol protocol,
+                         const char *id) {
+    return std::string(ns) + "/" +
+           (protocol == AILO_RECORD_CHAT ? "" : "response/") + id;
+  }
   std::map<std::string, record> records;
   unsigned reserves = 0, commits = 0, aborts = 0, opens = 0, closes = 0;
   int fail = 0;
+  bool ignore_rejection = false;
+  bool fail_output_read = false;
   ailo_record_repository api{};
   repository() {
     api.user_data = this;
@@ -133,6 +151,7 @@ struct repository {
       auto &s = *static_cast<repository *>(u);
       ++s.reserves;
       auto p = new record{m->namespace_id, m->id, {}, m->expires_at};
+      p->protocol = m->protocol;
       *tx = p;
       return s.fail == 1 ? AILO_OUT_OF_RANGE : AILO_OK;
     };
@@ -150,7 +169,7 @@ struct repository {
       if (s.fail == 3)
         return AILO_IO_FAILED;
       auto &r = *static_cast<record *>(tx);
-      s.records[r.ns + "/" + r.id] = r;
+      s.records[key(r.ns.c_str(), r.protocol, r.id.c_str())] = r;
       ++s.commits;
       delete &r;
       return AILO_OK;
@@ -159,10 +178,11 @@ struct repository {
       ++static_cast<repository *>(u)->aborts;
       delete static_cast<record *>(tx);
     };
-    api.open = [](void *u, const char *ns, ailo_record_protocol, const char *id,
-                  void **handle, ailo_u64 *expires, ailo_error *) {
+    api.open = [](void *u, const char *ns, ailo_record_protocol protocol,
+                  const char *id, void **handle, ailo_u64 *expires,
+                  ailo_error *) {
       auto &s = *static_cast<repository *>(u);
-      auto found = s.records.find(std::string(ns) + "/" + id);
+      auto found = s.records.find(key(ns, protocol, id));
       if (found == s.records.end())
         return AILO_NOT_FOUND;
       ++s.opens;
@@ -170,27 +190,81 @@ struct repository {
       *expires = found->second.expires;
       return AILO_OK;
     };
-    api.read = [](void *, void *handle, ailo_record_section section,
+    api.read = [](void *owner, void *handle, ailo_record_section section,
                   ailo_output_sink sink, void *u, ailo_error *) {
+      if (section == AILO_RECORD_OUTPUT &&
+          static_cast<repository *>(owner)->fail_output_read)
+        return AILO_IO_FAILED;
       auto &bytes = static_cast<record *>(handle)->parts[section];
       for (size_t i = 0; i < bytes.size(); i += 7) {
         int result =
             sink(u, bytes.data() + i, std::min(size_t(7), bytes.size() - i));
-        if (result <= 0)
+        if (result <= 0 && !static_cast<repository *>(owner)->ignore_rejection)
           return result ? AILO_SINK_FAILED : AILO_CANCELLED;
       }
       return AILO_OK;
     };
     api.close = [](void *u, void *) { ++static_cast<repository *>(u)->closes; };
-    api.erase = [](void *u, const char *ns, ailo_record_protocol,
+    api.erase = [](void *u, const char *ns, ailo_record_protocol protocol,
                    const char *id, ailo_error *) {
-      return static_cast<repository *>(u)->records.erase(std::string(ns) + "/" +
-                                                         id)
+      return static_cast<repository *>(u)->records.erase(key(ns, protocol, id))
                  ? AILO_OK
                  : AILO_NOT_FOUND;
     };
   }
 };
+std::string string_at(const std::string &json,
+                      std::initializer_list<const char *> path) {
+  struct value {
+    std::vector<std::string> path;
+    std::string bytes;
+  } found;
+  for (auto part : path)
+    found.path.emplace_back(part);
+  auto visitor = lonejson_default_path_value_visitor();
+  visitor.string_chunk = [](void *u, const lonejson_value_path *p,
+                            const char *s, size_t n, lonejson_error *) {
+    auto &v = *static_cast<value *>(u);
+    if (p->segment_count != v.path.size())
+      return LONEJSON_STATUS_OK;
+    for (size_t i = 0; i < v.path.size(); ++i)
+      if (v.path[i].size() != p->segments[i].len ||
+          std::memcmp(v.path[i].data(), p->segments[i].data,
+                      p->segments[i].len))
+        return LONEJSON_STATUS_OK;
+    v.bytes.append(s, n);
+    return LONEJSON_STATUS_OK;
+  };
+  std::unique_ptr<lonejson, decltype(&lonejson_free)> parser(
+      lonejson_new(nullptr, nullptr), lonejson_free);
+  CHECK(parser && lonejson_visit_path_value_buffer(
+                      parser.get(), json.data(), json.size(), &visitor, &found,
+                      nullptr) == LONEJSON_STATUS_OK);
+  return found.bytes;
+}
+std::vector<std::pair<std::string, std::string>>
+response_frames(const std::string &sse, bool padded = false) {
+  std::vector<std::pair<std::string, std::string>> frames;
+  for (size_t cursor = 0; cursor < sse.size();) {
+    CHECK(sse.compare(cursor, 7, "event: ") == 0);
+    const auto name_end = sse.find('\n', cursor),
+               end = sse.find("\n\n", name_end);
+    CHECK(name_end != std::string::npos && end != std::string::npos &&
+          sse.compare(name_end + 1, 6, "data: ") == 0);
+    const auto name = sse.substr(cursor + 7, name_end - cursor - 7);
+    const auto body = sse.substr(name_end + 7, end - name_end - 7);
+    valid_json(body);
+    CHECK(string_at(body, {"type"}) == name);
+    CHECK(body.find("\"sequence_number\":" + std::to_string(frames.size()) +
+                    ",") != std::string::npos);
+    CHECK((body.find("\"obfuscation\"") != std::string::npos) == padded);
+    if (padded)
+      CHECK(body.size() % 256 == 0);
+    frames.push_back({name, body});
+    cursor = end + 2;
+  }
+  return frames;
+}
 int main(int argc, char **argv) {
   try {
     CHECK(argc == 2);
@@ -356,7 +430,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<char, decltype(&ailo_string_free)> caps(advertised,
                                                             ailo_string_free);
     CHECK(std::strstr(caps.get(), "\"chat_completions\":true") &&
-          std::strstr(caps.get(), "\"responses\":false") &&
+          std::strstr(caps.get(), "\"responses\":true") &&
           std::strstr(caps.get(), "\"retained_chat_records\":true"));
     std::string stored = ordinary;
     stored.insert(stored.size() - 1, ",\"metadata\":{\"ticket\":\"T-1\"}");
@@ -456,9 +530,246 @@ int main(int argc, char **argv) {
                                    output::send, &seen, &info,
                                    &error) != AILO_OK &&
           !info.started && !info.run.usage.completion_tokens.lo);
+    // Responses exercises the same native producer and durable repository.
+    const std::string response_request =
+        R"({"input":"Hi","store":false,"stream":true,"max_output_tokens":8,"temperature":0,"include":["message.output_text.logprobs"],"top_logprobs":2,"stream_options":{"include_obfuscation":false}})";
+    seen = {};
+    seen.info = &info;
+    seen.receiver = receiver.get();
+    seen.response_mode = true;
+    CHECK(receiver->responses(receiver.get(), response_request.data(),
+                              response_request.size(), output::send, &seen,
+                              &info, &error) == AILO_OK);
+    auto events = response_frames(seen.bytes);
+    CHECK(seen.first && seen.busy && !info.stored &&
+          info.run.usage.completion_tokens.lo == 8 &&
+          events.front().first == "response.created" &&
+          events.back().first == "response.incomplete");
+    std::string deltas;
+    for (const auto &e : events)
+      if (e.first == "response.output_text.delta")
+        deltas += string_at(e.second, {"delta"});
+    CHECK(deltas == "aaaaaaaa" &&
+          string_at(events.back().second, {"response", "output", "0", "content",
+                                           "0", "text"}) == deltas);
+    CHECK(events.back().second.find("\"top_logprobs\":[{") !=
+              std::string::npos &&
+          events.back().second.find("\"reason\":\"max_output_tokens\"") !=
+              std::string::npos);
+    for (int action : {0, -1}) {
+      seen = {};
+      seen.info = &info;
+      seen.response_mode = true;
+      seen.action = action;
+      CHECK(receiver->responses(receiver.get(), response_request.data(),
+                                response_request.size(), output::send, &seen,
+                                &info, &error) ==
+            (action ? AILO_SINK_FAILED : AILO_CANCELLED));
+      CHECK(info.run.usage.completion_tokens.lo == 1 &&
+            seen.bytes.find("event: response.incomplete") ==
+                std::string::npos &&
+            seen.bytes.find("event: response.completed") == std::string::npos);
+    }
+    std::string response_padded = response_request;
+    response_padded.replace(
+        response_padded.find("\"include_obfuscation\":false"),
+        std::strlen("\"include_obfuscation\":false"),
+        "\"include_obfuscation\":true");
+    seen = {};
+    CHECK(receiver->responses(receiver.get(), response_padded.data(),
+                              response_padded.size(), output::send, &seen,
+                              &info, &error) == AILO_OK);
+    response_frames(seen.bytes, true);
+    const std::string structured =
+        R"({"input":"Hi","store":false,"max_output_tokens":32,"temperature":0,"text":{"format":{"type":"json_schema","name":"Answer","schema":{"const":{}},"strict":true}}})";
+    seen = {};
+    CHECK(receiver->responses(receiver.get(), structured.data(),
+                              structured.size(), output::send, &seen, &info,
+                              &error) == AILO_OK);
+    valid_json(seen.bytes);
+    CHECK(string_at(seen.bytes, {"status"}) == "completed" &&
+          string_at(seen.bytes, {"output", "0", "content", "0", "text"}) ==
+              "{}");
+    seen = {};
+    CHECK(limited->responses(limited.get(), response_request.data(),
+                             response_request.size(), output::send, &seen,
+                             &info, &error) == AILO_OUT_OF_RANGE);
+    CHECK(seen.bytes.find("event: response.failed") != std::string::npos &&
+          seen.bytes.find("event: response.incomplete") == std::string::npos);
+    const std::string response_tools =
+        R"({"input":"Hi","store":false,"stream":true,"max_output_tokens":64,"temperature":0,"tools":[{"type":"function","name":"lookup","strict":true,"parameters":{"type":"object","properties":{"text":{"const":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},"required":["text"],"additionalProperties":false}}],"tool_choice":{"type":"function","name":"lookup"},"parallel_tool_calls":false,"stream_options":{"include_obfuscation":false}})";
+    seen = {};
+    seen.info = &info;
+    CHECK(tool_client->responses(tool_client.get(), response_tools.data(),
+                                 response_tools.size(), output::send, &seen,
+                                 &info, &error) == AILO_OK);
+    events = response_frames(seen.bytes);
+    deltas.clear();
+    unsigned fragments = 0;
+    bool call_added = false;
+    for (const auto &e : events) {
+      if (e.first == "response.output_item.added" &&
+          string_at(e.second, {"item", "type"}) == "function_call") {
+        CHECK(string_at(e.second, {"item", "name"}) == "lookup");
+        call_added = true;
+      }
+      if (e.first == "response.function_call_arguments.delta") {
+        CHECK(call_added);
+        deltas += string_at(e.second, {"delta"});
+        ++fragments;
+      }
+    }
+    CHECK(seen.first_argument_at > 0 &&
+          seen.first_argument_at < info.run.usage.completion_tokens.lo);
+    CHECK(fragments > 1 &&
+          deltas == "{\"text\":\"" + std::string(32, 'a') + "\"}" &&
+          string_at(events.back().second,
+                    {"response", "output", "0", "name"}) == "lookup" &&
+          events.back().first == "response.incomplete");
+    const std::string response_thought =
+        R"({"input":"Hi","store":false,"stream":true,"max_output_tokens":8,"temperature":0,"stream_options":{"include_obfuscation":false}})";
+    seen = {};
+    CHECK(reasoning->responses(reasoning.get(), response_thought.data(),
+                               response_thought.size(), output::send, &seen,
+                               &info, &error) == AILO_OK);
+    events = response_frames(seen.bytes);
+    CHECK(info.run.usage.reasoning_tokens.lo > 0 &&
+          seen.bytes.find("event: response.reasoning_text.delta") !=
+              std::string::npos &&
+          seen.bytes.find("<think>") == std::string::npos &&
+          string_at(events.back().second,
+                    {"response", "output", "0", "type"}) == "reasoning");
+    api.repository = &repo.api;
+    api.namespace_id = "tenant-A";
+    api.zero_data_retention = 0;
+    auto responses = create(argv[1], &api);
+    std::string stored_response =
+        R"({"input":"Hi","instructions":"Only this request","stream":true,"max_output_tokens":2,"temperature":0,"metadata":{"ticket":"R-1"},"include":["message.output_text.logprobs"],"top_logprobs":2,"stream_options":{"include_obfuscation":false}})";
+    seen = {};
+    CHECK(responses->responses(responses.get(), stored_response.data(),
+                               stored_response.size(), output::send, &seen,
+                               &info, &error) == AILO_OK &&
+          info.stored);
+    const std::string response_id = info.id;
+    auto &saved = repo.records.at(
+        repository::key("tenant-A", AILO_RECORD_RESPONSE, response_id.c_str()));
+    const auto now = std::chrono::duration_cast<std::chrono::seconds>(
+                         std::chrono::system_clock::now().time_since_epoch())
+                         .count();
+    CHECK(saved.expires.lo >= now + 2591995 &&
+          saved.expires.lo <= now + 2592005);
+    CHECK(saved.parts[AILO_RECORD_INPUT].find("Only this request") ==
+              std::string::npos &&
+          saved.parts[AILO_RECORD_METADATA].find("R-1") != std::string::npos);
+    responses.reset();
+    responses = create(argv[1], &api);
+    retrieved = {};
+    CHECK(responses->response_retrieve(responses.get(), response_id.c_str(),
+                                       output::send, &retrieved, &info,
+                                       &error) == AILO_OK &&
+          retrieved.bytes == saved.parts[AILO_RECORD_OUTPUT]);
+    unsigned calls = 0;
+    repo.ignore_rejection = true;
+    CHECK(responses->response_retrieve(
+              responses.get(), response_id.c_str(),
+              [](void *u, const void *, size_t) {
+                ++*static_cast<unsigned *>(u);
+                return 0;
+              },
+              &calls, &info, &error) == AILO_CANCELLED &&
+          calls == 1 && repo.opens == repo.closes);
+    repo.ignore_rejection = false;
+    retrieved = {};
+    CHECK(isolated->response_retrieve(isolated.get(), response_id.c_str(),
+                                      output::send, &retrieved, &info,
+                                      &error) == AILO_NOT_FOUND &&
+          !info.started);
+    const auto deadline = saved.expires;
+    saved.expires = ailo_u64_from_ulong(1);
+    CHECK(responses->response_delete(responses.get(), response_id.c_str(),
+                                     output::send, &retrieved, &info,
+                                     &error) == AILO_NOT_FOUND &&
+          !info.started && repo.opens == repo.closes);
+    saved.expires = deadline;
+    const std::string chained =
+        "{\"previous_response_id\":\"" + response_id +
+        "\",\"input\":\"Next\",\"max_output_tokens\":2,\"temperature\":0}";
+    const auto original_input = saved.parts[AILO_RECORD_INPUT];
+    saved.parts[AILO_RECORD_INPUT] =
+        "{\"ailo_model_identity\":\"wrong\",\"input\":[]}";
+    auto before_failed_lookup = repo.aborts;
+    seen = {};
+    CHECK(responses->responses(responses.get(), chained.data(), chained.size(),
+                               output::send, &seen, &info,
+                               &error) == AILO_INVALID_ARGUMENT &&
+          !info.started && repo.aborts == before_failed_lookup + 1);
+    saved.parts[AILO_RECORD_INPUT] = original_input;
+    repo.fail_output_read = true;
+    seen = {};
+    CHECK(responses->responses(responses.get(), chained.data(), chained.size(),
+                               output::send, &seen, &info, &error) == AILO_OK &&
+          info.stored);
+    repo.fail_output_read = false;
+    const std::string child_id = info.id;
+    const auto &child = repo.records.at(
+        repository::key("tenant-A", AILO_RECORD_RESPONSE, child_id.c_str()));
+    CHECK(child.parts[AILO_RECORD_INPUT].find("Hi") != std::string::npos &&
+          child.parts[AILO_RECORD_INPUT].find("Next") != std::string::npos &&
+          child.parts[AILO_RECORD_INPUT].find("Only this request") ==
+              std::string::npos);
+    for (int fail : {1, 2, 3}) {
+      repo.fail = fail;
+      auto before = repo.aborts;
+      seen = {};
+      CHECK(responses->responses(responses.get(), stored_response.data(),
+                                 stored_response.size(), output::send, &seen,
+                                 &info, &error) ==
+            (fail == 1 ? AILO_OUT_OF_RANGE : AILO_IO_FAILED));
+      CHECK(repo.aborts == before + 1 && !info.stored &&
+            seen.bytes.find("event: response.incomplete") == std::string::npos);
+    }
+    repo.fail = 0;
+    seen = {};
+    seen.info = &info;
+    seen.cancel_after_commit = true;
+    CHECK(responses->responses(responses.get(), stored_response.data(),
+                               stored_response.size(), output::send, &seen,
+                               &info, &error) == AILO_CANCELLED &&
+          info.stored);
+    retrieved = {};
+    CHECK(responses->response_delete(responses.get(), response_id.c_str(),
+                                     output::send, &retrieved, &info,
+                                     &error) == AILO_OK);
+    retrieved = {};
+    CHECK(responses->response_retrieve(responses.get(), response_id.c_str(),
+                                       output::send, &retrieved, &info,
+                                       &error) == AILO_NOT_FOUND &&
+          info.http_status == 404 && !info.started);
+    // The child owns accumulated lineage; deleting its parent does not erase
+    // it.
+    const std::string grandchild = "{\"previous_response_id\":\"" + child_id +
+                                   "\",\"input\":\"Again\",\"store\":false,"
+                                   "\"max_output_tokens\":2,\"temperature\":0}";
+    seen = {};
+    CHECK(responses->responses(responses.get(), grandchild.data(),
+                               grandchild.size(), output::send, &seen, &info,
+                               &error) == AILO_OK &&
+          !info.stored && repo.opens == repo.closes);
+    seen = {};
+    CHECK(absent->responses(absent.get(), stored_response.data(),
+                            stored_response.size(), output::send, &seen, &info,
+                            &error) == AILO_INVALID_ARGUMENT &&
+          !info.started);
+    seen = {};
+    CHECK(zdr->responses(zdr.get(), stored_response.data(),
+                         stored_response.size(), output::send, &seen, &info,
+                         &error) == AILO_OK &&
+          !info.stored);
     std::puts(
-        "Public Chat JSON/SSE, first-token delivery, logprobs/padding, storage "
-        "transactions, namespace/expiry, failure and ZDR: passed");
+        "Public Chat/Responses JSON/SSE, first-token delivery, terminal "
+        "repeats, "
+        "logprobs/tools/reasoning, storage/lineage, namespace/expiry, failures "
+        "and ZDR: passed");
   } catch (const std::exception &e) {
     std::fprintf(stderr, "openai chat: %s (%s)\n", e.what(), error.message);
     return 1;

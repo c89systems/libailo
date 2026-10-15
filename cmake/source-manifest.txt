@@ -26,6 +26,7 @@ include/ailo/openai.h
 src/ailo_openai_internal.hpp
 src/ailo_openai.cpp
 src/ailo_openai_chat.cpp
+src/ailo_openai_responses.cpp
 tests/openai_chat.cpp
 tests/openai_requests.cpp
 tests/compaction_replay.cpp

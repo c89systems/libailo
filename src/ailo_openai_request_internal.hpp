@@ -23,6 +23,7 @@ struct openai_request {
   size_t max_builtin_tool_calls = 0;
   std::string model, previous_response_id, conversation_id, instructions;
   std::string user, safety_identifier, service_tier = "default";
+  std::string record_identity;
   std::string schema, schema_name, schema_description, tool_name, cache_key,
       effort;
   bool schema_strict = false;
@@ -38,7 +39,8 @@ struct openai_request {
   std::vector<std::string> stops, allowed;
   std::vector<const char *> stop_views, allowed_views;
   openai_request(openai_protocol, const void *, size_t,
-                 const std::string &served_model);
+                 const std::string &served_model,
+                 const char *selected_items = nullptr);
   openai_request(const openai_request &) = delete;
   openai_request &operator=(const openai_request &) = delete;
 };

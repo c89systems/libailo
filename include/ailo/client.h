@@ -365,6 +365,14 @@ struct ailo_client {
                                ailo_error *);
   ailo_status (*chat_delete)(ailo_client *, const char *, ailo_output_sink,
                              void *, struct ailo_api_info *, ailo_error *);
+  ailo_status (*responses)(ailo_client *, const void *, size_t,
+                           ailo_output_sink, void *, struct ailo_api_info *,
+                           ailo_error *);
+  ailo_status (*response_retrieve)(ailo_client *, const char *,
+                                   ailo_output_sink, void *,
+                                   struct ailo_api_info *, ailo_error *);
+  ailo_status (*response_delete)(ailo_client *, const char *, ailo_output_sink,
+                                 void *, struct ailo_api_info *, ailo_error *);
 };
 
 ailo_client_config ailo_client_default_config(void);

@@ -316,6 +316,24 @@ function methods:chat_delete(id,sink)
     return self._native:chat_delete(str(id,"completion ID",false),sink)
   end)
 end
+function methods:responses(json,sink)
+  return guarded(function()
+    if type(sink)~="function" then invalid("sink must be a function")end
+    return self._native:responses(str(json,"Responses JSON",false,true),sink)
+  end)
+end
+function methods:response_retrieve(id,sink)
+  return guarded(function()
+    if type(sink)~="function" then invalid("sink must be a function")end
+    return self._native:response_retrieve(str(id,"response ID",false),sink)
+  end)
+end
+function methods:response_delete(id,sink)
+  return guarded(function()
+    if type(sink)~="function" then invalid("sink must be a function")end
+    return self._native:response_delete(str(id,"response ID",false),sink)
+  end)
+end
 function methods:compact(input,policy)
   return guarded(function()
     local out=compaction_policy(policy,false)

@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
           plan.limit == 1);
     std::string response_history =
         R"({"model":"local-model","instructions":"New instructions",
-      "input":[{"role":"assistant","type":"message","content":[{"type":"output_text","text":"Calling","annotations":[],"logprobs":[]}],"id":"m1","status":"completed"},
+      "input":[{"role":"assistant","type":"message","content":[{"type":"output_text","text":"Calling","annotations":[],"logprobs":[{"token":"Calling","logprob":-1.25,"top_logprobs":[{"token":"Calling","logprob":-1.25}]}]}],"id":"m1","status":"incomplete"},
                {"type":"function_call","id":"fc1","call_id":"c1","name":"lookup","arguments":"{}"},
                {"call_id":"c1","type":"function_call_output","output":"result"},
                {"role":"user","content":[{"type":"input_text","text":"Continue"}]}],
@@ -121,6 +121,17 @@ int main(int argc, char **argv) {
           !std::strcmp(rh.generation.reasoning_effort, "high") &&
           rh.generation.max_tool_calls == 0 && rh.max_builtin_tool_calls == 1);
     CHECK(prepare_conversation(rh.generation).pending_calls == 0);
+    const std::string reasoning_history =
+        R"({"input":[{"type":"reasoning","id":"rs_1","summary":[],"content":[{"type":"reasoning_text","text":"Consider the question."}],"status":"completed"},{"role":"assistant","content":"Answer"},{"role":"user","content":"Continue"}]})";
+    openai_request reasoning_replay(responses, reasoning_history.data(),
+                                    reasoning_history.size(), "local-model");
+    CHECK(reasoning_replay.items.size() == 3 &&
+          reasoning_replay.items[0].kind == AILO_ITEM_REASONING &&
+          prepare_conversation(reasoning_replay.generation).pending_calls == 0);
+    reject(
+        responses,
+        R"({"input":[{"role":"assistant","content":[{"type":"output_text","text":"x","logprobs":[{"token":"x","logprob":1}]}]}]})",
+        AILO_INVALID_ARGUMENT);
     std::string implicit = R"({"input":"Hi","tools":[
       {"type":"function","name":"implicit","parameters":{"type":"object","properties":{"x":{"type":"integer"},"nested":{"type":"object","properties":{"s":{"type":"string"}}}}}},
       {"type":"function","name":"explicit_false","strict":false,"parameters":{"type":"object"}},

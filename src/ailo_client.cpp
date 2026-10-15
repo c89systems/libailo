@@ -306,6 +306,9 @@ AILO_PUBLIC ailo_status ailo_client_new_with_logger(
     shell->chat_completions = ailo_client_chat_completions;
     shell->chat_retrieve = ailo_client_chat_retrieve;
     shell->chat_delete = ailo_client_chat_delete;
+    shell->responses = ailo_client_responses;
+    shell->response_retrieve = ailo_client_response_retrieve;
+    shell->response_delete = ailo_client_response_delete;
     *output = shell.release();
   });
 }

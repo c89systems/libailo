@@ -1,12 +1,13 @@
 # OpenAI adapter operations
 
-`ailo/openai.h` exposes Chat Completions over the existing receiver, without an
-HTTP server. `client->chat_completions` and `ailo_client_chat_completions` accept
+`ailo/openai.h` exposes Chat Completions and Responses over the existing receiver,
+without an HTTP server. `client->chat_completions` and `ailo_client_chat_completions` accept
 request JSON, a synchronous byte sink and caller-owned `ailo_api_info`. The
 request mapper supports the qualified text, function, schema, sampling and
 reasoning controls in [the receiver contract](client.md). Unavailable controls
-fail explicitly. Responses operations, model/HTTP dispatch, stored-record list/
-update routes remain required work.
+fail explicitly. Model/HTTP dispatch, stored-record list/update routes,
+conversation objects, automatic Responses compaction and encrypted reasoning
+remain required work.
 
 ```c
 /* After constructing client; sink consumes every byte before returning. */
@@ -81,8 +82,8 @@ Chat defaults to storage for the current new-account profile; use
 means storage-dependent requests fail before loading a lazy model or sampling.
 Use explicit `store=false` for stateless operation. Chat's default local record
 policy is retention until deletion; an explicit application TTL is available.
-Responses' configured TTL is already validated to at least 30 days for its
-upcoming adapter. The [retention contract](inference-backend.md) records the
+Responses' configured TTL is validated to at least 30 days and applied to each
+stored response. The [retention contract](inference-backend.md) records the
 official source and the distinction from conversation-item lifetime.
 
 The repository first reserves the entire `max_record_bytes` allowance and
@@ -110,6 +111,70 @@ Missing/unauthorized/expired records return `AILO_NOT_FOUND` and HTTP 404.
 the record. These are primitives for a later transport handler, not registered
 HTTP routes or paginated messages/list/update endpoints.
 
+## Responses
+
+`client->responses` / `ailo_client_responses` accepts the same raw request/sink/
+info arguments as Chat. It uses the existing in-process inference producer.
+Text, schemas, function tools, qualified reasoning text and logprobs follow the
+request mapper's supported controls. A stream sends named SSE lifecycle,
+content, reasoning and argument events with monotonic `sequence_number`, stable
+item/call IDs and zero-based output/content indices. There is no Chat `[DONE]`
+marker. The terminal event is `response.completed` or `response.incomplete`
+with `max_output_tokens` details when the native output limit is reached.
+An earlier completed function call may coexist with a later incomplete message.
+For functions, the added-item event waits only for the bounded name and
+precedes the first argument delta. A truncated name-only call is added as an
+incomplete item. Arguments do not wait for the function or response to complete.
+
+The [official streaming contract](https://developers.openai.com/api/reference/resources/responses/streaming-events)
+repeats finalized text/arguments/items and the full terminal response. Responses
+therefore explicitly collects typed output within `max_output_memory_bytes`,
+including when `store=false`, while delivering each delta immediately. It does
+not spool output or build a complete JSON/SSE buffer. Each wire frame and stored
+section is written directly through lonejson. Logprob metadata follows raw byte
+provenance: visible text is immediate, with a separate empty text delta when
+its probability becomes settled. Hidden framing/reasoning tokens do not become
+answer probabilities; split UTF-8 vocabulary pieces use replacement display
+labels. Full finalized parts include their collected logprobs.
+
+Stored Responses default to true unless ZDR overrides storage. The repository
+reserves the full quota before model loading/inference, then atomically publishes
+input lineage, output and user metadata. Successful done/terminal events follow
+commit. Output failure before publication aborts the transaction; disconnect
+after commit leaves `info.stored=true`. Without storage, completed item events
+are sent when their metadata settles. An inference/quota/repository failure
+after complete SSE frames can emit `response.failed`; a rejected sink or partial
+frame requires the transport to close. Neither failure path emits successful
+terminal completion. Buffered `stream=false` returns a JSON response using the
+same explicitly retained typed output.
+
+`response_retrieve(id, ...)` streams the stored Response object directly from the
+repository; `response_delete(id, ...)` emits `response.deleted` after deletion.
+Both use `AILO_RECORD_RESPONSE` and the trusted namespace, with expiry checked
+before bytes are sent. Chat records are a separate protocol domain.
+
+`previous_response_id` resolves canonical stored input and output, checks model/tokenizer/
+template identity, and prepends the accumulated typed lineage to new input.
+Prior top-level `instructions` are excluded; current instructions affect only
+the current request. Each child stores its accumulated lineage independently,
+so deleting/expiring a parent does not break an already-created child. Expanded
+lineage retains the existing 4 MiB / 4096 item-and-part bounds. Repository read
+sections are bounded to 8 MiB while decoding lineage. The private input section
+is an envelope with `ailo_model_identity`, `input` and diagnostic-free canonical
+`output` arrays; it is not an
+implemented input-items HTTP endpoint. Output logprobs are validated as diagnostic
+metadata on replay and are not rendered into the model prompt or copied into
+canonical descendant input. Chaining reads this private section alone, so large
+wire logprob diagnostics do not consume the lineage input budget. Each original
+stored output retains its logprobs.
+
+Explicit compaction items already use the native authenticated replay path.
+Conversation objects, automatic context management, standalone Responses compact,
+encrypted reasoning replay, input-item pagination and HTTP routes are still
+unavailable integrations; requests for those controls fail explicitly. Capability
+fields distinguish implemented Responses operations, configured record storage,
+and the unavailable conversation/automatic-compaction/reasoning-encryption paths.
+
 ## Lua
 
 `client:chat_completions(json, sink)` passes raw JSON through the same C ABI and
@@ -120,6 +185,8 @@ configuration and native logging ownership follow the ordinary Lua constructor.
 No model output is assembled by the Lua binding. Retained operations are
 `client:chat_retrieve(id, sink, {input=true})` (omit options for the completion)
 and `client:chat_delete(id, sink)`.
+Responses uses `client:responses(json, sink)`, `response_retrieve(id, sink)` and
+`response_delete(id, sink)`, with the same result/error/cancellation contract.
 
 Configure the same trusted profile through `ailo.new{..., openai={...}}`:
 `namespace_id`, `repository`, `zero_data_retention`, `chat_store_opt_in`,

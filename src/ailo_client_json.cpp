@@ -115,6 +115,14 @@ std::string capabilities(state &self) {
   out.key("chat_completions");
   out.boolean(true);
   out.key("responses");
+  out.boolean(true);
+  out.key("retained_response_records");
+  out.boolean(self.openai->policy.repository_writable);
+  out.key("response_conversations");
+  out.boolean(false);
+  out.key("response_automatic_compaction");
+  out.boolean(false);
+  out.key("response_reasoning_encryption");
   out.boolean(false);
   out.key("retained_chat_records");
   out.boolean(self.openai->policy.repository_writable);

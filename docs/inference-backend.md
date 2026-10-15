@@ -25,9 +25,10 @@ and 32768 object members; expanded owned input uses the continuation's 4 MiB and
 64 KiB through lonejson's writer. Counts require integer literals; invalid,
 conflicting, duplicate and unavailable semantics fail instead of being ignored.
 This is request materialization, not generated-output buffering. Public Chat
-JSON/SSE and C repository operations are now connected through
-[the adapter surface](openai.md). Responses, handler/model routing, stored list/
-update routes remain required. Lua exposes the same retention profile,
+and Responses JSON/SSE and C repository operations are now connected through
+[the adapter surface](openai.md). Handler/model routing, stored list/update,
+conversation objects and Responses compaction/encrypted reasoning remain
+required. Lua exposes the same retention profile,
 repository receiver and direct retrieval/deletion primitives through the C ABI.
 
 API function schemas use the existing private schema helper for the documented
@@ -165,7 +166,9 @@ admission: it separates response storage, prior-response reads and conversation
 reads/appends, requires a trusted application namespace and the corresponding
 repository capabilities, and rejects Responses TTLs below 30 days or overflowing
 expiry timestamps. Chat now connects repository reservation, atomic writes,
-retrieval and deletion; Responses integration remains adapter work. Neither
+retrieval and deletion; Responses now connects these operations and accumulated
+`previous_response_id` lineage, excluding prior top-level instructions. Explicit
+conversation persistence remains separate required integration. Neither
 request `user` nor `safety_identifier` grants access.
 
 Current [OpenAI migration guidance](https://developers.openai.com/api/docs/guides/migrate-to-responses)

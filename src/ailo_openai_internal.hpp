@@ -35,6 +35,7 @@ public:
   void real(double);
   void boolean(bool);
   void null();
+  void value(const std::string &);
   void finish();
 };
 struct openai_state {
@@ -48,6 +49,9 @@ void api_identity(ailo_api_info &, const char *prefix);
 void api_check(ailo_status);
 int api_http_status(ailo_status);
 byte_sink api_sink(state &, ailo_output_sink, void *, ailo_api_info &);
+void read_record(openai_state &, ailo_record_protocol, const char *,
+                 ailo_record_section, byte_sink);
+void erase_record(openai_state &, ailo_record_protocol, const char *);
 class record_transaction {
   openai_state &owner;
   void *transaction = nullptr;

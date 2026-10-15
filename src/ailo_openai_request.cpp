@@ -92,11 +92,12 @@ struct item {
   std::vector<part> parts;
   std::vector<call> calls;
   bool has_content = false, content_null = false, has_arguments = false,
-       has_encrypted = false, has_calls = false;
+       has_encrypted = false, has_calls = false, has_summary = false;
 };
 class decoder {
   openai_request &out;
   bool chat;
+  const char *selected_items;
   std::vector<item> input;
   std::vector<openai_function> allowed;
   std::set<std::string> root_keys, includes;
@@ -387,6 +388,9 @@ class decoder {
           m.parts.push_back({chat ? "text" : "input_text", v, true});
         else if (k != kind::null || !chat)
           expect(k, kind::array);
+      } else if (!chat && field == "summary") {
+        expect(k, kind::array);
+        m.has_summary = true;
       } else if (field == "tool_calls" && chat) {
         m.has_calls = true;
         if (k != kind::null)
@@ -416,7 +420,7 @@ class decoder {
           m.encrypted = v;
           m.has_encrypted = true;
         } else if (!chat && field == "status") {
-          if (v != "completed")
+          if (!one_of(v, {"completed", "incomplete"}))
             unsupported();
           m.status = v;
         } else
@@ -442,6 +446,23 @@ class decoder {
                  one_of(p[4], {"annotations", "logprobs"})) {
         expect(k, kind::array);
         m.parts.at(j).output_metadata = true;
+      } else if (!chat && p.size() >= 6 && p[4] == "logprobs") {
+        (void)index(p[5], 1048576);
+        if (p.size() == 6)
+          expect(k, kind::object);
+        else if (p.size() == 7 && p[6] == "top_logprobs")
+          expect(k, kind::array);
+        else if (p.size() == 8 && p[6] == "top_logprobs") {
+          (void)index(p[7], 20);
+          expect(k, kind::object);
+        } else if ((p.size() == 7 ||
+                    (p.size() == 9 && p[6] == "top_logprobs")) &&
+                   one_of(p.back(), {"token", "logprob"})) {
+          expect(k, p.back() == "token" ? kind::string : kind::number);
+          if (p.back() == "logprob")
+            (void)number(v, -1e38, 0);
+        } else
+          unsupported();
       } else
         unsupported();
     } else if (chat && field == "tool_calls") {
@@ -647,6 +668,16 @@ class decoder {
       return;
     }
     const auto &field = p[0];
+    if (selected_items) {
+      if (field == selected_items)
+        message(p, k, v);
+      else if (p.size() == 1 && field == "ailo_model_identity") {
+        expect(k, kind::string);
+        text_limit(v, 256, true);
+        out.record_identity = v;
+      }
+      return;
+    }
     if (field == (chat ? "messages" : "input")) {
       message(p, k, v);
       return;
@@ -818,8 +849,10 @@ class decoder {
       ailo_item value{};
       if (!m.id.empty())
         value.id = m.id.c_str();
-      if (!m.status.empty() && m.status != "completed")
+      if (!m.status.empty() && !one_of(m.status, {"completed", "incomplete"}))
         unsupported();
+      if (m.has_summary && m.type != "reasoning")
+        invalid("Summary belongs to a reasoning item");
       if (m.type.empty() || m.type == "message") {
         if ((!chat && (m.content_field == "output" || !m.name.empty())) ||
             (m.content_null && m.role != "assistant") ||
@@ -908,6 +941,24 @@ class decoder {
         value.content = parts.data();
         value.content_count = parts.size();
         append(value);
+      } else if (!chat && m.type == "reasoning") {
+        if (!m.has_content || m.has_encrypted || m.has_arguments ||
+            m.has_calls || !m.role.empty() || !m.name.empty() ||
+            !m.call_id.empty() || !m.has_summary)
+          invalid("Reasoning item has missing or incompatible fields");
+        std::vector<ailo_content> parts;
+        for (const auto &part : m.parts) {
+          if (part.type != "reasoning_text" || !part.has_text ||
+              part.output_metadata)
+            unsupported();
+          parts.push_back(
+              {AILO_CONTENT_TEXT, part.text.data(), part.text.size()});
+        }
+        value.kind = AILO_ITEM_REASONING;
+        value.role = AILO_ROLE_ASSISTANT;
+        value.content = parts.data();
+        value.content_count = parts.size();
+        append(value);
       } else if (!chat && m.type == "compaction") {
         if (!m.has_encrypted || m.encrypted.empty() || m.id.empty() ||
             m.has_content || m.has_arguments || !m.role.empty() ||
@@ -922,8 +973,9 @@ class decoder {
   }
 
 public:
-  explicit decoder(openai_request &request)
-      : out(request), chat(request.protocol == openai_protocol::chat) {}
+  explicit decoder(openai_request &request, const char *selected)
+      : out(request), chat(request.protocol == openai_protocol::chat),
+        selected_items(selected) {}
   void parse(const void *data, size_t size, const std::string &served_model) {
     if ((!data && size) || !size || size > 8 * 1024 * 1024)
       invalid("API request must contain between one byte and 8 MiB of JSON");
@@ -962,6 +1014,13 @@ public:
           status == LONEJSON_STATUS_ALLOCATION_FAILED ? AILO_NO_MEMORY
                                                       : AILO_INVALID_JSON,
           "API request contains malformed JSON or exceeds parser limits");
+    if (selected_items) {
+      if (!input_present)
+        invalid("Retained record has no item array");
+      out.model = served_model;
+      finish_input();
+      return;
+    }
     if (chat && !root_keys.count("model"))
       invalid("Chat Completions requires model");
     if (out.model.empty() && !chat && !root_keys.count("model"))
@@ -1049,11 +1108,12 @@ public:
 } // namespace
 
 openai_request::openai_request(openai_protocol format, const void *json,
-                               size_t size, const std::string &served_model)
+                               size_t size, const std::string &served_model,
+                               const char *selected_items)
     : protocol(format) {
   generation.temperature = 1;
   generation.top_p = 1;
-  decoder(*this).parse(json, size, served_model);
+  decoder(*this, selected_items).parse(json, size, served_model);
   items = input.views();
   generation.items = items.data();
   generation.item_count = items.size();

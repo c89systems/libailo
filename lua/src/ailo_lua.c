@@ -1514,7 +1514,7 @@ static int api_operation(lua_State *L, int operation) {
     return checked;
   size_t size = 0;
   const char *json = luaL_checklstring(L, 2, &size);
-  if (operation && memchr(json, 0, size))
+  if (operation != 0 && operation != 3 && memchr(json, 0, size))
     return failure(L, AILO_INVALID_ARGUMENT, "completion ID contains NUL");
   int sink_index = operation == 1 ? 4 : 3;
   if (operation == 1)
@@ -1537,8 +1537,17 @@ static int api_operation(lua_State *L, int operation) {
       : operation == 1
           ? ailo_client_chat_retrieve(value->native, json, lua_toboolean(L, 3),
                                       api_bytes_sink, storage, &out, &error)
-          : ailo_client_chat_delete(value->native, json, api_bytes_sink,
-                                    storage, &out, &error);
+      : operation == 2
+          ? ailo_client_chat_delete(value->native, json, api_bytes_sink,
+                                    storage, &out, &error)
+      : operation == 3
+          ? ailo_client_responses(value->native, json, size, api_bytes_sink,
+                                  storage, &out, &error)
+      : operation == 4
+          ? ailo_client_response_retrieve(value->native, json, api_bytes_sink,
+                                          storage, &out, &error)
+          : ailo_client_response_delete(value->native, json, api_bytes_sink,
+                                        storage, &out, &error);
   end(value);
   lua_pushnil(L);
   lua_setiuservalue(L, 1, 10);
@@ -1577,6 +1586,9 @@ static int api_operation(lua_State *L, int operation) {
 static int chat_completions(lua_State *L) { return api_operation(L, 0); }
 static int chat_retrieve(lua_State *L) { return api_operation(L, 1); }
 static int chat_delete(lua_State *L) { return api_operation(L, 2); }
+static int responses(lua_State *L) { return api_operation(L, 3); }
+static int response_retrieve(lua_State *L) { return api_operation(L, 4); }
+static int response_delete(lua_State *L) { return api_operation(L, 5); }
 static int metadata(lua_State *L, int kind) {
   client *value = get_client(L);
   int error_result = ready(L, value);
@@ -1734,6 +1746,9 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
                                      {"chat_completions", chat_completions},
                                      {"chat_retrieve", chat_retrieve},
                                      {"chat_delete", chat_delete},
+                                     {"responses", responses},
+                                     {"response_retrieve", response_retrieve},
+                                     {"response_delete", response_delete},
                                      {"new_continuation", new_continuation},
                                      {"compact", compact},
                                      {"model_card", card},

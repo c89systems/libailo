@@ -4,7 +4,7 @@ local function key(ns,protocol,id)return ns.."\0"..protocol.."\0"..id end
 function M.new()
   local r={records={},active={},reading={},reserved=0,aborted=0,committed=0,closed=0,erased=0}
   function r:reserve(metadata)
-    assert(type(metadata.namespace_id)=="string" and metadata.protocol=="chat" and metadata.created_at>0 and metadata.max_bytes>0)
+    assert(type(metadata.namespace_id)=="string" and (metadata.protocol=="chat" or metadata.protocol=="response") and metadata.created_at>0 and metadata.max_bytes>0)
     self.reserved=self.reserved+1
     if self.hook then self.hook()end
     if self.fault=="reserve_throw" then error(self.marker)end
@@ -136,6 +136,17 @@ function M.exercise(ailo,path,memory)
     fails("invalid_argument",function()return c:chat_retrieve(id,function()end,false)end)
   end
   r.fault=nil;ok(c:chat_delete(id,function()end));assert(r.erased>0 and not next(r.active) and not next(r.reading))
+  local response_json='{"input":"Hi","stream":true,"max_output_tokens":2,"temperature":0,"stream_options":{"include_obfuscation":false}}'
+  local events={};local response=ok(c:responses(response_json,function(bytes)events[#events+1]=bytes;if memory then collectgarbage("collect")end end))
+  assert(response.stored and table.concat(events):find("event: response.incomplete") and r.last_metadata.expires_at>=r.last_metadata.created_at+2592000)
+  result={};ok(c:response_retrieve(response.id,function(bytes)result[#result+1]=bytes end))
+  assert(table.concat(result)==r.records[key("A","response",response.id)].parts.output)
+  local chained='{"previous_response_id":"'..response.id..'","input":"Next","store":false,"max_output_tokens":2,"temperature":0}'
+  assert(not ok(c:responses(chained,function()if memory then collectgarbage("collect")end end)).stored)
+  failed=fails("sink_failed",function()return c:responses(response_json,function()error(original)end)end)
+  assert(failed.cause==original and not next(r.active) and not next(r.reading))
+  ok(c:response_delete(response.id,function()end))
+  fails("not_found",function()return c:response_retrieve(response.id,function()end)end)
   c:close()
   -- Retained closures can outlive client/reader teardown without borrowed C
   -- pointers. The retained provider itself is released when the client closes.

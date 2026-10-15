@@ -61,6 +61,10 @@ void wire_json::number(uint64_t n) { check(writer.u64(&writer, n, nullptr)); }
 void wire_json::real(double n) { check(writer.f64(&writer, n, nullptr)); }
 void wire_json::boolean(bool v) { check(writer.bool_fn(&writer, v, nullptr)); }
 void wire_json::null() { check(writer.null_fn(&writer, nullptr)); }
+void wire_json::value(const std::string &json) {
+  check(lonejson_writer_json_value_buffer(&writer, json.data(), json.size(),
+                                          nullptr));
+}
 void wire_json::finish() { check(writer.finish(&writer, nullptr)); }
 openai_state::openai_state(const ailo_openai_config *input) {
   if (!input)
@@ -205,12 +209,12 @@ AILO_PUBLIC ailo_openai_config ailo_openai_default_config(void) { return {}; }
 
 namespace {
 using namespace ailo::client;
-void live_repository(state &self, const char *id) {
+void live_repository(openai_state &self, const char *id) {
   if (!id || !*id || strnlen(id, 257) > 256)
     throw failure(AILO_INVALID_ARGUMENT,
                   "A retained completion ID is required");
   require_utf8(id, std::strlen(id));
-  if (!self.openai->policy.repository_readable)
+  if (!self.policy.repository_readable)
     throw failure(AILO_UNSUPPORTED,
                   "No retained-record repository is configured");
 }
@@ -220,6 +224,8 @@ struct read_forward {
   std::exception_ptr problem;
   static int send(void *u, const void *data, size_t size) noexcept {
     auto &self = *static_cast<read_forward *>(u);
+    if (self.problem)
+      return -1;
     try {
       if ((!data && size) || size > self.limit - self.bytes)
         throw failure(AILO_OUT_OF_RANGE,
@@ -236,13 +242,14 @@ struct read_forward {
 struct record_handle {
   ailo_record_repository &repository;
   void *value = nullptr;
-  record_handle(openai_state &owner, const char *id)
+  record_handle(openai_state &owner, ailo_record_protocol protocol,
+                const char *id)
       : repository(owner.repository) {
     ailo_u64 expires{};
     try {
-      api_check(repository.open(
-          repository.user_data, owner.policy.namespace_id.c_str(),
-          AILO_RECORD_CHAT, id, &value, &expires, nullptr));
+      api_check(repository.open(repository.user_data,
+                                owner.policy.namespace_id.c_str(), protocol, id,
+                                &value, &expires, nullptr));
       if (!value)
         throw failure(AILO_INTERNAL_ERROR,
                       "Repository returned no read handle");
@@ -258,6 +265,32 @@ struct record_handle {
   ~record_handle() { repository.close(repository.user_data, value); }
 };
 } // namespace
+namespace ailo {
+namespace client {
+void read_record(openai_state &owner, ailo_record_protocol protocol,
+                 const char *id, ailo_record_section section, byte_sink sink) {
+  live_repository(owner, id);
+  record_handle handle(owner, protocol, id);
+  read_forward output{std::move(sink), owner.record_limit, 0, {}};
+  const auto result =
+      owner.repository.read(owner.repository.user_data, handle.value, section,
+                            read_forward::send, &output, nullptr);
+  if (output.problem)
+    std::rethrow_exception(output.problem);
+  api_check(result);
+}
+void erase_record(openai_state &owner, ailo_record_protocol protocol,
+                  const char *id) {
+  live_repository(owner, id);
+  {
+    record_handle handle(owner, protocol, id);
+  }
+  api_check(owner.repository.erase(owner.repository.user_data,
+                                   owner.policy.namespace_id.c_str(), protocol,
+                                   id, nullptr));
+}
+} // namespace client
+} // namespace ailo
 AILO_PUBLIC ailo_status ailo_client_chat_retrieve(
     ailo_client *client, const char *id, ailo_bool input, ailo_output_sink sink,
     void *user, ailo_api_info *info, ailo_error *error) {
@@ -271,19 +304,11 @@ AILO_PUBLIC ailo_status ailo_client_chat_retrieve(
   }
   auto status = boundary(error, [&] {
     operation call(client);
-    live_repository(call.self, id);
     info->content_type = "application/json";
     auto &owner = *call.self.openai;
-    record_handle handle(owner, id);
-    read_forward output{
-        api_sink(call.self, sink, user, *info), owner.record_limit, 0, {}};
-    const auto result =
-        owner.repository.read(owner.repository.user_data, handle.value,
-                              input ? AILO_RECORD_INPUT : AILO_RECORD_OUTPUT,
-                              read_forward::send, &output, nullptr);
-    if (output.problem)
-      std::rethrow_exception(output.problem);
-    api_check(result);
+    read_record(owner, AILO_RECORD_CHAT, id,
+                input ? AILO_RECORD_INPUT : AILO_RECORD_OUTPUT,
+                api_sink(call.self, sink, user, *info));
     info->stored = 1;
   });
   if (!info->started)
@@ -305,14 +330,8 @@ AILO_PUBLIC ailo_status ailo_client_chat_delete(ailo_client *client,
   }
   auto status = boundary(error, [&] {
     operation call(client);
-    live_repository(call.self, id);
     auto &owner = *call.self.openai;
-    {
-      record_handle existing(owner, id);
-    }
-    api_check(owner.repository.erase(owner.repository.user_data,
-                                     owner.policy.namespace_id.c_str(),
-                                     AILO_RECORD_CHAT, id, nullptr));
+    erase_record(owner, AILO_RECORD_CHAT, id);
     info->content_type = "application/json";
     wire_json out(api_sink(call.self, sink, user, *info));
     out.object();

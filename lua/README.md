@@ -45,6 +45,15 @@ forwards stored JSON directly (`options.input=true` selects normalized input);
 `chat_delete(id, sink)` deletes the record. Repository callbacks and cleanup
 errors follow the [provider contract](../docs/openai.md#lua).
 
+`client:responses(json, sink)`, `response_retrieve(id, sink)` and
+`response_delete(id, sink)` use that same profile and repository. Responses
+streams immediate named SSE deltas and explicitly retains typed output within
+its configured memory quota for full done/terminal repeats, including when
+`store=false`. Previous-response chaining resolves persisted typed lineage
+without inheriting prior top-level instructions. Conversation objects, automatic
+Responses compaction and encrypted reasoning remain unavailable integrations;
+capabilities report those separately.
+
 Constructor options also include `model_id`, `chat_template`, `lazy`, backend
 `auto`/`cpu`/`vulkan`, `gpu_layers`, `context_tokens`, `batch_tokens`, `threads`
 and an optional pslog `logger`. Defaults match the C factories. Unknown keys,
