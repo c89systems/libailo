@@ -16,6 +16,10 @@ struct reasoning_plan {
   reasoning_format format;
   std::string prompt;
 };
+struct tool_plan;
+reasoning_plan render_prompt(state &, const conversation &, tool_plan &,
+                             const ailo_request &);
+size_t prompt_token_count(state &, const std::string &);
 reasoning_plan qualify_reasoning(const char *, const llama_vocab *,
                                  const conversation &, const std::string &tools,
                                  const ailo_request &);

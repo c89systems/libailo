@@ -63,7 +63,8 @@ logging_state::logging_state(pslog_logger *parent,
   logger.reset(pslog_with(parent, fields, 2));
   if (!logger)
     throw std::bad_alloc();
-  const char *names[] = {"load", "generate", "metadata", "devices", "destroy"};
+  const char *names[] = {"load",    "generate", "metadata",
+                         "devices", "destroy",  "compact"};
   for (size_t i = 0; i < contexts.size(); ++i)
     contexts[i] = {logger.get(), names[i]};
 }

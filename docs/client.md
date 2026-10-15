@@ -100,9 +100,9 @@ Capabilities currently advertise text, streaming, multiple candidates, logit
 bias, log probabilities, constrained output, qualified tool generation and
 bounded prompt/KV reuse, encrypted persistent snapshots and canonical
 continuation state, qualified reasoning separation and authenticated compaction
-replay, with their limits. Media and model-driven compaction remain unavailable.
+replay and standalone semantic compaction, with their limits. Media remains unavailable.
 Media items fail rather than losing semantics. Completed function histories are
-supported as described below. Semantic summary production, automatic compaction
+supported as described below. Automatic compaction
 and protocol handlers remain implementation requirements in the full specification.
 
 ## Prompt/KV cache
@@ -312,8 +312,9 @@ quality benchmark or GPU qualification.
 The key-owner foundation is available through
 [`ailo/compaction.h`](../include/ailo/compaction.h). Authenticated opaque items
 can be replayed through generation and canonical continuations, advertised by
-`compaction_replay=true`. Model-driven summary production is not yet exposed;
-`compaction` remains false. An envelope alone is not semantic summarization.
+`compaction_replay=true`. Standalone model-driven summary production is advertised
+by `compaction=true`; automatic/in-flight compaction remains unavailable and is
+advertised as `automatic_compaction=false`.
 
 `ailo_compactor_new(config, &owner, error)` creates an immutable receiver with
 `info` and `destroy` methods. NULL configuration selects an ephemeral owner.
@@ -376,6 +377,70 @@ malformed signed summaries and immediate first-token cancellation/recovery.
 The same generated fixture runs through the installed shared C ABI in Lua,
 including the Valgrind ownership gate. These tests qualify replay and streaming,
 not model-driven summary quality or automatic compaction.
+
+## Standalone semantic compaction
+
+`client->compact(client, request, policy, &window, &info, error)` returns a new
+owned continuation containing retained items and one opaque summary item. Use
+`ailo/compaction.h` for the policy/info types and free-function form
+`ailo_client_compact`. The input continuation is unchanged on success and failure.
+A window already below its target produces an independent no-op window. Both
+outputs are cleared on failure. Destroy the result with `ailo_continuation_destroy`.
+
+The default policy retains two recent complete user turns and reserves 128 main-context
+tokens for output. Its target is 75% of the remaining main context. It allows
+256 summary generation tokens and 32 KiB of answer/normalized summary bytes, in
+a separate context bounded by `min(main context, 32768)` tokens. Explicit summary
+contexts span 128..32768 tokens and output budgets span 1..4096 tokens, strictly
+smaller than that context. Summary byte limits span 256 bytes through 1 MiB.
+`target_tokens`, `recent_turns`, `output_reserve_tokens`, `summary_context_tokens`,
+`summary_tokens` and `max_summary_bytes` are configurable through the policy.
+Use the factory for defaults; unlike the target/context selectors, zero is a
+literal recent-turn count or reserve. Thresholds that cannot fit fail explicitly.
+
+Complete older user/assistant groups are eligible. Instructions and their groups,
+pinned groups, recent turns, incomplete turns and pending tool-call dependencies
+remain byte-preserved in canonical order. Parallel call/result groups are never
+split. A previous opaque summary is authenticated and included as historical
+data when replacing it; exactly one new token enters the result, while the old
+window remains replayable. Authenticated facts retain their original roles and
+identities through replacement; their carrier does not turn them into assistant
+claims. Incomplete turns do not consume the recent-complete-turn allowance.
+A pinned old token prevents replacement explicitly.
+Tools and rendering controls on the request determine exact before/after token
+counts. They remain caller-owned and must accompany later generation as usual.
+
+The summary context shares the already-loaded weights and uses independent KV,
+sampler and constrained JSON generation. It observes client cancellation and
+routes logging through libpslog with the compaction phase. Summary work never
+replaces the main context or its prompt checkpoint. The model generates only
+source-indexed facts, categories and text; libailo reconstructs role/kind/identity
+provenance from eligible original items. Invalid or protected source references,
+malformed/oversized summaries, exhausted token budgets, missing task/source text
+in the template, lack of real token reduction and unmet targets all fail without
+adopting a window. Eligible input larger than the bounded single summary pass
+fails with a context error; there is no hidden truncation or retry loop.
+
+`info` reports changed/no-op, rendered before/after tokens, retained/removed source
+item counts, summary prompt/completion tokens and pass count. Summary generation
+is explicitly bounded materialization, distinct from streaming ordinary replies.
+Model quality is model-dependent. The deterministic one-layer compaction fixture
+qualifies selection, goal/identifier preservation, authenticated replay, original
+cache preservation, replacement/forks, pending parallel tools, cancellation and
+policy/work/byte/context failures through C89/Lua. It is not a general summary
+quality benchmark. Automatic thresholds/in-flight rebuilding and protocol compact
+endpoints are separate remaining implementation work.
+
+A trained CPU integration case also passed through the installed Lua/shared C
+ABI with the pinned Qwen2.5-0.5B-Instruct Q4_K_M model used in the tool-generation
+proof above (SHA-256 `6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653`).
+Compaction reduced 418 rendered input tokens to 153 using 525 summary prompt
+tokens and 70 summary completion tokens. A subsequent question through the
+opaque window answered `T-1` in three text deltas, starting at completion token
+1 of 4. The manual proof's answer collector was explicitly bounded to 64 tokens
+and 1024 bytes; ordinary library generation still collects no reply. This is one
+trained-model semantic/streaming integration observation, not a general quality
+or performance qualification.
 
 ## Reasoning channels and controls
 

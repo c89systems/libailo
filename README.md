@@ -25,12 +25,12 @@ calls, bounded prompt/KV reuse, opt-in encrypted snapshots, cancellation, model
 cards, owned canonical continuation/forks, qualified reasoning deltas and
 capability queries.
 [docs/client.md](docs/client.md) describes its supported surface and verification.
-Compaction, protocol adapters
+Automatic compaction, protocol adapters
 and release completeness remain pending. Native install-tree CMake/pkg-config
 consumers are available.
 The C89/Lua compactor key owner, authenticated envelopes and opaque-item replay
-through generation/continuations are implemented. Model-driven summaries and
-automatic compaction remain pending.
+through generation/continuations and standalone model-driven semantic compaction
+are implemented. Automatic compaction remains pending.
 
 The required receiver includes normal-use Hugging Face acquisition, configurable
 XDG model caching and a structured JSON model card for the loaded model. The

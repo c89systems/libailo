@@ -25,7 +25,7 @@ void crypto(bool good) {
                   "Compaction cryptographic operation failed");
 }
 void cancelled(state *client) {
-  if (client && client->cancelled.load())
+  if (client && client->is_cancelled())
     throw failure(AILO_CANCELLED, "Compaction cancelled");
 }
 uint64_t now() {

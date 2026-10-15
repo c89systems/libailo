@@ -296,7 +296,9 @@ The local owned continuation receiver is implemented in
 [`ailo/continuation.h`](../include/ailo/continuation.h). Its transactional input,
 explicit output ownership, fork and model/template binding semantics are in
 [the client documentation](client.md#owned-continuation-state). Protocol records,
-semantic compaction and their remaining requirements below are separate work.
+and automatic/in-flight compaction remain separate work. Standalone semantic
+compaction and authenticated replay are implemented as described in
+[the client documentation](client.md#standalone-semantic-compaction).
 
 Provide owned canonical continuation state containing ordered items, current
 instructions/protected items and model/template identity, separately from KV

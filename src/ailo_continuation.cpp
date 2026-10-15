@@ -160,6 +160,17 @@ continuation_transaction::continuation_transaction(state &client,
 void continuation_transaction::commit() noexcept {
   owner.current = std::move(candidate);
 }
+ailo_continuation *new_window(state &client,
+                              const ailo_continuation_config &limits,
+                              const ailo_item *items, size_t count) {
+  auto value = std::make_unique<continuation_state>();
+  value->config = limits;
+  value->identity = client.conversation_identity;
+  value->compactor = client.compactor;
+  value->current = std::make_shared<transcript>();
+  value->current = stage_append(*value, items, count);
+  return shell(std::move(value));
+}
 } // namespace client
 } // namespace ailo
 

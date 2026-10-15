@@ -49,9 +49,11 @@ struct summary_fact {
   std::string kind, role, id, call_id, name, category, text;
 };
 // Bounded, explicitly materialized summary data. No output collector is used
-// by ordinary generation. Call only after authenticating replay envelopes.
-std::vector<summary_fact> parse_summary(const std::string &,
-                                        size_t source_items);
+// by ordinary generation. Authenticate replay envelopes before parsing. The
+// generated mode accepts only the model's source/category/text fields; code
+// reconstructs provenance before sealing normalized history.
+std::vector<summary_fact>
+parse_summary(const std::string &, size_t source_items, bool generated = false);
 conversation prepare_replay(const ailo_request &,
                             const std::shared_ptr<compaction_state> &,
                             const std::string &identity,

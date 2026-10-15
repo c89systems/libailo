@@ -38,12 +38,15 @@ struct compaction_state;
 struct state {
   std::mutex mutex;
   std::atomic<bool> cancelled{false};
+  const std::atomic<bool> *parent_cancelled = nullptr;
+  bool is_cancelled() const {
+    return cancelled.load() || (parent_cancelled && parent_cancelled->load());
+  }
   std::atomic<bool> destroying{false};
   source_copy source;
   std::string id, template_override, path;
   ailo_client_config config;
-  std::unique_ptr<llama_model, decltype(&llama_model_free)> model{
-      nullptr, llama_model_free};
+  std::shared_ptr<llama_model> model;
   std::unique_ptr<llama_context, decltype(&llama_free)> context{nullptr,
                                                                 llama_free};
   ailo_backend_policy actual = AILO_BACKEND_CPU;

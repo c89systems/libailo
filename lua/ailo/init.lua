@@ -255,6 +255,22 @@ function methods:generate(input,sink)
     return self._native:generate(request(input),sink)
   end)
 end
+function methods:compact(input,policy)
+  return guarded(function()
+    if policy==nil then policy={} end
+    object(policy,keys("target_tokens recent_turns output_reserve_tokens summary_context_tokens summary_tokens max_summary_bytes"),"compaction policy")
+    local out={}
+    out.target_tokens=number(policy.target_tokens,"target_tokens",0,true,0,math.maxinteger)
+    out.recent_turns=number(policy.recent_turns,"recent_turns",2,true,0,4096)
+    out.output_reserve_tokens=number(policy.output_reserve_tokens,"output_reserve_tokens",128,true,0,math.maxinteger)
+    out.summary_context_tokens=number(policy.summary_context_tokens,"summary_context_tokens",0,true,0,32768)
+    out.summary_tokens=number(policy.summary_tokens,"summary_tokens",256,true,1,4096)
+    out.max_summary_bytes=number(policy.max_summary_bytes,"max_summary_bytes",32768,true,256,1024*1024)
+    local window,info=self._native:compact(request(input),out)
+    if not window then return nil,info end
+    return wrap_continuation(window),info
+  end)
+end
 function methods:snapshot_export(slot)
   return guarded(function()return self._native:snapshot_export(str(slot,"snapshot slot",false))end)
 end

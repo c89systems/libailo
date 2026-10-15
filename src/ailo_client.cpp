@@ -30,17 +30,17 @@ state &get_state(ailo_client *client) {
 }
 
 bool abort_inference(void *data) {
-  return static_cast<state *>(data)->cancelled.load();
+  return static_cast<state *>(data)->is_cancelled();
 }
 
 bool load_progress(float, void *data) {
-  return !static_cast<state *>(data)->cancelled.load();
+  return !static_cast<state *>(data)->is_cancelled();
 }
 
 int acquisition_progress(void *data, unsigned shard, unsigned shards,
                          ailo_u64 received, ailo_u64 total) {
   auto &self = *static_cast<state *>(data);
-  if (self.cancelled.load())
+  if (self.is_cancelled())
     return 0;
   try {
     return !self.source.value.progress ||
@@ -141,7 +141,7 @@ void state::ensure_loaded() {
     return;
   log_scope logs(logging.get(), log_phase::load);
   logs.trace("Loading inference model");
-  if (cancelled.load())
+  if (is_cancelled())
     throw failure(AILO_CANCELLED, "Model loading cancelled");
   if (!backend_owned) {
     detail::backend_acquire();
@@ -183,8 +183,9 @@ void state::ensure_loaded() {
     mp.split_mode = LLAMA_SPLIT_MODE_LAYER;
     mp.progress_callback = load_progress;
     mp.progress_callback_user_data = this;
-    model.reset(llama_model_load_from_file(path.c_str(), mp));
-    if (model && !cancelled.load()) {
+    model = std::shared_ptr<llama_model>(
+        llama_model_load_from_file(path.c_str(), mp), llama_model_free);
+    if (model && !is_cancelled()) {
       llama_context_params cp = llama_context_default_params();
       cp.n_ctx = config.context_tokens
                      ? config.context_tokens
@@ -202,7 +203,7 @@ void state::ensure_loaded() {
       context_parameters = cp;
       context = new_context();
     }
-    if (cancelled.load()) {
+    if (is_cancelled()) {
       context.reset();
       model.reset();
       throw failure(AILO_CANCELLED, "Model loading cancelled");
@@ -289,6 +290,7 @@ AILO_PUBLIC ailo_status ailo_client_new_with_logger(
       state->ensure_loaded();
     shell->state = state.release();
     shell->generate = ailo_client_generate;
+    shell->compact = ailo_client_compact;
     shell->model_card = ailo_client_model_card;
     shell->capabilities = ailo_client_capabilities;
     shell->devices = ailo_client_devices;

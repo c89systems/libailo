@@ -13,6 +13,8 @@ typedef struct ailo_client ailo_client;
 typedef struct ailo_continuation ailo_continuation;
 struct pslog_logger;
 struct ailo_compactor;
+struct ailo_compaction_policy;
+struct ailo_compaction_info;
 
 typedef enum ailo_backend_policy {
   AILO_BACKEND_AUTO = 0,
@@ -305,6 +307,10 @@ struct ailo_client {
   void *state;
   ailo_status (*generate)(ailo_client *, const ailo_request *, ailo_event_sink,
                           void *, ailo_run_info *, ailo_error *);
+  ailo_status (*compact)(ailo_client *, const ailo_request *,
+                         const struct ailo_compaction_policy *,
+                         ailo_continuation **, struct ailo_compaction_info *,
+                         ailo_error *);
   ailo_status (*model_card)(ailo_client *, char **, ailo_error *);
   ailo_status (*capabilities)(ailo_client *, char **, ailo_error *);
   ailo_status (*devices)(ailo_client *, char **, ailo_error *);

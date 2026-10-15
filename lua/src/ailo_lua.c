@@ -869,13 +869,27 @@ static int continuation_visit(lua_State *L) {
   lua_pushboolean(L, 1);
   return 1;
 }
-static int generate(lua_State *L) {
+static void compaction_info(lua_State *L, const ailo_compaction_info *out) {
+  lua_createtable(L, 0, 9);
+  lua_pushboolean(L, out->changed);
+  lua_setfield(L, -2, "changed");
+  set_integer(L, "before_tokens", (lua_Integer)out->before_tokens);
+  set_integer(L, "after_tokens", (lua_Integer)out->after_tokens);
+  set_integer(L, "retained_items", (lua_Integer)out->retained_items);
+  set_integer(L, "removed_items", (lua_Integer)out->removed_items);
+  set_integer(L, "summary_passes", out->summary_passes);
+  push_u64(L, out->summary_prompt_tokens);
+  lua_setfield(L, -2, "summary_prompt_tokens");
+  push_u64(L, out->summary_completion_tokens);
+  lua_setfield(L, -2, "summary_completion_tokens");
+}
+static int generate_or_compact(lua_State *L, int compacting) {
   client *value = get_client(L);
   int error_result = ready(L, value);
   if (error_result)
     return error_result;
   luaL_checktype(L, 2, LUA_TTABLE);
-  luaL_checktype(L, 3, LUA_TFUNCTION);
+  luaL_checktype(L, 3, compacting ? LUA_TTABLE : LUA_TFUNCTION);
   work *storage = new_work(L);
   for (int i = 1; i <= 3; ++i) {
     lua_pushvalue(L, i == 1 ? 3 : i == 2 ? 1 : 2);
@@ -970,12 +984,29 @@ static int generate(lua_State *L) {
     request.stop_count = count;
   }
   ailo_run_info output = {0};
+  ailo_compaction_info compact_info = {0};
+  ailo_compaction_policy policy = ailo_compaction_default_policy();
+  continuation *window = NULL;
+  if (compacting) {
+    policy.target_tokens = (size_t)integer(L, 3, "target_tokens");
+    policy.recent_turns = (size_t)integer(L, 3, "recent_turns");
+    policy.output_reserve_tokens =
+        (size_t)integer(L, 3, "output_reserve_tokens");
+    policy.summary_context_tokens =
+        (size_t)integer(L, 3, "summary_context_tokens");
+    policy.summary_tokens = (size_t)integer(L, 3, "summary_tokens");
+    policy.max_summary_bytes = (size_t)integer(L, 3, "max_summary_bytes");
+    window = new_continuation_shell(L);
+  }
   ailo_error error = {0};
   if (history)
     history->busy = 1;
   begin(L, value, 1);
-  ailo_status status = ailo_client_generate(value->native, &request, event,
-                                            storage, &output, &error);
+  ailo_status status =
+      compacting ? ailo_client_compact(value->native, &request, &policy,
+                                       &window->native, &compact_info, &error)
+                 : ailo_client_generate(value->native, &request, event, storage,
+                                        &output, &error);
   end(value);
   if (history)
     history->busy = 0;
@@ -986,7 +1017,10 @@ static int generate(lua_State *L) {
       strcpy(error.message, "model progress callback failed");
     }
     failure(L, status, error.message);
-    info(L, &output);
+    if (compacting)
+      compaction_info(L, &compact_info);
+    else
+      info(L, &output);
     lua_setfield(L, -2, "info");
     if (storage->failed)
       cause(L, storage->index, 4);
@@ -994,9 +1028,15 @@ static int generate(lua_State *L) {
       cause(L, 1, 3);
     return 2;
   }
+  if (compacting) {
+    compaction_info(L, &compact_info);
+    return 2;
+  }
   info(L, &output);
   return 1;
 }
+static int generate(lua_State *L) { return generate_or_compact(L, 0); }
+static int compact(lua_State *L) { return generate_or_compact(L, 1); }
 static int metadata(lua_State *L, int kind) {
   client *value = get_client(L);
   int error_result = ready(L, value);
@@ -1152,6 +1192,7 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
   luaL_newmetatable(L, CLIENT);
   static const luaL_Reg methods[] = {{"generate", generate},
                                      {"new_continuation", new_continuation},
+                                     {"compact", compact},
                                      {"model_card", card},
                                      {"capabilities", capabilities},
                                      {"devices", devices},

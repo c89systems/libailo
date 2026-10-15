@@ -24,6 +24,7 @@ bool one_of(const std::string &text,
 }
 class summary_reader {
   size_t source_items;
+  bool generated;
   std::map<std::string, std::string> fields;
   std::set<std::string> keys;
   std::string key;
@@ -45,7 +46,8 @@ class summary_reader {
     return {path.segments[2].data, path.segments[2].len};
   }
   void finish_fact() {
-    if (!active || fields.size() != 8 || keys.size() != 8)
+    if (!active || fields.size() != (generated ? 3 : 8) ||
+        keys.size() != fields.size())
       malformed();
     summary_fact fact;
     const auto &source = fields.at("source");
@@ -57,25 +59,28 @@ class summary_reader {
       fact.source = fact.source * 10 + static_cast<unsigned>(ch - '0');
     }
     if (fact.source >= source_items ||
-        !one_of(fields.at("kind"),
-                {"message", "function_call", "function_result", "reasoning",
-                 "compaction"}) ||
-        !one_of(fields.at("role"), {"user", "assistant", "tool"}) ||
         !one_of(fields.at("category"),
                 {"goal", "commitment", "identifier", "finding", "other"}) ||
         fields.at("text").find_first_not_of(" \t\r\n") == std::string::npos)
       malformed();
-    const auto &kind = fields.at("kind"), &role = fields.at("role");
-    if ((kind == "function_result" && role != "tool") ||
-        (kind != "message" && kind != "function_result" &&
-         role != "assistant") ||
-        (kind == "message" && role == "tool"))
-      malformed();
-    fact.kind = std::move(fields.at("kind"));
-    fact.role = std::move(fields.at("role"));
-    fact.id = std::move(fields.at("id"));
-    fact.call_id = std::move(fields.at("call_id"));
-    fact.name = std::move(fields.at("name"));
+    if (!generated) {
+      if (!one_of(fields.at("kind"),
+                  {"message", "function_call", "function_result", "reasoning",
+                   "compaction"}) ||
+          !one_of(fields.at("role"), {"user", "assistant", "tool"}))
+        malformed();
+      const auto &kind = fields.at("kind"), &role = fields.at("role");
+      if ((kind == "function_result" && role != "tool") ||
+          (kind != "message" && kind != "function_result" &&
+           role != "assistant") ||
+          (kind == "message" && role == "tool"))
+        malformed();
+      fact.kind = std::move(fields.at("kind"));
+      fact.role = std::move(fields.at("role"));
+      fact.id = std::move(fields.at("id"));
+      fact.call_id = std::move(fields.at("call_id"));
+      fact.name = std::move(fields.at("name"));
+    }
     fact.category = std::move(fields.at("category"));
     fact.text = std::move(fields.at("text"));
     facts.push_back(std::move(fact));
@@ -84,7 +89,8 @@ class summary_reader {
 
 public:
   std::vector<summary_fact> facts;
-  explicit summary_reader(size_t sources) : source_items(sources) {}
+  summary_reader(size_t sources, bool model)
+      : source_items(sources), generated(model) {}
   void structure(const lonejson_value_path &path, bool object, bool begin) {
     if (!path.segment_count) {
       if (!object || root_done ||
@@ -127,6 +133,8 @@ public:
           !one_of(key, {"source", "kind", "role", "id", "call_id", "name",
                         "category", "text"}) ||
           !keys.insert(key).second)
+        malformed();
+      if (generated && !one_of(key, {"source", "category", "text"}))
         malformed();
     }
   }
@@ -198,10 +206,10 @@ public:
 };
 } // namespace
 std::vector<summary_fact> parse_summary(const std::string &summary,
-                                        size_t source_items) {
+                                        size_t source_items, bool generated) {
   if (!source_items || source_items > 4096)
     malformed();
-  summary_reader reader(source_items);
+  summary_reader reader(source_items, generated);
   const auto callbacks = reader.visitor();
   json_stream parser(callbacks, &reader, 4 * 1024 * 1024);
   try {

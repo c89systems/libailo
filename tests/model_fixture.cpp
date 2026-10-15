@@ -32,7 +32,8 @@ static void tensor(ggml_context *ctx, gguf_context *file, const char *name,
   gguf_add_tensor(file, value);
 }
 
-static void build(const char *path, bool reasoning = false) {
+static void build(const char *path, bool reasoning = false,
+                  bool compaction = false) {
   std::unique_ptr<ggml_context, decltype(&ggml_free)> ctx(
       ggml_init({1024 * 1024, nullptr, false}), ggml_free);
   std::unique_ptr<gguf_context, decltype(&gguf_free)> file(gguf_init_empty(),
@@ -67,6 +68,9 @@ static void build(const char *path, bool reasoning = false) {
   strings.emplace_back("\xe2\x96\x81");
   if (reasoning)
     strings.emplace_back("r</think>");
+  if (compaction)
+    strings.emplace_back(
+        R"({"facts":[{"source":1,"category":"goal","text":"Finish ticket T-1."}]})");
   std::vector<const char *> tokens;
   for (const auto &s : strings)
     tokens.push_back(s.c_str());
@@ -75,7 +79,7 @@ static void build(const char *path, bool reasoning = false) {
   types[0] = LLAMA_TOKEN_TYPE_UNKNOWN;
   types[1] = types[2] = LLAMA_TOKEN_TYPE_CONTROL;
   types[259] = LLAMA_TOKEN_TYPE_NORMAL;
-  if (reasoning)
+  if (reasoning || compaction)
     types[260] = LLAMA_TOKEN_TYPE_USER_DEFINED;
   gguf_set_arr_str(file.get(), "tokenizer.ggml.tokens", tokens.data(),
                    tokens.size());
@@ -98,6 +102,13 @@ static void build(const char *path, bool reasoning = false) {
   tensor(ctx.get(), file.get(), "blk.0.ffn_gate.weight", 32, 64);
   tensor(ctx.get(), file.get(), "blk.0.ffn_up.weight", 32, 64);
   tensor(ctx.get(), file.get(), "blk.0.ffn_down.weight", 64, 32);
+  if (compaction) {
+    auto *out = ggml_get_tensor(ctx.get(), "output.weight");
+    auto *weights = static_cast<float *>(out->data);
+    for (int64_t i = 0; i < ggml_nelements(out); ++i)
+      weights[i] = i / 32 == 260 ? 0.3f : i / 32 == 2 ? 0.2f : -0.015625f;
+    gguf_set_tensor_data(file.get(), "output.weight", weights);
+  }
   if (!gguf_write_to_file(file.get(), path, false))
     throw std::runtime_error("Cannot write GGUF fixture");
   for (unsigned shard = 0; shard < 2; ++shard) {
@@ -151,6 +162,7 @@ int main(int argc, char **argv) {
   try {
     build(argv[1]);
     build((std::string(argv[1]) + "-reasoning").c_str(), true);
+    build((std::string(argv[1]) + "-compaction").c_str(), false, true);
     std::puts("Deterministic one-layer GGUF fixture written");
     return 0;
   } catch (const std::exception &e) {

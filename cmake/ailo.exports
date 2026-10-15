@@ -12,6 +12,8 @@ ailo_client_default_config
 ailo_client_destroy
 ailo_client_devices
 ailo_client_generate
+ailo_client_compact
+ailo_compaction_default_policy
 ailo_client_model_card
 ailo_client_new
 ailo_client_new_with_logger

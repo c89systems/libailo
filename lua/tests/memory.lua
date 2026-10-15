@@ -16,6 +16,21 @@ local function request()
 end
 local marker={message="callback marker"}
 do
+  local receiver=ok(ailo.new(config{source={local_path=path.."-compaction"},context_tokens=4096,
+    chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
+  local input={items={
+    {role="system",content="Preserve instructions.",pinned=true},
+    {id="goal",content="Finish ticket T-1. "..string.rep("detail ",200)},
+    {role="assistant",content=string.rep("a",300)},
+    {content="recent"},{role="assistant",content="answer"},
+    {content="newest"},{role="assistant",content="answer"}}}
+  local policy={target_tokens=800,summary_context_tokens=4096}
+  local window,info=receiver:compact(input,policy);ok(window,info);assert(info.changed)
+  fails("model_failed",function()return receiver:compact(input,{target_tokens=800,summary_context_tokens=4096,summary_tokens=1})end)
+  receiver:close();input=nil;collectgarbage("collect")
+  assert(window:visit(function(item)assert(item.kind);collectgarbage("collect")end));window:close()
+end
+do
   local fixture=assert(loadfile(path.."-compaction.lua"))()
   local owner=ok(ailo.new_compactor{namespace_id=fixture.namespace_id,key_id=fixture.key_id,key=fixture.key})
   local receiver=ok(ailo.new(config{compactor=owner,chat_template=fixture.template,context_tokens=1024}))

@@ -10,10 +10,41 @@ local function config(extra)
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
 do
+  local receiver=ok(ailo.new(config{source={local_path=path.."-compaction"},context_tokens=4096,
+    chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}"}))
+  local history=ok(receiver:new_continuation())
+  assert(history:append{
+    {id="system",role="system",content="Original instructions.",pinned=true},
+    {id="old-goal",content="Finish ticket T-1. "..string.rep("Unneeded detail. ",100)},
+    {role="assistant",content=string.rep("a",500)},
+    {content="recent question"},{role="assistant",content="recent answer"},
+    {content="newest question"},{role="assistant",content="newest answer"}})
+  local input={continuation=history,max_tokens=3,temperature=0,logit_bias={{token_id=100,bias=100}}}
+  local policy={target_tokens=1000,summary_context_tokens=4096}
+  local window,details=receiver:compact(input,policy);assert(window,details and details.message)
+  assert(details.changed and details.after_tokens<1000 and details.before_tokens>details.after_tokens and
+    details.removed_items==2 and details.retained_items==5 and details.summary_passes==1 and details.summary_completion_tokens==2)
+  assert(ok(history:info()).item_count==7)
+  local seen=0
+  assert(window:visit(function(item)
+    if item.kind=="compaction" then seen=seen+1;assert(item.id and item.encrypted_content and #item.content==0) end
+    if item.role=="system" then assert(item.pinned and item.content[1].data=="Original instructions.") end
+  end));assert(seen==1)
+  fails("model_failed",function()return receiver:compact(input,{target_tokens=1000,summary_context_tokens=4096,summary_tokens=1})end)
+  fails("context_limit",function()return receiver:compact(input,{target_tokens=5})end)
+  fails("invalid_argument",function()return receiver:compact(input,{summary_tokens=0})end)
+  fails("invalid_argument",function()return receiver:compact(input,{unknown=1})end)
+  local replay={continuation=window,max_tokens=3,temperature=0,logit_bias={{token_id=100,bias=100}}}
+  local copy,unchanged=receiver:compact(replay,policy);assert(copy,unchanged and unchanged.message);assert(not unchanged.changed and unchanged.summary_passes==0)
+  local count=0;local run=ok(receiver:generate(replay,function(e)if e.kind=="text_delta" then count=count+1 end end))
+  assert(count==3 and run.usage.prompt_tokens==details.after_tokens and ok(history:info()).item_count==7)
+  copy:close();window:close();history:close();receiver:close()
+end
+do
   local fixture=assert(loadfile(path.."-compaction.lua"))()
   local owner=ok(ailo.new_compactor{namespace_id=fixture.namespace_id,key_id=fixture.key_id,key=fixture.key})
   local receiver=ok(ailo.new(config{compactor=owner,chat_template=fixture.template,context_tokens=1024}))
-  local capabilities=ok(receiver:capabilities());assert(capabilities:find('"compaction_replay":true',1,true) and capabilities:find('"compaction":false',1,true))
+  local capabilities=ok(receiver:capabilities());assert(capabilities:find('"compaction_replay":true',1,true) and capabilities:find('"compaction":true',1,true) and capabilities:find('"automatic_compaction":false',1,true))
   local input={items={
     {id="instruction",role="system",pinned=true,content="Keep original instructions."},
     {kind="compaction",id=fixture.id,encrypted_content=fixture.encrypted_content},

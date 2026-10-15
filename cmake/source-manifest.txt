@@ -11,6 +11,9 @@ include/ailo/compaction.h
 src/ailo_compaction_internal.hpp
 src/ailo_compaction_crypto.cpp
 src/ailo_compaction_replay.cpp
+src/ailo_compaction.cpp
+tests/compaction.cpp
+src/ailo_bounded_json_internal.hpp
 tests/compaction_replay.cpp
 tests/compaction_crypto.cpp
 src/ailo_continuation.cpp

@@ -134,9 +134,27 @@ ephemeral/key-count/budget/TTL metadata. `kind="compaction"` items carry `id` an
 items can be passed to `generate` or appended as part of a complete retained
 window to a continuation; `visit` copies their opaque fields. Generation uses
 the receiving client's keys, including across history-owner boundaries.
-`compaction_replay=true` advertises this path. Model-driven summary production
-and automatic compaction remain pending; the constructor does not create a
+`compaction_replay=true` advertises this path. The constructor does not create a
 summary or a retained response record. See [replay](../docs/client.md#authenticated-compaction-replay).
+
+Standalone semantic compaction returns a new continuation and separate statistics:
+
+```lua
+local window, info = client:compact({continuation=history}, {
+  target_tokens=2048, recent_turns=2, output_reserve_tokens=512,
+  summary_context_tokens=8192, summary_tokens=256, max_summary_bytes=32768,
+})
+assert(window, info and info.message)
+assert(client:generate({continuation=window, max_tokens=512}, on_event))
+window:close()
+```
+
+The source history is unchanged. A no-op still returns a new owned window, with
+`info.changed=false`. Summary generation materializes only the bounded summary;
+ordinary generation continues to emit immediate deltas. `compaction=true` exposes
+this standalone method; `automatic_compaction=false` remains explicit. Failures
+return `nil, error` with cleared `error.info`. See
+[policy and limits](../docs/client.md#standalone-semantic-compaction).
 
 Requests also accept `reasoning="auto"` (default), `"enabled"` or `"disabled"`,
 optional `reasoning_effort` and `max_reasoning_tokens`. Controls require a

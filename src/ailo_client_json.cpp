@@ -1,3 +1,4 @@
+#include "ailo_bounded_json_internal.hpp"
 #include "ailo_client_internal.hpp"
 #include "ailo_model_internal.hpp"
 #include "src/llama-model.h"
@@ -9,67 +10,7 @@
 namespace ailo {
 namespace client {
 namespace {
-class json {
-  std::unique_ptr<lonejson, decltype(&lonejson_free)> runtime{nullptr,
-                                                              lonejson_free};
-  lonejson_writer writer{};
-  std::string buffer;
-
-  static lonejson_status append(void *user, const void *data, size_t size,
-                                lonejson_error *) {
-    try {
-      auto &self = *static_cast<json *>(user);
-      if (size > 4 * 1024 * 1024 - self.buffer.size())
-        return LONEJSON_STATUS_OVERFLOW;
-      self.buffer.append(static_cast<const char *>(data), size);
-      return LONEJSON_STATUS_OK;
-    } catch (...) {
-      return LONEJSON_STATUS_ALLOCATION_FAILED;
-    }
-  }
-  static void check(lonejson_status status) {
-    if (status != LONEJSON_STATUS_OK)
-      throw failure(status == LONEJSON_STATUS_ALLOCATION_FAILED
-                        ? AILO_NO_MEMORY
-                        : AILO_OUT_OF_RANGE,
-                    "Cannot serialize bounded receiver metadata JSON");
-  }
-
-public:
-  json() {
-    lonejson_config config = lonejson_default_config();
-    config.write_max_output_bytes = 4 * 1024 * 1024;
-    runtime.reset(lonejson_new(&config, nullptr));
-    if (!runtime)
-      throw std::bad_alloc();
-    check(lonejson_writer_init_sink(runtime.get(), &writer, append, this,
-                                    nullptr));
-  }
-  ~json() { lonejson_writer_cleanup(&writer); }
-  void object() { check(writer.begin_object(&writer, nullptr)); }
-  void end_object() { check(writer.end_object(&writer, nullptr)); }
-  void array() { check(writer.begin_array(&writer, nullptr)); }
-  void end_array() { check(writer.end_array(&writer, nullptr)); }
-  void key(const char *name) {
-    check(writer.key(&writer, name, std::strlen(name), nullptr));
-  }
-  void string(const std::string &value) {
-    check(writer.string(&writer, value.data(), value.size(), nullptr));
-  }
-  void nullable(const std::string &value) {
-    if (value.empty())
-      null();
-    else
-      string(value);
-  }
-  void null() { check(writer.null_fn(&writer, nullptr)); }
-  void boolean(bool value) { check(writer.bool_fn(&writer, value, nullptr)); }
-  void number(uint64_t value) { check(writer.u64(&writer, value, nullptr)); }
-  std::string finish() {
-    check(lonejson_writer_finish(&writer, nullptr));
-    return std::move(buffer);
-  }
-};
+using json = bounded_json;
 
 void feature_fields(json &out) {
   out.key("text");
@@ -138,6 +79,8 @@ void feature_fields(json &out) {
   out.string("initial <think> or [THINK] block, probed delimiters and history "
              "preservation; controls qualified per request");
   out.key("compaction");
+  out.boolean(true);
+  out.key("automatic_compaction");
   out.boolean(false);
   out.key("compaction_replay");
   out.boolean(true);

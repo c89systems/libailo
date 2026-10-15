@@ -43,6 +43,8 @@ struct continuation_guard {
   continuation_guard &operator=(const continuation_guard &) = delete;
 };
 continuation_state &get_continuation(ailo_continuation *);
+ailo_continuation *new_window(state &, const ailo_continuation_config &,
+                              const ailo_item *, size_t);
 std::shared_ptr<const transcript> stage_append(continuation_state &,
                                                const ailo_item *, size_t);
 struct continuation_transaction {

@@ -9,7 +9,7 @@
 
 namespace ailo {
 namespace client {
-enum class log_phase { load, generate, metadata, devices, destroy };
+enum class log_phase { load, generate, metadata, devices, destroy, compact };
 struct log_context {
   pslog_logger *logger;
   const char *phase;
@@ -22,7 +22,7 @@ struct logger_deleter {
 };
 struct logging_state {
   std::unique_ptr<pslog_logger, logger_deleter> logger;
-  std::array<log_context, 5> contexts;
+  std::array<log_context, 6> contexts;
   logging_state(pslog_logger *parent, const std::string &model_id);
 };
 
