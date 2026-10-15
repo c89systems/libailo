@@ -97,6 +97,8 @@ src/ailo_schema.cpp
 src/ailo_schema_internal.hpp
 src/ailo_json_stream.cpp
 src/ailo_json_stream_internal.hpp
+src/ailo_tool_json.cpp
+src/ailo_tool_json_internal.hpp
 src/ailo_conversation.cpp
 src/ailo_conversation_internal.hpp
 src/ailo_template_support.cpp
