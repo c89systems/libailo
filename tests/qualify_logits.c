@@ -1,13 +1,16 @@
+#define _POSIX_C_SOURCE 200809L
 #include "ailo/model.h"
 #include "ailo/native.h"
+#include <errno.h>
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
-/* Manual trained-model qualification. Feed the CPU's selected token to both
- * backends, so every vocabulary comparison has exactly the same input prefix.
+/* Manual trained-model qualification. Feed the CPU reference's token to both
+ * runs, so every vocabulary comparison has exactly the same input prefix.
  */
 #define STEPS 16
 #define CHECK(condition)                                                       \
@@ -24,7 +27,8 @@ struct reference {
   ailo_i32 vocabulary;
   float *logits;
 };
-static int run(const char *path, int gpu, struct reference *reference) {
+static int run(const char *path, int gpu, int compare,
+               struct reference *reference) {
   struct ailo_llama_model_params *mp = NULL;
   struct ailo_llama_context_params *cp = NULL;
   struct ailo_llama_model *model = NULL;
@@ -69,7 +73,7 @@ static int run(const char *path, int gpu, struct reference *reference) {
   CHECK(ailo_llama_model_get_vocab(model, &vocab, &error) == AILO_OK && vocab);
   CHECK(ailo_llama_vocab_n_tokens(vocab, &vocabulary, &error) == AILO_OK);
   CHECK(vocabulary > 1 && vocabulary <= 262144);
-  if (!gpu) {
+  if (!compare) {
     reference->vocabulary = vocabulary;
     reference->logits =
         (float *)malloc((size_t)vocabulary * STEPS * sizeof(float));
@@ -109,7 +113,7 @@ static int run(const char *path, int gpu, struct reference *reference) {
       if (logits[i] > logits[selected])
         selected = i;
     }
-    if (!gpu) {
+    if (!compare) {
       memcpy(expected, logits, (size_t)vocabulary * sizeof(float));
       reference->selected[step] = selected;
       continue;
@@ -153,8 +157,8 @@ static int run(const char *path, int gpu, struct reference *reference) {
     if (!(maximum <= 0.25 && squared <= 0.025 && kl >= -1e-10 && kl <= 0.001))
       ++violations;
   }
-  if (gpu)
-    printf("CPU/Vulkan identical-prefix %d-position qualification %s: "
+  if (compare)
+    printf("Reference/candidate identical-prefix %d-position qualification %s: "
            "max=%.9g RMS=%.9g KL=%.9g differing_argmax=%d violations=%d\n",
            STEPS, violations ? "FAILED" : "passed", largest, largest_rms,
            largest_kl, differing_choices, violations);
@@ -169,33 +173,78 @@ cleanup:
   ailo_storage_struct_ggml_backend_device_array_free(devices, NULL);
   return result;
 }
+static int dequantize(const char *source, const char *destination) {
+  struct ailo_llama_model_quantize_params *params = NULL;
+  struct stat existing;
+  ailo_error error;
+  ailo_u32 native_result = 1;
+  int result = 0;
+  ailo_error_clear(&error);
+  if (lstat(destination, &existing) == 0 || errno != ENOENT) {
+    fputs("Reference output must be a new file\n", stderr);
+    return 1;
+  }
+  CHECK(ailo_llama_model_quantize_default_params(&params, &error) == AILO_OK);
+  CHECK(ailo_llama_model_quantize_params_nthread_set(params, 2, &error) ==
+        AILO_OK);
+  CHECK(ailo_llama_model_quantize_params_allow_requantize_set(
+            params, 1, &error) == AILO_OK);
+  CHECK(ailo_llama_model_quantize_params_ftype_set(
+            params, AILO_LLAMA_FTYPE_MOSTLY_F16, &error) == AILO_OK);
+  CHECK(ailo_llama_model_quantize_params_pure_set(params, 1, &error) ==
+        AILO_OK);
+  CHECK(ailo_llama_model_quantize(source, destination, params, &native_result,
+                                  &error) == AILO_OK &&
+        native_result == 0);
+cleanup:
+  ailo_llama_model_quantize_params_array_free(params, NULL);
+  return result;
+}
 int main(int argc, char **argv) {
   struct reference reference = {{0}, 0, NULL};
   ailo_model_source source;
   ailo_error error;
-  char *path = NULL;
+  char *path = NULL, *candidate = NULL;
   const char *checksum[1];
-  int result;
-  if (argc != 3) {
-    fputs("Usage: ailo_qualify_logits MODEL SHA256\n", stderr);
+  int result, conversion = argc == 5 && !strcmp(argv[1], "dequantize");
+  if (!conversion && (argc != 7 || strcmp(argv[1], "compare") ||
+                      (strcmp(argv[6], "cpu") && strcmp(argv[6], "vulkan")))) {
+    fputs("Usage: ailo_qualify_logits dequantize MODEL SHA256 NEW_OUTPUT\n"
+          "   or: ailo_qualify_logits compare REFERENCE SHA256 CANDIDATE "
+          "SHA256 cpu|vulkan\n",
+          stderr);
     return 2;
   }
   memset(&source, 0, sizeof(source));
-  source.local_path = argv[1];
-  checksum[0] = argv[2];
+  source.local_path = argv[2];
+  checksum[0] = argv[3];
   source.sha256 = checksum;
   source.sha256_count = 1;
   if (ailo_model_acquire(&source, &path, &error) != AILO_OK) {
     fprintf(stderr, "%s\n", error.message);
     return 1;
   }
-  if (ailo_llama_backend_init(&error) != AILO_OK) {
+  if (conversion) {
+    result = dequantize(path, argv[4]);
+    ailo_string_free(path);
+    return result;
+  }
+  source.local_path = argv[4];
+  checksum[0] = argv[5];
+  if (ailo_model_acquire(&source, &candidate, &error) != AILO_OK) {
+    fprintf(stderr, "%s\n", error.message);
     ailo_string_free(path);
     return 1;
   }
-  result = run(path, 0, &reference);
+  if (ailo_llama_backend_init(&error) != AILO_OK) {
+    ailo_string_free(candidate);
+    ailo_string_free(path);
+    return 1;
+  }
+  result = run(path, 0, 0, &reference);
   if (!result)
-    result = run(path, 1, &reference);
+    result = run(candidate, !strcmp(argv[6], "vulkan"), 1, &reference);
+  ailo_string_free(candidate);
   free(reference.logits);
   ailo_llama_backend_free(NULL);
   ailo_string_free(path);

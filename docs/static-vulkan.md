@@ -406,7 +406,7 @@ remains 95,010,784 bytes.
 
 The comprehensive hardware campaign remains pending: firmware identification,
 AMD, AArch64 GPU and multi-GPU execution, and numerical/performance acceptance.
-Larger dense/MoE execution evidence and its failed initial numerical gate are
+Larger dense/MoE execution evidence and numerical reference comparisons are
 recorded below. The earlier host-driver receiver proof
 remains separate from this static-driver evidence. These are development
 checks, not a signed or tagged release.
@@ -456,16 +456,20 @@ bytes are 1,053,827,072 / 50,331,648 / 29,429,760 for dense and
 149,444 and 107,408 KiB; driver allocations and mapped GPU memory are accounted
 separately by the cards, with additional driver memory still unknown.
 
-Numerical acceptance **does not pass** the initial conservative gate.
+Direct quantized CPU/Vulkan equality **does not pass** the initial conservative
+gate. A common dequantized reference below separates that native arithmetic
+difference from GPU accuracy.
 `ailo_qualify_logits` is an explicit, strict C89 target excluded from ordinary
-builds and CTest. Build it with `cmake --build BUILD --target ailo_qualify_logits`,
-then invoke it with `MODEL SHA256`. It compares the entire vocabulary at 16
-identical prefixes by feeding each CPU-selected token to both backends. It uses
+builds and CTest. It compares the entire vocabulary at 16
+identical prefixes by feeding each reference-selected token to both models. Both
+files must represent the same model and tokenizer. It uses
 the raw prompt `The sky appears blue because` and native defaults apart from
 explicit placement, 256 context/128 batch tokens and two threads. Each position
 requires maximum absolute normalized-logprob error <= 0.25 nats, RMS <= 0.025
-nats and CPU-to-GPU KL divergence <= 0.001 nats. All comparisons are reported;
-any violation exits nonzero. The deterministic fixture passes this tool.
+nats and reference-to-candidate KL divergence <= 0.001 nats. All comparisons
+are reported;
+any violation exits nonzero. The deterministic fixture passes this tool. The
+following comparison uses the original Q4_K_M file on both backends:
 
 | Trained fixture | Worst absolute logprob error | Worst RMS | Worst KL | Differing argmax positions |
 | --- | ---: | ---: | ---: | ---: |
@@ -473,8 +477,46 @@ any violation exits nonzero. The deterministic fixture passes this tool.
 | MoE | 1.71170 | 0.34109 | 0.0301260 | 0/16 |
 
 The dense model's first-position discrepancy remains when disabling Vulkan
-FP16 or CPU repacking independently. These probes have not isolated its cause
-or established an acceptable trained-model accuracy budget. Matching MoE greedy
-text also does not establish probability equivalence. Preserve these failed
-gates for investigation; successful execution, streaming and reported timings
-do not qualify numerical accuracy or general model/hardware support.
+FP16 or CPU repacking independently. Native CPU Q4_K arithmetic uses
+[Q8_K activation dot products](https://github.com/ggml-org/llama.cpp/blob/b11430/ggml/src/ggml-cpu/ggml-cpu.c#L312).
+Cross-backend equality is therefore distinct from evaluating against a common
+weight representation. Matching MoE greedy text also does not establish
+probability equivalence.
+
+The probe can produce an F16 representation of the **same stored quantized
+weights** through the public native quantization API. This does not recover
+pre-quantization training weights. It uses `allow_requantize=true`, `pure=true`,
+F16 output and two threads, and rejects existing output files and symlinks.
+Reference and candidate inputs each undergo SHA-256 verification. Reproduce with:
+
+```sh
+cmake --build BUILD --target ailo_qualify_logits --parallel 2
+BUILD/ailo_qualify_logits dequantize MODEL SHA256 NEW_REFERENCE
+sha256sum NEW_REFERENCE
+BUILD/ailo_qualify_logits compare NEW_REFERENCE REFERENCE_SHA256 MODEL SHA256 vulkan
+```
+
+The reference always runs on CPU; the final argument selects the candidate's
+backend (`cpu` or `vulkan`). Both use native defaults with the context, batch,
+thread limits and unchanged numerical thresholds above. The resulting reference
+files are 3,424,736,224 bytes (dense), SHA-256
+`74d240e5689f87492f331bc4d4e124b0fc09266d579c0ed3c981dddedacd7759`,
+and 2,672,669,536 bytes (MoE), SHA-256
+`02feea575fa88510bc7228a6afe3b60121788e08a23521b8cc2ccbee70214522`.
+
+Both quantized Vulkan candidates **pass** against those CPU F16 references:
+
+| Fixture | Worst absolute logprob error | Worst RMS | Worst KL | Differing argmax positions |
+| --- | ---: | ---: | ---: | ---: |
+| Dense | 0.0442889 | 0.00958911 | 0.0000113948 | 0/16 |
+| MoE | 0.0219071 | 0.00748924 | 0.00000730324 | 0/16 |
+
+The dense quantized CPU candidate against the same F16 reference fails the
+unchanged thresholds (worst KL 0.0819430). The dequantized dense CPU/Vulkan pair
+passes (worst KL 0.00000900462). This isolates the large discrepancy in these
+probes to the native quantized CPU path rather than the static GPU integration;
+the original quantized CPU/Vulkan equality failures remain recorded above.
+It establishes scoped numerical evidence for these two Vulkan workloads, not
+bitwise equivalence between native arithmetic paths or a model-quality score.
+Broader models, contexts, sustained performance and hardware acceptance remain
+subject to the campaign above.
