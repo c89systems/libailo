@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-[[ $# -eq 9 ]] || { printf 'Usage: rocks.sh source provider sdk cpkt pslog interop toolchain runner fixture\n' >&2; exit 2; }
+[[ $# -eq 10 ]] || { printf 'Usage: rocks.sh source provider sdk cpkt pslog interop toolchain runner fixture compiler\n' >&2; exit 2; }
 source=$1 provider=$2 sdk=$3 cpkt=$4 pslog=$5 interop=$6 toolchain=$7 runner=$8 fixture=$9
+cc=${10}
 mkdir -p "$PWD/rocks-tests"
 work=$(mktemp -d "$PWD/rocks-tests/install.XXXXXXXX")
 trap 'cmake -E rm -rf "$work"' EXIT
@@ -10,7 +11,6 @@ mkdir "$work/tmp"
 export TMPDIR="$work/tmp"
 export LUAROCKS_CONFIG="$work/config.lua" LUAROCKS_CONFIG_5_5="$work/config.lua"
 # Host LuaRocks is tooling; all target compilation/runtime uses selected SDKs.
-cc=$(sed -n 's/^CMAKE_C_COMPILER:FILEPATH=//p' CMakeCache.txt)
 [[ -x "$cc" ]] || { printf 'rocks-test: missing selected target compiler\n' >&2; exit 1; }
 cp -R "$provider" "$work/provider"
 (cd "$work/provider" && bash lua/scripts/render_release_rockspec.sh 0.12.0 "$work/provider/lua-pslog-0.12.0-1.rockspec")

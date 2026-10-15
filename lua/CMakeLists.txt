@@ -44,7 +44,7 @@ if(AILO_LUA_TESTS)
     "-DREADELF=${CMAKE_READELF}" "-DNM=${CMAKE_NM}"
     "-DMODULE=${CMAKE_INSTALL_PREFIX}/lib/lua/5.5/ailo/core.so"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/imports.cmake")
-  # Host ICD allocations are outside this facade ownership gate.
+  # GPU driver lifetime has a separate hardware gate; this checks CPU ownership.
   if(NOT ailo_VULKAN)
     find_program(VALGRIND_EXECUTABLE valgrind REQUIRED)
     add_test(NAME lua-memory COMMAND "${VALGRIND_EXECUTABLE}" --error-exitcode=99
@@ -62,7 +62,7 @@ if(AILO_LUA_TESTS)
   add_test(NAME lua-rocks COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/rocks.sh"
     "${CMAKE_CURRENT_SOURCE_DIR}" "${AILO_LUA_PROVIDER_SOURCE}" "${ailo_DIR}/../../.."
     "${LUA_INCLUDE_DIR}/.." "${pslog_prefix}" "${PSLOG_LUA_INCLUDE_DIR}"
-    "${CMAKE_TOOLCHAIN_FILE}" $<TARGET_FILE:ailo_lua_runner> "${AILO_LUA_MODEL}")
+    "${CMAKE_TOOLCHAIN_FILE}" $<TARGET_FILE:ailo_lua_runner> "${AILO_LUA_MODEL}" "${CMAKE_C_COMPILER}")
   set_tests_properties(lua-rocks PROPERTIES TIMEOUT 180 LABELS "lua;packaging;local")
   set_tests_properties(lua-receiver lua-public-imports PROPERTIES TIMEOUT 60 LABELS "lua;integration;local")
 endif()

@@ -4,6 +4,7 @@
 .gitignore
 CMakeLists.txt
 cmake/AiloCacheIdentity.cmake
+cmake/AiloCacheBuild.cmake
 cmake/cache-build.h.in
 include/ailo/cache.h
 include/ailo/continuation.h
@@ -63,6 +64,9 @@ cmake/AiloDependencies.cmake
 cmake/AiloEmbedDrmIds.cmake
 cmake/AiloMesonToolchain.cmake
 cmake/AiloMesaIdentity.cmake
+cmake/AiloStaticVulkan.cmake
+cmake/AiloGpuNotices.cmake
+scripts/generate_gpu_notices.py
 cmake/mesa-static.build
 cmake/meson-native.ini.in
 cmake/meson-cross.ini.in
@@ -215,6 +219,7 @@ tests/test_gpu_deps.cmake
 tests/test_gpu_tools.cmake
 tests/test_gpu_tools.cpp
 tests/static_icds.c
+tests/static_vulkan.c
 tests/test_static_mesa.cmake
 tests/test_cache_defaults.cmake
 tests/test_clean.cmake
@@ -243,10 +248,13 @@ vendor/llama/patches/0004-own-cpu-repack-traits.patch
 vendor/llama/patches/0005-format-vulkan-handles-portably.patch
 vendor/llama/patches/0006-route-scoped-logging-through-workers.patch
 vendor/llama/patches/0007-expose-vulkan-physical-identity.patch
+vendor/llama/patches/0008-track-shader-compiler-input.patch
 vendor/llama/patches/series
 vendor/libdrm/patches/0001-embed-marketing-names.patch
 vendor/mesa/patches/0001-static-headless-drivers.patch
 vendor/mesa/patches/series
+vendor/vulkan-loader/patches/0001-built-in-static-providers.patch
+vendor/vulkan-loader/patches/series
 lua/CMakeLists.txt
 lua/README.md
 lua/ailo/init.lua

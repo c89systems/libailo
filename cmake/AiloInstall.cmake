@@ -23,7 +23,7 @@ endforeach()
 set(AILO_NATIVE_NAMES "${ailo_native_targets}")
 foreach(target ailo_static ailo_shared)
   if(TARGET ${target})
-    set_target_properties(${target} PROPERTIES INSTALL_RPATH "$ORIGIN/ailo/native" INSTALL_RPATH_USE_LINK_PATH FALSE)
+    set_target_properties(${target} PROPERTIES INSTALL_RPATH "" INSTALL_RPATH_USE_LINK_PATH FALSE)
     install(TARGETS ${target} ARCHIVE DESTINATION lib COMPONENT ailo LIBRARY DESTINATION lib COMPONENT ailo)
   endif()
 endforeach()
@@ -45,12 +45,40 @@ foreach(name IN LISTS AILO_RUNTIME_NAMES)
   install(FILES "${archive}" DESTINATION lib/ailo/runtime RENAME "${name}" COMPONENT ailo)
 endforeach()
 if(AILO_VULKAN)
-  file(GLOB vulkan_libraries "${AILO_DEPENDENCY_ROOT}/vulkan-loader/install/lib/libvulkan.so*")
-  if(NOT vulkan_libraries)
-    message(FATAL_ERROR "Vulkan SDK requires the pinned loader libraries")
-  endif()
-  install(FILES ${vulkan_libraries} DESTINATION lib/ailo/native COMPONENT ailo)
+  install(FILES ${AILO_GPU_ARCHIVES} DESTINATION lib/ailo/native COMPONENT ailo)
   install(FILES "${AILO_DEPENDENCY_BUILD_ROOT}/vulkan-loader/source/LICENSE.txt" DESTINATION share/ailo/licenses RENAME vulkan-loader.txt COMPONENT ailo)
+  install(FILES "${AILO_DEPENDENCY_BUILD_ROOT}/vulkan-headers/source/LICENSE.md"
+    DESTINATION share/ailo/licenses RENAME vulkan-headers.txt COMPONENT ailo)
+  install(FILES "${AILO_DEPENDENCY_BUILD_ROOT}/spirv-headers/source/LICENSE"
+    DESTINATION share/ailo/licenses RENAME spirv-headers.txt COMPONENT ailo)
+  foreach(license MIT Apache-2.0 BSL-1.0 SGI-B-2.0)
+    install(FILES "${AILO_DEPENDENCY_BUILD_ROOT}/mesa/source/licenses/${license}"
+      DESTINATION share/ailo/licenses/mesa COMPONENT ailo)
+  endforeach()
+  install(FILES "${AILO_DEPENDENCY_BUILD_ROOT}/mesa/source/docs/license.rst"
+    DESTINATION share/ailo/licenses/mesa COMPONENT ailo)
+  # UAPI declarations used for kernel ioctls retain their syscall exception;
+  # these are not additional copyleft userspace libraries.
+  foreach(license GPL-1.0-or-later GPL-2.0-only)
+    install(FILES "${AILO_DEPENDENCY_BUILD_ROOT}/mesa/source/licenses/${license}"
+      DESTINATION share/ailo/licenses/kernel-uapi COMPONENT ailo)
+  endforeach()
+  install(FILES "${AILO_DEPENDENCY_BUILD_ROOT}/mesa/source/licenses/exceptions/Linux-Syscall-Note"
+    DESTINATION share/ailo/licenses/kernel-uapi COMPONENT ailo)
+  set(gpu_notices "${CMAKE_CURRENT_BINARY_DIR}/generated/gpu-notices")
+  add_custom_command(OUTPUT "${gpu_notices}/mesa-notices.txt" "${gpu_notices}/libdrm-notices.txt"
+    COMMAND "${CMAKE_COMMAND}" "-DAILO_GPU_BUILD_ROOT=${AILO_DEPENDENCY_BUILD_ROOT}"
+      "-DAILO_GPU_NOTICES_OUTPUT=${gpu_notices}" -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AiloGpuNotices.cmake"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AiloGpuNotices.cmake"
+      "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_gpu_notices.py"
+      "${AILO_DEPENDENCY_BUILD_ROOT}/mesa/build/.ninja_deps"
+      "${AILO_DEPENDENCY_BUILD_ROOT}/mesa/build/build.ninja"
+      "${AILO_DEPENDENCY_BUILD_ROOT}/libdrm/build/.ninja_deps"
+      "${AILO_DEPENDENCY_BUILD_ROOT}/libdrm/build/build.ninja"
+    VERBATIM)
+  add_custom_target(ailo-gpu-notices ALL DEPENDS "${gpu_notices}/mesa-notices.txt" "${gpu_notices}/libdrm-notices.txt")
+  install(FILES "${gpu_notices}/mesa-notices.txt" "${gpu_notices}/libdrm-notices.txt"
+    DESTINATION share/ailo/licenses COMPONENT ailo)
 endif()
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/ailo" DESTINATION include COMPONENT ailo FILES_MATCHING PATTERN "*.h")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/generated/include/ailo/version.h" DESTINATION include/ailo COMPONENT ailo)
@@ -88,7 +116,16 @@ foreach(name IN LISTS AILO_RUNTIME_NAMES)
 endforeach()
 set(AILO_VULKAN_PC "")
 if(AILO_VULKAN)
-  set(AILO_VULKAN_PC " -L\${prefix}/lib/ailo/native -lvulkan")
+  set(AILO_VULKAN_PC " -Wl,--whole-archive")
+  foreach(name IN LISTS AILO_GPU_WHOLE_NAMES)
+    string(APPEND AILO_VULKAN_PC " -l:lib${name}.a")
+  endforeach()
+  string(APPEND AILO_VULKAN_PC " -Wl,--no-whole-archive")
+  foreach(name IN LISTS AILO_GPU_NAMES)
+    if(NOT name IN_LIST AILO_GPU_WHOLE_NAMES)
+      string(APPEND AILO_VULKAN_PC " -l:lib${name}.a")
+    endif()
+  endforeach()
 endif()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ailo.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/install/ailo.pc" @ONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ailo-static.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/install/ailo-static.pc" @ONLY)
@@ -132,7 +169,16 @@ if(AILO_VULKAN)
   string(JSON version GET "${pins}" vulkan-loader version)
   string(JSON url GET "${pins}" vulkan-loader url)
   string(JSON sha GET "${pins}" vulkan-loader sha256)
-  string(JSON manifest SET "${manifest}" dependencies 6 "{\"name\":\"Vulkan loader\",\"version\":\"${version}\",\"url\":\"${url}\",\"sha256\":\"${sha}\",\"bundled\":true,\"role\":\"native shared loader\",\"license\":\"Apache-2.0\"}")
+  string(JSON manifest SET "${manifest}" dependencies 6 "{\"name\":\"Vulkan loader\",\"version\":\"${version}\",\"url\":\"${url}\",\"sha256\":\"${sha}\",\"bundled\":true,\"role\":\"built-in static RADV/ANV dispatch\",\"license\":\"Apache-2.0\"}")
+  set(index 7)
+  foreach(component mesa libdrm)
+    string(JSON version GET "${pins}" "${component}" version)
+    string(JSON url GET "${pins}" "${component}" url)
+    string(JSON sha GET "${pins}" "${component}" sha256)
+    string(JSON manifest SET "${manifest}" dependencies ${index}
+      "{\"name\":\"${component}\",\"version\":\"${version}\",\"url\":\"${url}\",\"sha256\":\"${sha}\",\"bundled\":true,\"role\":\"private static GPU archives\",\"license\":\"permissive source notices\"}")
+    math(EXPR index "${index}+1")
+  endforeach()
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/install/dependencies.json" "${manifest}\n")
 endif()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/install/test-settings.txt" "target=${AILO_TARGET_ID}\nversion=${PROJECT_VERSION}\ncc=${CMAKE_C_COMPILER}\nsysroot=${CMAKE_SYSROOT}\nnm=${CMAKE_NM}\nreadelf=${CMAKE_READELF}\nstrip=${CMAKE_STRIP}\ntoolchain=${CMAKE_TOOLCHAIN_FILE}\n")

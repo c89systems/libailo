@@ -8,6 +8,10 @@ readelf=$2
   printf 'install-privacy: expected an extracted SDK install tree\n' >&2
   exit 2
 }
+if [[ -d "$tree/lib/ailo/native" && -n $(find "$tree/lib/ailo/native" -name '*.so*' -print -quit) ]]; then
+  printf 'install-privacy: native backend/driver payload must contain static archives only\n' >&2
+  exit 1
+fi
 scan_status=0
 home_uri='file://'
 home_uri+='$HOME'

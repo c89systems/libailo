@@ -68,6 +68,11 @@ printf '%s\n' "$header" | rg -q "Machine:.*$machine"
 while IFS= read -r -d '' library; do
   case "$library" in *.a|*.so|*.so.*)
     machines=$("$readelf" -h "$library" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p' | LC_ALL=C sort -u)
+    # Header-only Mesa targets can install a canonical eight-byte empty archive.
+    # readelf above validates the archive; it contains no ELF architecture.
+    if [[ "$library" == *.a && -z "$machines" && $(wc -c < "$library") -eq 8 && $(head -c 8 "$library") == '!<arch>' ]]; then
+      continue
+    fi
     [[ "$machines" == "$machine" ]] || { printf 'sdk-verify: mixed/wrong target archive: %s\n' "$library" >&2; exit 1; }
     ;;
   esac

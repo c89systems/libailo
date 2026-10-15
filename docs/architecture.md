@@ -342,7 +342,8 @@ and cache path for CPU and available Vulkan hardware checks:
 The [base instruct model](https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct)
 and [GGUF publisher](https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/tree/09816acd5d99df7be770d85ea30822623dab342c)
 declare Apache-2.0. The revision, size and checksum were inspected in repository
-metadata; trained inference with this pin remains to be proven. This replaces
+metadata. Trained CPU and static Intel ANV inference with this pin are recorded
+in [the static deployment evidence](static-vulkan.md#current-evidence). This replaces
 the earlier Qwen2.5-3B smoke recommendation, whose
 [publisher declares the Qwen research license](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct).
 Model licensing is independent of library licensing.

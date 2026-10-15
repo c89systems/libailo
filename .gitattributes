@@ -2,3 +2,5 @@
 vendor/licenses/gcc-COPYING.RUNTIME whitespace=-blank-at-eof
 # Unified patches preserve the space prefix on otherwise empty context lines.
 vendor/llama/patches/*.patch whitespace=-blank-at-eol
+# The loader patch ends with a required empty context line as well.
+vendor/vulkan-loader/patches/*.patch whitespace=-blank-at-eol,-blank-at-eof

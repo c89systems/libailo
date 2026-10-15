@@ -115,7 +115,7 @@ build_mesa() {
     -Damd-use-llvm=false -Dspirv-tools=enabled -Dmesa-clc=enabled -Dinstall-mesa-clc=true \
     -Dmesa-clc-bundle-headers=enabled -Dshader-cache=disabled -Dxmlconfig=disabled -Dbuild-tests=false
   meson compile -C "$base/build" -j "$jobs"
-  meson install -C "$base/build" --no-rebuild
+  meson install -C "$base/build" --no-rebuild --only-changed
 }
 
 case "$component" in

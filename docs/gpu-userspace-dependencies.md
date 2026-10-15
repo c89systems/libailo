@@ -1,7 +1,8 @@
 # GPU userspace dependency selection
 
 Investigation date: 2026-10-13. This is a source-based dependency and license
-assessment, not a completed static build or hardware qualification.
+assessment. See [static-vulkan.md](static-vulkan.md) for subsequent implementation
+and build evidence; this investigation alone is not hardware qualification.
 
 ## Decision and scope
 
@@ -47,8 +48,8 @@ discussed here, and no runtime substitution is required by this decision.
   including the static HIP and HSA-thunk dependency declarations.
 
 Mesa and libdrm are now checksum-pinned source inputs. libdrm core/amdgpu have
-a separate static dependency build; they are not yet added to the libailo SDK.
-Mesa driver integration remains pending. The ROCm source is audit evidence only.
+a separate static dependency build. Mesa and built-in loader integration now add
+the selected static closure to the Vulkan SDK. The ROCm source is audit evidence only.
 The local libdrm patch embeds the pinned `amdgpu.ids` marketing-name table, keeping
 lookup independent of runtime data-file installation and environment overrides.
 Upstream libdrm source notices remain in the modified source and generated data
@@ -84,6 +85,13 @@ the final compiled source list and bundled third-party notices.
 Mesa's embedded BLAKE3 README identifies version 1.8.2 and local modifications.
 Its upstream Apache license must be included with the shipped notices rather
 than treating the entire Mesa archive as uniformly MIT.
+
+The integrated SDK generates attribution from Ninja's selected inputs and
+compiler-tracked headers, including internal shader sources. CMake/Ninja own
+generation and installation; the Python helper only transforms this source data.
+The selected userspace libraries retain their permissive notices. Kernel UAPI
+declarations also retain their `Linux-syscall-note` notices and corresponding
+license text; these declarations are distinct from linked userspace libraries.
 
 Primary license references:
 [Mesa](https://docs.mesa3d.org/license.html),
@@ -188,12 +196,13 @@ support for compute-only Instinct hardware through RADV.
 The implementation architecture and full single/multi-GPU acceptance requirements
 are now specified in [static-vulkan.md](static-vulkan.md). This includes the
 built-in multi-provider loader, static musl driver identity adaptation and
-isolated target dependency discovery; those requirements remain pending work.
+isolated target dependency discovery. Their implementation and current evidence
+are tracked there.
 
-The reviewed RADV and ANV build definitions explicitly use shared_library for
-their final driver. Both therefore need static-driver integration and an
-application dispatch path that avoids dynamic ICD loading. A static Khronos
-loader archive alone would not remove shared-driver loading.
+The reviewed upstream RADV and ANV build definitions use shared_library for
+their final driver. The selected profile now patches these to static archives
+and uses a fixed built-in Khronos dispatch registry. A static Khronos loader
+archive alone would not remove shared-driver loading.
 
 Qualification must prove a musl executable with no dynamic interpreter or
 DT_NEEDED dependencies, no required runtime shared-object loading, and actual
@@ -201,5 +210,6 @@ GPU model inference. Multiple linked drivers also need coherent entrypoint
 dispatch and symbol ownership. Driver build identification, optional loader
 helpers, shader generation, shutdown and error handling require validation.
 The existing Intel Vulkan smoke test uses the shared loader/driver path and
-does not prove this deployment model. This investigation ran no Mesa build,
-host-library link or GPU compatibility test.
+does not prove this deployment model. The original investigation ran no Mesa
+build, host-library link or GPU compatibility test; subsequent implementation
+evidence is recorded separately in static-vulkan.md.

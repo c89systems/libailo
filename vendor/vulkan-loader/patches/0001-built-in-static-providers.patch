@@ -1,0 +1,602 @@
+--- a/loader/CMakeLists.txt
++++ b/loader/CMakeLists.txt
+@@ -431,7 +431,7 @@
+         message(WARNING "The APPLE_STATIC_LOADER option has been set. Note that this will only work on MacOS and is not supported "
+                 "or tested as part of the loader. Use it at your own risk.")
+     else()
+-        add_library(vulkan SHARED)
++        add_library(vulkan STATIC)
+     endif()
+ 
+     target_sources(vulkan PRIVATE ${NORMAL_LOADER_SRCS})
+@@ -441,7 +441,8 @@
+         VERSION "${VULKAN_LOADER_VERSION}"
+     )
+ 
+-    target_link_libraries(vulkan PRIVATE ${CMAKE_DL_LIBS} m Threads::Threads)
++    set_target_properties(vulkan PROPERTIES POSITION_INDEPENDENT_CODE ON)
++    target_link_libraries(vulkan PRIVATE m Threads::Threads)
+ 
+     set_target_properties(vulkan PROPERTIES OUTPUT_NAME ${API_TYPE})
+ 
+@@ -524,7 +525,7 @@
+ endif()
+ 
+ # common attributes of the vulkan library
+-target_link_libraries(vulkan PRIVATE loader_specific_options)
++target_link_libraries(vulkan PRIVATE $<BUILD_INTERFACE:loader_specific_options>)
+ 
+ target_link_libraries(vulkan PRIVATE Vulkan::Headers)
+ add_library(Vulkan::Loader ALIAS vulkan)
+--- a/loader/loader.c
++++ b/loader/loader.c
+@@ -585,11 +585,10 @@
+ VkResult get_library_path_of_dl_handle(const struct loader_instance *inst, loader_platform_dl_handle lib_handle,
+                                        PFN_vkGetInstanceProcAddr gipa, char **out_path) {
+ #if COMMON_UNIX_PLATFORMS
++    (void)inst;
+     (void)lib_handle;
+-    Dl_info dl_info = {0};
+-    if (dladdr(gipa, &dl_info) != 0 && NULL != dl_info.dli_fname) {
+-        return loader_copy_to_new_str(inst, dl_info.dli_fname, out_path);
+-    }
++    (void)gipa;
++    *out_path = NULL;
+     return VK_SUCCESS;
+ 
+ #elif defined(WIN32)
+@@ -1667,15 +1666,7 @@
+         goto out;
+     }
+ 
+-    const VkExtensionProperties direct_driver_loading_extension_info[] = {
+-        {VK_LUNARG_DIRECT_DRIVER_LOADING_EXTENSION_NAME, VK_LUNARG_DIRECT_DRIVER_LOADING_SPEC_VERSION}};
+-
+-    // Add VK_LUNARG_direct_driver_loading
+-    res = loader_add_to_ext_list(inst, inst_exts, sizeof(direct_driver_loading_extension_info) / sizeof(VkExtensionProperties),
+-                                 direct_driver_loading_extension_info);
+-    if (res == VK_ERROR_OUT_OF_HOST_MEMORY) {
+-        goto out;
+-    }
++    // libailo accepts only its linked providers, not application-supplied ICDs.
+ 
+ out:
+     return res;
+@@ -3879,55 +3870,11 @@
+ 
+ VkResult loader_get_data_files(const struct loader_instance *inst, enum loader_data_files_type manifest_type,
+                                const struct loader_string_list *path_overrides, struct loader_string_list *out_files) {
+-    VkResult res = VK_SUCCESS;
+-    bool override_active = false;
+-
+-    // Free and init the out_files information so there's no false data left from uninitialized variables.
++    (void)manifest_type;
++    (void)path_overrides;
++    // No filesystem ICDs, explicit layers or implicit layers in this profile.
+     free_string_list(inst, out_files);
+-
+-    res = read_data_files_in_search_paths(inst, manifest_type, path_overrides, &override_active, out_files);
+-    if (VK_SUCCESS != res) {
+-        goto out;
+-    }
+-
+-#if defined(_WIN32)
+-    // Read the registry if the override wasn't active.
+-    if (!override_active) {
+-        bool warn_if_not_present = false;
+-        char *registry_location = NULL;
+-
+-        switch (manifest_type) {
+-            default:
+-                goto out;
+-            case LOADER_DATA_FILE_MANIFEST_DRIVER:
+-                warn_if_not_present = true;
+-                registry_location = VK_DRIVERS_INFO_REGISTRY_LOC;
+-                break;
+-            case LOADER_DATA_FILE_MANIFEST_IMPLICIT_LAYER:
+-                registry_location = VK_ILAYERS_INFO_REGISTRY_LOC;
+-                break;
+-            case LOADER_DATA_FILE_MANIFEST_EXPLICIT_LAYER:
+-                warn_if_not_present = true;
+-                registry_location = VK_ELAYERS_INFO_REGISTRY_LOC;
+-                break;
+-        }
+-        VkResult tmp_res =
+-            windows_read_data_files_in_registry(inst, manifest_type, warn_if_not_present, registry_location, out_files);
+-        // Only return an error if there was an error this time, and no manifest files from before.
+-        if (VK_SUCCESS != tmp_res && out_files->count == 0) {
+-            res = tmp_res;
+-            goto out;
+-        }
+-    }
+-#endif
+-
+-out:
+-
+-    if (VK_SUCCESS != res) {
+-        free_string_list(inst, out_files);
+-    }
+-
+-    return res;
++    return VK_SUCCESS;
+ }
+ 
+ struct ICDManifestInfo {
+@@ -4096,141 +4043,30 @@
+ // (on result == VK_SUCCESS) a list of icds that were discovered
+ VkResult loader_icd_scan(const struct loader_instance *inst, struct loader_icd_tramp_list *icd_tramp_list,
+                          const VkInstanceCreateInfo *pCreateInfo, bool *skipped_portability_drivers) {
+-    VkResult res = VK_SUCCESS;
+-    struct loader_string_list manifest_files = {0};
+-    struct loader_envvar_filter select_filter = {0};
+-    struct loader_envvar_filter disable_filter = {0};
+-    struct ICDManifestInfo *icd_details = NULL;
+-
+-    // Set up the ICD Trampoline list so elements can be written into it.
+-    res = loader_init_scanned_icd_list(inst, icd_tramp_list);
+-    if (res == VK_ERROR_OUT_OF_HOST_MEMORY) {
+-        return res;
+-    }
+-
+-    bool direct_driver_loading_exclusive_mode = false;
+-    res = loader_scan_for_direct_drivers(inst, pCreateInfo, icd_tramp_list, &direct_driver_loading_exclusive_mode);
+-    if (res == VK_ERROR_OUT_OF_HOST_MEMORY) {
+-        goto out;
+-    }
+-    if (direct_driver_loading_exclusive_mode) {
+-        // Make sure to jump over the system & env-var driver discovery mechanisms if exclusive mode is set, even if no drivers
+-        // were successfully found through the direct driver loading mechanism
+-        goto out;
+-    }
+-
+-    if (loader_settings_should_use_driver_environment_variables(inst)) {
+-        // Parse the filter environment variables to determine if we have any special behavior
+-        res = parse_generic_filter_environment_var(inst, VK_DRIVERS_SELECT_ENV_VAR, &select_filter);
+-        if (VK_SUCCESS != res) {
+-            goto out;
+-        }
+-        res = parse_generic_filter_environment_var(inst, VK_DRIVERS_DISABLE_ENV_VAR, &disable_filter);
+-        if (VK_SUCCESS != res) {
+-            goto out;
+-        }
+-    }
+-
+-    // Get a list of manifest files for ICDs
+-    res = loader_get_data_files(inst, LOADER_DATA_FILE_MANIFEST_DRIVER, NULL, &manifest_files);
+-    if (VK_SUCCESS != res) {
+-        goto out;
+-    }
+-
+-    // Add any drivers provided by the loader settings file
+-    res = loader_settings_get_additional_driver_files(inst, &manifest_files);
+-    if (VK_SUCCESS != res) {
+-        goto out;
+-    }
+-
+-    icd_details = loader_stack_alloc(sizeof(struct ICDManifestInfo) * manifest_files.count);
+-    if (NULL == icd_details) {
+-        res = VK_ERROR_OUT_OF_HOST_MEMORY;
+-        goto out;
+-    }
+-    memset(icd_details, 0, sizeof(struct ICDManifestInfo) * manifest_files.count);
+-
+-    for (uint32_t i = 0; i < manifest_files.count; i++) {
+-        VkResult icd_res = VK_SUCCESS;
+-
+-        icd_res = loader_parse_icd_manifest(inst, manifest_files.list[i], &icd_details[i], skipped_portability_drivers);
+-        if (VK_ERROR_OUT_OF_HOST_MEMORY == icd_res) {
+-            res = icd_res;
+-            goto out;
+-        } else if (VK_ERROR_INCOMPATIBLE_DRIVER == icd_res) {
+-            continue;
+-        }
+-
+-        if (select_filter.count > 0 || disable_filter.count > 0) {
+-            // Get only the filename for comparing to the filters
+-            char *just_filename_str = strrchr(manifest_files.list[i], DIRECTORY_SYMBOL);
+-
+-            // No directory symbol, just the filename
+-            if (NULL == just_filename_str) {
+-                just_filename_str = manifest_files.list[i];
+-            } else {
+-                just_filename_str++;
+-            }
+-
+-            bool name_matches_select =
+-                (select_filter.count > 0 && check_name_matches_filter_environment_var(just_filename_str, &select_filter));
+-            bool name_matches_disable =
+-                (disable_filter.count > 0 && check_name_matches_filter_environment_var(just_filename_str, &disable_filter));
+-
+-            if (name_matches_disable && !name_matches_select) {
+-                loader_log(inst, VULKAN_LOADER_WARN_BIT | VULKAN_LOADER_DRIVER_BIT, 0,
+-                           "Driver \"%s\" ignored because it was disabled by env var \'%s\'", just_filename_str,
+-                           VK_DRIVERS_DISABLE_ENV_VAR);
+-                continue;
+-            }
+-            if (select_filter.count != 0 && !name_matches_select) {
+-                loader_log(inst, VULKAN_LOADER_WARN_BIT | VULKAN_LOADER_DRIVER_BIT, 0,
+-                           "Driver \"%s\" ignored because not selected by env var \'%s\'", just_filename_str,
+-                           VK_DRIVERS_SELECT_ENV_VAR);
+-                continue;
+-            }
+-        }
+-
+-        enum loader_layer_library_status lib_status;
+-        icd_res =
+-            loader_scanned_icd_add(inst, icd_tramp_list, icd_details[i].full_library_path, icd_details[i].version, &lib_status);
+-        if (VK_ERROR_OUT_OF_HOST_MEMORY == icd_res) {
+-            res = icd_res;
+-            goto out;
+-        } else if (VK_ERROR_INCOMPATIBLE_DRIVER == icd_res) {
+-            switch (lib_status) {
+-                case LOADER_LAYER_LIB_NOT_LOADED:
+-                case LOADER_LAYER_LIB_ERROR_FAILED_TO_LOAD:
+-                    loader_log(inst, VULKAN_LOADER_ERROR_BIT | VULKAN_LOADER_DRIVER_BIT, 0,
+-                               "loader_icd_scan: Failed loading library associated with ICD JSON %s. Ignoring this JSON",
+-                               icd_details[i].full_library_path);
+-                    break;
+-                case LOADER_LAYER_LIB_ERROR_WRONG_BIT_TYPE: {
+-                    loader_log(inst, VULKAN_LOADER_DRIVER_BIT, 0, "Requested ICD %s was wrong bit-type. Ignoring this JSON",
+-                               icd_details[i].full_library_path);
+-                    break;
+-                }
+-                case LOADER_LAYER_LIB_SUCCESS_LOADED:
+-                case LOADER_LAYER_LIB_ERROR_OUT_OF_MEMORY:
+-                    // Shouldn't be able to reach this but if it is, best to report a debug
+-                    loader_log(inst, VULKAN_LOADER_WARN_BIT | VULKAN_LOADER_DRIVER_BIT, 0,
+-                               "Shouldn't reach this. A valid version of requested ICD %s was loaded but something bad "
+-                               "happened afterwards.",
+-                               icd_details[i].full_library_path);
+-                    break;
+-            }
++    extern VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL ailo_radv_icdGetInstanceProcAddr(VkInstance, const char *);
++    extern VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL ailo_anv_icdGetInstanceProcAddr(VkInstance, const char *);
++    const VkDirectDriverLoadingInfoLUNARG providers[] = {
++        {VK_STRUCTURE_TYPE_DIRECT_DRIVER_LOADING_INFO_LUNARG, NULL, 0, ailo_radv_icdGetInstanceProcAddr},
++        {VK_STRUCTURE_TYPE_DIRECT_DRIVER_LOADING_INFO_LUNARG, NULL, 0, ailo_anv_icdGetInstanceProcAddr},
++    };
++    if (skipped_portability_drivers) *skipped_portability_drivers = false;
++    // Reject external provider injection, even without its extension enabled.
++    const VkBaseInStructure *next = pCreateInfo ? pCreateInfo->pNext : NULL;
++    for (; next; next = next->pNext) {
++        if (next->sType == VK_STRUCTURE_TYPE_DIRECT_DRIVER_LOADING_LIST_LUNARG) {
++            return VK_ERROR_EXTENSION_NOT_PRESENT;
+         }
+     }
+-
+-out:
+-    if (NULL != icd_details) {
+-        // Successfully got the icd_details structure, which means we need to free the paths contained within
+-        for (uint32_t i = 0; i < manifest_files.count; i++) {
+-            loader_instance_heap_free(inst, icd_details[i].full_library_path);
++    VkResult res = loader_init_scanned_icd_list(inst, icd_tramp_list);
++    if (res != VK_SUCCESS) return res;
++    for (uint32_t i = 0; i < sizeof(providers) / sizeof(providers[0]); ++i) {
++        res = loader_add_direct_driver(inst, i, &providers[i], icd_tramp_list);
++        if (res != VK_SUCCESS) {
++            loader_clear_scanned_icd_list(inst, icd_tramp_list);
++            return res;
+         }
+     }
+-    free_string_list(inst, &manifest_files);
+-    return res;
++    return VK_SUCCESS;
+ }
+ 
+ // Gets the layer data files corresponding to manifest_type & path_override, then parses the resulting json objects
+--- a/loader/settings.c
++++ b/loader/settings.c
+@@ -679,204 +679,10 @@
+ // Returns VK_SUCCESS if it was found & was successfully parsed. Otherwise, it returns VK_ERROR_INITIALIZATION_FAILED if it
+ // wasn't found or failed to parse, and returns VK_ERROR_OUT_OF_HOST_MEMORY if it was unable to allocate enough memory.
+ VkResult get_loader_settings(const struct loader_instance* inst, loader_settings* loader_settings) {
+-    VkResult res = VK_SUCCESS;
+-    cJSON* json = NULL;
+-    char* file_format_version_string = NULL;
+-    char* settings_file_path = NULL;
+-#if defined(WIN32)
+-    res = windows_get_loader_settings_file_path(inst, &settings_file_path);
+-    if (res != VK_SUCCESS) {
+-        loader_log(inst, VULKAN_LOADER_INFO_BIT, 0,
+-                   "No valid vk_loader_settings.json file found, no loader settings will be active");
+-        goto out;
+-    }
+-
+-#elif COMMON_UNIX_PLATFORMS
+-    res = get_unix_settings_path(inst, &settings_file_path);
+-    if (res != VK_SUCCESS) {
+-        loader_log(inst, VULKAN_LOADER_INFO_BIT, 0,
+-                   "No valid vk_loader_settings.json file found, no loader settings will be active");
+-        goto out;
+-    }
+-#else
+-#warning "Unsupported platform - must specify platform specific location for vk_loader_settings.json"
+-#endif
+-
+-    res = loader_get_json(inst, settings_file_path, &json);
+-    // Make sure sure the top level json value is an object
+-    if (res != VK_SUCCESS || NULL == json || json->type != cJSON_Object) {
+-        goto out;
+-    }
+-
+-    res = loader_parse_json_string(json, "file_format_version", &file_format_version_string);
+-    if (res != VK_SUCCESS) {
+-        if (res != VK_ERROR_OUT_OF_HOST_MEMORY) {
+-            loader_log(
+-                inst, VULKAN_LOADER_DEBUG_BIT, 0,
+-                "Loader settings file from %s missing required field file_format_version - no loader settings will be active",
+-                settings_file_path);
+-        }
+-        goto out;
+-    }
+-
+-    // Because the file may contain either a "settings_array" or a single "settings" object, we need to create a cJSON so that we
+-    // can iterate on both cases with common code
+-    cJSON settings_iter_parent = {0};
+-
+-    cJSON* settings_array = loader_cJSON_GetObjectItem(json, "settings_array");
+-    cJSON* single_settings_object = loader_cJSON_GetObjectItem(json, "settings");
+-    if (NULL != settings_array) {
+-        memcpy(&settings_iter_parent, settings_array, sizeof(cJSON));
+-    } else if (NULL != single_settings_object) {
+-        settings_iter_parent.child = single_settings_object;
+-    } else {
+-        loader_log(inst, VULKAN_LOADER_DEBUG_BIT, 0,
+-                   "Loader settings file from %s missing required settings objects: Either one of the \"settings\" or "
+-                   "\"settings_array\" objects must be present - no loader settings will be active",
+-                   settings_file_path);
+-        res = VK_ERROR_INITIALIZATION_FAILED;
+-        goto out;
+-    }
+-
+-    // Corresponds to the settings object that has no app keys
+-    cJSON* global_settings = NULL;
+-    // Corresponds to the settings object which has a matching app key
+-    cJSON* settings_to_use = NULL;
+-
+-    char current_process_path[1024];
+-    bool valid_exe_path = NULL != loader_platform_executable_path(current_process_path, 1024);
+-
+-    cJSON* settings_object_iter = NULL;
+-    cJSON_ArrayForEach(settings_object_iter, &settings_iter_parent) {
+-        if (settings_object_iter->type != cJSON_Object) {
+-            loader_log(inst, VULKAN_LOADER_DEBUG_BIT, 0,
+-                       "Loader settings file from %s has a settings element that is not an object", settings_file_path);
+-            break;
+-        }
+-
+-        cJSON* app_keys = loader_cJSON_GetObjectItem(settings_object_iter, "app_keys");
+-        if (NULL == app_keys) {
+-            // use the first 'global' settings that has no app keys as the global one
+-            if (global_settings == NULL) {
+-                global_settings = settings_object_iter;
+-            }
+-            continue;
+-        }
+-        // No sense iterating if we couldn't get the executable path
+-        if (!valid_exe_path) {
+-            break;
+-        }
+-        cJSON* app_key = NULL;
+-        cJSON_ArrayForEach(app_key, app_keys) {
+-            char* app_key_str = loader_cJSON_GetStringValue(app_key);
+-            if (app_key_str && strcmp(current_process_path, app_key_str) == 0) {
+-                settings_to_use = settings_object_iter;
+-                break;
+-            }
+-        }
+-
+-        // Break if we have found a matching current_process_path
+-        if (NULL != settings_to_use) {
+-            break;
+-        }
+-    }
+-
+-    // No app specific settings match - either use global settings or exit
+-    if (settings_to_use == NULL) {
+-        if (global_settings == NULL) {
+-            loader_log(inst, VULKAN_LOADER_DEBUG_BIT, 0,
+-                       "Loader settings file from %s missing global settings and none of the app specific settings matched the "
+-                       "current application - no loader settings will be active",
+-                       settings_file_path);
+-            goto out;  // No global settings were found - exit
+-        } else {
+-            settings_to_use = global_settings;  // Global settings are present - use it
+-        }
+-    }
+-
+-    // optional
+-    cJSON* stderr_filter = loader_cJSON_GetObjectItem(settings_to_use, "stderr_log");
+-    if (NULL != stderr_filter) {
+-        struct loader_string_list stderr_log = {0};
+-        VkResult stderr_log_result = VK_SUCCESS;
+-        stderr_log_result = loader_parse_json_array_of_strings(inst, settings_to_use, "stderr_log", &stderr_log);
+-        if (VK_ERROR_OUT_OF_HOST_MEMORY == stderr_log_result) {
+-            res = VK_ERROR_OUT_OF_HOST_MEMORY;
+-            goto out;
+-        }
+-        // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange) - 0xFF is a valid bitwise-OR of all flags (the "all" filter)
+-        loader_settings->debug_level = parse_log_filters_from_strings(&stderr_log);
+-        free_string_list(inst, &stderr_log);
+-    }
+-
+-    // optional
+-    cJSON* logs_to_use = loader_cJSON_GetObjectItem(settings_to_use, "log_locations");
+-    if (NULL != logs_to_use) {
+-        cJSON* log_element = NULL;
+-        cJSON_ArrayForEach(log_element, logs_to_use) {
+-            // bool is_valid = true;
+-            struct loader_string_list log_destinations = {0};
+-            VkResult parse_dest_res = loader_parse_json_array_of_strings(inst, log_element, "destinations", &log_destinations);
+-            if (parse_dest_res != VK_SUCCESS) {
+-                // is_valid = false;
+-            }
+-            free_string_list(inst, &log_destinations);
+-            struct loader_string_list log_filters = {0};
+-            VkResult parse_filters_res = loader_parse_json_array_of_strings(inst, log_element, "filters", &log_filters);
+-            if (parse_filters_res != VK_SUCCESS) {
+-                // is_valid = false;
+-            }
+-            free_string_list(inst, &log_filters);
+-        }
+-    }
+-
+-    VkResult layer_configurations_res = parse_layer_configurations(inst, settings_to_use, loader_settings);
+-    if (VK_ERROR_OUT_OF_HOST_MEMORY == layer_configurations_res) {
+-        res = layer_configurations_res;
+-        goto out;
+-    }
+-
+-    // Determine if there exists a layer configuration indicating where to put layers not contained in the settings file
+-    // LOADER_SETTINGS_LAYER_UNORDERED_LAYER_LOCATION
+-    for (uint32_t i = 0; i < loader_settings->layer_configuration_count; i++) {
+-        if (loader_settings->layer_configurations[i].control == LOADER_SETTINGS_LAYER_UNORDERED_LAYER_LOCATION) {
+-            loader_settings->has_unordered_layer_location = true;
+-            break;
+-        }
+-    }
+-
+-    VkResult additional_drivers_res = parse_additional_drivers(inst, settings_to_use, loader_settings);
+-    if (VK_ERROR_OUT_OF_HOST_MEMORY == additional_drivers_res) {
+-        res = additional_drivers_res;
+-        goto out;
+-    }
+-
+-    VkResult device_configurations_res = parse_device_configurations(inst, settings_to_use, loader_settings);
+-    if (VK_ERROR_OUT_OF_HOST_MEMORY == device_configurations_res) {
+-        res = device_configurations_res;
+-        goto out;
+-    }
+-
+-    // Only consider the settings active if there is at least one "setting" active.
+-    // Those are either logging, layers, additional_drivers, or device_configurations.
+-    if (loader_settings->debug_level != 0 || loader_settings->layer_configurations_active ||
+-        loader_settings->additional_driver_count != 0 || loader_settings->device_configurations_active) {
+-        loader_settings->settings_file_path = settings_file_path;
+-        settings_file_path = NULL;
+-        loader_settings->settings_active = true;
+-    } else {
+-        loader_log(inst, VULKAN_LOADER_INFO_BIT, 0,
+-                   "vk_loader_settings.json file found at \"%s\" but did not contain any valid settings.", settings_file_path);
+-    }
+-out:
+-    if (NULL != json) {
+-        loader_cJSON_Delete(json);
+-    }
+-
+-    loader_instance_heap_free(inst, settings_file_path);
+-
+-    loader_instance_heap_free(inst, file_format_version_string);
+-    return res;
++    (void)inst;
++    // The linked provider registry and absence of external layers are fixed.
++    memset(loader_settings, 0, sizeof(*loader_settings));
++    return VK_SUCCESS;
+ }
+ 
+ TEST_FUNCTION_EXPORT VkResult update_global_loader_settings(void) {
+--- a/loader/vk_loader_platform.h
++++ b/loader/vk_loader_platform.h
+@@ -415,35 +415,26 @@
+ }
+ #else
+ static inline loader_platform_dl_handle loader_platform_open_library(const char *libPath) {
+-    return dlopen(libPath, LOADER_DLOPEN_MODE);
++    (void)libPath;
++    return NULL;
+ }
+ #endif
+ 
+ static inline const char *loader_platform_open_library_error(const char *libPath) {
+     (void)libPath;
+-#if defined(__Fuchsia__)
+-    return dlerror_fuchsia();
+-#else
+-    // NOLINTNEXTLINE(concurrency-mt-unsafe) - dlerror has no reentrant variant; the message is used immediately, not retained
+-    return dlerror();
+-#endif
++    return "External libraries are disabled in libailo's Vulkan profile";
+ }
+ static inline void loader_platform_close_library(loader_platform_dl_handle library) {
+-    if (!loader_disable_dynamic_library_unloading) {
+-        dlclose(library);
+-    } else {
+-        (void)library;
+-    }
++    (void)library;
+ }
+ static inline void *loader_platform_get_proc_address(loader_platform_dl_handle library, const char *name) {
+-    assert(library);
+-    assert(name);
+-    return dlsym(library, name);
++    (void)library;
++    (void)name;
++    return NULL;
+ }
+ static inline const char *loader_platform_get_proc_address_error(const char *name) {
+     (void)name;
+-    // NOLINTNEXTLINE(concurrency-mt-unsafe) - dlerror has no reentrant variant; the message is used immediately, not retained
+-    return dlerror();
++    return "External symbols are disabled in libailo's Vulkan profile";
+ }
+ 
+ // Thread mutex:
+--- a/loader/loader_environment.c
++++ b/loader/loader_environment.c
+@@ -41,43 +41,13 @@
+ bool is_high_integrity(void) { return geteuid() != getuid() || getegid() != getgid(); }
+ 
+ char *loader_getenv(const char *name, const struct loader_instance *inst) {
+-    if (NULL == name) return NULL;
+-    // No allocation of memory necessary for Linux, but we should at least touch
+-    // the inst pointer to get rid of compiler warnings.
+     (void)inst;
+-    // NOLINTNEXTLINE(concurrency-mt-unsafe) - there is no portable reentrant getenv; the loader never calls setenv concurrently
+-    return getenv(name);
++    // Keep diagnostics; ignore driver, layer, settings and filesystem overrides.
++    return name && strcmp(name, "VK_LOADER_DEBUG") == 0 ? getenv(name) : NULL;
+ }
+ 
+ char *loader_secure_getenv(const char *name, const struct loader_instance *inst) {
+-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+-    // Apple does not appear to have a secure getenv implementation.
+-    // The main difference between secure getenv and getenv is that secure getenv
+-    // returns NULL if the process is being run with elevated privileges by a normal user.
+-    // The idea is to prevent the reading of malicious environment variables by a process
+-    // that can do damage.
+-    // This algorithm is derived from glibc code that sets an internal
+-    // variable (__libc_enable_secure) if the process is running under setuid or setgid.
+     return is_high_integrity() ? NULL : loader_getenv(name, inst);
+-#elif defined(__Fuchsia__)
+-    return loader_getenv(name, inst);
+-#else
+-    // Linux
+-    char *out;
+-#if defined(HAVE_SECURE_GETENV) && !defined(LOADER_USE_UNSAFE_FILE_SEARCH)
+-    (void)inst;
+-    out = secure_getenv(name);
+-#elif defined(HAVE___SECURE_GETENV) && !defined(LOADER_USE_UNSAFE_FILE_SEARCH)
+-    (void)inst;
+-    out = __secure_getenv(name);
+-#else
+-    out = loader_getenv(name, inst);
+-#if !defined(LOADER_USE_UNSAFE_FILE_SEARCH)
+-    loader_log(inst, VULKAN_LOADER_INFO_BIT, 0, "Loader is using non-secure environment variable lookup for %s", name);
+-#endif
+-#endif
+-    return out;
+-#endif
+ }
+ 
+ void loader_free_getenv(const char *val, const struct loader_instance *inst) {
+--- a/loader/trampoline.c
++++ b/loader/trampoline.c
+@@ -661,7 +661,7 @@
+     // Scan/discover all System and Environment Variable ICD libraries
+     bool skipped_portability_drivers = false;
+     res = loader_icd_scan(ptr_instance, &ptr_instance->icd_tramp_list, pCreateInfo, &skipped_portability_drivers);
+-    if (res == VK_ERROR_OUT_OF_HOST_MEMORY) {
++    if (res != VK_SUCCESS) {
+         goto out;
+     }
+ 

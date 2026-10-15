@@ -2,8 +2,8 @@
 
 `include/ailo/client.h` provides the first implemented shared inference core.
 It calls the pinned llama library in the embedding process. The
-[Chat Completions adapter](openai.md) provides public JSON/SSE operations and
-retained-record hooks. Responses and remaining handler work follow the broader
+[Chat Completions and Responses adapters](openai.md) provide public JSON/SSE
+operations and retained-record hooks. Remaining handler work follows the broader
 [backend contract](inference-backend.md).
 
 Construct an `ailo_client` with `ailo_client_new`, then call its `generate`,
@@ -856,9 +856,12 @@ cached SmolLM2-135M instruct model on Intel(R) Graphics (RPL-U), using the Mesa
 Intel Vulkan driver. Native records captured by a pslog logger configured in
 Lua showed all 31/31 layers offloaded and an 11.25 MiB Vulkan KV buffer. The Lua
 sink emitted eight text deltas for the test prompt and reported backend=vulkan.
-This qualifies the local shared-loader/driver integration. It does not qualify
-a fully static Mesa GPU executable or multi-GPU hardware not present on this
-host. The standalone musl CPU evidence remains separate.
+This qualified the earlier shared-loader/driver integration. The same trained
+Lua scenario now passes through the built-in static ANV provider, and a fully
+static musl executable performs trained GPU inference offline. See
+[the static deployment evidence](static-vulkan.md#current-evidence) for the
+executable, package and tracing checks. Multi-GPU hardware qualification remains
+pending on this single-device host.
 
 Model-card file metadata is resolved from the acquired absolute model path.
 Changing cwd or the default XDG cache environment after loading does not redirect

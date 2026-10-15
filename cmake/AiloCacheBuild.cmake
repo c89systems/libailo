@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.24)
+file(READ "${AILO_CACHE_BASE_FILE}" source_id)
+string(STRIP "${source_id}" source_id)
+file(SHA256 "${AILO_CACHE_SHADER_ARCHIVE}" shader_id)
+string(SHA256 AILO_CACHE_BUILD_ID "${source_id};ggml-vulkan:${shader_id}")
+configure_file("${CMAKE_CURRENT_LIST_DIR}/cache-build.h.in" "${AILO_CACHE_HEADER}" @ONLY)

@@ -8,7 +8,8 @@ contract is in [docs/architecture.md](docs/architecture.md).
 
 The dependency/build foundation is present: pinned llama.cpp b11430, CPU and
 Vulkan backends, public multimodal libraries, cpkt v0.3.0 and cpktmisc v0.2.0, lonejson
-v0.45.0, and pinned Vulkan/SPIR-V components. The static/shared project libraries
+v0.45.0, libpslog v0.12.0, and pinned Vulkan/SPIR-V components. The static/shared
+project libraries
 provide the portable C89 scalar/error boundary and generated native bindings
 described in [docs/c89-boundary.md](docs/c89-boundary.md) and
 [docs/facade-bindings.md](docs/facade-bindings.md). The current bridge implements
@@ -25,24 +26,27 @@ calls, bounded prompt/KV reuse, opt-in encrypted snapshots, cancellation, model
 cards, owned canonical continuation/forks, qualified reasoning deltas and
 capability queries.
 [docs/client.md](docs/client.md) describes its supported surface and verification.
-Protocol adapters
-and release completeness remain pending. Native install-tree CMake/pkg-config
-consumers are available.
+Chat Completions and Responses JSON/SSE adapters, retention repositories and
+conversation/compaction operations are implemented; [docs/openai.md](docs/openai.md)
+records their supported profile. HTTP server integration and release acceptance
+remain subsequent work. Native install-tree CMake/pkg-config consumers are available.
 The C89/Lua compactor key owner, authenticated envelopes and opaque-item replay
 through generation/continuations, standalone model-driven semantic compaction
 and explicit automatic preflight/in-flight compaction are implemented.
 
 The required receiver includes normal-use Hugging Face acquisition, configurable
 XDG model caching and a structured JSON model card for the loaded model. The
-shared llama receiver, tools/schema support, typed events, prompt reuse,
+common in-process llama receiver, tools/schema support, typed events, prompt reuse,
 opt-in persistent snapshots and authenticated compaction contract is in
 [docs/inference-backend.md](docs/inference-backend.md). Chat Completions and
-future Responses adapters use that same backend; API-specific output follows
+Responses adapters use that same backend; API-specific output follows
 the documented wire contract.
 
 The complete static RADV/ANV deployment and AMD/Intel/mixed multi-GPU layer splitting
-contract is in [docs/static-vulkan.md](docs/static-vulkan.md). These capabilities
-are specified; they are not established by the current shared-driver foundation.
+contract is in [docs/static-vulkan.md](docs/static-vulkan.md). The built-in static
+driver/loader integration and explicit placement controls are implemented. Focused
+static musl trained inference has passed on Intel RPL-U; AMD, AArch64 GPU and
+multi-GPU execution still require hardware qualification.
 
 [docs/upstream-api.json](docs/upstream-api.json) records the pinned public C API
 inventory. The generated coverage gate checks every declaration against the
@@ -51,20 +55,28 @@ C89 facade and requires an empty gap list.
 ## Local commands
 
 Use `make help` for the current command index. The default native build requires
-CMake 3.24+, Ninja, Bash, ripgrep, coreutils, clang-format, patch, and glslc.
+CMake 3.24+, Ninja with its `inputs`/`deps` inspection tools, Bash, ripgrep,
+coreutils, clang-format, patch, and glslc.
 Vulkan builds use the host `glslc` executable from shaderc (for example, the
 `glslc` package on Debian/Ubuntu). It compiles GLSL into SPIR-V for every target;
 no target-specific shader compiler is needed. Its shaderc/glslang/SPIRV-Tools
 libraries are host build tools and are not linked into libailo. The Vulkan
 headers and loader still come from our pinned sources. Set
 `Vulkan_GLSLC_EXECUTABLE` in CMake to select an explicit host executable.
+The static Mesa profile additionally requires Meson 1.4+, Mako, PyYAML,
+LLVM 20.1.8 development tools and the matching Clang shared runtime. Matching
+Mesa generators, SPIR-V tools and Clang headers are prepared inside the checkout;
+they are host tools, not target libraries. See the exact prerequisites and
+commands in [docs/static-vulkan.md](docs/static-vulkan.md#dependency-and-build-profile).
 The CPU preset does not require shader tooling. CUDA is excluded from supported
 backends; see the support policy below.
 Dependency preparation, builds, formatting and export checks use Bash/CMake.
-Python 3 is confined to compiler AST inventory processing and test fixtures;
-host Clang is needed for the inventory check. The lifecycle resolver selects the pinned Bootlin
+Python 3.9+ is confined to source/data generation, compiler AST inventory
+processing and test fixtures; host Clang is needed for the inventory check.
+The lifecycle resolver selects the pinned Bootlin
 C/C++ collection; it never falls back to a host compiler for compiled targets.
-Host Clang is used only to inspect declarations. Valgrind is a host prerequisite
+The host Clang executable inspects declarations; Mesa's host generator uses the
+matching Clang/LLVM runtime. Valgrind is a host prerequisite
 for memory checks. Lua product tests/packaging additionally require host
 LuaRocks, zip and unzip; these tools do not supply target runtime libraries.
 Owned C targets use explicit `-std=c89 -pedantic-errors -Werror` and disable
@@ -84,18 +96,22 @@ make facade-coverage
 ```
 
 `make build PRESET=cpu` is the explicitly CPU-only configuration. The default
-`debug` configuration includes Vulkan and CPU. Cross-release presets are
-declared; their full build, execution and packaging evidence remains pending.
+`debug` configuration includes Vulkan and CPU. Cross-release presets build the
+same selected static GPU closure. Current target/package evidence and remaining
+hardware acceptance are recorded in [docs/static-vulkan.md](docs/static-vulkan.md).
 Shipments cover x86_64 and aarch64 with glibc or musl. ARM hard-float is retired;
 its presets, dependency assets and SDK artifact names are no longer accepted.
 `AILO_JOBS` controls workers inside one build (default 2); lifecycle command
 entry points run serially.
 
-`make build PRESET=library` configures and builds without test/tool Python
-discovery. `make test-scalar-matrix` executes scalar and native-width bridge
-checks on all four Linux targets; ARM execution requires host `qemu-aarch64`. Those checks prove the scalar contract, not full model inference
-or facade coverage. Full model, backend and packaging matrix evidence remains
-pending; native fixture evidence is described below. `make valgrind` covers
+`make build PRESET=library` excludes inventory/test-tool discovery; the Vulkan
+dependency and attribution generators still require Python. The CPU build needs
+no binding regeneration. `make test-scalar-matrix` executes scalar and native-width
+bridge checks on all four Linux targets; ARM execution requires host
+`qemu-aarch64`. Those checks prove the scalar contract, not full model inference
+or facade coverage. All four static GPU SDKs pass package checks; full model and
+hardware qualification remains pending. Native fixture evidence is described
+below. `make valgrind` covers
 current native executable tests.
 `make facade-coverage` requires every coverage gap to remain resolved;
 ordinary unit checks do not substitute for that completeness gate. Generated
@@ -138,10 +154,10 @@ The [userspace dependency assessment](docs/gpu-userspace-dependencies.md)
 records the source evidence, accepted GCC runtime exception, feature losses
 from omitting optional dependencies and required static integration work.
 Permissive implementations of optional APIs may be qualified separately.
-Licensing eligibility is not proof of a working static
-deployment. Fully static CPU inference is the intended
-standalone musl path; proving the final executable is a separate gate from SDK
-archive verification.
+Licensing eligibility is not proof of a working static deployment. Fully static
+CPU inference and focused Intel GPU inference have executable evidence recorded
+in the static deployment contract. Proving final executables and the wider
+hardware matrix remains separate from SDK archive verification.
 
 ## Upstream patches
 
@@ -155,13 +171,21 @@ archive during preparation:
 - Format Vulkan buffer handles through their native type on 32-bit targets.
 - Route receiver-scoped logs through CPU workers and tensor-validation jobs;
   add `GGML_LOG_LEVEL_TRACE = 6` without changing existing enum values.
+- Expose private Vulkan device identity to the receiver's placement controls.
+- Track the host shader compiler as a shader-generation dependency.
 
 The ownership patches address allocations observed by Valgrind during backend
-enumeration and CPU graph execution. The additive trace enum is the only public header extension in these patches. C++ namespace RAII wrappers are excluded explicitly from the API
-inventory; the global public mtmd memory-report operation remains covered.
+enumeration and CPU graph execution. The trace enum and private device-identity
+hook preserve existing native enum values. C++ namespace RAII wrappers are
+excluded explicitly from the API inventory; the global public mtmd memory-report
+operation remains covered.
 
-No HTTP server, Kore integration, Responses API, stored completions, release,
-tag, or push is part of the current foundation.
+Mesa/libdrm patches embed required identity data and select the headless static
+profile. The Khronos loader patch fixes its providers to the linked RADV/ANV
+entrypoints and disables external driver/layer discovery. These private details
+do not expand the exported libailo C ABI.
+
+No HTTP server, Kore integration, release, tag or push is part of this work.
 
 ## Native model evidence
 
@@ -185,8 +209,9 @@ both GPU layers and operation/KV offload.
 static and shared model tests with all leak kinds fatal. The broader
 `make valgrind` includes it. A separate Vulkan-enabled process check exposed
 loader/driver retained allocations; CPU-only memory evidence does not claim
-Vulkan driver leak freedom. Full callback, receiver, multimodal inference,
-trained-model smoke and packaging acceptance are still pending.
+Vulkan driver leak freedom. Callback/receiver and trained text inference evidence
+is recorded in the linked contracts; comprehensive GPU lifetime, multimodal and
+hardware acceptance remain separate gates.
 
 ## Model acquisition
 
@@ -269,13 +294,13 @@ only `$ORIGIN`-relative lookup paths; test executables alone receive local paths
 The install-tree gate strips verification copies, creates and extracts an SDK
 archive, and scans its text/binary payload and loader metadata before running
 consumers. Compilation maps diagnostic/debug filenames to logical names;
-the Vulkan loader searches system configuration under `/etc`. No linked binary
-is rewritten to hide a path. Negative archive fixtures prove rejection of
+the built-in Vulkan loader disables external driver/layer discovery. No linked
+binary is rewritten to hide a path. Negative archive fixtures prove rejection of
 repository/home paths, local file URLs, foreign workstation paths, absolute
 RPATHs, and escaping/dangling symlinks. Both CPU-only and Vulkan-enabled extracted
 trees pass. Development checksum sets and all four Linux SDKs have been verified.
 The actual tag-mutation release contract, nested release-payload verification,
-and complete-facade/receiver acceptance remain pending.
+and comprehensive receiver/hardware acceptance remain pending.
 
 ## Versions and source reconstruction
 

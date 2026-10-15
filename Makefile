@@ -41,6 +41,10 @@ test-gpu-deps: gpu-deps
 test-static-mesa:
 	scripts/build-gpu-deps.sh --target "$(TARGET)" --component mesa
 	cmake -DAILO_TARGET_ID="$(TARGET)" -P tests/test_static_mesa.cmake
+.PHONY: test-static-vulkan
+test-static-vulkan:
+	scripts/build-gpu-deps.sh --target "$(TARGET)" --component vulkan-loader
+	cmake -DAILO_TARGET_ID="$(TARGET)" -DAILO_STATIC_LOADER=ON -P tests/test_static_mesa.cmake
 build:
 	scripts/build.sh --preset "$(PRESET)"
 build-debug:

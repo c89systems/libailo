@@ -25,7 +25,34 @@ foreach(setting IN LISTS settings)
     string(APPEND cache_identity ";${setting}=${${setting}}")
   endif()
 endforeach()
+if(AILO_VULKAN)
+  # Bind native state to the actual linked driver/compiler bytes and loader.
+  # No filesystem path participates in this part of the identity.
+  foreach(archive IN LISTS AILO_GPU_ARCHIVES)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${archive}")
+    file(SHA256 "${archive}" digest)
+    get_filename_component(name "${archive}" NAME)
+    string(APPEND cache_identity ";gpu:${name}:${digest}")
+  endforeach()
+endif()
 string(SHA256 AILO_CACHE_BUILD_ID "${cache_identity}")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated")
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cache-build.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/generated/ailo-cache-build.h" @ONLY)
+set(AILO_CACHE_BUILD_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/ailo-cache-build.h")
+if(AILO_VULKAN)
+  # Shader bytes depend on the host compiler too. Hash the produced archive
+  # after its native CMake target builds, before compiling either facade.
+  set(base "${CMAKE_CURRENT_BINARY_DIR}/generated/ailo-cache-source-id.txt")
+  file(CONFIGURE OUTPUT "${base}" CONTENT "${AILO_CACHE_BUILD_ID}\n" @ONLY)
+  add_custom_command(OUTPUT "${AILO_CACHE_BUILD_HEADER}"
+    COMMAND "${CMAKE_COMMAND}" "-DAILO_CACHE_BASE_FILE=${base}"
+      "-DAILO_CACHE_SHADER_ARCHIVE=$<TARGET_FILE:ggml-vulkan>"
+      "-DAILO_CACHE_HEADER=${AILO_CACHE_BUILD_HEADER}"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AiloCacheBuild.cmake"
+    DEPENDS "${base}" "$<TARGET_FILE:ggml-vulkan>"
+      "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AiloCacheBuild.cmake"
+      "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cache-build.h.in"
+    VERBATIM)
+else()
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cache-build.h.in"
+    "${AILO_CACHE_BUILD_HEADER}" @ONLY)
+endif()

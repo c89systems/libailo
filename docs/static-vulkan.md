@@ -10,7 +10,8 @@ layer/single-device strategies, explicit no-fallback commitments, positive
 participant ownership/residency checks, and detailed model-card allocations.
 See [the receiver contract](client.md#gpu-placement). Static RADV/ANV dependency
 archives now build across the four Linux targets. Built-in loader dispatch and
-integration into libailo and its SDK remain required implementation.
+the libailo/SDK integration are implemented; qualification evidence remains
+distinct from full hardware acceptance.
 
 Focused 2026-10-15 foundation evidence used the existing shared-driver build on
 Intel Graphics RPL-U, ANV, PCI `0000:00:02.0`, device UUID
@@ -92,17 +93,17 @@ runtime/compiler archives are installed separately and linked once; the two ICD
 entrypoints are namespaced as `ailo_radv_icdGetInstanceProcAddr` and
 `ailo_anv_icdGetInstanceProcAddr`.
 
-Create a built-in registry of independently namespaced RADV and ANV provider
-entrypoints. Reuse the loader's
+The loader has a fixed built-in registry of independently namespaced RADV and
+ANV provider entrypoints. It reuses the loader's
 [direct driver loading](https://docs.vulkan.org/refpages/latest/refpages/source/VkDirectDriverLoadingListLUNARG.html)
-function-pointer interface in exclusive mode at instance creation. Extend the
-static loader profile so global version/extension queries also consult the
-built-in providers and never scan installed ICDs or layers. Exclusivity at
-vkCreateInstance alone does not address earlier discovery calls. Build with
-ambient layer/driver discovery disabled, including environment overrides,
-implicit layers, manifests and debug integrations that load libraries.
+function-pointer registration and negotiation helper for every ICD scan,
+including global version/extension queries before instance creation. It never
+scans installed ICDs, layers or loader settings. External direct-driver injection
+is rejected and its extension is not advertised. Driver/layer/settings environment
+overrides are ignored; `VK_LOADER_DEBUG` remains available for diagnostics.
+Dynamic library helpers fail closed and ELF DSO introspection is removed.
 
-Inject the built-in provider list through a private GGML integration. The
+GGML uses the linked loader normally; it needs no provider-list injection. The
 pinned Vulkan-Hpp setting VULKAN_HPP_DISPATCH_LOADER_DYNAMIC means function
 pointer dispatch; its dispatcher starts from the linked vkGetInstanceProcAddr.
 It does not by itself require opening a shared object. Preserve that distinction
@@ -117,6 +118,15 @@ vendor selector. Separate clients and mixed-vendor physical devices need correct
 handle ownership through instance, physical device, logical device and teardown.
 Hide private Vulkan/Mesa symbols from libailo's exported C ABI and document any
 static symbol isolation constraints for applications linking another GPU stack.
+The shared library's exact export allowlist hides these symbols. Static consumers
+use the global Vulkan/Mesa symbol namespace; linking another Vulkan loader or
+Mesa stack into the same executable is unsupported.
+
+Retain both complete ICD archives and the four common runtime archives exactly
+once. Mesa's dispatch tables use weak entrypoint references, so ordinary archive
+extraction can silently omit implementations such as ANV's event creation even
+when device enumeration works. The device/event probe and actual inference
+regression cover this failure; linker multiple-definition overrides are not used.
 
 Relevant pinned loader code is in loader/loader.c: loader_add_direct_driver,
 loader_scan_for_direct_drivers, loader_scan_for_icds and layer discovery.
@@ -144,8 +154,12 @@ builds both Mesa drivers and checks a relocated, fully static dependency
 consumer. Mesa's installed `ailo-mesa.pc` supplies the complete archive order,
 including one copy of its common runtime. The probe directly creates an instance
 for each provider and enumerates device properties; it does not execute shaders
-or use the libailo dispatcher. Neither command adds these archives to the shipped
-SDK yet.
+or use the libailo dispatcher. `make test-static-vulkan TARGET=<id>` instead checks
+the built-in loader, device/event dispatch, instance lifetimes and rejection of
+external drivers/layers. On x86-64, strace verifies that poisoned environment
+settings cause no shared-library or manifest discovery. AArch64 checks link only.
+The main Vulkan build now adds this closure to the SDK as separate archives,
+with link ordering supplied by its CMake/pkg-config metadata.
 The libdrm patch embeds its pinned marketing-name table as constant data, with
 no runtime `amdgpu.ids` file or environment override. The existing kernel
 `/proc/cpuinfo` fallback for integrated devices is retained. A CMake source
@@ -228,7 +242,13 @@ this initialization requirement. Prove reproducibility and invalidation when
 shader/compiler inputs change, without runtime DSO introspection. Focused tests
 verify unchanged-input identity and file timestamp stability, distinct provider
 identities, and invalidation on compiler or target changes. Binding this closure
-to libailo's inference-cache identity remains part of SDK/backend integration.
+to libailo's inference-cache identity is implemented by additionally hashing the
+actual selected GPU archives into its native-state compatibility identity.
+The compiled GGML Vulkan archive is hashed after its CMake target builds and
+before either facade compiles. This also binds state to the generated shader
+bytes. The shader compiler executable is an explicit generation dependency;
+changes to its installed runtime/tool collection still require normal native
+build invalidation under the lifecycle contract.
 
 ANV also conditionally supports flushing noncoherent host-visible memory under
 SUPPORT_INTEL_INTEGRATED_GPUS. Otherwise such a memory configuration fails
@@ -343,7 +363,49 @@ profiles create instances for each provider and enumerate one Intel Graphics
 RPL-U device through ANV and zero devices through RADV. AArch64 evidence is
 compile/link only.
 
-Built-in loader dispatch, SDK integration and static-driver trained inference
-remain pending. Receiver placement and model-card reporting have trained-model
-proof through the host Intel driver, as recorded above; this does not qualify
-the static drivers, AMD execution or multi-GPU use.
+The x86-64 glibc integration now passes synthetic libailo GPU inference and the
+exact shared ABI export check through the built-in loader and static ANV driver.
+The x86-64 musl release build also passes the relocated built-in loader/device
+probe. Its incremental build reuses shader and library objects. A standalone
+strict C89 consumer of the installed CMake static target runs the existing
+`examples/infer.c` without an ELF interpreter or `DT_NEEDED` entries. Its stripped
+size is 95,010,784 bytes (90.61 MiB).
+
+On Intel Graphics RPL-U, PCI `0000:00:02.0`, Linux `6.17.0-41-generic`, that
+executable downloaded the pinned SmolLM2 fixture through libailo's Hugging Face
+facility into `$XDG_CACHE_HOME/ailo`. SHA-256 verification succeeded. All 30
+repeating layers and the output layer were offloaded; the model card records
+Vulkan model/context/compute buffers of 103,668,480 / 47,185,920 / 26,873,856
+bytes at a 2,048-token context, with host buffers reported separately.
+
+The same stripped executable then generated offline from the cache with socket
+creation denied, misleading ICD/layer environment settings and disk shader
+caching disabled. The trace records one application exec, no socket/connect,
+shared-library or manifest attempts, and successful i915 GPU submissions. A
+write trace confirms incremental stdout fragments during decoding. Its 12-token
+greedy output matches both the download run and a CPU run. This is a text-output
+comparison, not a numerical/logit qualification. The download/inference run took
+7.17 seconds and reported peak RSS of 131,364 KiB; neither number isolates
+prefill/decode throughput or complete GPU memory use.
+
+All four release configurations now build the integrated library and strict C89
+header probes. Their extracted development SDKs pass target ABI, privacy and
+exact-export checks. The x86-64 glibc release suite passes 71/71 CTests; the
+installed Lua/shared C ABI passes its three Vulkan-profile tests, including
+LuaRocks installation. The same trained Lua hardware scenario described above
+also passes with the built-in static ANV provider: first text at token 1,
+cancellation, explicit placement and independent-client teardown. Scalar/native
+bridge tests pass across all four targets, using QEMU for AArch64 execution.
+These checks do not establish AArch64 GPU execution.
+
+The refreshed static musl executable, including the compiled-shader cache
+identity, repeats the offline GPU/CPU output comparison and incremental output
+trace successfully. It performs 488 successful i915 submissions, with socket
+creation denied and no shared-library or manifest attempts. The executable size
+remains 95,010,784 bytes.
+
+The comprehensive hardware campaign remains pending: firmware identification,
+AMD, AArch64 GPU and multi-GPU execution, larger dense/MoE workloads and
+numerical/performance qualification. The earlier host-driver receiver proof
+remains separate from this static-driver evidence. These are development
+checks, not a signed or tagged release.

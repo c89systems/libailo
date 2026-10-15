@@ -1,0 +1,36 @@
+# The selected Mesa install contains only this profile's static libraries.
+# Keep the shared runtime whole once; do not fold it into each driver archive.
+set(AILO_GPU_WHOLE_NAMES vulkan_lite_runtime vulkan_runtime vulkan_instance vulkan_wsi
+  vulkan_radeon vulkan_intel)
+set(AILO_GPU_NAMES vulkan drm drm_amdgpu)
+set(AILO_GPU_ARCHIVES "${AILO_DEPENDENCY_ROOT}/vulkan-loader/install/lib/libvulkan.a"
+  "${AILO_DEPENDENCY_ROOT}/libdrm/install/lib/libdrm.a"
+  "${AILO_DEPENDENCY_ROOT}/libdrm/install/lib/libdrm_amdgpu.a")
+file(GLOB mesa_archives CONFIGURE_DEPENDS "${AILO_DEPENDENCY_ROOT}/mesa/install/lib/*.a")
+foreach(archive IN LISTS mesa_archives)
+  get_filename_component(name "${archive}" NAME_WE)
+  string(REGEX REPLACE "^lib" "" name "${name}")
+  list(APPEND AILO_GPU_NAMES "${name}")
+  list(APPEND AILO_GPU_ARCHIVES "${archive}")
+endforeach()
+foreach(required IN LISTS AILO_GPU_WHOLE_NAMES)
+  if(NOT required IN_LIST AILO_GPU_NAMES)
+    message(FATAL_ERROR "Missing static Mesa ${required}; run scripts/build-gpu-deps.sh --target ${AILO_TARGET_ID} --component vulkan-loader")
+  endif()
+endforeach()
+set(gpu_whole "")
+set(gpu_regular "")
+foreach(archive name IN ZIP_LISTS AILO_GPU_ARCHIVES AILO_GPU_NAMES)
+  if(NOT EXISTS "${archive}")
+    message(FATAL_ERROR "Missing required GPU archive: ${archive}")
+  endif()
+  if(name IN_LIST AILO_GPU_WHOLE_NAMES)
+    list(APPEND gpu_whole "${archive}")
+  elseif(NOT name STREQUAL vulkan)
+    list(APPEND gpu_regular "${archive}")
+  endif()
+endforeach()
+find_package(Threads REQUIRED)
+find_package(Vulkan REQUIRED)
+set_property(TARGET Vulkan::Vulkan APPEND PROPERTY INTERFACE_LINK_LIBRARIES
+  "-Wl,--start-group;-Wl,--whole-archive;${gpu_whole};-Wl,--no-whole-archive;${gpu_regular};-Wl,--end-group;Threads::Threads;m")

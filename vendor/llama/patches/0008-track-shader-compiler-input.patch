@@ -1,0 +1,8 @@
+--- a/ggml/src/ggml-vulkan/CMakeLists.txt
++++ b/ggml/src/ggml-vulkan/CMakeLists.txt
+@@ -253,4 +253,5 @@
+                 --target-cpp ${_ggml_vk_target_cpp}
+             DEPENDS ${file_full}
++                    ${Vulkan_GLSLC_EXECUTABLE}
+                     ${_ggml_vk_shaders_gen_sources}
+                     vulkan-shaders-gen

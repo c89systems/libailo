@@ -41,32 +41,8 @@ if [[ -f "$cache" ]] && rg -q '^CMAKE_C(X{2})?_COMPILER:(FILEPATH|STRING)=/usr/'
   cmake -E rm -rf "$helper"
 fi
 
-configure_dependency() {
-  local name=$1
-  shift
-  "$root/scripts/deps.sh" --target "$target" --component "$name"
-  local base="$root/.cache/deps-build/$target/$name"
-  local install="$root/.cache/deps/$target/$name/install"
-  cmake -S "$base/source" -B "$base/build" -G Ninja \
-    -DCMAKE_TOOLCHAIN_FILE="$root/cmake/AiloToolchain.cmake" \
-    -DAILO_TARGET_ID="$target" -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$install" -DCMAKE_INSTALL_LIBDIR=lib \
-    -DCMAKE_INSTALL_MESSAGE=NEVER \
-    "-DCMAKE_C_FLAGS=-ffile-prefix-map=$root/.cache/deps-build/$target/$name/source=$name -ffile-prefix-map=$root/.cache/deps-build/$target/$name/build=$name-generated" \
-    "-DCMAKE_CXX_FLAGS=-ffile-prefix-map=$root/.cache/deps-build/$target/$name/source=$name -ffile-prefix-map=$root/.cache/deps-build/$target/$name/build=$name-generated" "$@"
-  cmake --build "$base/build" --parallel "$jobs"
-  cmake --install "$base/build"
-}
-
 if [[ "$vulkan" == ON ]]; then
-  configure_dependency vulkan-headers -DVULKAN_HEADERS_ENABLE_TESTS=OFF
-  configure_dependency spirv-headers -DSPIRV_HEADERS_ENABLE_TESTS=OFF
-  configure_dependency vulkan-loader \
-    -DSYSCONFDIR=/etc \
-    -DVulkanHeaders_DIR="$root/.cache/deps/$target/vulkan-headers/install/share/cmake/VulkanHeaders" \
-    -DBUILD_TESTS=OFF -DBUILD_WERROR=OFF \
-    -DBUILD_WSI_XCB_SUPPORT=OFF -DBUILD_WSI_XLIB_SUPPORT=OFF \
-    -DBUILD_WSI_WAYLAND_SUPPORT=OFF -DBUILD_WSI_XLIB_XRANDR_SUPPORT=OFF
+  "$root/scripts/build-gpu-deps.sh" --target "$target" --component vulkan-loader
 fi
 cmake --preset "$preset" "-DAILO_VERSION_OVERRIDE:STRING=${AILO_VERSION_OVERRIDE:-}"
 if ! "$configure_only"; then

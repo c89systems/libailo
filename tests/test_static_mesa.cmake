@@ -3,16 +3,27 @@ include("${CMAKE_CURRENT_LIST_DIR}/../cmake/AiloToolchain.cmake")
 find_program(pkg_config NAMES pkg-config pkgconf REQUIRED)
 set(work "${AILO_SOURCE_ROOT}/build/tests/static-mesa/${AILO_TARGET_ID}")
 file(REMOVE_RECURSE "${work}/relocated")
-file(MAKE_DIRECTORY "${work}/relocated/mesa" "${work}/relocated/libdrm")
-foreach(component mesa libdrm)
+set(components mesa libdrm)
+set(probe static_icds.c)
+set(loader_flags "")
+if(AILO_STATIC_LOADER)
+  list(APPEND components vulkan-loader)
+  set(probe static_vulkan.c)
+  list(APPEND loader_flags "${work}/relocated/vulkan-loader/lib/libvulkan.a")
+endif()
+foreach(component IN LISTS components)
+  file(MAKE_DIRECTORY "${work}/relocated/${component}")
   file(COPY "${AILO_SDK_ROOT}/${component}/install/" DESTINATION "${work}/relocated/${component}")
 endforeach()
 file(GLOB manifests "${work}/relocated/mesa/share/vulkan/icd.d/*.json")
-file(GLOB_RECURSE shared "${work}/relocated/mesa/*.so" "${work}/relocated/mesa/*.so.*")
+file(GLOB_RECURSE shared "${work}/relocated/*.so" "${work}/relocated/*.so.*")
 if(manifests OR shared)
   message(FATAL_ERROR "Static Mesa payload contains shared drivers or filesystem ICD manifests")
 endif()
 file(GLOB archives "${work}/relocated/mesa/lib/*.a")
+if(AILO_STATIC_LOADER)
+  list(APPEND archives ${loader_flags})
+endif()
 foreach(archive IN LISTS archives)
   file(READ "${archive}" magic LIMIT 8 HEX)
   if(NOT magic STREQUAL "213c617263683e0a")
@@ -45,7 +56,7 @@ set(program "${work}/probe")
 execute_process(COMMAND "${CMAKE_COMMAND}" -E env --unset=CPATH --unset=C_INCLUDE_PATH --unset=CPLUS_INCLUDE_PATH --unset=LIBRARY_PATH
   "${CMAKE_CXX_COMPILER}" "--sysroot=${CMAKE_SYSROOT}" -x c -std=c11 -static
   "-I${AILO_SOURCE_ROOT}/.cache/deps-build/${AILO_TARGET_ID}/mesa/source/include"
-  "${CMAKE_CURRENT_LIST_DIR}/static_icds.c" -o "${program}" -x none ${flags}
+  "${CMAKE_CURRENT_LIST_DIR}/${probe}" -o "${program}" -x none ${loader_flags} ${flags}
   RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT result EQUAL 0)
   message(FATAL_ERROR "Relocated static Mesa consumer failed: ${output} ${error}")
@@ -57,5 +68,24 @@ endif()
 cmake_host_system_information(RESULT host QUERY OS_PLATFORM)
 if(AILO_TARGET_ID MATCHES "^x86_64-" AND host STREQUAL "x86_64")
   execute_process(COMMAND "${program}" COMMAND_ERROR_IS_FATAL ANY)
+  if(AILO_STATIC_LOADER)
+    find_program(strace NAMES strace REQUIRED)
+    execute_process(COMMAND "${CMAKE_COMMAND}" -E env
+      "VK_DRIVER_FILES=${work}/forbidden/icd.json"
+      "VK_ICD_FILENAMES=${work}/forbidden/icd.json"
+      "VK_ADD_DRIVER_FILES=${work}/forbidden/icd.json"
+      "VK_LAYER_PATH=${work}/forbidden" "VK_ADD_LAYER_PATH=${work}/forbidden"
+      "VK_IMPLICIT_LAYER_PATH=${work}/forbidden"
+      VK_INSTANCE_LAYERS=VK_LAYER_ailo_external_forbidden
+      "VK_LOADER_SETTINGS_PATH=${work}/forbidden" VK_LOADER_DRIVERS_DISABLE=*
+      "XDG_CONFIG_HOME=${work}/forbidden" "XDG_CONFIG_DIRS=${work}/forbidden"
+      "XDG_DATA_HOME=${work}/forbidden" "XDG_DATA_DIRS=${work}/forbidden"
+      "${strace}" -f -e trace=%file,%process -o "${work}/trace" "${program}"
+      COMMAND_ERROR_IS_FATAL ANY)
+    file(READ "${work}/trace" trace)
+    if(trace MATCHES "forbidden|\\.so([.\"]|$)|/vulkan/[^\n]*\\.json")
+      message(FATAL_ERROR "Static Vulkan attempted external driver/layer/library discovery: ${trace}")
+    endif()
+  endif()
 endif()
 message(STATUS "${AILO_TARGET_ID}: relocated static RADV/ANV closure passed")
