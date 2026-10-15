@@ -201,7 +201,7 @@ struct summary_answer {
 std::string summarize(state &parent, const ailo_request &input,
                       const std::vector<bool> &removed,
                       const ailo_compaction_policy &policy,
-                      ailo_compaction_info &info) {
+                      ailo_compaction_info &info, const compaction_task *task) {
   // Worker owns a separate context. Model weights and the parent's cancellation
   // flag remain live under the enclosing synchronous operation.
   auto config = parent.config;
@@ -242,18 +242,22 @@ std::string summarize(state &parent, const ailo_request &input,
       "instruction.";
   std::vector<summary_fact> sources;
   const auto document = source_document(parent, input, removed, sources);
+  const std::string additional =
+      task && task->instructions ? task->instructions : "";
   ailo_content parts[] = {
       {AILO_CONTENT_TEXT, instruction.data(), instruction.size()},
+      {AILO_CONTENT_TEXT, additional.data(), additional.size()},
       {AILO_CONTENT_TEXT, document.data(), document.size()}};
-  ailo_item items[2]{};
+  ailo_item items[3]{};
   items[0].role = AILO_ROLE_SYSTEM;
-  for (size_t i = 0; i < 2; ++i) {
-    items[i].content = &parts[i];
+  items[1].role = additional.empty() ? AILO_ROLE_USER : AILO_ROLE_DEVELOPER;
+  for (size_t i = 0; i < 3; ++i) {
+    items[i].content = &parts[i == 1 && additional.empty() ? 2 : i];
     items[i].content_count = 1;
   }
   auto request = ailo_request_default();
   request.items = items;
-  request.item_count = 2;
+  request.item_count = additional.empty() ? 2 : 3;
   request.temperature = 0;
   request.seed = input.seed;
   request.max_tokens = policy.summary_tokens;
@@ -274,7 +278,9 @@ std::string summarize(state &parent, const ailo_request &input,
   const auto rendered =
       render_prompt(worker, prepare_conversation(request), tools, request);
   if (rendered.prompt.find(instruction) == std::string::npos ||
-      rendered.prompt.find(document) == std::string::npos)
+      rendered.prompt.find(document) == std::string::npos ||
+      (!additional.empty() &&
+       rendered.prompt.find(additional) == std::string::npos))
     throw failure(AILO_UNSUPPORTED, "The chat template does not preserve the "
                                     "compaction task and source data");
   if (prompt_token_count(worker, rendered.prompt) + request.max_tokens >
@@ -328,6 +334,8 @@ std::string summarize(state &parent, const ailo_request &input,
   info.summary_prompt_tokens = run.usage.prompt_tokens;
   info.summary_completion_tokens = run.usage.completion_tokens;
   info.summary_passes = 1;
+  if (task && task->usage)
+    *task->usage = run.usage;
   return result;
 }
 } // namespace
@@ -366,7 +374,8 @@ resolve_compaction_policy(state &self, ailo_compaction_policy policy) {
 ailo_continuation *compact_window(state &self, const ailo_request &input,
                                   ailo_compaction_policy policy,
                                   ailo_compaction_info &info,
-                                  const ailo_continuation_config *bounds) {
+                                  const ailo_continuation_config *bounds,
+                                  const compaction_task *task) {
   policy = resolve_compaction_policy(self, policy);
   std::unique_ptr<continuation_transaction> history;
   if (input.continuation)
@@ -422,7 +431,7 @@ ailo_continuation *compact_window(state &self, const ailo_request &input,
           AILO_CONTEXT_LIMIT,
           "Protected history and tools already fill the compaction target");
   }
-  payload.summary = summarize(self, request, removed, policy, info);
+  payload.summary = summarize(self, request, removed, policy, info, task);
   const auto sealed =
       self.compactor->seal(payload, self.conversation_identity, &self);
   ailo_item token{};

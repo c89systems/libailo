@@ -1,5 +1,6 @@
 #ifndef AILO_OPENAI_INTERNAL_HPP
 #define AILO_OPENAI_INTERNAL_HPP
+#include "ailo/compaction.h"
 #include "ailo/openai.h"
 #include "ailo_openai_retention_internal.hpp"
 #include <functional>
@@ -42,6 +43,7 @@ struct openai_state {
   openai_retention_policy policy;
   ailo_record_repository repository{};
   size_t memory_limit = 32 * 1024 * 1024, record_limit = 64 * 1024 * 1024;
+  ailo_compaction_policy compaction = ailo_compaction_default_policy();
   explicit openai_state(const ailo_openai_config *);
 };
 uint64_t api_now();
@@ -52,6 +54,11 @@ byte_sink api_sink(state &, ailo_output_sink, void *, ailo_api_info &);
 void read_record(openai_state &, ailo_record_protocol, const char *,
                  ailo_record_section, byte_sink);
 void erase_record(openai_state &, ailo_record_protocol, const char *);
+void api_canonical_item(wire_json &, const ailo_item &);
+void api_prior_input(state &, openai_request &);
+void api_expand_compaction(state &, openai_request &);
+transcript api_compacted_window(state &, const std::vector<ailo_item> &,
+                                size_t instructions);
 class record_transaction {
   openai_state &owner;
   void *transaction = nullptr;

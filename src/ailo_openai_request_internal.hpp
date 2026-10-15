@@ -5,7 +5,7 @@
 
 namespace ailo {
 namespace client {
-enum class openai_protocol { chat, responses };
+enum class openai_protocol { chat, responses, compact };
 struct openai_function {
   std::string type, name, description, parameters;
   bool strict = false;

@@ -73,6 +73,9 @@ typedef struct ailo_openai_config {
   size_t max_output_memory_bytes;
   /** Zero selects 64 MiB across all serialized repository sections. */
   size_t max_record_bytes;
+  /** Trusted standalone/automatic compaction policy; copied at construction.
+   * NULL selects the native defaults. No extra wire request controls. */
+  const struct ailo_compaction_policy *compaction;
 } ailo_openai_config;
 
 typedef struct ailo_api_info {
@@ -117,6 +120,11 @@ ailo_status ailo_client_response_retrieve(ailo_client *, const char *,
 ailo_status ailo_client_response_delete(ailo_client *, const char *,
                                         ailo_output_sink, void *,
                                         ailo_api_info *, ailo_error *);
+/** Stateless standalone Responses compaction. Writes the canonical next window
+ * as response.compaction JSON; performs no response-record storage. */
+ailo_status ailo_client_response_compact(ailo_client *, const void *, size_t,
+                                         ailo_output_sink, void *,
+                                         ailo_api_info *, ailo_error *);
 #ifdef __cplusplus
 }
 #endif

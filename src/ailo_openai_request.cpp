@@ -97,6 +97,7 @@ struct item {
 class decoder {
   openai_request &out;
   bool chat;
+  bool compact, null_model = false;
   const char *selected_items;
   std::vector<item> input;
   std::vector<openai_function> allowed;
@@ -678,6 +679,14 @@ class decoder {
       }
       return;
     }
+    if (compact && !one_of(field, {"model", "input", "instructions",
+                                   "previous_response_id", "prompt_cache_key",
+                                   "prompt_cache_retention", "service_tier"}))
+      unsupported();
+    if (compact && field == "model" && k == kind::null) {
+      null_model = true;
+      return;
+    }
     if (field == (chat ? "messages" : "input")) {
       message(p, k, v);
       return;
@@ -975,6 +984,7 @@ class decoder {
 public:
   explicit decoder(openai_request &request, const char *selected)
       : out(request), chat(request.protocol == openai_protocol::chat),
+        compact(request.protocol == openai_protocol::compact),
         selected_items(selected) {}
   void parse(const void *data, size_t size, const std::string &served_model) {
     if ((!data && size) || !size || size > 8 * 1024 * 1024)
@@ -1023,7 +1033,9 @@ public:
     }
     if (chat && !root_keys.count("model"))
       invalid("Chat Completions requires model");
-    if (out.model.empty() && !chat && !root_keys.count("model"))
+    if (compact && !root_keys.count("model"))
+      invalid("Compaction requires model");
+    if (out.model.empty() && !chat && (!root_keys.count("model") || null_model))
       out.model = served_model;
     text_limit(out.model, 256, true);
     if (out.model != served_model)

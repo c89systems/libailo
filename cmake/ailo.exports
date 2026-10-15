@@ -16,6 +16,7 @@ ailo_client_chat_completions
 ailo_client_responses
 ailo_client_response_retrieve
 ailo_client_response_delete
+ailo_client_response_compact
 ailo_client_chat_retrieve
 ailo_client_chat_delete
 ailo_openai_default_config

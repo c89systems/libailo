@@ -1,8 +1,9 @@
 # OpenAI adapter operations
 
 `ailo/openai.h` exposes Chat Completions and Responses over the existing receiver,
-without an HTTP server. `client->chat_completions` and `ailo_client_chat_completions` accept
-request JSON, a synchronous byte sink and caller-owned `ailo_api_info`. The
+without an HTTP server. `client->chat_completions` and
+`ailo_client_chat_completions` accept request JSON, a synchronous byte sink and
+caller-owned `ailo_api_info`. The
 request mapper supports the qualified text, function, schema, sampling and
 reasoning controls in [the receiver contract](client.md). Unavailable controls
 fail explicitly. Model/HTTP dispatch, stored-record list/update routes,
@@ -168,12 +169,70 @@ canonical descendant input. Chaining reads this private section alone, so large
 wire logprob diagnostics do not consume the lineage input budget. Each original
 stored output retains its logprobs.
 
-Explicit compaction items already use the native authenticated replay path.
-Conversation objects, automatic context management, standalone Responses compact,
+Standalone compaction and canonical-window replay are implemented below.
+Conversation objects, automatic context management,
 encrypted reasoning replay, input-item pagination and HTTP routes are still
 unavailable integrations; requests for those controls fail explicitly. Capability
 fields distinguish implemented Responses operations, configured record storage,
 and the unavailable conversation/automatic-compaction/reasoning-encryption paths.
+
+## Standalone Responses compaction
+
+`client->response_compact` / `ailo_client_response_compact` accepts request JSON,
+byte sink and `ailo_api_info`, following the official
+[`/responses/compact` contract](https://developers.openai.com/api/reference/resources/responses/methods/compact).
+Its required `model` selects the served model (null selects the configured
+default). Supported fields are `input`, `instructions`, `previous_response_id`,
+`prompt_cache_key`, `prompt_cache_retention` and `service_tier`. Generation/store/
+stream controls belong to Responses create and are rejected here.
+
+The operation returns `response.compaction` with ID, creation time, canonical
+output items and actual model-pass usage. It reserves no response record and
+creates no retrievable record, including when the client's normal create policy
+defaults to storage. An explicit prior response still uses the trusted repository
+for its input. Input must fit the model context before summary generation.
+
+Set the trusted `openai.compaction` policy to choose the native target, recent
+turns, output/summary reserves and summary byte limit; the constructor copies it.
+Omission uses the native defaults. `instructions` reaches the summary model as a
+separate developer message, alongside the fixed provenance/schema task. It does
+not become inherited instructions in the returned window. Canonical system and
+developer input messages remain protected in that window. A short window can
+return unchanged items with zero model-pass usage. Impossible reduction, summary
+failure, quota exhaustion and cancellation return explicit errors.
+
+The model's bounded summary and authenticated state are materialized during
+compaction; ordinary generation still forwards each available delta immediately.
+The compact result uses the endpoint's synchronous JSON shape and is written
+directly to the byte sink after validation, without a complete serialized-result
+buffer or a temporary-file spool.
+
+Pass the entire returned output array into the next Responses request, then append
+new items. Retained items, their order and the compaction item are authenticated;
+pruning or substituting them fails before generation. Per-request `instructions`
+may change independently. The adapter authenticates the native window, adjusts
+its instruction prefix/provenance indices and reseals it without exposing the
+summary. Native C89 continuation tokens and Responses window envelopes have
+different protocol purposes; use each with its corresponding receiver operation.
+OpenAI-issued opaque items are not local libailo items.
+
+Responses envelopes use a separate HKDF-SHA256-derived AES-256-GCM key and random
+96-bit nonces. Authentication binds the header, item ID, model/template identity
+and trusted API namespace, in addition to the compactor's key domain. The inner
+native token authenticates retained roles/content and the semantic summary.
+Decryption authenticates before parsing. Derived keys and envelope plaintext
+buffers are cleansed; key rotation uses the configured old-key ring. Decoded
+envelopes share the compactor's byte limit (default 1 MiB, at most 4 MiB), and
+canonical output obeys the API memory quota.
+
+Stateless replay can use the client's ephemeral keys or explicitly configured
+stable keys. Reconstruction/restart replay needs compatible configured keys,
+namespace and model/template. Compactor TTL applies to these envelopes; reads do
+not extend an expired item. Stored compacted Responses require stable keys and
+either no compactor expiry or a TTL at least as long as response retention.
+Publication reseals the state, covering the record's full promised lifetime.
+The application retains those keys
+for as long as records remain usable; no plaintext key file is created.
 
 ## Lua
 
@@ -187,11 +246,15 @@ No model output is assembled by the Lua binding. Retained operations are
 and `client:chat_delete(id, sink)`.
 Responses uses `client:responses(json, sink)`, `response_retrieve(id, sink)` and
 `response_delete(id, sink)`, with the same result/error/cancellation contract.
+Standalone compaction is `client:response_compact(json, sink)` and returns the
+same info/error shape. Configure its policy under `openai.compaction` using the
+ordinary native compaction policy fields.
 
 Configure the same trusted profile through `ailo.new{..., openai={...}}`:
 `namespace_id`, `repository`, `zero_data_retention`, `chat_store_opt_in`,
 `response_retention_seconds`, `chat_retention_seconds`,
-`max_output_memory_bytes` and `max_record_bytes`. Defaults match C. Unsigned
+`max_output_memory_bytes`, `max_record_bytes` and `compaction`. Defaults match C.
+Unsigned
 64-bit TTLs accept an exact nonnegative integer or `{hi=...,lo=...}`.
 The repository is an application-owned table or userdata receiver with all
 eight methods below; the constructor captures its methods and retains the

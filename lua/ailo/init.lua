@@ -63,9 +63,10 @@ local function u64(value,name)
   end
   return number(value,name,0,true,0,math.maxinteger)
 end
+local compaction_policy
 local function openai(input)
   if input==nil then return nil end
-  object(input,keys("namespace_id repository zero_data_retention chat_store_opt_in response_retention_seconds chat_retention_seconds max_output_memory_bytes max_record_bytes"),"openai")
+  object(input,keys("namespace_id repository zero_data_retention chat_store_opt_in response_retention_seconds chat_retention_seconds max_output_memory_bytes max_record_bytes compaction"),"openai")
   local out={namespace_id=str(input.namespace_id,"openai.namespace_id",true),
     zero_data_retention=boolean(input.zero_data_retention,"zero_data_retention"),
     chat_store_opt_in=boolean(input.chat_store_opt_in,"chat_store_opt_in"),
@@ -73,6 +74,7 @@ local function openai(input)
     chat_retention_seconds=u64(input.chat_retention_seconds,"chat_retention_seconds"),
     max_output_memory_bytes=number(input.max_output_memory_bytes,"max_output_memory_bytes",0,true,0,math.maxinteger),
     max_record_bytes=number(input.max_record_bytes,"max_record_bytes",0,true,0,math.maxinteger)}
+  if input.compaction~=nil then out.compaction=compaction_policy(input.compaction,false)end
   if input.repository~=nil then
     local provider=input.repository
     if type(provider)~="table" and type(provider)~="userdata" then invalid("repository must be a receiver with all eight methods")end
@@ -176,7 +178,7 @@ local kinds={message=0,function_call=1,function_result=2,reasoning=3,compaction=
 local content_kinds={text=0,image=1,audio=2,refusal=3}
 local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema tools tool_choice tool_name allowed_tools parallel_tool_calls max_tool_calls prompt_cache_key continuation reasoning reasoning_effort max_reasoning_tokens auto_compaction")
 local item_keys=keys("kind role id call_id name content arguments pinned encrypted_content")
-local function compaction_policy(policy,automatic)
+compaction_policy=function(policy,automatic)
   if policy==nil then policy={} end
   object(policy,keys("target_tokens recent_turns output_reserve_tokens summary_context_tokens summary_tokens max_summary_bytes"..(automatic and " trigger_tokens max_passes" or "")),"compaction policy")
   local out={}
@@ -332,6 +334,12 @@ function methods:response_delete(id,sink)
   return guarded(function()
     if type(sink)~="function" then invalid("sink must be a function")end
     return self._native:response_delete(str(id,"response ID",false),sink)
+  end)
+end
+function methods:response_compact(json,sink)
+  return guarded(function()
+    if type(sink)~="function" then invalid("sink must be a function")end
+    return self._native:response_compact(str(json,"Responses compaction JSON",false,true),sink)
   end)
 end
 function methods:compact(input,policy)

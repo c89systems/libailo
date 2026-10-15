@@ -3,16 +3,16 @@
 Specification extension, 2026-10-14. This document supersedes the earlier text-only
 receiver restrictions in [architecture.md](architecture.md). Implement the
 complete backend contract before its comprehensive acceptance campaign. HTTP
-server integration and the Responses wire handler are subsequent integration
-work; their requirements shape this backend now.
+server integration is subsequent work. Implemented JSON/SSE adapters and their
+remaining integrations are described in [openai.md](openai.md).
 
 ## Investigation and design decision
 
 The existing strict C89 facade exposes native loading, evaluation, sampling,
 grammar, state and memory operations, including complete pinned public callback
 coverage. The initial text receiver, model acquisition/cards, scoped pslog
-logging and Lua facade are implemented. Protocol adapters and the expanded
-receiver behavior below remain required. Native coverage alone does not
+logging and Lua facade are implemented. Adapter progress is listed below;
+the complete contract still governs acceptance. Native coverage alone does not
 provide the complete conversation API.
 
 The private adapter foundation now decodes Chat Completions and Responses
@@ -27,8 +27,9 @@ conflicting, duplicate and unavailable semantics fail instead of being ignored.
 This is request materialization, not generated-output buffering. Public Chat
 and Responses JSON/SSE and C repository operations are now connected through
 [the adapter surface](openai.md). Handler/model routing, stored list/update,
-conversation objects and Responses compaction/encrypted reasoning remain
-required. Lua exposes the same retention profile,
+conversation objects, automatic Responses compaction and encrypted reasoning
+remain required. Standalone Responses compaction and authenticated canonical-window
+replay are connected. Lua exposes the same retention profile,
 repository receiver and direct retrieval/deletion primitives through the C ABI.
 
 API function schemas use the existing private schema helper for the documented
@@ -136,7 +137,7 @@ never postpone an entire tool argument or answer until end-of-generation just
 to produce a streaming-shaped result.
 
 The [Responses streaming guide](https://developers.openai.com/api/docs/guides/streaming-responses)
-uses typed lifecycle and delta events. A future adapter maps neutral events into
+uses typed lifecycle and delta events. The Responses adapter maps neutral events into
 those documented event types; Chat Completions maps them into choices/deltas.
 Its SSE terminator is a protocol detail, not an inference-engine event.
 
@@ -443,8 +444,9 @@ do not promise a lossy summary preserves every original fact.
 
 The official [compaction guide](https://developers.openai.com/api/docs/guides/compaction)
 specifies opaque encrypted items for Responses, automatic context management
-and standalone compaction. Follow that item/response shape in the future adapter,
-including retained items in the canonical compacted window. Local tokens are
+and standalone compaction. Standalone Responses compaction now returns that
+canonical window, including retained items and an authenticated opaque envelope.
+Automatic context-management wire integration remains required. Local tokens are
 replayable by compatible libailo instances only; OpenAI-issued encrypted content
 cannot be decrypted or accepted as local state, and vice versa.
 

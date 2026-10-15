@@ -373,6 +373,9 @@ struct ailo_client {
                                    struct ailo_api_info *, ailo_error *);
   ailo_status (*response_delete)(ailo_client *, const char *, ailo_output_sink,
                                  void *, struct ailo_api_info *, ailo_error *);
+  ailo_status (*response_compact)(ailo_client *, const void *, size_t,
+                                  ailo_output_sink, void *,
+                                  struct ailo_api_info *, ailo_error *);
 };
 
 ailo_client_config ailo_client_default_config(void);

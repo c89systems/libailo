@@ -783,6 +783,7 @@ static ailo_status repository_erase(void *u, const char *ns,
                      "missing public pslog interop helper");                   \
     memcpy(&(out), &raw, sizeof(out));                                         \
   } while (0)
+static void read_compaction_policy(lua_State *, int, ailo_compaction_policy *);
 static int new_client(lua_State *L) {
   luaL_checktype(L, 1, LUA_TTABLE);
   check_logger_fn check = NULL;
@@ -831,6 +832,7 @@ static int new_client(lua_State *L) {
   config.batch_tokens = (ailo_u32)integer(L, 1, "batch_tokens");
   config.disable_prompt_cache = boolean(L, 1, "disable_prompt_cache");
   ailo_openai_config api = ailo_openai_default_config();
+  ailo_compaction_policy api_compaction = ailo_compaction_default_policy();
   ailo_record_repository provider = {value,
                                      repository_reserve,
                                      repository_write,
@@ -849,6 +851,12 @@ static int new_client(lua_State *L) {
     api.max_output_memory_bytes =
         (size_t)integer(L, api_index, "max_output_memory_bytes");
     api.max_record_bytes = (size_t)integer(L, api_index, "max_record_bytes");
+    lua_getfield(L, api_index, "compaction");
+    if (!lua_isnil(L, -1)) {
+      read_compaction_policy(L, lua_gettop(L), &api_compaction);
+      api.compaction = &api_compaction;
+    }
+    lua_pop(L, 1);
     lua_getfield(L, api_index, "response_retention_seconds");
     api.response_retention_seconds = unsigned_value(L, -1);
     lua_pop(L, 1);
@@ -1514,7 +1522,8 @@ static int api_operation(lua_State *L, int operation) {
     return checked;
   size_t size = 0;
   const char *json = luaL_checklstring(L, 2, &size);
-  if (operation != 0 && operation != 3 && memchr(json, 0, size))
+  if (operation != 0 && operation != 3 && operation != 6 &&
+      memchr(json, 0, size))
     return failure(L, AILO_INVALID_ARGUMENT, "completion ID contains NUL");
   int sink_index = operation == 1 ? 4 : 3;
   if (operation == 1)
@@ -1546,8 +1555,11 @@ static int api_operation(lua_State *L, int operation) {
       : operation == 4
           ? ailo_client_response_retrieve(value->native, json, api_bytes_sink,
                                           storage, &out, &error)
-          : ailo_client_response_delete(value->native, json, api_bytes_sink,
-                                        storage, &out, &error);
+      : operation == 5
+          ? ailo_client_response_delete(value->native, json, api_bytes_sink,
+                                        storage, &out, &error)
+          : ailo_client_response_compact(value->native, json, size,
+                                         api_bytes_sink, storage, &out, &error);
   end(value);
   lua_pushnil(L);
   lua_setiuservalue(L, 1, 10);
@@ -1589,6 +1601,7 @@ static int chat_delete(lua_State *L) { return api_operation(L, 2); }
 static int responses(lua_State *L) { return api_operation(L, 3); }
 static int response_retrieve(lua_State *L) { return api_operation(L, 4); }
 static int response_delete(lua_State *L) { return api_operation(L, 5); }
+static int response_compact(lua_State *L) { return api_operation(L, 6); }
 static int metadata(lua_State *L, int kind) {
   client *value = get_client(L);
   int error_result = ready(L, value);
@@ -1749,6 +1762,7 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
                                      {"responses", responses},
                                      {"response_retrieve", response_retrieve},
                                      {"response_delete", response_delete},
+                                     {"response_compact", response_compact},
                                      {"new_continuation", new_continuation},
                                      {"compact", compact},
                                      {"model_card", card},

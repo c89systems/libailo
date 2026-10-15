@@ -96,6 +96,8 @@ openai_state::openai_state(const ailo_openai_config *input) {
     memory_limit = input->max_output_memory_bytes;
   if (input->max_record_bytes)
     record_limit = input->max_record_bytes;
+  if (input->compaction)
+    compaction = *input->compaction;
   if (input->repository) {
     repository = *input->repository;
     if (policy.namespace_id.empty() || !repository.reserve ||

@@ -1,4 +1,5 @@
 #include "ailo_cache_internal.hpp"
+#include "ailo_compaction_internal.hpp"
 #include "ailo_logging_internal.hpp"
 #include "ailo_openai_internal.hpp"
 #include "src/unicode.h"
@@ -651,8 +652,18 @@ class response_writer {
       input.string(self.conversation_identity);
       input.key("input");
       input.array();
-      for (size_t i = request.instruction_items; i < request.items.size(); ++i)
-        canonical_item(input, request.items[i]);
+      const bool compacted = std::any_of(
+          request.items.begin(), request.items.end(),
+          [](const ailo_item &i) { return i.kind == AILO_ITEM_COMPACTION; });
+      if (compacted) {
+        const auto lineage = api_compacted_window(self, request.items,
+                                                  request.instruction_items);
+        for (const auto &i : lineage.items)
+          canonical_item(input, i->view());
+      } else
+        for (size_t i = request.instruction_items; i < request.items.size();
+             ++i)
+          canonical_item(input, request.items[i]);
       input.end_array();
       input.key("output");
       input.array();
@@ -800,6 +811,12 @@ public:
   }
 };
 } // namespace
+void api_canonical_item(wire_json &out, const ailo_item &item) {
+  canonical_item(out, item);
+}
+void api_prior_input(state &self, openai_request &request) {
+  prior_input(self, request);
+}
 } // namespace client
 } // namespace ailo
 AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
@@ -833,6 +850,18 @@ AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
     log_scope logs(call.self.logging.get(), log_phase::generate);
     try {
       prior_input(call.self, request);
+      bool compacted = false;
+      for (const auto &i : request.items)
+        compacted |= i.kind == AILO_ITEM_COMPACTION;
+      if (compacted && plan.store_response &&
+          (call.self.compactor->ephemeral ||
+           (call.self.compactor->ttl_seconds &&
+            call.self.compactor->ttl_seconds <
+                call.self.openai->policy.response_retention_seconds)))
+        throw failure(AILO_INVALID_ARGUMENT,
+                      "Stored compacted Responses require stable keys and a "
+                      "compaction TTL covering response retention");
+      api_expand_compaction(call.self, request);
       auto native = request.generation;
       if (native.logprobs)
         native.top_logprobs = 20;

@@ -63,10 +63,15 @@ conversation prepare_replay(const ailo_request &,
 conversation prepare_replay(state &, const ailo_request &);
 ailo_compaction_policy resolve_compaction_policy(state &,
                                                  ailo_compaction_policy);
+struct compaction_task {
+  const char *instructions = nullptr;
+  ailo_usage *usage = nullptr;
+};
 ailo_continuation *
 compact_window(state &, const ailo_request &, ailo_compaction_policy,
                ailo_compaction_info &,
-               const ailo_continuation_config *limits = nullptr);
+               const ailo_continuation_config *limits = nullptr,
+               const compaction_task *task = nullptr);
 } // namespace client
 } // namespace ailo
 #endif

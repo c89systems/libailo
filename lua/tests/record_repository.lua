@@ -153,5 +153,57 @@ function M.exercise(ailo,path,memory)
   local late=r.last_emit;local weak=setmetatable({r},{__mode="v"});r=nil
   collectgarbage("collect");assert(weak[1]==nil)
   assert(not pcall(late,"after close"));c=nil;collectgarbage("collect")
+  M.compaction(ailo,path,memory)
+end
+function M.compaction(ailo,path,memory)
+  local function ok(v,e)assert(v,e and (e.code..": "..e.message));return v end
+  local r=M.new()
+  local function client(mode)
+    local owner
+    if mode=="ephemeral" then owner=ok(ailo.new_compactor())
+    else owner=ok(ailo.new_compactor{namespace_id="key-domain",key_id="one",key=string.rep("k",32),ttl_seconds=mode=="expiring" and 2591999 or mode=="retained" and 2592000 or 0})end
+    local c=ok(ailo.new{source={local_path=path.."-auto-compaction"},backend="cpu",threads=1,context_tokens=4096,
+      chat_template="{% for m in messages %}{{m.role}}:{{m.content}}|{% endfor %}",compactor=owner,
+      openai={namespace_id="A",repository=r,max_record_bytes=16384,
+        compaction={target_tokens=800,summary_context_tokens=8192}}})
+    owner:close();return c
+  end
+  local c=client()
+  local text={"Finish ticket T-1. "..string.rep("x",1000),"old answer","older","answer","recent","answer","newest","answer","current"}
+  local items={};for i,s in ipairs(text)do items[i]='{"role":"'..(i%2==1 and "user" or "assistant")..'","content":"'..s..'"}'end
+  local body='{"model":"local-model","instructions":"Only compact","input":['..table.concat(items,",")..']}'
+  local chunks={};local compact=ok(c:response_compact(body,function(bytes)chunks[#chunks+1]=bytes;if memory then collectgarbage("collect")end end))
+  assert(not compact.stored and r.reserved==0 and compact.usage.compaction_passes>0 and #chunks>3)
+  local json=table.concat(chunks)
+  -- Fixed test data has no brackets inside strings; this extracts the canonical
+  -- output array, not a production JSON parser.
+  local window=assert(json:match('"output":(%b[])'))
+  assert(json:find('"object":"response.compaction"') and not json:find("Only compact"))
+  local marker={compact_sink=true}
+  local value,err=c:response_compact(body,function()error(marker)end)
+  assert(value==nil and err.code=="sink_failed" and err.cause==marker and r.reserved==0)
+  local replay='{"input":'..window..',"instructions":"New per-request","stream":true,"max_output_tokens":2,"temperature":0,"stream_options":{"include_obfuscation":false}}'
+  local response=ok(c:responses(replay,function()if memory then collectgarbage("collect")end end));assert(response.stored)
+  c:close();c=client()
+  local next_response=ok(c:responses('{"previous_response_id":"'..response.id..'","input":"Next","max_output_tokens":2,"temperature":0}',function()if memory then collectgarbage("collect")end end))
+  assert(next_response.stored and not next(r.active) and not next(r.reading))
+  ok(c:response_delete(response.id,function()end));ok(c:response_delete(next_response.id,function()end));c:close()
+  for _,mode in ipairs{"ephemeral","expiring"}do
+    local temporary=client(mode);local own_window=window
+    if mode=="ephemeral" then
+      local bytes={};ok(temporary:response_compact(body,function(s)bytes[#bytes+1]=s end))
+      own_window=assert(table.concat(bytes):match('"output":(%b[])'))
+    end
+    local saved=r.aborted
+    local v,e=temporary:responses('{"input":'..own_window..',"max_output_tokens":2,"temperature":0}',function()end)
+    assert(v==nil and e.code=="invalid_argument" and e.message:find("covering response retention") and r.aborted==saved+1)
+    assert(not ok(temporary:responses('{"input":'..own_window..',"store":false,"max_output_tokens":2,"temperature":0}',function()end)).stored)
+    temporary:close()
+  end
+  local finite=client("retained")
+  local saved=ok(finite:responses('{"input":'..window..',"max_output_tokens":2,"temperature":0}',function()end));assert(saved.stored)
+  finite:close();finite=client("retained")
+  local child=ok(finite:responses('{"previous_response_id":"'..saved.id..'","input":"Next","max_output_tokens":2,"temperature":0}',function()end));assert(child.stored)
+  ok(finite:response_delete(saved.id,function()end));ok(finite:response_delete(child.id,function()end));finite:close()
 end
 return M

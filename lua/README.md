@@ -50,8 +50,14 @@ errors follow the [provider contract](../docs/openai.md#lua).
 streams immediate named SSE deltas and explicitly retains typed output within
 its configured memory quota for full done/terminal repeats, including when
 `store=false`. Previous-response chaining resolves persisted typed lineage
-without inheriting prior top-level instructions. Conversation objects, automatic
-Responses compaction and encrypted reasoning remain unavailable integrations;
+without inheriting prior top-level instructions. `response_compact(json, sink)`
+returns a canonical compacted window through the same byte-sink binding; its
+policy is `openai.compaction`. Replay the entire returned output array. Stable,
+configured compactor keys with no expiry or a TTL covering response retention
+are required for storing compacted lineage. Stateless client-lifetime replay can
+use ephemeral keys.
+Conversation objects, automatic Responses compaction and encrypted reasoning
+remain unavailable integrations;
 capabilities report those separately.
 
 Constructor options also include `model_id`, `chat_template`, `lazy`, backend
