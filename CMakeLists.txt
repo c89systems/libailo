@@ -125,7 +125,11 @@ set(ailo_llama_source "${AILO_DEPENDENCY_BUILD_ROOT}/llama/source")
 # Reuse only the pinned in-process template interpreter, never llama-server or
 # the common CLI/server support library. Its C++ types stay private.
 add_library(ailo-templates STATIC
+  src/ailo_template_support.cpp
   "${ailo_llama_source}/common/json.cpp"
+  "${ailo_llama_source}/common/json-schema.cpp"
+  "${ailo_llama_source}/common/json-schema-to-grammar.cpp"
+  "${ailo_llama_source}/common/trie.cpp"
   "${ailo_llama_source}/common/unicode.cpp"
   "${ailo_llama_source}/common/jinja/lexer.cpp"
   "${ailo_llama_source}/common/jinja/parser.cpp"
@@ -141,10 +145,10 @@ if(AILO_VULKAN)
 endif()
 foreach(target ailo_static ailo_shared)
   if(TARGET ${target})
-    target_sources(${target} PRIVATE src/ailo_native.cpp src/ailo_native_variadic.cpp src/ailo_native_macros.cpp src/ailo_model.cpp src/ailo_model_source.cpp src/ailo_model_cache.cpp src/ailo_model_transport.cpp src/ailo_backend.cpp src/ailo_client.cpp src/ailo_generate.cpp src/ailo_sampling.cpp src/ailo_client_json.cpp src/ailo_text_stream.cpp src/ailo_template.cpp src/ailo_logging.cpp)
+    target_sources(${target} PRIVATE src/ailo_native.cpp src/ailo_native_variadic.cpp src/ailo_native_macros.cpp src/ailo_model.cpp src/ailo_model_source.cpp src/ailo_model_cache.cpp src/ailo_model_transport.cpp src/ailo_backend.cpp src/ailo_client.cpp src/ailo_generate.cpp src/ailo_sampling.cpp src/ailo_schema.cpp src/ailo_client_json.cpp src/ailo_text_stream.cpp src/ailo_template.cpp src/ailo_logging.cpp)
     target_compile_definitions(${target} PRIVATE _FILE_OFFSET_BITS=64)
     target_include_directories(${target} PRIVATE "${AILO_DEPENDENCY_BUILD_ROOT}/llama/source")
-    target_include_directories(${target} SYSTEM PRIVATE "${ailo_llama_source}/common")
+    target_include_directories(${target} SYSTEM PRIVATE "${ailo_llama_source}/common" "${ailo_llama_source}/vendor")
     target_link_libraries(${target} PRIVATE ailo-templates llama ggml mtmd)
     target_compile_features(${target} PRIVATE cxx_std_17)
     target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-Wall;-Wextra;-Wpedantic;-Werror;-fvisibility=hidden;-fvisibility-inlines-hidden>")
@@ -224,6 +228,14 @@ if(AILO_BUILD_TESTS)
     endforeach()
     add_executable(ailo_text_stream_test tests/text_stream.cpp)
     add_executable(ailo_generation_controls_test tests/generation_controls.cpp)
+    add_executable(ailo_schema_test tests/schema.cpp)
+    target_include_directories(ailo_schema_test PRIVATE src)
+    target_link_libraries(ailo_schema_test PRIVATE ailo_static llama lonejson::lonejson_static)
+    target_compile_features(ailo_schema_test PRIVATE cxx_std_17)
+    target_compile_options(ailo_schema_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    ailo_local_executable(ailo_schema_test)
+    add_test(NAME output-schema COMMAND ailo_schema_test "${AILO_MODEL_FIXTURE}")
+    set_tests_properties(output-schema PROPERTIES TIMEOUT 60 LABELS "integration;local" FIXTURES_REQUIRED model-gguf)
     target_include_directories(ailo_generation_controls_test PRIVATE src)
     target_link_libraries(ailo_generation_controls_test PRIVATE ailo_static llama)
     target_compile_features(ailo_generation_controls_test PRIVATE cxx_std_17)

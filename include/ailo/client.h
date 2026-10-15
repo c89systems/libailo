@@ -83,6 +83,12 @@ typedef struct ailo_logit_bias {
   double bias;
 } ailo_logit_bias;
 
+typedef enum ailo_output_format {
+  AILO_OUTPUT_TEXT = 0,
+  AILO_OUTPUT_JSON_OBJECT,
+  AILO_OUTPUT_JSON_SCHEMA
+} ailo_output_format;
+
 /** Keep borrowed request data unchanged throughout the synchronous call.
  * Zero max_tokens/candidates selects 128/1.
  * Zero temperature is greedy; top_p zero selects 1.0. The default factory uses
@@ -105,14 +111,20 @@ typedef struct ailo_request {
   const ailo_logit_bias *logit_bias;
   size_t logit_bias_count;
   /** Emit sampled-token probability events, including stop/EOG tokens.
-   * Probabilities normalize logits after bias and penalties, before top-p and
-   * temperature. They describe model uncertainty even in greedy mode. */
+   * Probabilities normalize logits after bias, penalties and grammar, before
+   * top-p and temperature. They describe model uncertainty even in greedy mode.
+   */
   ailo_bool logprobs;
-  /** Zero to twenty alternatives; nonzero requires logprobs. */
+  /** Zero to twenty alternatives; nonzero requires logprobs. A grammar may
+   * permit fewer alternatives. */
   unsigned int top_logprobs;
   /** Total non-EOG sampled bytes across all candidates; zero selects 16 MiB.
    * Includes bytes withheld by stop/UTF-8 handling. No output is collected. */
   size_t max_output_bytes;
+  ailo_output_format output_format;
+  /** Required only for JSON_SCHEMA: a UTF-8 JSON schema, at most 64 KiB.
+   * Unsupported constraints fail before events/evaluation. */
+  const char *json_schema;
 } ailo_request;
 
 typedef enum ailo_finish_reason {

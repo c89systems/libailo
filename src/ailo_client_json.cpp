@@ -85,7 +85,47 @@ void feature_fields(json &out) {
   out.key("tools");
   out.boolean(false);
   out.key("structured_output");
-  out.boolean(false);
+  out.boolean(true);
+  out.key("schema_keywords");
+  out.array();
+  for (const char *keyword :
+       {"type", "properties", "required", "additionalProperties", "items",
+        "minItems", "maxItems", "enum", "const", "anyOf", "$ref", "$defs",
+        "definitions", "minimum", "maximum"})
+    out.string(keyword);
+  out.end_array();
+  out.key("schema_limits");
+  out.object();
+  out.key("max_schema_bytes");
+  out.number(65536);
+  out.key("max_expanded_nodes");
+  out.number(4096);
+  out.key("max_depth");
+  out.number(32);
+  out.key("max_properties");
+  out.number(256);
+  out.key("max_enum_values");
+  out.number(128);
+  out.key("max_alternatives");
+  out.number(32);
+  out.key("references");
+  out.string("same_document_acyclic");
+  out.key("numeric_bounds");
+  out.string("integer_only_inclusive_within_plus_minus_10^15");
+  out.key("primitive_number_components");
+  out.string("up_to_16_digits;const_and_enum_literals_may_be_longer");
+  out.key("combinations");
+  out.string("anyOf_and_ref_require_no_constraint_siblings;const_and_enum_"
+             "allow_type_only");
+  out.key("max_output_json_depth");
+  out.number(64);
+  out.key("max_output_key_bytes");
+  out.number(1024);
+  out.key("max_output_number_bytes");
+  out.number(1024);
+  out.key("max_output_parser_heap_bytes");
+  out.number(4 * 1024 * 1024);
+  out.end_object();
   out.key("reasoning_separation");
   out.boolean(false);
   out.key("compaction");

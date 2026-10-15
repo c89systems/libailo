@@ -1,5 +1,6 @@
 #include "ailo_client_internal.hpp"
 #include "ailo_sampling_internal.hpp"
+#include "ailo_schema_internal.hpp"
 #include "ailo_text_stream_internal.hpp"
 #include <algorithm>
 #include <cmath>
@@ -164,6 +165,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     require_utf8(request.stop[i], size);
     stops.emplace_back(request.stop[i], size);
   }
+  const std::string grammar = output_grammar(request);
   const std::string prompt = render(self, request);
   const auto *vocab = llama_model_get_vocab(self.model.get());
   int32_t count =
@@ -183,7 +185,8 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
       detail::from_unsigned(static_cast<uint64_t>(count));
   info.actual_backend = self.actual;
   // Validate model-specific token IDs before emitting events or evaluating.
-  sampling first_sampler(vocab, request, 0, llama_n_ctx(self.context.get()));
+  sampling first_sampler(vocab, request, 0, llama_n_ctx(self.context.get()),
+                         grammar);
   emitter output{self, sink, user, info};
   output.send(AILO_EVENT_RUN_BEGIN);
   struct reset {
@@ -201,12 +204,17 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     evaluate(self, tokens.data(), tokens.size(), 0);
     std::unique_ptr<sampling> additional;
     if (candidate)
-      additional = std::make_unique<sampling>(vocab, request, candidate,
-                                              llama_n_ctx(self.context.get()));
+      additional = std::make_unique<sampling>(
+          vocab, request, candidate, llama_n_ctx(self.context.get()), grammar);
     sampling &sampler = candidate ? *additional : first_sampler;
     for (llama_token token : tokens)
       sampler.accept(token);
+    std::unique_ptr<json_validation> validation;
+    if (!grammar.empty())
+      validation = std::make_unique<json_validation>(output_limit);
     text_stream carry(stops, [&](const char *data, size_t size) {
+      if (validation)
+        validation->push(data, size);
       output.send(AILO_EVENT_TEXT_DELTA, data, size);
     });
     ailo_finish_reason finish = AILO_FINISH_LENGTH;
@@ -220,7 +228,8 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
       ++generated;
       info.usage.completion_tokens = detail::from_unsigned(generated);
       const bool eog = llama_vocab_is_eog(vocab, token);
-      const std::string piece = eog ? "" : token_piece(vocab, token);
+      const std::string piece =
+          eog ? "" : token_piece(vocab, token, !grammar.empty());
       if (piece.size() > output_limit - output_bytes)
         throw failure(AILO_OUT_OF_RANGE,
                       "Generated output exceeds its byte budget");
@@ -237,6 +246,9 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
         break;
       }
       if (carry.push(piece)) {
+        if (validation)
+          throw failure(AILO_MODEL_FAILED,
+                        "A stop sequence interrupted constrained output");
         finish = AILO_FINISH_STOP;
         break;
       }
@@ -244,6 +256,8 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
         evaluate(self, &token, 1, position++);
     }
     (void)carry.push({}, true);
+    if (validation && finish == AILO_FINISH_STOP)
+      validation->finish();
     output.send(AILO_EVENT_CHOICE_END, nullptr, 0, finish);
     info.finish_reason = finish;
     ++info.completed_candidates;

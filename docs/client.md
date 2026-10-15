@@ -49,7 +49,8 @@ Sampling supports greedy or temperature/top-p selection, seeds, frequency and
 presence penalties, and at most 4096 unique token-ID logit biases in [-100,100].
 Vocabulary IDs are validated before events/evaluation. Optional `logprobs`
 emits a token event before its text delta, with the chosen probability and up to
-20 alternatives. These probabilities normalize logits after bias and penalties,
+20 alternatives. These probabilities normalize logits after bias, penalties and
+any output grammar,
 before top-p and temperature; greedy selection still reports model uncertainty.
 Alternatives use descending probability, then token ID for ties. Token pieces
 are arbitrary bytes, distinct from the UTF-8 text path. Per-candidate indices,
@@ -92,12 +93,59 @@ support means the named helper recognizes it or the interpreter can parse it;
 rendering can still reject a conversation the template does not accept.
 
 Capabilities currently advertise text, streaming, multiple candidates, logit
-bias and log probabilities, with their limits.
-Tools, structured output, separated reasoning, media, prompt/KV reuse,
+bias, log probabilities and constrained output, with their limits.
+Tools, separated reasoning, media, prompt/KV reuse,
 persistent snapshots and compaction are reported unavailable. Their request
 item kinds return unsupported rather than losing semantics. These remain
 implementation requirements in the full specification; no cache/compaction or
 protocol handler is claimed by this initial core.
+
+## Constrained output
+
+`output_format` selects `AILO_OUTPUT_TEXT` (default),
+`AILO_OUTPUT_JSON_OBJECT`, or `AILO_OUTPUT_JSON_SCHEMA`. The last requires
+`json_schema`, a UTF-8 JSON document of at most 64 KiB. Validation/compilation
+happens before generation events or prompt evaluation. Native grammar filtering
+constrains each sampled token; a push-fed lonejson writer validates emitted JSON
+incrementally using a discard sink. The text sink still receives every available
+delta immediately, without a retained answer or a second serialization pass.
+This path preserves special-token text matched by the grammar; EOG remains a
+structural terminator. Suppressing matched text could invalidate a constant.
+
+The accepted schema subset is explicit: object schemas with `type`,
+`properties`, `required`, boolean/schema `additionalProperties`, arrays with
+`items`/`minItems`/`maxItems`, scalar/null types, `enum`, `const`, `anyOf`, and
+acyclic same-document `$ref` (including escaped JSON Pointer names) using
+`$defs`/`definitions`. Nullable type arrays are supported. Structural keywords
+require an explicit corresponding object/array type. Required names must have
+property schemas. `anyOf` and `$ref` allow only annotation siblings; `enum` and
+`const` allow only a single type name alongside annotations.
+Type-array/enum combinations are rejected. `title`, `description`, `default`
+and `examples` are annotations; recognized dialect declarations are draft
+2020-12 and draft-07. Other dialects fail explicitly.
+
+Schema limits are 4096 expanded nodes, 32 levels, 256 properties per object,
+128 enum values and 32 alternatives. Array size bounds are integers in
+[0,4096]. Inclusive `minimum`/`maximum` apply to integer schemas only, with
+integer bounds within +/-10^15. Floating-point bounds, exclusive bounds,
+string lengths/patterns/formats, `oneOf`, `allOf` and unknown constraints are
+rejected rather than ignored. Capabilities and cards publish the keyword set
+and limits. Plain number/string/boolean/null schemas remain supported.
+The pinned helper's primitive integer/fraction/exponent components use up to
+16 digits; exact `const`/`enum` literals can be longer. This is part of the
+current generation subset, not an arbitrary-precision numeric guarantee.
+
+Successful `stop` completion has complete validated JSON. `length` denotes an
+incomplete generation and does not promise schema-complete output. Cancellation,
+sink failure and byte-budget exhaustion cannot claim success. Matching a stop
+sequence during constrained output returns `model_failed` without a successful
+terminal event, because removing those bytes can invalidate the schema. The next
+request starts with independent grammar/parser state, including each candidate.
+
+Output validation permits 64 nested levels, 1024 decoded bytes per object key
+and 1024 bytes per number token. Total/string bytes follow the output-byte
+budget; parser-owned live allocation is capped at 4 MiB. These are resource
+limits, independent of a schema's accepted values.
 
 ## Usage and verification
 
@@ -149,8 +197,8 @@ replace the required release matrix. Dependency preparation must precede this
 direct CMake invocation.
 
 The private Jinja helper uses the MIT-licensed nlohmann JSON implementation
-already vendored in the pinned llama source. It is restricted to request/template
-handling; generated text passes directly through the event sink. Public JSON
+already vendored in the pinned llama source. It is restricted to request/template/
+schema handling; generated text passes directly through the event sink. Public JSON
 serialization uses the separate pinned lonejson SDK. Template/native/compiler
 runtime archives remain separate from `libailo.a` in the installed static SDK.
 

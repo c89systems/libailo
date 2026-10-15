@@ -87,6 +87,24 @@ for _,fields in ipairs{
   fails("invalid_argument",function()return client:generate(bad,function()error("preflight emitted an event")end)end)
 end
 ok(client:generate(request(),function()end))
+local constrained=request()
+constrained.max_tokens=32;constrained.output_format="json_schema"
+constrained.json_schema='{"const":{"answer":4}}'
+constrained.logit_bias={{token_id=2,bias=100}}
+local fragment_count,constrained_text=0,""
+local constrained_info=ok(client:generate(constrained,function(e)
+  if e.kind=="text_delta" then
+    fragment_count=fragment_count+1
+    assert(e.usage.completion_tokens==fragment_count)
+    constrained_text=constrained_text..e.data
+  end
+end))
+assert(constrained_text=='{"answer":4}' and fragment_count==#constrained_text)
+assert(constrained_info.finish_reason=="stop")
+local bad_schema=request();bad_schema.output_format="json_schema"
+bad_schema.json_schema='{"type":"number","minimum":1}'
+fails("unsupported",function()return client:generate(bad_schema,function()error("unsupported schema emitted events")end)end)
+ok(client:generate(request(),function()end))
 assert(client:close() and client:close())
 fails("invalid_argument",function() return client:model_card() end)
 collectgarbage("collect"); assert(not weak[1],"logger leaked after close")

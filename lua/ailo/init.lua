@@ -108,7 +108,7 @@ end
 local roles={user=0,system=1,developer=2,assistant=3,tool=4}
 local kinds={message=0,function_call=1,function_result=2,reasoning=3,compaction=4}
 local content_kinds={text=0,image=1,audio=2,refusal=3}
-local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes")
+local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes output_format json_schema")
 local item_keys=keys("kind role id call_id name content arguments")
 local function request(input)
   object(input,request_keys,"request")
@@ -136,6 +136,8 @@ local function request(input)
   out.top_logprobs=number(input.top_logprobs,"top_logprobs",0,true,0,20)
   if out.top_logprobs>0 and not out.logprobs then invalid("top_logprobs requires logprobs") end
   out.max_output_bytes=number(input.max_output_bytes,"max_output_bytes",0,true,0,math.maxinteger)
+  out.output_format=enumeration(input.output_format,{text=0,json_object=1,json_schema=2},0,"output_format")
+  out.json_schema=str(input.json_schema,"json_schema",true)
   if input.logit_bias ~= nil then
     local n=array(input.logit_bias,"logit_bias")
     if n>4096 then invalid("too many logit biases") end

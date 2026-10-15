@@ -453,6 +453,8 @@ static int generate(lua_State *L) {
   request.logprobs = boolean(L, 2, "logprobs");
   request.top_logprobs = (unsigned int)integer(L, 2, "top_logprobs");
   request.max_output_bytes = (size_t)integer(L, 2, "max_output_bytes");
+  request.output_format = (ailo_output_format)integer(L, 2, "output_format");
+  request.json_schema = string(L, 2, "json_schema");
   lua_getfield(L, 2, "logit_bias");
   int biases = lua_gettop(L);
   request.logit_bias_count = lua_rawlen(L, biases);

@@ -41,7 +41,8 @@ wrong types, holes and out-of-range values return `nil, error`.
 
 Requests contain ordered `items` (kind, role, id, call_id, name, arguments and
 content), `max_tokens`, `candidates`, `temperature`, `top_p`, `seed`,
-`frequency_penalty`, `presence_penalty`, `stop`, `max_output_bytes`, `logprobs`,
+`frequency_penalty`, `presence_penalty`, `stop`, `max_output_bytes`, `output_format`
+(`text`, `json_object`, `json_schema`), `json_schema` (JSON string), `logprobs`,
 `top_logprobs` (0-20, requires logprobs), and `logit_bias` (a dense array of
 `{token_id=...,bias=...}` with unique IDs and finite biases in [-100,100]).
 Content is a string or a
@@ -53,10 +54,19 @@ answer. Events have `kind`, monotonic `sequence`, zero-based `candidate`,
 Token events carry `token={token_id,data,logprob,top_logprobs,index,byte_offset,
 end_of_generation}`; each alternative has token_id/data/logprob. Pieces are raw
 bytes and may split UTF-8; text_delta stays valid UTF-8. Probabilities normalize
-logits after bias/penalties and before top-p/temperature. Token events include
+logits after bias/penalties/grammar and before top-p/temperature. A grammar may
+allow fewer alternatives than requested. Token events include
 stop/EOG tokens and arrive before their corresponding text delta. The default
 sampled-byte budget is 16 MiB across candidates; exceeding it fails without a
 successful terminal event. No whole answer is retained.
+
+Constrained JSON output uses the C receiver's declared schema subset and limits;
+see [the receiver contract](../docs/client.md#constrained-output).
+For example, `output_format="json_schema",json_schema='{"const":{"answer":4}}'`
+constrains the response while still emitting immediate `text_delta` events.
+A `length` finish can leave incomplete JSON;
+interruption by a stop sequence returns `model_failed`. No full JSON reply is
+collected by this binding.
 
 `generate` is synchronous: the sink receives each available delta immediately,
 including before the next decode. Only boolean false cancels; nil continues.

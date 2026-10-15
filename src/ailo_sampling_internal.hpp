@@ -6,7 +6,8 @@
 namespace ailo {
 namespace client {
 void validate_sampling(const ailo_request &request);
-std::string token_piece(const llama_vocab *vocab, llama_token token);
+std::string token_piece(const llama_vocab *vocab, llama_token token,
+                        bool special = false);
 
 // Owns only vocabulary-sized scratch and one token's bounded alternatives.
 // No generated transcript is retained. A fresh instance owns each candidate.
@@ -15,6 +16,7 @@ class sampling {
   const llama_vocab *vocab;
   owner processors{nullptr, llama_sampler_free};
   owner selector{nullptr, llama_sampler_free};
+  owner grammar{nullptr, llama_sampler_free};
   std::vector<llama_token_data> scratch;
   std::vector<float> before;
   std::vector<size_t> ranking;
@@ -26,7 +28,8 @@ class sampling {
 
 public:
   sampling(const llama_vocab *vocab, const ailo_request &request,
-           unsigned candidate, size_t context_tokens);
+           unsigned candidate, size_t context_tokens,
+           const std::string &grammar_source = {});
   void accept(llama_token token);
   llama_token sample(llama_context *context, ailo_token_info &info);
 };
