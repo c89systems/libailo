@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <thread>
 using namespace ailo::client;
@@ -60,6 +61,39 @@ std::vector<unsigned char> native_state(ailo_client *client) {
                                      bytes.size(), 0, 0) == size);
   return bytes;
 }
+static size_t peak_rss_kib() {
+  struct rusage usage{};
+  CHECK(getrusage(RUSAGE_SELF, &usage) == 0 && usage.ru_maxrss >= 0);
+  return static_cast<size_t>(usage.ru_maxrss);
+}
+static void storage_memory(ailo_cache_config config) {
+  // Exercise encrypted storage itself before any model/context is created.
+  // The input is a byte fixture, not a claim of native inference-state
+  // validity.
+  constexpr size_t payload = 16 * 1024 * 1024;
+  config.namespace_id = "snapshot-memory";
+  config.max_snapshot_bytes = payload + 4 * sizeof(llama_token);
+  config.max_disk_bytes = 2 * config.max_snapshot_bytes + 512;
+  cache_state owner(config);
+  cache_entry entry;
+  entry.identity = "resource-fixture";
+  entry.partition = "memory";
+  entry.tokens = {1, 2, 3, 4};
+  entry.bytes.assign(payload, 42);
+  const auto name =
+      ".ailo-kv-s-" + ailo::model::digest_hex("memory", 6) + ".bin";
+  const auto baseline = peak_rss_kib();
+  CHECK(owner.disk->write(entry, name));
+  const auto exported = peak_rss_kib();
+  CHECK(exported <= baseline + 8 * 1024);
+  auto restored = owner.disk->load(name, entry.identity, entry.partition);
+  CHECK(restored->bytes == entry.bytes && restored->tokens == entry.tokens);
+  const auto imported = peak_rss_kib();
+  CHECK(imported <= exported + payload / 1024 + 8 * 1024);
+  std::printf("Model-free 16 MiB snapshot RSS input/export/import: %zu/%zu/%zu "
+              "KiB (export slack 8192 KiB; import one payload + slack)\n",
+              baseline, exported, imported);
+}
 int main(int argc, char **argv) {
   try {
     CHECK(argc == 2);
@@ -84,6 +118,7 @@ int main(int argc, char **argv) {
     config.key_id = "key-one";
     config.key = key.data();
     config.key_size = key.size();
+    storage_memory(config);
     auto cache = new_cache(config);
     const auto scoped =
         fs::path(directory) /

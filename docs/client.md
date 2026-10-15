@@ -332,8 +332,8 @@ live/disposable context allocations. Generation deltas still flow immediately.
 domain; `prune` enforces expiry and quotas. Statistics include snapshot reads,
 writes, errors, skipped automatic publications, disk evictions, file count and
 bytes. These slots are evictable performance data, not OpenAI retained response
-records. Response storage and its retention contract remain separate required
-adapter work.
+records. Response storage follows the separate
+[adapter retention contract](openai.md#retained-records).
 
 The focused snapshot test covers reconstruction reuse, longer disk prefixes,
 named round trips, tampered headers/ciphertext/tags, wrong keys/namespaces/key
@@ -348,6 +348,22 @@ process. It reused 40 of 41 prompt tokens and matched the cold run's token IDs
 and log probabilities within 1e-6. The automatic and named encrypted files
 totaled 1,846,496 bytes. This qualifies the CPU full-attention path; GPU and
 other architecture qualification remain separate.
+
+The snapshot test also measures encrypted storage before creating any model or
+context. A 16 MiB byte fixture supplies the caller-owned input; export is allowed
+8 MiB of RSS slack, and import one payload plus that slack. This tests storage
+materialization, not the validity of those fixture bytes as native inference
+state. Native inference-state correctness is covered by the round trips above.
+On the native x86-64 profiles, peak RSS in KiB was:
+
+| Profile | Input allocated | After export | After import |
+| --- | ---: | ---: | ---: |
+| glibc | 32,700 | 33,212 | 49,468 |
+| musl | 33,692 | 34,076 | 50,460 |
+
+These component measurements separate snapshot-buffer growth from model,
+live/disposable-context and GPU-driver memory. They are not whole-inference
+peak-memory guarantees.
 
 ## Owned continuation state
 
@@ -823,6 +839,14 @@ Output validation permits 64 nested levels, 1024 decoded bytes per object key
 and 1024 bytes per number token. Total/string bytes follow the output-byte
 budget; parser-owned live allocation is capped at 4 MiB. These are resource
 limits, independent of a schema's accepted values.
+
+The JSON-stream test measures a model-free producer-to-tool-parser-to-API-writer
+path with a discard sink. It sends repeated 4 KiB chunks without collecting the
+argument or encoded output, verifies each chunk reaches the sink immediately,
+and measures peak RSS after 1 MiB and after 32 MiB. The allowed growth is 8 MiB;
+measured x86-64 peak RSS stayed at 14,540 KiB on glibc and 15,652 KiB on musl.
+This checks parser/writer working memory; intentionally retained Responses or
+stored output remains subject to its separate output quota.
 
 ## Usage and verification
 

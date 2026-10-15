@@ -1,8 +1,10 @@
 #include "ailo_json_stream_internal.hpp"
+#include "ailo_openai_internal.hpp"
 #include "ailo_tool_json_internal.hpp"
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
+#include <sys/resource.h>
 
 using namespace ailo::client;
 #define CHECK(condition)                                                       \
@@ -15,6 +17,11 @@ struct observation {
   bool fail = false;
   bool cancel = false;
 };
+static size_t peak_rss_kib() {
+  struct rusage usage{};
+  CHECK(getrusage(RUSAGE_SELF, &usage) == 0 && usage.ru_maxrss >= 0);
+  return static_cast<size_t>(usage.ru_maxrss);
+}
 lonejson_status chunk(void *user, const lonejson_value_path *path,
                       const char *data, size_t size, lonejson_error *) {
   auto &seen = *static_cast<observation *>(user);
@@ -83,11 +90,17 @@ void tools() {
   {
     // No argument capture: a large unfinished argument must reach the sink
     // immediately while no call has completed.
-    size_t bytes = 0, ends = 0;
-    tool_json_stream stream({}, {"weather"}, 1, 2 * 1024 * 1024,
+    size_t bytes = 0, ends = 0, encoded = 0;
+    // Model-free producer -> argument parser -> API writer -> discard sink.
+    // Neither the input nor the emitted JSON string is collected by this test.
+    wire_json output([&](const void *, size_t n) { encoded += n; });
+    output.string_begin();
+    tool_json_stream stream({}, {"weather"}, 1, 32 * 1024 * 1024 + 4096,
                             [&](const tool_json_event &event) {
-                              if (event.kind == tool_json_kind::arguments)
+                              if (event.kind == tool_json_kind::arguments) {
                                 bytes += event.size;
+                                output.string_chunk(event.data, event.size);
+                              }
                               if (event.kind == tool_json_kind::end)
                                 ++ends;
                             });
@@ -95,14 +108,26 @@ void tools() {
         "{\"name\":\"weather\",\"arguments\":{\"data\":\"";
     CHECK(stream.push(prefix.data(), prefix.size()) == prefix.size());
     const std::string block(4096, 'x');
-    for (size_t i = 0; i < 256; ++i) {
+    size_t warm_rss = 0;
+    for (size_t i = 0; i < 8192; ++i) {
       auto before = bytes;
+      auto wire_before = encoded;
       CHECK(stream.push(block.data(), block.size()) == block.size());
       CHECK(bytes == before + block.size() && !ends);
+      CHECK(encoded == wire_before + block.size());
+      if (i == 255)
+        warm_rss = peak_rss_kib();
     }
     CHECK(stream.push("\"}}", 3) == 3);
     stream.finish();
+    output.string_end();
+    output.finish();
     CHECK(ends == 1);
+    const auto peak = peak_rss_kib();
+    CHECK(warm_rss && peak <= warm_rss + 8 * 1024);
+    std::printf("Model-free 1 -> 32 MiB argument/parser/writer RSS: %zu -> %zu "
+                "KiB (growth bound 8192 KiB)\n",
+                warm_rss, peak);
   }
   {
     tool_json_format format;
