@@ -74,7 +74,9 @@ The CPU preset does not require shader tooling. CUDA is excluded from supported
 backends; see the support policy below.
 Dependency preparation, builds, formatting and export checks use Bash/CMake.
 Python 3.9+ is confined to source/data generation, compiler AST inventory
-processing and test fixtures; host Clang is needed for the inventory check.
+processing and fixture servers; host Clang is needed for the inventory check.
+CTest, Bash and compiled tests own test execution and assertions, including the
+local archive-cache and model-download failure cases.
 The lifecycle resolver selects the pinned Bootlin
 C/C++ collection; it never falls back to a host compiler for compiled targets.
 The host Clang executable inspects declarations; Mesa's host generator uses the

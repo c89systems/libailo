@@ -217,7 +217,9 @@ tests/native_callbacks.c
 tests/native_records.cpp
 tests/native_storage.cpp
 tests/scalar-matrix/CMakeLists.txt
-tests/test_archive_cache.py
+tests/archive_fixture.py
+tests/download_fixture.py
+tests/test_archive_cache.sh
 tests/test_build_drivers.cmake
 tests/test_drm_ids.c
 tests/test_gpu_deps.c
@@ -232,7 +234,7 @@ tests/test_clean.cmake
 tests/test_install_privacy.cmake
 tests/test_lifecycle.cmake
 tests/test_model_dependencies.cmake
-tests/test_model_download.py
+tests/test_model_download.sh
 tests/test_model_fixture.cmake
 tests/test_model_gates.cmake
 tests/test_packages.sh
