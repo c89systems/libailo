@@ -28,6 +28,7 @@ typedef struct work {
   ailo_item *items;
   ailo_content *content;
   const char **strings;
+  ailo_logit_bias *biases;
   char *json;
   lua_State *L;
   int index;
@@ -124,10 +125,12 @@ static void release_work(work *value) {
   free(value->items);
   free(value->content);
   free(value->strings);
+  free(value->biases);
   ailo_string_free(value->json);
   value->items = NULL;
   value->content = NULL;
   value->strings = NULL;
+  value->biases = NULL;
   value->json = NULL;
 }
 static int work_gc(lua_State *L) {
@@ -364,8 +367,8 @@ static int new_client(lua_State *L) {
 static int event_thunk(lua_State *L) {
   const ailo_event *value = lua_touserdata(L, 2);
   lua_getiuservalue(L, 1, 1);
-  static const char *names[] = {"run_begin", "choice_begin", "text_delta",
-                                "choice_end", "run_end"};
+  static const char *names[] = {"run_begin",  "choice_begin", "text_delta",
+                                "choice_end", "run_end",      "token"};
   lua_createtable(L, 0, 8);
   set_string(L, "kind", names[value->kind]);
   push_u64(L, value->sequence);
@@ -377,6 +380,34 @@ static int event_thunk(lua_State *L) {
   set_string(L, "finish_reason", finish(value->finish_reason));
   usage(L, &value->usage);
   lua_setfield(L, -2, "usage");
+  if (value->token) {
+    const ailo_token_info *token = value->token;
+    lua_createtable(L, 0, 7);
+    push_u64(L, token->index);
+    lua_setfield(L, -2, "index");
+    push_u64(L, token->byte_offset);
+    lua_setfield(L, -2, "byte_offset");
+    lua_pushboolean(L, token->end_of_generation);
+    lua_setfield(L, -2, "end_of_generation");
+    set_integer(L, "token_id", token->chosen.token_id);
+    lua_pushlstring(L, token->chosen.data, token->chosen.size);
+    lua_setfield(L, -2, "data");
+    lua_pushnumber(L, token->chosen.logprob);
+    lua_setfield(L, -2, "logprob");
+    lua_createtable(L, (int)token->top_count, 0);
+    for (size_t i = 0; i < token->top_count; ++i) {
+      const ailo_token_probability *p = &token->top[i];
+      lua_createtable(L, 0, 3);
+      set_integer(L, "token_id", p->token_id);
+      lua_pushlstring(L, p->data, p->size);
+      lua_setfield(L, -2, "data");
+      lua_pushnumber(L, p->logprob);
+      lua_setfield(L, -2, "logprob");
+      lua_seti(L, -2, (lua_Integer)i + 1);
+    }
+    lua_setfield(L, -2, "top_logprobs");
+    lua_setfield(L, -2, "token");
+  }
   lua_call(L, 1, 1);
   return 1;
 }
@@ -419,6 +450,24 @@ static int generate(lua_State *L) {
   request.top_p = number(L, 2, "top_p");
   request.frequency_penalty = number(L, 2, "frequency_penalty");
   request.presence_penalty = number(L, 2, "presence_penalty");
+  request.logprobs = boolean(L, 2, "logprobs");
+  request.top_logprobs = (unsigned int)integer(L, 2, "top_logprobs");
+  request.max_output_bytes = (size_t)integer(L, 2, "max_output_bytes");
+  lua_getfield(L, 2, "logit_bias");
+  int biases = lua_gettop(L);
+  request.logit_bias_count = lua_rawlen(L, biases);
+  if (request.logit_bias_count) {
+    storage->biases =
+        allocate(L, request.logit_bias_count, sizeof(ailo_logit_bias));
+    for (size_t i = 0; i < request.logit_bias_count; ++i) {
+      lua_geti(L, biases, (lua_Integer)i + 1);
+      int bias = lua_gettop(L);
+      storage->biases[i].token_id = (ailo_i32)integer(L, bias, "token_id");
+      storage->biases[i].bias = number(L, bias, "bias");
+      lua_pop(L, 1);
+    }
+    request.logit_bias = storage->biases;
+  }
   lua_getfield(L, 2, "items");
   int items = lua_gettop(L);
   size_t count = lua_rawlen(L, items), parts = 0;

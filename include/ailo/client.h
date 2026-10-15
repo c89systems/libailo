@@ -78,6 +78,11 @@ typedef struct ailo_client_config {
   int threads;
 } ailo_client_config;
 
+typedef struct ailo_logit_bias {
+  ailo_i32 token_id;
+  double bias;
+} ailo_logit_bias;
+
 /** Keep borrowed request data unchanged throughout the synchronous call.
  * Zero max_tokens/candidates selects 128/1.
  * Zero temperature is greedy; top_p zero selects 1.0. The default factory uses
@@ -95,6 +100,19 @@ typedef struct ailo_request {
   double presence_penalty;
   const char *const *stop;
   size_t stop_count;
+  /** Unique vocabulary token IDs, finite biases in [-100, 100]; at most 4096.
+   */
+  const ailo_logit_bias *logit_bias;
+  size_t logit_bias_count;
+  /** Emit sampled-token probability events, including stop/EOG tokens.
+   * Probabilities normalize logits after bias and penalties, before top-p and
+   * temperature. They describe model uncertainty even in greedy mode. */
+  ailo_bool logprobs;
+  /** Zero to twenty alternatives; nonzero requires logprobs. */
+  unsigned int top_logprobs;
+  /** Total non-EOG sampled bytes across all candidates; zero selects 16 MiB.
+   * Includes bytes withheld by stop/UTF-8 handling. No output is collected. */
+  size_t max_output_bytes;
 } ailo_request;
 
 typedef enum ailo_finish_reason {
@@ -109,8 +127,29 @@ typedef enum ailo_event_kind {
   AILO_EVENT_CHOICE_BEGIN,
   AILO_EVENT_TEXT_DELTA,
   AILO_EVENT_CHOICE_END,
-  AILO_EVENT_RUN_END
+  AILO_EVENT_RUN_END,
+  AILO_EVENT_TOKEN
 } ailo_event_kind;
+
+/** A token piece is arbitrary bytes, possibly incomplete UTF-8 or empty.
+ * It is separate from the UTF-8 text-delta path. All pointers are borrowed. */
+typedef struct ailo_token_probability {
+  ailo_i32 token_id;
+  const void *data;
+  size_t size;
+  double logprob;
+} ailo_token_probability;
+
+typedef struct ailo_token_info {
+  ailo_token_probability chosen;
+  const ailo_token_probability *top;
+  size_t top_count;
+  /** Per-candidate sampled token index and byte offset before stop filtering.
+   */
+  ailo_u64 index;
+  ailo_u64 byte_offset;
+  ailo_bool end_of_generation;
+} ailo_token_info;
 
 typedef struct ailo_usage {
   ailo_u64 prompt_tokens;
@@ -131,6 +170,11 @@ typedef struct ailo_event {
   size_t size;
   ailo_finish_reason finish_reason;
   ailo_usage usage;
+  /** Non-NULL only for AILO_EVENT_TOKEN, delivered before its text delta and
+   * before evaluating the next token. Adapters exclude suppressed stop/EOG
+   * tokens from user-visible content logprobs using byte offsets/text deltas.
+   */
+  const ailo_token_info *token;
 } ailo_event;
 
 /** Return zero to cancel; a negative value reports sink failure. The consumer

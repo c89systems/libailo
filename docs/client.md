@@ -45,8 +45,24 @@ Sampled EOS and stop-producing tokens count toward completion usage. Prompt
 usage counts the input once; completion usage totals all candidates. Up to 16
 candidates are generated sequentially, with independent sampler/context state.
 
-Sampling supports greedy or temperature/top-p selection, seeds, and frequency
-and presence penalties. Zero configuration selects auto backend, eager loading,
+Sampling supports greedy or temperature/top-p selection, seeds, frequency and
+presence penalties, and at most 4096 unique token-ID logit biases in [-100,100].
+Vocabulary IDs are validated before events/evaluation. Optional `logprobs`
+emits a token event before its text delta, with the chosen probability and up to
+20 alternatives. These probabilities normalize logits after bias and penalties,
+before top-p and temperature; greedy selection still reports model uncertainty.
+Alternatives use descending probability, then token ID for ties. Token pieces
+are arbitrary bytes, distinct from the UTF-8 text path. Per-candidate indices,
+byte offsets and EOG flags let adapters exclude suppressed stop/EOG tokens from
+user-visible content probabilities. Token events are bounded metadata, not a
+retained transcript.
+
+`max_output_bytes` bounds non-EOG sampled bytes across candidates, including
+stop/UTF-8 carry; zero selects 16 MiB. Exceeding the budget fails without emitting
+a successful terminal event. Cancellation/sink failures in token events stop
+before their text delta and before evaluating another token.
+
+Zero configuration selects auto backend, eager loading,
 two CPU threads, up to 4096 context tokens and up to 512 batch tokens. Native
 context padding can increase the effective context; the model card reports
 requested and effective values separately. A request exceeding the effective
@@ -75,7 +91,8 @@ remain null. Publisher metadata enrichment is not yet implemented. Template
 support means the named helper recognizes it or the interpreter can parse it;
 rendering can still reject a conversation the template does not accept.
 
-Capabilities currently advertise text, streaming and multiple candidates.
+Capabilities currently advertise text, streaming, multiple candidates, logit
+bias and log probabilities, with their limits.
 Tools, structured output, separated reasoning, media, prompt/KV reuse,
 persistent snapshots and compaction are reported unavailable. Their request
 item kinds return unsupported rather than losing semantics. These remain

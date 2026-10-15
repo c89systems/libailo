@@ -1,4 +1,5 @@
 #include "ailo_client_internal.hpp"
+#include "ailo_sampling_internal.hpp"
 #include "ailo_text_stream_internal.hpp"
 #include <algorithm>
 #include <cmath>
@@ -85,7 +86,8 @@ struct emitter {
   uint64_t sequence = 0;
   unsigned candidate = 0;
   void send(ailo_event_kind kind, const char *data = nullptr, size_t size = 0,
-            ailo_finish_reason finish = AILO_FINISH_NONE) {
+            ailo_finish_reason finish = AILO_FINISH_NONE,
+            const ailo_token_info *token = nullptr) {
     if (self.cancelled.load())
       throw failure(AILO_CANCELLED, "Generation cancelled");
     ailo_event event{};
@@ -97,6 +99,7 @@ struct emitter {
     event.size = size;
     event.finish_reason = finish;
     event.usage = info.usage;
+    event.token = token;
     const int accepted = sink(user, &event);
     if (accepted < 0)
       throw failure(AILO_SINK_FAILED, "The event sink failed");
@@ -139,6 +142,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   const size_t limit = request.max_tokens ? request.max_tokens : 128;
   const unsigned candidates = request.candidates ? request.candidates : 1;
   const double top_p = request.top_p ? request.top_p : 1.0;
+  validate_sampling(request);
   if (candidates > 16 || limit > static_cast<size_t>(INT32_MAX) ||
       !std::isfinite(request.temperature) || request.temperature < 0 ||
       request.temperature > 2 || !std::isfinite(top_p) || top_p <= 0 ||
@@ -178,6 +182,8 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   info.usage.prompt_tokens =
       detail::from_unsigned(static_cast<uint64_t>(count));
   info.actual_backend = self.actual;
+  // Validate model-specific token IDs before emitting events or evaluating.
+  sampling first_sampler(vocab, request, 0, llama_n_ctx(self.context.get()));
   emitter output{self, sink, user, info};
   output.send(AILO_EVENT_RUN_BEGIN);
   struct reset {
@@ -185,69 +191,50 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
     ~reset() { llama_memory_clear(llama_get_memory(self.context.get()), true); }
   } reset_context{self};
   uint64_t generated = 0;
+  size_t output_bytes = 0;
+  const size_t output_limit =
+      request.max_output_bytes ? request.max_output_bytes : 16 * 1024 * 1024;
   for (unsigned candidate = 0; candidate < candidates; ++candidate) {
     output.candidate = candidate;
     llama_memory_clear(llama_get_memory(self.context.get()), true);
     output.send(AILO_EVENT_CHOICE_BEGIN);
     evaluate(self, tokens.data(), tokens.size(), 0);
-    std::unique_ptr<llama_sampler, decltype(&llama_sampler_free)> sampler(
-        llama_sampler_chain_init(llama_sampler_chain_default_params()),
-        llama_sampler_free);
-    if (!sampler)
-      throw std::bad_alloc();
-    auto add = [&](llama_sampler *next) {
-      if (!next)
-        throw std::bad_alloc();
-      llama_sampler_chain_add(sampler.get(), next);
-    };
-    add(llama_sampler_init_penalties(
-        llama_vocab_n_tokens(vocab),
-        static_cast<int32_t>(llama_n_ctx(self.context.get())), 1.0f,
-        static_cast<float>(request.frequency_penalty),
-        static_cast<float>(request.presence_penalty)));
-    if (request.temperature > 0) {
-      add(llama_sampler_init_top_p(static_cast<float>(top_p), 1));
-      add(llama_sampler_init_temp(static_cast<float>(request.temperature)));
-      add(llama_sampler_init_dist(request.seed == LLAMA_DEFAULT_SEED
-                                      ? request.seed
-                                      : request.seed + candidate));
-    } else {
-      add(llama_sampler_init_greedy());
-    }
+    std::unique_ptr<sampling> additional;
+    if (candidate)
+      additional = std::make_unique<sampling>(vocab, request, candidate,
+                                              llama_n_ctx(self.context.get()));
+    sampling &sampler = candidate ? *additional : first_sampler;
     for (llama_token token : tokens)
-      llama_sampler_accept(sampler.get(), token);
+      sampler.accept(token);
     text_stream carry(stops, [&](const char *data, size_t size) {
       output.send(AILO_EVENT_TEXT_DELTA, data, size);
     });
     ailo_finish_reason finish = AILO_FINISH_LENGTH;
     size_t position = tokens.size();
+    uint64_t byte_offset = 0;
     for (size_t i = 0; i < limit; ++i) {
       if (self.cancelled.load())
         throw failure(AILO_CANCELLED, "Generation cancelled");
-      const llama_token token =
-          llama_sampler_sample(sampler.get(), self.context.get(), -1);
+      ailo_token_info token_info{};
+      const llama_token token = sampler.sample(self.context.get(), token_info);
       ++generated;
       info.usage.completion_tokens = detail::from_unsigned(generated);
-      if (llama_vocab_is_eog(vocab, token)) {
+      const bool eog = llama_vocab_is_eog(vocab, token);
+      const std::string piece = eog ? "" : token_piece(vocab, token);
+      if (piece.size() > output_limit - output_bytes)
+        throw failure(AILO_OUT_OF_RANGE,
+                      "Generated output exceeds its byte budget");
+      output_bytes += piece.size();
+      if (request.logprobs) {
+        token_info.index = detail::from_unsigned(i);
+        token_info.byte_offset = detail::from_unsigned(byte_offset);
+        output.send(AILO_EVENT_TOKEN, nullptr, 0, AILO_FINISH_NONE,
+                    &token_info);
+      }
+      byte_offset += piece.size();
+      if (eog) {
         finish = AILO_FINISH_STOP;
         break;
-      }
-      char small[256];
-      int32_t size =
-          llama_token_to_piece(vocab, token, small, sizeof(small), 0, false);
-      std::string piece;
-      if (size >= 0) {
-        piece.assign(small, static_cast<size_t>(size));
-      } else {
-        if (size == INT32_MIN || -size > 1024 * 1024)
-          throw failure(AILO_MODEL_FAILED, "Native token piece exceeds 1 MiB");
-        std::vector<char> large(static_cast<size_t>(-size));
-        const int32_t actual =
-            llama_token_to_piece(vocab, token, large.data(), -size, 0, false);
-        if (actual < 0)
-          throw failure(AILO_MODEL_FAILED,
-                        "Native token piece conversion failed");
-        piece.assign(large.data(), static_cast<size_t>(actual));
       }
       if (carry.push(piece)) {
         finish = AILO_FINISH_STOP;

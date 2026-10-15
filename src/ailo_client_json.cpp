@@ -78,6 +78,10 @@ void feature_fields(json &out) {
   out.boolean(true);
   out.key("multiple_candidates");
   out.boolean(true);
+  out.key("logit_bias");
+  out.boolean(true);
+  out.key("logprobs");
+  out.boolean(true);
   out.key("tools");
   out.boolean(false);
   out.key("structured_output");
@@ -107,6 +111,12 @@ std::string capabilities(state &) {
   out.number(16);
   out.key("max_request_text_bytes");
   out.number(4 * 1024 * 1024);
+  out.key("max_top_logprobs");
+  out.number(20);
+  out.key("max_logit_bias_entries");
+  out.number(4096);
+  out.key("default_max_output_bytes");
+  out.number(16 * 1024 * 1024);
   out.key("max_stop_strings");
   out.number(4);
   out.end_object();

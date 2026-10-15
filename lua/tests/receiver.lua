@@ -53,6 +53,40 @@ fails("unsupported",function() return client:generate({items={{content={{kind="i
 -- All typed options, multiple candidates, explicit content parts and stops.
 local two=ok(client:generate({items={{kind="message",role="system",content="Be concise"},{role="user",content={{kind="text",data="hi"}}}},max_tokens=2,candidates=2,temperature=0.8,top_p=0.95,seed=42,frequency_penalty=0.2,presence_penalty=0.1,stop={"ZZZ"}},function() end))
 assert(two.completed_candidates==2)
+-- Bounded token probability records arrive before the matching text delta.
+local controlled=request()
+controlled.logprobs=true;controlled.top_logprobs=3
+controlled.logit_bias={{token_id=100,bias=-100},{token_id=101,bias=100}}
+local token_count,text_count=0,0
+ok(client:generate(controlled,function(e)
+  if e.kind=="token" then
+    token_count=token_count+1
+    assert(e.token.index==token_count-1 and e.token.byte_offset==token_count-1)
+    assert(e.token.token_id==101 and e.token.data=="b" and e.token.logprob<=0)
+    assert(#e.token.top_logprobs==3 and e.token.top_logprobs[1].token_id==101)
+    assert(not e.token.end_of_generation)
+  elseif e.kind=="text_delta" then
+    text_count=text_count+1;assert(token_count==text_count and e.data=="b")
+  end
+end))
+assert(token_count==3 and text_count==3)
+local token_cancel=fails("cancelled",function()return client:generate(controlled,function(e)
+  if e.kind=="token" then return false end
+end)end)
+assert(token_cancel.info.usage.completion_tokens==1)
+local quota=request();quota.max_output_bytes=1
+local quota_error=fails("out_of_range",function()return client:generate(quota,function()end)end)
+assert(quota_error.info.completed_candidates==0)
+for _,fields in ipairs{
+  {top_logprobs=1}, {logprobs=true,top_logprobs=21},
+  {logit_bias={{token_id=100,bias=101}}},
+  {logit_bias={{token_id=100,bias=0},{token_id=100,bias=1}}},
+  {logit_bias={{token_id=1000000,bias=0}}}
+} do
+  local bad=request();for k,v in pairs(fields)do bad[k]=v end
+  fails("invalid_argument",function()return client:generate(bad,function()error("preflight emitted an event")end)end)
+end
+ok(client:generate(request(),function()end))
 assert(client:close() and client:close())
 fails("invalid_argument",function() return client:model_card() end)
 collectgarbage("collect"); assert(not weak[1],"logger leaked after close")

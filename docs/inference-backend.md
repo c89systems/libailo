@@ -9,9 +9,11 @@ work; their requirements shape this backend now.
 ## Investigation and design decision
 
 The existing strict C89 facade exposes native loading, evaluation, sampling,
-grammar, state and memory operations. Callback coverage remains incomplete.
-There is no implemented high-level inference receiver or protocol adapter yet.
-Native coverage alone does not provide a usable conversation API.
+grammar, state and memory operations, including complete pinned public callback
+coverage. The initial text receiver, model acquisition/cards, scoped pslog
+logging and Lua facade are implemented. Protocol adapters and the expanded
+receiver behavior below remain required. Native coverage alone does not
+provide the complete conversation API.
 
 The official [Responses migration guide](https://developers.openai.com/api/docs/guides/migrate-to-responses)
 distinguishes messages/choices from typed response items and continuation state.
@@ -116,12 +118,22 @@ The [Responses streaming-event reference](https://developers.openai.com/api/refe
 requires full finalized text/arguments/items in done events and full output in
 the completed response, in addition to incremental deltas. Repeating these bytes
 requires retained output; replay cannot be supplied from bounded lookahead alone.
-Production decision pending: permit explicit, quota-bounded in-memory output
-retention at the future Responses adapter while preserving immediate deltas and
-the receiver's bounded incremental path, or keep this wire-compatibility boundary
-unresolved. No full-output retention or disk spooling is implicitly authorized
-by adding typed receiver events. Do not omit required terminal fields and claim
-complete Responses streaming compatibility.
+Production decision, 2026-10-15: the Responses adapter explicitly retains output
+in quota-bounded memory to supply these terminal objects, while forwarding every
+delta immediately. This retention cannot postpone deltas or introduce a hidden
+disk spool; the neutral receiver retains its bounded incremental path. Enforce
+the output quota during generation and report failure without false completion.
+
+Transient output retention is distinct from stored-response retention. Follow
+the official [conversation-state contract](https://developers.openai.com/api/docs/guides/conversation-state):
+Responses defaults to store=true and response records remain retrievable for at
+least 30 days; store=false creates no retrievable response record. Conversation
+items explicitly attached to a conversation have no automatic 30-day expiry.
+The embedding handler supplies the stored-record repository and authorization;
+do not substitute an evictable KV cache or silently weaken the retention period.
+An unavailable repository must reject storage-dependent requests before inference.
+Deletion, retrieval and previous_response_id use that repository. Temporary
+terminal-event assembly for store=false is released when the operation ends.
 
 Expose actual capability flags and limits in `capabilities` and the model card:
 text, media types, tool formats, schema subset, reasoning separation/controls,

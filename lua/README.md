@@ -41,12 +41,22 @@ wrong types, holes and out-of-range values return `nil, error`.
 
 Requests contain ordered `items` (kind, role, id, call_id, name, arguments and
 content), `max_tokens`, `candidates`, `temperature`, `top_p`, `seed`,
-`frequency_penalty`, `presence_penalty`, and `stop`. Content is a string or a
+`frequency_penalty`, `presence_penalty`, `stop`, `max_output_bytes`, `logprobs`,
+`top_logprobs` (0-20, requires logprobs), and `logit_bias` (a dense array of
+`{token_id=...,bias=...}` with unique IDs and finite biases in [-100,100]).
+Content is a string or a
 dense array of `{kind="text",data="..."}` parts. Core unsupported kinds retain
 the C `unsupported` outcome. Token payloads are never assembled into a complete
 answer. Events have `kind`, monotonic `sequence`, zero-based `candidate`,
 `model_id`, `data`, `finish_reason`, and `usage`. Kinds are `run_begin`,
-`choice_begin`, `text_delta`, `choice_end`, `run_end`.
+`choice_begin`, `text_delta`, `choice_end`, `run_end`, and optional `token`.
+Token events carry `token={token_id,data,logprob,top_logprobs,index,byte_offset,
+end_of_generation}`; each alternative has token_id/data/logprob. Pieces are raw
+bytes and may split UTF-8; text_delta stays valid UTF-8. Probabilities normalize
+logits after bias/penalties and before top-p/temperature. Token events include
+stop/EOG tokens and arrive before their corresponding text delta. The default
+sampled-byte budget is 16 MiB across candidates; exceeding it fails without a
+successful terminal event. No whole answer is retained.
 
 `generate` is synchronous: the sink receives each available delta immediately,
 including before the next decode. Only boolean false cancels; nil continues.

@@ -108,11 +108,11 @@ end
 local roles={user=0,system=1,developer=2,assistant=3,tool=4}
 local kinds={message=0,function_call=1,function_result=2,reasoning=3,compaction=4}
 local content_kinds={text=0,image=1,audio=2,refusal=3}
-local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop")
+local request_keys=keys("items max_tokens candidates temperature top_p seed frequency_penalty presence_penalty stop logit_bias logprobs top_logprobs max_output_bytes")
 local item_keys=keys("kind role id call_id name content arguments")
 local function request(input)
   object(input,request_keys,"request")
-  local out={items={},stop={}}
+  local out={items={},stop={},logit_bias={}}
   for i=1,array(input.items,"items") do
     local item=object(input.items[i],item_keys,"item")
     local v={kind=enumeration(item.kind,kinds,0,"item kind"),role=enumeration(item.role,roles,0,"role"),content={}}
@@ -132,6 +132,22 @@ local function request(input)
   out.temperature=number(input.temperature,"temperature",0.8,false,0,math.huge)
   out.top_p=number(input.top_p,"top_p",0.95,false,0,1)
   for _,k in ipairs{"frequency_penalty","presence_penalty"} do out[k]=number(input[k],k,0,false,-2,2) end
+  out.logprobs=boolean(input.logprobs,"logprobs")
+  out.top_logprobs=number(input.top_logprobs,"top_logprobs",0,true,0,20)
+  if out.top_logprobs>0 and not out.logprobs then invalid("top_logprobs requires logprobs") end
+  out.max_output_bytes=number(input.max_output_bytes,"max_output_bytes",0,true,0,math.maxinteger)
+  if input.logit_bias ~= nil then
+    local n=array(input.logit_bias,"logit_bias")
+    if n>4096 then invalid("too many logit biases") end
+    local seen={}
+    for i=1,n do
+      local v=object(input.logit_bias[i],keys("token_id bias"),"logit_bias entry")
+      local id=number(v.token_id,"token_id",nil,true,0,0x7fffffff)
+      local bias=number(v.bias,"bias",nil,false,-100,100)
+      if id==nil or bias==nil or seen[id] then invalid("logit biases need unique token IDs and finite biases") end
+      seen[id]=true;out.logit_bias[i]={token_id=id,bias=bias}
+    end
+  end
   if input.stop ~= nil then for i=1,array(input.stop,"stop") do out.stop[i]=str(input.stop[i],"stop",false) end end
   return out
 end

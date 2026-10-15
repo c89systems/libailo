@@ -91,6 +91,8 @@ src/ailo_client_json.cpp
 src/ailo_error_internal.h
 src/ailo_integer.c
 src/ailo_generate.cpp
+src/ailo_sampling.cpp
+src/ailo_sampling_internal.hpp
 src/ailo_integer_bridge.hpp
 src/ailo_logging.cpp
 src/ailo_logging_internal.hpp
@@ -109,6 +111,7 @@ src/ailo_template.cpp
 tests/backend.cpp
 tests/c89_policy.c
 tests/client.c
+tests/generation_controls.cpp
 tests/client_threads.cpp
 tests/install-consumer/CMakeLists.txt
 tests/install-consumer/consumer.c
