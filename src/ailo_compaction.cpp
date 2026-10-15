@@ -182,7 +182,9 @@ std::string source_document(state &self, const ailo_request &request,
 struct summary_answer {
   std::string text;
   size_t limit;
-  explicit summary_answer(size_t maximum) : limit(maximum) {}
+  const compaction_task *task;
+  explicit summary_answer(size_t maximum, const compaction_task *work)
+      : limit(maximum), task(work) {}
   ~summary_answer() {
     if (!text.empty())
       OPENSSL_cleanse(text.data(), text.size());
@@ -194,6 +196,8 @@ struct summary_answer {
         throw failure(AILO_OUT_OF_RANGE,
                       "Compaction summary exceeds its answer byte budget");
       self.text.append(static_cast<const char *>(event->data), event->size);
+      if (self.task && self.task->progress)
+        self.task->progress();
     }
     return 1;
   }
@@ -288,10 +292,12 @@ std::string summarize(state &parent, const ailo_request &input,
     throw failure(AILO_CONTEXT_LIMIT,
                   "Eligible history exceeds the bounded summary context; "
                   "increase summary_context_tokens or compact earlier");
-  summary_answer answer(policy.max_summary_bytes);
+  summary_answer answer(policy.max_summary_bytes, task);
   ailo_run_info run{};
   log_scope logs(parent.logging.get(), log_phase::compact);
   logs.trace("Generating bounded compaction summary");
+  if (task && task->begin)
+    task->begin();
   generate(worker, request, summary_answer::event, &answer, run);
   if (run.finish_reason != AILO_FINISH_STOP)
     throw failure(

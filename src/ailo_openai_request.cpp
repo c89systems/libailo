@@ -676,6 +676,9 @@ class decoder {
         expect(k, kind::string);
         text_limit(v, 256, true);
         out.record_identity = v;
+      } else if (p.size() == 1 && field == "ailo_automatic") {
+        expect(k, kind::boolean);
+        out.record_automatic = v == "1";
       }
       return;
     }

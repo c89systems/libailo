@@ -56,7 +56,11 @@ policy is `openai.compaction`. Replay the entire returned output array. Stable,
 configured compactor keys with no expiry or a TTL covering response retention
 are required for storing compacted lineage. Stateless client-lifetime replay can
 use ephemeral keys.
-Conversation objects, automatic Responses compaction and encrypted reasoning
+Responses create also accepts automatic `context_management` compaction. Deltas
+remain immediate through preflight/in-flight context rebuilds; completed opaque
+items support pruning before the latest automatic item. Stored automatic requests
+use the same stable-key/retention requirement. See [the adapter contract](../docs/openai.md#automatic-responses-compaction).
+Conversation objects and encrypted reasoning
 remain unavailable integrations;
 capabilities report those separately.
 

@@ -19,6 +19,8 @@ struct openai_request {
   bool streaming = false, include_usage = false, include_obfuscation = true;
   int store = -1; // -1: omitted/null; resolved by trusted retention policy
   bool automatic_compaction = false;
+  bool record_automatic =
+      false; // authenticated private compaction payload only
   size_t compact_threshold = 0;
   size_t max_builtin_tool_calls = 0;
   std::string model, previous_response_id, conversation_id, instructions;

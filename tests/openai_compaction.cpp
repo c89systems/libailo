@@ -56,9 +56,28 @@ struct output {
   int action = 1;
   ailo_client *receiver = nullptr;
   bool busy = false;
+  ailo_api_info *info = nullptr;
+  size_t boundary = 0, first_delta = SIZE_MAX, control_at = SIZE_MAX;
+  int control_action = 1;
   static int send(void *u, const void *p, size_t n) {
     auto &out = *static_cast<output *>(u);
     out.bytes.append(static_cast<const char *>(p), n);
+    size_t end;
+    while ((end = out.bytes.find("\n\n", out.boundary)) != std::string::npos) {
+      const auto frame = out.bytes.substr(out.boundary, end - out.boundary);
+      out.boundary = end + 2;
+      if (out.info && frame.find("event: response.output_text.delta") == 0 &&
+          frame.find("\"delta\":\"\"") == std::string::npos &&
+          out.first_delta == SIZE_MAX)
+        out.first_delta = out.info->run.usage.completion_tokens.lo;
+      if (frame.find("event: response.output_item.added") == 0 &&
+          frame.find("\"type\":\"compaction\"") != std::string::npos) {
+        if (out.info)
+          out.control_at = out.info->run.usage.completion_tokens.lo;
+        if (out.control_action != 1)
+          return out.control_action;
+      }
+    }
     if (out.receiver) {
       char *text = nullptr;
       out.busy = out.receiver->capabilities(out.receiver, &text, nullptr) ==
@@ -133,6 +152,174 @@ ailo_status generate(ailo_client *client, const std::string &json, output &seen,
                      ailo_api_info &info) {
   return client->responses(client, json.data(), json.size(), output::send,
                            &seen, &info, &error);
+}
+std::string terminal(const std::string &frames) {
+  const auto event = frames.rfind("event: response.");
+  CHECK(event != std::string::npos);
+  const auto begin = frames.find("\"response\":", event);
+  CHECK(begin != std::string::npos);
+  const auto end = frames.find("\n\n", begin);
+  CHECK(end != std::string::npos && frames[end - 1] == '}');
+  return frames.substr(begin + 11, end - begin - 12);
+}
+std::string automatic(std::string body, size_t threshold) {
+  CHECK(body.back() == '}');
+  body.pop_back();
+  return body +
+         ",\"context_management\":[{\"type\":\"compaction\","
+         "\"compact_threshold\":" +
+         std::to_string(threshold) + "}]}";
+}
+void automatic_cases(const std::string &path, ailo_openai_config profile,
+                     ailo_compactor *owner) {
+  auto receiver = create(path, profile, owner);
+  history source;
+  auto body = request(source.items, "Only this automatic request");
+  const auto count = body.find("\"max_output_tokens\":2");
+  CHECK(count != std::string::npos);
+  body.replace(count, std::strlen("\"max_output_tokens\":2"),
+               "\"max_output_tokens\":128,\"text\":{\"format\":{"
+               "\"type\":\"json_schema\",\"name\":\"answer\",\"strict\":true,"
+               "\"schema\":{\"const\":{\"text\":\"" +
+                   std::string(32, 'a') + "\"}}}}");
+  body.pop_back();
+  body += ",\"include\":[\"message.output_text.logprobs\"],\"top_logprobs\":2}";
+  ailo_api_info info{};
+  output baseline;
+  CHECK(generate(receiver.get(), body, baseline, info) == AILO_OK);
+  const auto prompt = info.run.usage.prompt_tokens.lo;
+  auto baseline_json = terminal(baseline.bytes);
+  openai_request reference(openai_protocol::responses, baseline_json.data(),
+                           baseline_json.size(), "local-model", "output");
+  const std::string expected = "{\"text\":\"" + std::string(32, 'a') + "\"}";
+  CHECK(reference.items.size() == 1 &&
+        reference.items[0].content[0].size == expected.size() &&
+        std::memcmp(reference.items[0].content[0].data, expected.data(),
+                    expected.size()) == 0);
+  const auto completion_tokens = info.run.usage.completion_tokens.lo;
+  // The same active message spans the in-flight rebuild without replacing its
+  // ID or replaying already delivered bytes. Its completed opaque item also
+  // preserves that whole message if a caller prunes everything before it.
+  const auto inflight = automatic(body, prompt + 3);
+  output seen;
+  seen.info = &info;
+  CHECK(generate(receiver.get(), inflight, seen, info) == AILO_OK &&
+        seen.first_delta == 1 && seen.control_at == 3 &&
+        info.run.usage.compaction_passes == 1 &&
+        info.run.usage.context_replay_tokens.lo &&
+        info.run.usage.completion_tokens.lo == completion_tokens);
+  auto json = terminal(seen.bytes);
+  CHECK(json.find("\"logprobs\":[{") != std::string::npos);
+  openai_request result(openai_protocol::responses, json.data(), json.size(),
+                        "local-model", "output");
+  CHECK(result.items.size() == 2 && result.items[0].kind == AILO_ITEM_MESSAGE &&
+        result.items[1].kind == AILO_ITEM_COMPACTION &&
+        result.items[0].content[0].size == expected.size() &&
+        std::memcmp(result.items[0].content[0].data,
+                    reference.items[0].content[0].data, expected.size()) == 0);
+  auto full = source.items;
+  full.insert(full.end(), result.items.begin(), result.items.end());
+  std::vector<ailo_item> pruned{result.items.back()};
+  ailo_content next{AILO_CONTENT_TEXT, "Continue", 8};
+  ailo_item user{};
+  user.role = AILO_ROLE_USER;
+  user.content = &next;
+  user.content_count = 1;
+  full.push_back(user);
+  pruned.push_back(user);
+  seen = {};
+  CHECK(generate(receiver.get(), request(full, "Replacement instructions"),
+                 seen, info) == AILO_OK);
+  const auto full_usage = info.run.usage.prompt_tokens.lo;
+  const auto full_json = terminal(seen.bytes);
+  seen = {};
+  CHECK(generate(receiver.get(), request(pruned, "Replacement instructions"),
+                 seen, info) == AILO_OK &&
+        info.run.usage.prompt_tokens.lo == full_usage);
+  const auto replay_json = terminal(seen.bytes);
+  openai_request replay(openai_protocol::responses, replay_json.data(),
+                        replay_json.size(), "local-model", "output");
+  openai_request original(openai_protocol::responses, full_json.data(),
+                          full_json.size(), "local-model", "output");
+  CHECK(replay.items[0].content[0].size == original.items[0].content[0].size &&
+        std::memcmp(replay.items[0].content[0].data,
+                    original.items[0].content[0].data,
+                    replay.items[0].content[0].size) == 0);
+  // Compare with an independently compacted canonical input followed by the
+  // COMPLETE active output, not merely the three-byte prefix at the checkpoint.
+  const auto compact_body =
+      request(source.items, "Only this automatic request", true);
+  seen = {};
+  CHECK(receiver->response_compact(receiver.get(), compact_body.data(),
+                                   compact_body.size(), output::send, &seen,
+                                   &info, &error) == AILO_OK);
+  openai_request compacted(openai_protocol::responses, seen.bytes.data(),
+                           seen.bytes.size(), "local-model", "output");
+  auto equivalent = compacted.items;
+  equivalent.push_back(result.items[0]);
+  equivalent.push_back(user);
+  seen = {};
+  CHECK(generate(receiver.get(),
+                 request(equivalent, "Replacement instructions"), seen,
+                 info) == AILO_OK &&
+        info.run.usage.prompt_tokens.lo == full_usage);
+  auto corrupted = std::string(pruned[0].encrypted_content);
+  corrupted[corrupted.size() / 2] =
+      corrupted[corrupted.size() / 2] == 'A' ? 'B' : 'A';
+  auto wrong = pruned;
+  wrong[0].encrypted_content = corrupted.c_str();
+  seen = {};
+  CHECK(generate(receiver.get(), request(wrong, nullptr), seen, info) ==
+            AILO_INVALID_ARGUMENT &&
+        !info.started);
+  // Compaction envelopes remain usable after reconstructing the client.
+  receiver = create(path, profile, owner);
+  seen = {};
+  CHECK(generate(receiver.get(), request(pruned, "Replacement instructions"),
+                 seen, info) == AILO_OK);
+  for (size_t threshold : {size_t(900), size_t(0)}) {
+    // Zero chooses the native default trigger and does not compact this input.
+    const auto before =
+        threshold ? automatic(body, threshold)
+                  : body.substr(0, body.size() - 1) +
+                        ",\"context_management\":[{\"type\":\"compaction\"}]}";
+    seen = {};
+    seen.info = &info;
+    CHECK(generate(receiver.get(), before, seen, info) == AILO_OK);
+    CHECK(threshold ? seen.control_at == 0 : seen.control_at == SIZE_MAX);
+  }
+  for (int action : {0, -1}) {
+    seen = {};
+    seen.control_action = action;
+    CHECK(generate(receiver.get(), inflight, seen, info) ==
+          (action ? AILO_SINK_FAILED : AILO_CANCELLED));
+    CHECK(seen.bytes.find("event: response.incomplete") == std::string::npos &&
+          seen.bytes.find("event: response.completed") == std::string::npos &&
+          seen.bytes.find("event: response.failed") == std::string::npos);
+  }
+  seen = {};
+  CHECK(generate(receiver.get(), automatic(body, 64), seen, info) ==
+            AILO_INVALID_ARGUMENT &&
+        !info.started);
+  auto failed_policy = *profile.compaction;
+  failed_policy.summary_tokens = 1;
+  profile.compaction = &failed_policy;
+  auto failed = create(path, profile, owner);
+  seen = {};
+  CHECK(generate(failed.get(), inflight, seen, info) == AILO_MODEL_FAILED &&
+        seen.bytes.find("event: response.failed") != std::string::npos &&
+        seen.bytes.find("event: response.completed") == std::string::npos &&
+        seen.bytes.find("event: response.incomplete") == std::string::npos);
+  profile.compaction = nullptr;
+  profile.max_output_memory_bytes = 1024;
+  auto quota = create(path, profile, owner);
+  seen = {};
+  CHECK(generate(quota.get(), inflight, seen, info) == AILO_OUT_OF_RANGE &&
+        seen.bytes.find("event: response.failed") != std::string::npos &&
+        seen.bytes.find("event: response.completed") == std::string::npos &&
+        seen.bytes.find("event: response.incomplete") == std::string::npos);
+  seen = {};
+  CHECK(generate(receiver.get(), inflight, seen, info) == AILO_OK);
 }
 int main(int argc, char **argv) {
   try {
@@ -407,6 +594,8 @@ int main(int argc, char **argv) {
     CHECK(generate(client.get(), replay, seen, info) == AILO_OK);
     CHECK(std::string(window.items[0].id) == wire_id &&
           std::string(window.items[0].encrypted_content) == encrypted);
+    auto automatic_key = keys(key);
+    automatic_cases(path, profile, automatic_key.get());
     std::puts("Responses standalone compaction, canonical replay/instructions, "
               "reconstruction/rotation, authenticated failures/expiry, quotas "
               "and cancellation: passed");

@@ -205,5 +205,20 @@ function M.compaction(ailo,path,memory)
   finite:close();finite=client("retained")
   local child=ok(finite:responses('{"previous_response_id":"'..saved.id..'","input":"Next","max_output_tokens":2,"temperature":0}',function()end));assert(child.stored)
   ok(finite:response_delete(saved.id,function()end));ok(finite:response_delete(child.id,function()end));finite:close()
+  -- Automatic preflight compaction uses the same ABI and durable lineage.
+  -- A stored create is followed across receiver reconstruction with new input.
+  c=client("retained")
+  local automatic=body:sub(1,-2)..',"stream":true,"max_output_tokens":2,"temperature":0,"context_management":[{"type":"compaction","compact_threshold":900}],"stream_options":{"include_obfuscation":false}}'
+  local frames={}
+  local run=ok(c:responses(automatic,function(s)frames[#frames+1]=s end))
+  assert(run.stored and run.usage.compaction_passes==1 and table.concat(frames):find('"type":"compaction"') and table.concat(frames):find('event: response.output_item.done'))
+  local response_id=run.id;c:close();c=client("retained")
+  local descendant=ok(c:responses('{"previous_response_id":"'..response_id..'","input":"Next","instructions":"Replacement policy","max_output_tokens":2,"temperature":0}',function()if memory then collectgarbage("collect")end end))
+  assert(descendant.stored and not next(r.active) and not next(r.reading))
+  ok(c:response_delete(response_id,function()end));ok(c:response_delete(descendant.id,function()end))
+  r.marker={automatic_commit=true};r.fault="commit";local aborted=r.aborted
+  local v,e=c:responses(automatic,function()end)
+  assert(v==nil and e.code=="io_failed" and e.cause==r.marker and r.aborted==aborted+1 and not next(r.active))
+  r.fault=nil;c:close()
 end
 return M

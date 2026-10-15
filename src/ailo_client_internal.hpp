@@ -97,7 +97,8 @@ std::string capabilities(state &self);
 std::string devices();
 void generate(state &self, const ailo_request &request, ailo_event_sink sink,
               void *user, ailo_run_info &info,
-              struct continuation_transaction *history = nullptr);
+              struct continuation_transaction *history = nullptr,
+              const struct compaction_task *task = nullptr);
 void require_utf8(const char *data, size_t size);
 bool template_supported(const char *source);
 } // namespace client

@@ -57,8 +57,13 @@ void erase_record(openai_state &, ailo_record_protocol, const char *);
 void api_canonical_item(wire_json &, const ailo_item &);
 void api_prior_input(state &, openai_request &);
 void api_expand_compaction(state &, openai_request &);
+struct sealed_summary;
 transcript api_compacted_window(state &, const std::vector<ailo_item> &,
                                 size_t instructions);
+sealed_summary api_automatic_window(state &, const std::vector<ailo_item> &,
+                                    size_t instructions,
+                                    const std::vector<ailo_item> &output,
+                                    const std::string &id);
 class record_transaction {
   openai_state &owner;
   void *transaction = nullptr;

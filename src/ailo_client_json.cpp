@@ -121,7 +121,7 @@ std::string capabilities(state &self) {
   out.key("response_conversations");
   out.boolean(false);
   out.key("response_automatic_compaction");
-  out.boolean(false);
+  out.boolean(true);
   out.key("response_compaction");
   out.boolean(true);
   out.key("response_reasoning_encryption");

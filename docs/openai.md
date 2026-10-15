@@ -7,7 +7,7 @@ caller-owned `ailo_api_info`. The
 request mapper supports the qualified text, function, schema, sampling and
 reasoning controls in [the receiver contract](client.md). Unavailable controls
 fail explicitly. Model/HTTP dispatch, stored-record list/update routes,
-conversation objects, automatic Responses compaction and encrypted reasoning
+conversation objects and encrypted reasoning
 remain required work.
 
 ```c
@@ -170,11 +170,11 @@ wire logprob diagnostics do not consume the lineage input budget. Each original
 stored output retains its logprobs.
 
 Standalone compaction and canonical-window replay are implemented below.
-Conversation objects, automatic context management,
+Conversation objects,
 encrypted reasoning replay, input-item pagination and HTTP routes are still
 unavailable integrations; requests for those controls fail explicitly. Capability
 fields distinguish implemented Responses operations, configured record storage,
-and the unavailable conversation/automatic-compaction/reasoning-encryption paths.
+and the unavailable conversation/reasoning-encryption paths.
 
 ## Standalone Responses compaction
 
@@ -233,6 +233,52 @@ either no compactor expiry or a TTL at least as long as response retention.
 Publication reseals the state, covering the record's full promised lifetime.
 The application retains those keys
 for as long as records remain usable; no plaintext key file is created.
+
+## Automatic Responses compaction
+
+Responses create accepts `context_management: [{"type":"compaction",
+"compact_threshold":N}]`, following the official
+[compaction guide](https://developers.openai.com/api/docs/guides/compaction).
+The trigger counts the rendered input and unfinished native output. Omitting
+`compact_threshold` or setting it to null selects the context size minus the
+trusted output reserve. A configured
+target must be below that trigger; an omitted target selects 75% of the explicit
+trigger. The native policy otherwise supplies the target, recent turns, summary
+context, token/byte bounds and output reserve. Each request has at most four
+compaction passes. Impossible reductions and exhausted bounds fail explicitly.
+
+Preflight and in-flight compaction use the same separate summary context and
+native context rebuild as ordinary receiver generation. The active message,
+function arguments, reasoning parser, sampler, IDs and token provenance continue
+across the rebuild. Available text/reasoning/argument deltas still reach the sink
+immediately; context reconstruction never redelivers previously emitted deltas.
+
+A compaction output item is added before its model pass with empty encrypted
+content. As specified by the official
+[streaming events reference](https://developers.openai.com/api/reference/resources/responses/streaming-events),
+new summary output can produce `response.compaction.compacting` at most once per
+30 seconds; that progress event carries no summary. Short passes need no progress
+event. Use the completed compaction item from `response.output_item.done` or the
+terminal response for replay. Its ID and output index remain stable.
+
+Append output to input normally, or drop everything before the most recent
+automatic compaction item and append new input. Both forms restore the same
+authenticated canonical input. Each completed automatic envelope also carries
+the complete generated items preceding it in that response, including a message
+that continued across the checkpoint. This bounded state is finalized at response
+completion, so the compaction done event is deferred until then. Immediate deltas
+continue throughout generation. Standalone windows still require every retained
+item; the authenticated envelope distinguishes the two replay contracts.
+
+Automatic envelopes share the existing encryption, purpose/key/model/namespace
+binding, TTL and byte limits. Their state and encrypted output count against the
+API memory budget. Stored automatic requests require stable keys and a TTL
+covering response retention even if the threshold is not reached. The private
+record stores the final compacted input and ordinary generated output exactly
+once, permitting `previous_response_id` chaining across receiver reconstruction.
+Publication remains atomic before successful done/terminal events. Summary work
+is included in wire usage; native info keeps its separate compaction counters.
+`response_automatic_compaction` now advertises this integration.
 
 ## Lua
 

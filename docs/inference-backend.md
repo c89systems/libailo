@@ -27,9 +27,9 @@ conflicting, duplicate and unavailable semantics fail instead of being ignored.
 This is request materialization, not generated-output buffering. Public Chat
 and Responses JSON/SSE and C repository operations are now connected through
 [the adapter surface](openai.md). Handler/model routing, stored list/update,
-conversation objects, automatic Responses compaction and encrypted reasoning
-remain required. Standalone Responses compaction and authenticated canonical-window
-replay are connected. Lua exposes the same retention profile,
+conversation objects and encrypted reasoning remain required. Standalone and
+automatic Responses compaction and authenticated replay are connected. Lua
+exposes the same retention profile,
 repository receiver and direct retrieval/deletion primitives through the C ABI.
 
 API function schemas use the existing private schema helper for the documented
@@ -446,7 +446,8 @@ The official [compaction guide](https://developers.openai.com/api/docs/guides/co
 specifies opaque encrypted items for Responses, automatic context management
 and standalone compaction. Standalone Responses compaction now returns that
 canonical window, including retained items and an authenticated opaque envelope.
-Automatic context-management wire integration remains required. Local tokens are
+Automatic context-management emits compaction output items in the same stream
+and supports pruning before the latest completed automatic item. Local tokens are
 replayable by compatible libailo instances only; OpenAI-issued encrypted content
 cannot be decrypted or accepted as local state, and vice versa.
 

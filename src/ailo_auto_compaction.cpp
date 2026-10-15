@@ -5,8 +5,8 @@ namespace ailo {
 namespace client {
 automatic_compaction::automatic_compaction(
     state &client, continuation_transaction &owner,
-    const ailo_auto_compaction_policy &input)
-    : self(client), history(owner), policy(input) {
+    const ailo_auto_compaction_policy &input, const compaction_task *work)
+    : self(client), history(owner), policy(input), task(work) {
   policy.compaction = resolve_compaction_policy(self, policy.compaction);
   const size_t available =
       llama_n_ctx(self.context.get()) - policy.compaction.output_reserve_tokens;
@@ -34,7 +34,7 @@ compaction_change automatic_compaction::propose(size_t unfinished) {
   logs.trace("Starting automatic semantic compaction");
   compaction_change result;
   result.window.reset(compact_window(self, history.input, limits, result.info,
-                                     &history.owner.config));
+                                     &history.owner.config, task));
   if (!result.info.changed)
     throw failure(AILO_CONTEXT_LIMIT,
                   "Automatic compaction cannot reduce the protected context");

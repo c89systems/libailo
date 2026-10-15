@@ -5,6 +5,7 @@
 #include "ailo_client_internal.hpp"
 #include "ailo_conversation_internal.hpp"
 #include <array>
+#include <functional>
 
 namespace ailo {
 namespace client {
@@ -66,6 +67,8 @@ ailo_compaction_policy resolve_compaction_policy(state &,
 struct compaction_task {
   const char *instructions = nullptr;
   ailo_usage *usage = nullptr;
+  std::function<void()> begin;
+  std::function<void()> progress;
 };
 ailo_continuation *
 compact_window(state &, const ailo_request &, ailo_compaction_policy,

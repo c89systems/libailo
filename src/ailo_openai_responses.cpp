@@ -4,6 +4,7 @@
 #include "ailo_openai_internal.hpp"
 #include "src/unicode.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <deque>
@@ -37,6 +38,8 @@ struct response_item {
   std::string id, call_id, name, text;
   std::vector<response_probability> probabilities;
   bool done = false, incomplete = false, added = false;
+  std::string encrypted;
+  std::shared_ptr<transcript> window;
 };
 std::string token_label(const std::string &bytes) {
   std::string text;
@@ -183,6 +186,9 @@ class response_writer {
   uint64_t created, completed_at = 0, sequence = 0;
   size_t charged = 0, current = 0, next_done = 0;
   bool store, frame_open = false;
+  bool begun = false;
+  size_t active_control = SIZE_MAX;
+  std::chrono::steady_clock::time_point last_progress;
   std::vector<response_item> items;
   std::deque<pending_probability> pending;
   std::unique_ptr<record_transaction> record;
@@ -238,6 +244,13 @@ class response_writer {
     out.key("id");
     out.string(i.id);
     out.key("type");
+    if (i.kind == AILO_ITEM_COMPACTION) {
+      out.string("compaction");
+      out.key("encrypted_content");
+      out.string(full ? i.encrypted : "");
+      out.end_object();
+      return;
+    }
     out.string(i.kind == AILO_ITEM_FUNCTION_CALL ? "function_call"
                : i.kind == AILO_ITEM_REASONING   ? "reasoning"
                                                  : "message");
@@ -273,12 +286,15 @@ class response_writer {
     const auto &u = info.run.usage;
     out.object();
     out.key("input_tokens");
-    out.number(detail::to_native(u.prompt_tokens));
+    const auto input = detail::to_native(u.prompt_tokens) +
+                       detail::to_native(u.compaction_prompt_tokens);
+    const auto output = detail::to_native(u.completion_tokens) +
+                        detail::to_native(u.compaction_completion_tokens);
+    out.number(input);
     out.key("output_tokens");
-    out.number(detail::to_native(u.completion_tokens));
+    out.number(output);
     out.key("total_tokens");
-    out.number(detail::to_native(u.prompt_tokens) +
-               detail::to_native(u.completion_tokens));
+    out.number(input + output);
     out.key("input_tokens_details");
     out.object();
     out.key("cached_tokens");
@@ -352,6 +368,17 @@ class response_writer {
     out.boolean(request.generation.parallel_tool_calls);
     out.key("previous_response_id");
     nullable(out, request.previous_response_id);
+    if (request.automatic_compaction) {
+      out.key("context_management");
+      out.array();
+      out.object();
+      out.key("type");
+      out.string("compaction");
+      out.key("compact_threshold");
+      out.number(request.compact_threshold);
+      out.end_object();
+      out.end_array();
+    }
     out.key("store");
     out.boolean(store);
     out.key("temperature");
@@ -518,7 +545,7 @@ class response_writer {
   }
   void flush_done() {
     // Stored streams publish the atomic record before successful done events.
-    if (record)
+    if (record || (request.automatic_compaction && !completed_at))
       return;
     while (next_done < items.size() && items[next_done].done) {
       bool waiting = false;
@@ -535,7 +562,7 @@ class response_writer {
           out.key("arguments");
           out.string(i.text);
         });
-      } else {
+      } else if (i.kind != AILO_ITEM_COMPACTION) {
         frame(i.kind == AILO_ITEM_REASONING ? "response.reasoning_text.done"
                                             : "response.output_text.done",
               [&](wire_json &out) {
@@ -640,6 +667,7 @@ class response_writer {
       throw failure(AILO_INTERNAL_ERROR,
                     "Unsettled response probabilities at completion");
     completed_at = api_now();
+    seal_controls();
     const char *status = info.run.finish_reason == AILO_FINISH_LENGTH
                              ? "incomplete"
                              : "completed";
@@ -652,12 +680,16 @@ class response_writer {
       input.string(self.conversation_identity);
       input.key("input");
       input.array();
-      const bool compacted = std::any_of(
-          request.items.begin(), request.items.end(),
-          [](const ailo_item &i) { return i.kind == AILO_ITEM_COMPACTION; });
+      const auto source = active_control == SIZE_MAX
+                              ? request.items
+                              : items[active_control].window->views();
+      const bool compacted =
+          std::any_of(source.begin(), source.end(), [](const ailo_item &i) {
+            return i.kind == AILO_ITEM_COMPACTION;
+          });
       if (compacted) {
-        const auto lineage = api_compacted_window(self, request.items,
-                                                  request.instruction_items);
+        const auto lineage =
+            api_compacted_window(self, source, request.instruction_items);
         for (const auto &i : lineage.items)
           canonical_item(input, i->view());
       } else
@@ -668,7 +700,8 @@ class response_writer {
       input.key("output");
       input.array();
       for (const auto &i : items)
-        item(input, i, true, false);
+        if (i.kind != AILO_ITEM_COMPACTION)
+          item(input, i, true, false);
       input.end_array();
       input.end_object();
       input.finish();
@@ -700,23 +733,16 @@ class response_writer {
   }
   void receive(const ailo_event &e) {
     if (e.kind == AILO_EVENT_RUN_BEGIN) {
-      for (auto type : {"response.created", "response.in_progress"})
-        frame(type, [&](wire_json &out) {
-          out.key("response");
-          response(out, "in_progress");
-        });
+      start();
     } else if (e.kind == AILO_EVENT_ITEM_BEGIN) {
       charge(sizeof(response_item) + std::strlen(e.item_id) +
              (e.call_id ? std::strlen(e.call_id) : 0));
       current = items.size();
-      items.push_back({e.item_kind,
-                       e.item_id,
-                       e.call_id ? e.call_id : "",
-                       {},
-                       {},
-                       {},
-                       false,
-                       false});
+      response_item i{};
+      i.kind = e.item_kind;
+      i.id = e.item_id;
+      i.call_id = e.call_id ? e.call_id : "";
+      items.push_back(std::move(i));
       if (e.item_kind != AILO_ITEM_FUNCTION_CALL)
         added(current);
     } else if (e.kind == AILO_EVENT_CONTENT_BEGIN) {
@@ -759,6 +785,16 @@ class response_writer {
       i.done = true;
       i.incomplete = e.finish_reason == AILO_FINISH_LENGTH;
       flush_done();
+    } else if (e.kind == AILO_EVENT_COMPACTION) {
+      if (active_control == SIZE_MAX || items[active_control].window)
+        throw failure(AILO_INTERNAL_ERROR, "Unannounced Responses compaction");
+      auto window = std::make_shared<transcript>();
+      for (size_t i = 0; i < e.compacted_item_count; ++i)
+        window->items.push_back(
+            std::make_shared<owned_item>(e.compacted_items[i], window->bytes,
+                                         4 * 1024 * 1024, window->parts));
+      charge(window->bytes);
+      items[active_control].window = std::move(window);
     } else if (e.kind == AILO_EVENT_OUTPUT_PROGRESS)
       settle(detail::to_native(e.raw_offset));
     else if (e.kind == AILO_EVENT_RUN_END)
@@ -766,6 +802,71 @@ class response_writer {
   }
 
 public:
+  void start() {
+    if (begun)
+      return;
+    begun = true;
+    for (auto type : {"response.created", "response.in_progress"})
+      frame(type, [&](wire_json &out) {
+        out.key("response");
+        response(out, "in_progress");
+      });
+  }
+  void compact_begin() {
+    start();
+    ailo_api_info identity{};
+    api_identity(identity, "cmp_");
+    charge(sizeof(response_item) + std::strlen(identity.id));
+    response_item control{};
+    control.kind = AILO_ITEM_COMPACTION;
+    control.id = identity.id;
+    active_control = items.size();
+    items.push_back(std::move(control));
+    last_progress = std::chrono::steady_clock::now();
+    added(active_control);
+  }
+  void compact_progress() {
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last_progress < std::chrono::seconds(30))
+      return;
+    last_progress = now;
+    frame("response.compaction.compacting",
+          [&](wire_json &out) { location(out, active_control, false); });
+  }
+  void seal_controls() {
+    if (active_control == SIZE_MAX)
+      return;
+    std::vector<ailo_content> parts;
+    std::vector<ailo_item> prefix;
+    parts.reserve(items.size());
+    prefix.reserve(items.size());
+    for (auto &i : items) {
+      if (i.kind == AILO_ITEM_COMPACTION) {
+        if (!i.window)
+          throw failure(AILO_INTERNAL_ERROR, "Unfinished Responses compaction");
+        const auto sealed = api_automatic_window(
+            self, i.window->views(), request.instruction_items, prefix, i.id);
+        append(i.encrypted, sealed.encrypted_content.data(),
+               sealed.encrypted_content.size());
+        i.done = true;
+        continue;
+      }
+      ailo_item value{};
+      value.kind = i.kind;
+      value.role = AILO_ROLE_ASSISTANT;
+      value.id = i.id.c_str();
+      if (i.kind == AILO_ITEM_FUNCTION_CALL) {
+        value.call_id = i.call_id.c_str();
+        value.name = i.name.c_str();
+        value.arguments = i.text.c_str();
+      } else {
+        parts.push_back({AILO_CONTENT_TEXT, i.text.data(), i.text.size()});
+        value.content = &parts.back();
+        value.content_count = 1;
+      }
+      prefix.push_back(value);
+    }
+  }
   response_writer(state &s, openai_request &r, ailo_api_info &i,
                   ailo_output_sink callback, void *user, uint64_t now,
                   const openai_retention_plan &plan)
@@ -839,10 +940,9 @@ AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
                            call.self.id);
     const auto now = api_now();
     const auto plan = resolve_retention(request, call.self.openai->policy, now);
-    if (!request.conversation_id.empty() || request.automatic_compaction)
+    if (!request.conversation_id.empty())
       throw failure(AILO_UNSUPPORTED,
-                    "Conversation repository and automatic Responses "
-                    "compaction are not yet connected");
+                    "Conversation repository is not yet connected");
     info->content_type =
         request.streaming ? "text/event-stream" : "application/json";
     api_identity(*info, "resp_");
@@ -853,7 +953,7 @@ AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
       bool compacted = false;
       for (const auto &i : request.items)
         compacted |= i.kind == AILO_ITEM_COMPACTION;
-      if (compacted && plan.store_response &&
+      if ((compacted || request.automatic_compaction) && plan.store_response &&
           (call.self.compactor->ephemeral ||
            (call.self.compactor->ttl_seconds &&
             call.self.compactor->ttl_seconds <
@@ -865,8 +965,41 @@ AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
       auto native = request.generation;
       if (native.logprobs)
         native.top_logprobs = 20;
+      auto automatic = ailo_auto_compaction_default_policy();
+      compaction_task task{};
+      std::unique_ptr<ailo_continuation, decltype(&ailo_continuation_destroy)>
+          window(nullptr, ailo_continuation_destroy);
+      std::unique_ptr<continuation_transaction> history;
+      if (request.automatic_compaction) {
+        automatic.compaction = call.self.openai->compaction;
+        automatic.trigger_tokens = request.compact_threshold;
+        if (!automatic.compaction.target_tokens && automatic.trigger_tokens)
+          automatic.compaction.target_tokens = automatic.trigger_tokens * 3 / 4;
+        call.self.ensure_loaded();
+        identify_cache(call.self, true);
+        if (!request.compact_threshold) {
+          const auto resolved =
+              resolve_compaction_policy(call.self, automatic.compaction);
+          request.compact_threshold = llama_n_ctx(call.self.context.get()) -
+                                      resolved.output_reserve_tokens;
+        }
+        window.reset(new_window(call.self, ailo_continuation_default_config(),
+                                native.items, native.item_count));
+        native.items = nullptr;
+        native.item_count = 0;
+        native.continuation = window.get();
+        native.auto_compaction = &automatic;
+        history = std::make_unique<continuation_transaction>(call.self, native);
+        task.instructions = request.instructions.empty()
+                                ? nullptr
+                                : request.instructions.c_str();
+        task.begin = [&] { output.compact_begin(); };
+        task.progress = [&] { output.compact_progress(); };
+      }
       try {
-        generate(call.self, native, response_writer::event, &output, info->run);
+        generate(call.self, history ? history->input : native,
+                 response_writer::event, &output, info->run, history.get(),
+                 &task);
       } catch (...) {
         output.rethrow();
         throw;

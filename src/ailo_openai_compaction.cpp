@@ -171,7 +171,9 @@ void cipher(state &self, bool encrypt, const compaction_secret &key,
     crypto(EVP_CIPHER_CTX_ctrl(ctx.get(), EVP_CTRL_GCM_GET_TAG, 16,
                                envelope.data() + tag_offset) == 1);
 }
-sealed_summary seal(state &self, const std::vector<ailo_item> &items) {
+sealed_summary seal(state &self, const std::vector<ailo_item> &items,
+                    const std::vector<ailo_item> *output = nullptr,
+                    const std::string &id = {}) {
   cancelled(self);
   const auto limit = self.compactor->max_item_bytes;
   plaintext plain;
@@ -190,11 +192,21 @@ sealed_summary seal(state &self, const std::vector<ailo_item> &items) {
   for (const auto &i : items)
     api_canonical_item(out, i);
   out.end_array();
+  if (output) {
+    out.key("ailo_automatic");
+    out.boolean(true);
+    out.key("output");
+    out.array();
+    for (const auto &i : *output)
+      api_canonical_item(out, i);
+    out.end_array();
+  }
   out.end_object();
   out.finish();
   ailo_api_info identity{};
-  api_identity(identity, "cmp_");
-  sealed_summary result{identity.id, {}};
+  if (id.empty())
+    api_identity(identity, "cmp_");
+  sealed_summary result{id.empty() ? identity.id : id, {}};
   std::vector<unsigned char> envelope(header_size + plain.bytes.size());
   std::memcpy(envelope.data(), "AILOAPI1", 8);
   const auto &key = *self.compactor->keys.front();
@@ -297,9 +309,9 @@ void shift_sources(compaction_payload &payload, size_t prefix, bool remove,
 
 // Canonical wire windows exclude ephemeral top-level instructions. Native
 // binding is authenticated before removing that prefix and resealing the token.
-transcript api_compacted_window(state &self,
-                                const std::vector<ailo_item> &items,
-                                size_t instructions) {
+static transcript canonical_window(state &self,
+                                   const std::vector<ailo_item> &items,
+                                   size_t instructions) {
   if (instructions > items.size())
     invalid();
   transcript result;
@@ -333,15 +345,40 @@ transcript api_compacted_window(state &self,
   const size_t cut = position - instructions;
   window[cut].id = native.id.c_str();
   window[cut].encrypted_content = native.encrypted_content.c_str();
-  const auto wire = seal(self, window);
-  window[cut].id = wire.id.c_str();
-  window[cut].encrypted_content = wire.encrypted_content.c_str();
   for (const auto &i : window)
     add(result, i);
   return result;
 }
+transcript api_compacted_window(state &self,
+                                const std::vector<ailo_item> &items,
+                                size_t instructions) {
+  auto result = canonical_window(self, items, instructions);
+  const auto window = result.views();
+  const size_t cut = token_position(window, false);
+  if (cut == window.size())
+    return result;
+  const auto wire = seal(self, window);
+  auto token = window[cut];
+  token.id = wire.id.c_str();
+  token.encrypted_content = wire.encrypted_content.c_str();
+  transcript replaced;
+  for (size_t i = 0; i < window.size(); ++i)
+    add(replaced, i == cut ? token : window[i]);
+  return replaced;
+}
+sealed_summary api_automatic_window(state &self,
+                                    const std::vector<ailo_item> &items,
+                                    size_t instructions,
+                                    const std::vector<ailo_item> &output,
+                                    const std::string &id) {
+  const auto window = canonical_window(self, items, instructions);
+  return seal(self, window.views(), &output, id);
+}
 void api_expand_compaction(state &self, openai_request &request) {
-  const size_t position = token_position(request.items, false);
+  size_t position = request.items.size();
+  for (size_t i = 0; i < request.items.size(); ++i)
+    if (request.items[i].kind == AILO_ITEM_COMPACTION)
+      position = i;
   if (position == request.items.size())
     return;
   self.ensure_loaded();
@@ -352,12 +389,15 @@ void api_expand_compaction(state &self, openai_request &request) {
                          plain.bytes.size(), self.id, "input");
   const size_t cut = token_position(decoded.items, true),
                count = decoded.items.size(), prefix = request.instruction_items;
-  if (position != prefix + cut || count > request.items.size() - prefix)
-    invalid();
-  for (size_t i = 0; i < count; ++i)
-    if (i != cut &&
-        fingerprint(decoded.items[i]) != fingerprint(request.items[prefix + i]))
+  if (!decoded.record_automatic) {
+    (void)token_position(request.items, false);
+    if (position != prefix + cut || count > request.items.size() - prefix)
       invalid();
+    for (size_t i = 0; i < count; ++i)
+      if (i != cut && fingerprint(decoded.items[i]) !=
+                          fingerprint(request.items[prefix + i]))
+        invalid();
+  }
   auto payload = self.compactor->open(decoded.items[cut].id,
                                       decoded.items[cut].encrypted_content,
                                       self.conversation_identity, &self);
@@ -378,14 +418,26 @@ void api_expand_compaction(state &self, openai_request &request) {
   const auto native =
       self.compactor->seal(*payload, self.conversation_identity, &self);
   transcript expanded;
-  for (size_t i = 0; i < request.items.size(); ++i) {
-    auto item = request.items[i];
-    if (i == position) {
+  for (size_t i = 0; i < prefix; ++i)
+    add(expanded, request.items[i]);
+  for (size_t i = 0; i < count; ++i) {
+    auto item = decoded.items[i];
+    if (i == cut) {
       item.id = native.id.c_str();
       item.encrypted_content = native.encrypted_content.c_str();
     }
     add(expanded, item);
   }
+  if (decoded.record_automatic) {
+    openai_request output(openai_protocol::responses, plain.bytes.data(),
+                          plain.bytes.size(), self.id, "output");
+    for (const auto &i : output.items)
+      add(expanded, i);
+  }
+  const size_t suffix =
+      decoded.record_automatic ? position + 1 : prefix + count;
+  for (size_t i = suffix; i < request.items.size(); ++i)
+    add(expanded, request.items[i]);
   bind_request(request, std::move(expanded));
 }
 } // namespace client
@@ -427,9 +479,10 @@ AILO_PUBLIC ailo_status ailo_client_response_compact(
           "Standalone Responses compaction input exceeds the model context");
     ailo_compaction_info compact{};
     ailo_usage work{};
-    compaction_task task{
-        request.instructions.empty() ? nullptr : request.instructions.c_str(),
-        &work};
+    compaction_task task{};
+    task.instructions =
+        request.instructions.empty() ? nullptr : request.instructions.c_str();
+    task.usage = &work;
     std::unique_ptr<ailo_continuation, decltype(&ailo_continuation_destroy)>
         window(compact_window(self, request.generation, self.openai->compaction,
                               compact, nullptr, &task),

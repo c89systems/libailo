@@ -15,8 +15,10 @@ struct automatic_compaction {
   continuation_transaction &history;
   ailo_auto_compaction_policy policy;
   unsigned passes = 0;
+  const compaction_task *task;
   automatic_compaction(state &, continuation_transaction &,
-                       const ailo_auto_compaction_policy &);
+                       const ailo_auto_compaction_policy &,
+                       const compaction_task * = nullptr);
   compaction_change propose(size_t unfinished);
   void adopt(const compaction_change &);
 };

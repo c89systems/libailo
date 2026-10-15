@@ -195,7 +195,7 @@ void evaluate(state &self, const llama_token *tokens, size_t size,
 
 void generate(state &self, const ailo_request &request, ailo_event_sink sink,
               void *user, ailo_run_info &info,
-              continuation_transaction *history) {
+              continuation_transaction *history, const compaction_task *task) {
   const size_t limit = request.max_tokens ? request.max_tokens : 128;
   const unsigned candidates = request.candidates ? request.candidates : 1;
   const double top_p = request.top_p ? request.top_p : 1.0;
@@ -229,7 +229,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   std::unique_ptr<automatic_compaction> automatic;
   if (request.auto_compaction)
     automatic = std::make_unique<automatic_compaction>(
-        self, *history, *request.auto_compaction);
+        self, *history, *request.auto_compaction, task);
   auto tools = prepare_tools(request);
   auto input = prepare_replay(self, request);
   auto reasoning = render_prompt(self, input, tools, request);
