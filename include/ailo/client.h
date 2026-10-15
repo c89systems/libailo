@@ -79,6 +79,26 @@ typedef struct ailo_item {
   const char *encrypted_content;
 } ailo_item;
 
+typedef enum ailo_gpu_split {
+  AILO_GPU_SPLIT_LAYER = 0,
+  AILO_GPU_SPLIT_NONE,
+  AILO_GPU_SPLIT_ROW
+} ailo_gpu_split;
+/** Ordered identities returned by devices(), never enumeration indices.
+ * Empty selection uses all eligible Vulkan devices. Optional weights require
+ * an explicit list, matching counts, finite nonnegative values and a positive
+ * sum. Layer rounding follows the pinned native backend. Positive participants
+ * must receive a repeating or output layer; zero weights need not participate.
+ * NONE selects one device; ROW is unsupported by the Vulkan receiver.
+ * All arrays and strings are copied by the constructor. */
+typedef struct ailo_gpu_config {
+  const char *const *devices;
+  size_t device_count;
+  const double *weights;
+  size_t weight_count;
+  ailo_gpu_split split;
+} ailo_gpu_config;
+
 /** Constructor copies source strings/checksums and model_id/template strings.
  * Source callback user state stays borrowed until destroy. Zero selects eager
  * loading and automatic backend selection. Source itself is always explicit. */
@@ -106,6 +126,9 @@ typedef struct ailo_client_config {
   /** Copied API/repository configuration; callback user resources are borrowed
    * until destroy. NULL selects defaults and no retained-record repository. */
   const struct ailo_openai_config *openai;
+  /** NULL uses default layer splitting/automatic selection. Explicit placement
+   * is never silently retried on CPU. Cannot accompany backend=CPU. */
+  const ailo_gpu_config *gpu;
 } ailo_client_config;
 
 typedef struct ailo_logit_bias {

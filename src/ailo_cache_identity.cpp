@@ -117,6 +117,11 @@ void identify_cache(state &self, bool required) {
     add(std::to_string(self.config.threads));
     add(std::to_string(self.actual));
     add(std::to_string(self.config.gpu_layers));
+    for (const auto &device : self.selected_info) {
+      add(device.id);
+      add(device.driver_uuid);
+      add(device.driver);
+    }
     auto device_identity = [&](ggml_backend_dev_t device) {
       if (!device) {
         add("none");

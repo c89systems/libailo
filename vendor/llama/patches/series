@@ -4,3 +4,4 @@
 0004-own-cpu-repack-traits.patch
 0005-format-vulkan-handles-portably.patch
 0006-route-scoped-logging-through-workers.patch
+0007-expose-vulkan-physical-identity.patch

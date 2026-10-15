@@ -83,8 +83,13 @@ Configure independent optional repository methods `scan(query)` and
 transaction bridge and preserve the record's original expiry.
 
 Constructor options also include `model_id`, `chat_template`, `lazy`, backend
-`auto`/`cpu`/`vulkan`, `gpu_layers`, `context_tokens`, `batch_tokens`, `threads`
-and an optional pslog `logger`. Defaults match the C factories. Unknown keys,
+`auto`/`cpu`/`vulkan`, `gpu_layers`, `context_tokens`, `batch_tokens`, `threads`,
+an optional pslog `logger`,
+and optional `gpu={devices={id1,id2},weights={3,1},split="layer"}`. Device IDs
+come from `client:devices()`; the arrays are copied. Explicit placement is never
+silently retried on CPU. Model-card `placement` reports actual layer/buffer
+ownership and native memory allocations. See [GPU placement](../docs/client.md#gpu-placement).
+Defaults match the C factories. Unknown keys,
 wrong types, holes and out-of-range values return `nil, error`.
 
 Each client has a private prompt/KV cache (64 MiB/eight entries/300 seconds idle).

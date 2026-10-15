@@ -4,6 +4,7 @@ set(cache_inputs cmake/dependencies.json CMakeLists.txt cmake/AiloPolicy.cmake
   cmake/AiloToolchain.cmake cmake/AiloCacheIdentity.cmake src/ailo_client.cpp
   src/ailo_cache.cpp src/ailo_cache_internal.hpp src/ailo_cache_identity.cpp
   src/ailo_snapshot.cpp src/ailo_snapshot_internal.hpp
+  src/ailo_gpu.cpp src/ailo_gpu_internal.hpp
   vendor/llama/patches/series)
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/vendor/llama/patches/series" patches)
 foreach(patch IN LISTS patches)

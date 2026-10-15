@@ -218,6 +218,7 @@ std::string summarize(state &parent, const ailo_request &input,
   worker.path = parent.path;
   worker.actual = parent.actual;
   worker.selected = parent.selected;
+  worker.selected_info = parent.selected_info;
   worker.context_parameters = parent.context_parameters;
   worker.context_parameters.n_ctx =
       static_cast<uint32_t>(policy.summary_context_tokens);

@@ -5,6 +5,30 @@ Implement the complete CPU/RADV/ANV deployment and multi-GPU layer splitting,
 then test it thoroughly. The investigation establishes an implementation path;
 it does not establish an already working static GPU artifact.
 
+Receiver placement controls are implemented: copied UUID selection and weights,
+layer/single-device strategies, explicit no-fallback commitments, positive
+participant ownership/residency checks, and detailed model-card allocations.
+See [the receiver contract](client.md#gpu-placement). The static driver/dispatch
+build below remains required implementation; these controls do not establish it.
+
+Focused 2026-10-15 foundation evidence used the existing shared-driver build on
+Intel Graphics RPL-U, ANV, PCI `0000:00:02.0`, device UUID
+`868021a7040000000002000000000000`. SmolLM2-135M-Instruct Q4_K_M (SHA-256
+`2e8040ceae7815abe0dcb3540b9995eaa1fa0d2ca9e797d0a635ae4433c68c2d`)
+offloaded all 30 repeating layers and the output layer. The installed Lua/C ABI
+exercised explicit weighted layer placement and single-device placement, first
+text at token 1, cancellation and a second client surviving first-client teardown,
+with Mesa disk shader cache disabled. Native model/context/compute device buffers
+were reported separately from host buffers. This is single-Intel foundation
+evidence, not static Mesa, AMD or multi-GPU qualification.
+
+The installed-ABI `lua/tests/receiver.lua` has a hardware mode: append
+`--vulkan single SHA256` after its normal model/work/repository-fixture arguments
+to test one device, or `--vulkan all SHA256` for weighted placement across all
+eligible devices. The latter requires at least two devices and fails if hardware
+is absent; it is not a successful skip. Use the matching Lua runner/loader/module
+paths from `lua-receiver` and a trained model, not the synthetic CPU fixture.
+
 ## Deployment boundary
 
 The standalone deployment is an application statically linked with musl,

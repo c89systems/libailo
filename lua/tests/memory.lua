@@ -198,4 +198,12 @@ local construction_success=pcall(function()
 end)
 toggle(false);assert(not construction_success)
 construction_log=nil;collectgarbage("collect");collectgarbage("collect");assert(not construction_weak[1])
+do
+  local id='vulkan:'..string.rep('f',32)
+  fails('invalid_argument',function()return ailo.new(config{backend='auto',lazy=true,gpu={devices={id},weights={0}}})end)
+  local options={devices={id},weights={1}}
+  local receiver=ok(ailo.new(config{backend='auto',lazy=true,gpu=options}))
+  options.devices[1]='changed';collectgarbage('collect')
+  fails('not_found',function()return receiver:model_card()end);receiver:close()
+end
 print("Lua ownership: logger/coroutine/GC, callback failure, cancellation, mutation and OOM passed")

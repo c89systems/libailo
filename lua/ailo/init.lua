@@ -54,8 +54,24 @@ local function guarded(fn, ...)
   return table.unpack(result,2,result.n)
 end
 local source_keys=keys("local_path repo revision filename cache_root sha256 allow_download split_shards bearer_token max_bytes connect_timeout_ms transfer_timeout_ms max_attempts progress")
-local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache compactor openai")
+local config_keys=keys("source model_id chat_template backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache compactor openai gpu")
 local backends={auto=0,cpu=1,vulkan=2}
+local function gpu(input)
+  if input==nil then return nil end
+  object(input,keys("devices weights split"),"GPU placement")
+  local out={devices={},weights={},split=enumeration(input.split,{layer=0,none=1,row=2},0,"GPU split")}
+  if input.devices~=nil then
+    local n=array(input.devices,"GPU devices")
+    if n>16 then invalid("GPU device count exceeds 16")end
+    for i=1,n do out.devices[i]=str(input.devices[i],"GPU device ID",false)end
+  end
+  if input.weights~=nil then
+    local n=array(input.weights,"GPU weights")
+    if n>16 then invalid("GPU weight count exceeds 16")end
+    for i=1,n do out.weights[i]=number(input.weights[i],"GPU weight",0,false,0,math.huge)end
+  end
+  return out
+end
 local function u64(value,name)
   if type(value)=="table" then
     object(value,keys("hi lo"),name)
@@ -148,6 +164,7 @@ function M.new(config)
     out.cache=config.cache
     out.compactor=config.compactor
     out.openai=openai(config.openai)
+    out.gpu=gpu(config.gpu)
     local native,err=core.new(out)
     if not native then return nil,err end
     return setmetatable({_native=native},{__index=methods,__close=function(self) self:close() end})

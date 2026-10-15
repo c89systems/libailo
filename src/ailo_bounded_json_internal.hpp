@@ -68,6 +68,7 @@ public:
   void null() { check(writer.null_fn(&writer, nullptr)); }
   void boolean(bool value) { check(writer.bool_fn(&writer, value, nullptr)); }
   void number(uint64_t value) { check(writer.u64(&writer, value, nullptr)); }
+  void real(double value) { check(writer.f64(&writer, value, nullptr)); }
   void number_text(const std::string &value) {
     check(writer.number_text(&writer, value.data(), value.size(), nullptr));
   }

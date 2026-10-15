@@ -4,6 +4,7 @@
 #include "ailo_continuation_internal.hpp"
 #include "ailo_logging_internal.hpp"
 #include "ailo_openai_internal.hpp"
+#include "src/llama-model.h"
 #include <algorithm>
 #include <climits>
 #include <cstdlib>
@@ -84,7 +85,8 @@ source_copy::~source_copy() {
 
 state::state(const ailo_client_config &input, pslog_logger *logger)
     : source(input.source), id(copy_string(input.model_id)),
-      template_override(copy_string(input.chat_template)), config(input) {
+      template_override(copy_string(input.chat_template)), config(input),
+      gpu(input.gpu, input.backend) {
   if (config.backend < AILO_BACKEND_AUTO ||
       config.backend > AILO_BACKEND_VULKAN || config.threads < 0 ||
       config.gpu_layers < -1 || config.context_tokens > INT_MAX ||
@@ -100,6 +102,8 @@ state::state(const ailo_client_config &input, pslog_logger *logger)
   config.model_id = id.c_str();
   config.chat_template =
       input.chat_template ? template_override.c_str() : nullptr;
+  gpu_config = gpu.view();
+  config.gpu = input.gpu ? &gpu_config : nullptr;
   char *validated = nullptr;
   ailo_error error{};
   const ailo_status status =
@@ -150,6 +154,19 @@ void state::ensure_loaded() {
     detail::backend_acquire();
     backend_owned = true;
   }
+  selected.clear();
+  selected_info.clear();
+  if (config.backend != AILO_BACKEND_CPU) {
+    selected_info = gpu.choose(gpu_devices());
+    for (const auto &device : selected_info)
+      selected.push_back(device.device);
+    if (selected.empty() &&
+        (config.backend == AILO_BACKEND_VULKAN || gpu.required()))
+      throw failure(AILO_UNSUPPORTED,
+                    "No eligible selected Vulkan device is available");
+  }
+  actual = selected.empty() ? AILO_BACKEND_CPU : AILO_BACKEND_VULKAN;
+  selected.push_back(nullptr);
   if (path.empty()) {
     char *acquired = nullptr;
     ailo_error error{};
@@ -165,30 +182,35 @@ void state::ensure_loaded() {
       throw failure(status, error.message);
     path = acquired;
   }
-  selected.clear();
-  if (config.backend != AILO_BACKEND_CPU) {
-    ggml_backend_reg_t registry = ggml_backend_reg_by_name("Vulkan");
-    if (registry)
-      for (size_t i = 0; i < ggml_backend_reg_dev_count(registry); ++i)
-        selected.push_back(ggml_backend_reg_dev_get(registry, i));
-    if (selected.empty() && config.backend == AILO_BACKEND_VULKAN)
-      throw failure(AILO_UNSUPPORTED,
-                    "No usable built Vulkan device is available");
-  }
-  actual = selected.empty() ? AILO_BACKEND_CPU : AILO_BACKEND_VULKAN;
-  selected.push_back(nullptr);
   for (;;) {
     llama_model_params mp = llama_model_default_params();
     mp.devices = selected.data();
     mp.n_gpu_layers = actual == AILO_BACKEND_CPU
                           ? 0
                           : (config.gpu_layers ? config.gpu_layers : -1);
-    mp.split_mode = LLAMA_SPLIT_MODE_LAYER;
+    mp.split_mode = gpu.split == AILO_GPU_SPLIT_NONE ? LLAMA_SPLIT_MODE_NONE
+                                                     : LLAMA_SPLIT_MODE_LAYER;
+    mp.main_gpu = 0;
+    mp.tensor_split =
+        gpu.tensor_split.empty() ? nullptr : gpu.tensor_split.data();
     mp.progress_callback = load_progress;
     mp.progress_callback_user_data = this;
     model = std::shared_ptr<llama_model>(
         llama_model_load_from_file(path.c_str(), mp), llama_model_free);
     if (model && !is_cancelled()) {
+      try {
+        std::vector<ggml_backend_dev_t> assignments;
+        for (uint32_t layer = 0; layer < model->hparams.n_layer_all; ++layer)
+          assignments.push_back(model->dev_layer(layer));
+        std::vector<ggml_backend_dev_t> resident;
+        for (const auto &entry : model->memory_breakdown())
+          if (entry.second && !ggml_backend_buft_is_host(entry.first))
+            resident.push_back(ggml_backend_buft_get_device(entry.first));
+        gpu.verify(selected_info, assignments, model->dev_output(), resident);
+      } catch (...) {
+        model.reset();
+        throw;
+      }
       llama_context_params cp = llama_context_default_params();
       cp.n_ctx = config.context_tokens
                      ? config.context_tokens
@@ -216,9 +238,11 @@ void state::ensure_loaded() {
       return;
     }
     model.reset();
-    if (config.backend != AILO_BACKEND_AUTO || actual == AILO_BACKEND_CPU)
+    if (config.backend != AILO_BACKEND_AUTO || actual == AILO_BACKEND_CPU ||
+        gpu.required())
       throw failure(AILO_MODEL_FAILED, "Native model/context setup failed");
     actual = AILO_BACKEND_CPU;
+    selected_info.clear();
     selected.assign(1, nullptr);
   }
 }

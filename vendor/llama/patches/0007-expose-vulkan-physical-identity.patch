@@ -1,0 +1,73 @@
+--- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+@@ -15210,7 +15210,8 @@
+             *total += heap.size;
+ 
+             if (membudget_supported && i < budgetprops.heapUsage.size()) {
+-                *free += budgetprops.heapBudget[i] - budgetprops.heapUsage[i];
++                *free += budgetprops.heapBudget[i] > budgetprops.heapUsage[i]
++                    ? budgetprops.heapBudget[i] - budgetprops.heapUsage[i] : 0;
+             } else {
+                 *free += heap.size;
+             }
+@@ -16167,11 +16168,47 @@
+     return devices[device];
+ }
+ 
++// Private libailo query: physical identity without creating a logical device.
++// UUIDs are raw 16-byte values; numbers are vendor, device, driver and flags.
++static bool ggml_backend_vk_ailo_device_identity(ggml_backend_dev_t dev,
++        unsigned char * uuid, unsigned char * driver_uuid, uint32_t * numbers) {
++    if (!dev || !uuid || !driver_uuid || !numbers) {
++        return false;
++    }
++    try {
++        auto * ctx = static_cast<ggml_backend_vk_device_context *>(dev->context);
++        vk::PhysicalDevice physical = vk_instance.instance.enumeratePhysicalDevices()[vk_instance.device_indices[ctx->device]];
++        vk::PhysicalDeviceIDProperties ids;
++        vk::PhysicalDeviceDriverProperties driver;
++        vk::PhysicalDeviceProperties2 props;
++        props.pNext = &driver;
++        driver.pNext = &ids;
++        physical.getProperties2(&props);
++        std::memcpy(uuid, ids.deviceUUID.data(), VK_UUID_SIZE);
++        std::memcpy(driver_uuid, ids.driverUUID.data(), VK_UUID_SIZE);
++        numbers[0] = props.properties.vendorID;
++        numbers[1] = props.properties.deviceID;
++        numbers[2] = static_cast<uint32_t>(driver.driverID);
++        numbers[3] = vk_instance.device_supports_membudget[ctx->device] ? 1 : 0;
++        return true;
++    } catch (...) {
++        return false;
++    }
++}
++
++static void * ggml_backend_vk_reg_get_proc_address(ggml_backend_reg_t reg, const char * name) {
++    UNUSED(reg);
++    if (strcmp(name, "ailo_vk_device_identity") == 0) {
++        return reinterpret_cast<void *>(ggml_backend_vk_ailo_device_identity);
++    }
++    return nullptr;
++}
++
+ static const struct ggml_backend_reg_i ggml_backend_vk_reg_i = {
+     /* .get_name         = */ ggml_backend_vk_reg_get_name,
+     /* .get_device_count = */ ggml_backend_vk_reg_get_device_count,
+     /* .get_device       = */ ggml_backend_vk_reg_get_device,
+-    /* .get_proc_address = */ NULL,
++    /* .get_proc_address = */ ggml_backend_vk_reg_get_proc_address,
+ };
+ 
+ ggml_backend_reg_t ggml_backend_vk_reg() {
+--- a/src/llama-model.cpp
++++ b/src/llama-model.cpp
+@@ -1584,6 +1584,9 @@
+         split_sum += splits[i];
+         splits[i] = split_sum;
+     }
++    if (!splits.empty() && (!(split_sum > 0.0f) || !std::isfinite(split_sum))) {
++        throw std::runtime_error("No usable GPU memory for layer distribution");
++    }
+     for (size_t i = 0; i < n_devices(); ++i) {
+         splits[i] /= split_sum;
+     }

@@ -2,6 +2,7 @@
 #include "ailo_client_internal.hpp"
 #include "ailo_conversation_internal.hpp"
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
@@ -52,6 +53,136 @@ int accept(void *data, const ailo_event *event) {
 }
 int throwing_progress(void *, unsigned, unsigned, ailo_u64, ailo_u64) {
   throw std::runtime_error("private acquisition text");
+}
+
+void gpu_placement(const char *path) {
+  using namespace ailo::client;
+  auto failure_is = [](ailo_status wanted, const auto &work) {
+    try {
+      work();
+    } catch (const failure &e) {
+      CHECK(e.status == wanted);
+      return;
+    }
+    throw std::runtime_error("GPU placement unexpectedly succeeded");
+  };
+  int handles[3]{};
+  device_info first, second, unusable;
+  first.device = reinterpret_cast<ggml_backend_dev_t>(&handles[0]);
+  second.device = reinterpret_cast<ggml_backend_dev_t>(&handles[1]);
+  unusable.device = reinterpret_cast<ggml_backend_dev_t>(&handles[2]);
+  first.id = "vulkan:11111111111111111111111111111111";
+  first.eligible = true;
+  second.id = "vulkan:22222222222222222222222222222222";
+  second.eligible = true;
+  unusable.id = "vulkan:33333333333333333333333333333333";
+  unusable.reason = "unsupported driver";
+  const std::vector<device_info> inventory{second, unusable, first};
+  const char *ids[] = {first.id.c_str(), second.id.c_str()};
+  double weights[] = {3, 1};
+  ailo_gpu_config config{ids, 2, weights, 2, AILO_GPU_SPLIT_LAYER};
+  gpu_selection choice(&config, AILO_BACKEND_AUTO);
+  weights[0] = 99;
+  CHECK(choice.weights[0] == 3 &&
+        choice.tensor_split.size() == llama_max_devices());
+  CHECK(std::abs(choice.tensor_split[0] - .75f) < 1e-6f);
+  CHECK(std::abs(choice.tensor_split[1] - .25f) < 1e-6f);
+  auto selected = choice.choose(inventory);
+  CHECK(selected.size() == 2 && selected[0].device == first.device &&
+        selected[1].device == second.device);
+  choice.verify(selected, {first.device}, second.device,
+                {first.device, second.device});
+  failure_is(AILO_MODEL_FAILED, [&] {
+    choice.verify(selected, {first.device}, second.device, {first.device});
+  });
+  failure_is(AILO_MODEL_FAILED, [&] {
+    choice.verify(selected, {first.device}, first.device, {first.device});
+  });
+  auto duplicate = inventory;
+  duplicate.push_back(first);
+  failure_is(AILO_UNSUPPORTED, [&] { choice.choose(duplicate); });
+  failure_is(AILO_NOT_FOUND, [&] { choice.choose({second}); });
+  auto rejected = first;
+  rejected.eligible = false;
+  rejected.reason = "disabled";
+  failure_is(AILO_UNSUPPORTED, [&] { choice.choose({rejected, second}); });
+  config.weights = nullptr;
+  config.weight_count = 0;
+  gpu_selection automatic(nullptr, AILO_BACKEND_AUTO);
+  CHECK(automatic.choose(inventory).size() == 2 && !automatic.required());
+  gpu_selection heuristic(&config, AILO_BACKEND_AUTO);
+  CHECK(heuristic.tensor_split.empty());
+  config.split = AILO_GPU_SPLIT_NONE;
+  failure_is(AILO_INVALID_ARGUMENT,
+             [&] { gpu_selection invalid(&config, AILO_BACKEND_AUTO); });
+  config.devices = nullptr;
+  config.device_count = 0;
+  gpu_selection single(&config, AILO_BACKEND_AUTO);
+  CHECK(single.choose(inventory).size() == 1 &&
+        single.choose(inventory)[0].device == second.device);
+  failure_is(AILO_UNSUPPORTED, [&] { single.verify({}, {}, nullptr, {}); });
+  config.split = AILO_GPU_SPLIT_ROW;
+  failure_is(AILO_UNSUPPORTED,
+             [&] { gpu_selection invalid(&config, AILO_BACKEND_AUTO); });
+  config.split = static_cast<ailo_gpu_split>(55);
+  failure_is(AILO_INVALID_ARGUMENT,
+             [&] { gpu_selection invalid(&config, AILO_BACKEND_AUTO); });
+  config = {ids, 2, weights, 2, AILO_GPU_SPLIT_LAYER};
+  failure_is(AILO_INVALID_ARGUMENT,
+             [&] { gpu_selection invalid(&config, AILO_BACKEND_CPU); });
+  for (auto invalid : {-.1, std::numeric_limits<double>::infinity(),
+                       std::numeric_limits<double>::quiet_NaN()}) {
+    weights[0] = invalid;
+    failure_is(AILO_INVALID_ARGUMENT,
+               [&] { gpu_selection bad(&config, AILO_BACKEND_AUTO); });
+  }
+  weights[0] = weights[1] = 0;
+  failure_is(AILO_INVALID_ARGUMENT,
+             [&] { gpu_selection bad(&config, AILO_BACKEND_AUTO); });
+  weights[0] = weights[1] = std::numeric_limits<double>::max();
+  gpu_selection large(&config, AILO_BACKEND_AUTO);
+  CHECK(large.tensor_split[0] == .5f);
+  weights[0] = std::numeric_limits<double>::denorm_min();
+  failure_is(AILO_OUT_OF_RANGE,
+             [&] { gpu_selection bad(&config, AILO_BACKEND_AUTO); });
+  weights[0] = 1;
+  weights[1] = 0;
+  gpu_selection zero(&config, AILO_BACKEND_AUTO);
+  zero.verify(selected, {first.device}, first.device, {first.device});
+  config.weight_count = 1;
+  failure_is(AILO_INVALID_ARGUMENT,
+             [&] { gpu_selection bad(&config, AILO_BACKEND_AUTO); });
+  config.weight_count = 0;
+  config.weights = nullptr;
+  ids[1] = ids[0];
+  failure_is(AILO_INVALID_ARGUMENT,
+             [&] { gpu_selection bad(&config, AILO_BACKEND_AUTO); });
+  ids[1] = "Vulkan0";
+  failure_is(AILO_INVALID_ARGUMENT,
+             [&] { gpu_selection bad(&config, AILO_BACKEND_AUTO); });
+  config.device_count = 17;
+  failure_is(AILO_INVALID_ARGUMENT,
+             [&] { gpu_selection bad(&config, AILO_BACKEND_AUTO); });
+  char identity[] = "vulkan:ffffffffffffffffffffffffffffffff";
+  const char *borrowed[] = {identity};
+  config = {borrowed, 1, nullptr, 0, AILO_GPU_SPLIT_LAYER};
+  auto receiver = ailo_client_default_config();
+  receiver.source.local_path = path;
+  receiver.backend = AILO_BACKEND_AUTO;
+  receiver.gpu = &config;
+  receiver.lazy = 1;
+  ailo_client *raw = nullptr;
+  ailo_error error{};
+  CHECK(ailo_client_new(&receiver, &raw, &error) == AILO_OK);
+  std::unique_ptr<ailo_client, client_deleter> owner(raw);
+  identity[0] = '!';
+  borrowed[0] = nullptr;
+  char *card = nullptr;
+  CHECK(owner->model_card(owner.get(), &card, &error) == AILO_NOT_FOUND &&
+        !card);
+  CHECK(std::strstr(error.message, "vulkan:ffffffffffffffffffffffffffffffff"));
+  std::puts("GPU placement planner: selection/weights/ownership/failures "
+            "passed (synthetic devices; no GPU execution claim)");
 }
 
 void card_location(const char *path) {
@@ -229,6 +360,7 @@ int main(int argc, char **argv) {
   if (argc != 2)
     return 2;
   try {
+    gpu_placement(argv[1]);
     card_location(argv[1]);
     run(argv[1]);
     std::puts("Cross-thread cancellation, busy state, callback recovery and "

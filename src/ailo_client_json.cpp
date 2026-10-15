@@ -2,6 +2,7 @@
 #include "ailo_client_internal.hpp"
 #include "ailo_model_internal.hpp"
 #include "ailo_openai_internal.hpp"
+#include "src/llama-ext.h"
 #include "src/llama-model.h"
 #include <cstring>
 #include <lonejson.h>
@@ -13,6 +14,103 @@ namespace client {
 namespace {
 using json = bounded_json;
 
+std::string device_identity(const state &self, ggml_backend_dev_t dev) {
+  if (!dev)
+    return {};
+  for (const auto &selected : self.selected_info)
+    if (selected.device == dev)
+      return selected.id;
+  return ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_CPU
+             ? "cpu"
+             : ggml_backend_dev_name(dev);
+}
+void placement(json &out, const state &self) {
+  out.object();
+  out.key("requested_backend");
+  out.string(self.config.backend == AILO_BACKEND_CPU      ? "cpu"
+             : self.config.backend == AILO_BACKEND_VULKAN ? "vulkan"
+                                                          : "auto");
+  out.key("actual_backend");
+  out.string(self.actual == AILO_BACKEND_CPU ? "cpu" : "vulkan");
+  out.key("explicit");
+  out.boolean(self.gpu.required());
+  out.key("split");
+  out.string(self.gpu.split == AILO_GPU_SPLIT_NONE ? "none" : "layer");
+  out.key("requested_gpu_layers");
+  if (self.config.gpu_layers > 0)
+    out.number(static_cast<uint64_t>(self.config.gpu_layers));
+  else
+    out.null();
+  out.key("selected_devices");
+  out.array();
+  for (size_t n = 0; n < self.selected_info.size(); ++n) {
+    const auto &device = self.selected_info[n];
+    out.object();
+    out.key("id");
+    out.string(device.id);
+    out.key("driver");
+    out.string(device.driver);
+    out.key("requested_weight");
+    if (self.gpu.weights.empty())
+      out.null();
+    else
+      out.real(self.gpu.weights[n]);
+    out.key("normalized_weight");
+    if (self.gpu.tensor_split.empty())
+      out.null();
+    else
+      out.real(self.gpu.tensor_split[n]);
+    uint64_t count = 0;
+    for (uint32_t layer = 0; layer < self.model->hparams.n_layer_all; ++layer)
+      count += self.model->dev_layer(static_cast<int>(layer)) == device.device;
+    out.key("repeating_layers");
+    out.number(count);
+    out.key("output_layer");
+    out.boolean(self.model->dev_output() == device.device);
+    out.end_object();
+  }
+  out.end_array();
+  out.key("layers");
+  out.array();
+  for (uint32_t layer = 0; layer < self.model->hparams.n_layer_all; ++layer) {
+    out.object();
+    out.key("index");
+    out.number(layer);
+    out.key("device_id");
+    out.nullable(
+        device_identity(self, self.model->dev_layer(static_cast<int>(layer))));
+    out.key("buffer_type");
+    out.string(ggml_backend_buft_name(
+        self.model->select_buft(static_cast<int>(layer))));
+    out.end_object();
+  }
+  out.end_array();
+  out.key("output_device_id");
+  out.nullable(device_identity(self, self.model->dev_output()));
+  out.key("native_buffers");
+  out.array();
+  for (const auto &p : llama_get_memory_breakdown(self.context.get())) {
+    out.object();
+    out.key("buffer_type");
+    out.string(ggml_backend_buft_name(p.first));
+    out.key("device_id");
+    out.nullable(device_identity(self, ggml_backend_buft_get_device(p.first)));
+    out.key("host_memory");
+    out.boolean(ggml_backend_buft_is_host(p.first));
+    out.key("model_bytes");
+    out.string(std::to_string(p.second.model));
+    out.key("context_bytes");
+    out.string(std::to_string(p.second.context));
+    out.key("compute_bytes");
+    out.string(std::to_string(p.second.compute));
+    out.end_object();
+  }
+  out.end_array();
+  out.key("additional_driver_memory_bytes");
+  out.null();
+  out.end_object();
+}
+
 void feature_fields(json &out) {
   out.key("text");
   out.boolean(true);
@@ -20,6 +118,12 @@ void feature_fields(json &out) {
   out.boolean(true);
   out.key("multiple_candidates");
   out.boolean(true);
+  out.key("gpu_layer_splitting");
+  out.boolean(true);
+  out.key("explicit_gpu_selection");
+  out.boolean(true);
+  out.key("gpu_row_splitting");
+  out.boolean(false);
   out.key("logit_bias");
   out.boolean(true);
   out.key("logprobs");
@@ -161,9 +265,32 @@ std::string devices() {
     const char *provider = ggml_backend_reg_name(reg);
     if (std::strcmp(provider, "CPU") && std::strcmp(provider, "Vulkan"))
       continue;
+    const auto detail = describe_device(device);
     out.object();
     out.key("provider");
     out.string(provider);
+    const bool vulkan = !std::strcmp(provider, "Vulkan");
+    out.key("id");
+    out.nullable(vulkan ? detail.id : "cpu");
+    out.key("driver");
+    out.nullable(detail.driver);
+    out.key("vendor_id");
+    if (detail.vendor)
+      out.number(detail.vendor);
+    else
+      out.null();
+    out.key("device_id");
+    if (detail.product)
+      out.number(detail.product);
+    else
+      out.null();
+    out.key("eligible");
+    out.boolean(!vulkan || detail.eligible);
+    out.key("availability_reason");
+    out.string(vulkan ? detail.reason : "eligible");
+    out.key("memory_kind");
+    out.string(vulkan ? (detail.integrated ? "shared" : "device_local")
+                      : "host");
     out.key("name");
     out.nullable(props.name ? props.name : "");
     out.key("description");
@@ -171,19 +298,24 @@ std::string devices() {
     out.key("pci_id");
     out.nullable(props.device_id ? props.device_id : "");
     out.key("device_uuid");
-    out.null();
+    out.nullable(detail.uuid);
+    out.key("driver_uuid");
+    out.nullable(detail.driver_uuid);
     out.key("memory_total_bytes");
     if (props.memory_total)
       out.string(std::to_string(props.memory_total));
     else
       out.null();
     out.key("memory_free_bytes");
-    if (props.memory_total)
+    if (props.memory_total && vulkan && detail.budget_known)
       out.string(std::to_string(props.memory_free));
     else
       out.null();
     out.key("dedicated_memory_bytes");
-    out.null();
+    if (vulkan && !detail.integrated && props.memory_total)
+      out.string(std::to_string(props.memory_total));
+    else
+      out.null();
     out.key("async");
     out.boolean(props.caps.async);
     out.key("events");
@@ -335,6 +467,8 @@ std::string model_card(state &self) {
   out.array();
   out.end_array();
   out.end_object();
+  out.key("placement");
+  placement(out, self);
   out.end_object();
   return out.finish();
 }

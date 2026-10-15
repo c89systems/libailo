@@ -135,6 +135,7 @@ static int run(const char *path) {
   card = NULL;
   CHECK(client->devices(client, &card, &error) == AILO_OK);
   CHECK(strstr(card, "\"provider\":\"CPU\"") != NULL);
+  CHECK(strstr(card, "\"memory_free_bytes\":null") != NULL);
   ailo_string_free(card);
   card = NULL;
   CHECK(client->model_card(client, &card, &error) == AILO_OK);

@@ -4,6 +4,7 @@
 #include "ailo/client.h"
 #include "ailo_backend_internal.hpp"
 #include "ailo_error_internal.h"
+#include "ailo_gpu_internal.hpp"
 #include "ailo_integer_bridge.hpp"
 #include "gguf.h"
 #include "llama.h"
@@ -47,11 +48,14 @@ struct state {
   source_copy source;
   std::string id, template_override, path;
   ailo_client_config config;
+  gpu_selection gpu;
+  ailo_gpu_config gpu_config{};
   std::shared_ptr<llama_model> model;
   std::unique_ptr<llama_context, decltype(&llama_free)> context{nullptr,
                                                                 llama_free};
   ailo_backend_policy actual = AILO_BACKEND_CPU;
   std::vector<ggml_backend_dev_t> selected;
+  std::vector<device_info> selected_info;
   bool backend_owned = false;
   bool progress_failed = false;
   std::unique_ptr<logging_state> logging;

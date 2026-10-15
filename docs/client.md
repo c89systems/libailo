@@ -19,6 +19,55 @@ progress, limits and configurable XDG caching. Lazy construction validates and
 copies configuration without downloading or loading weights. Model cards and
 generation force a lazy load; device and capability queries do not acquire files.
 
+## GPU placement
+
+Set `config.gpu` to an `ailo_gpu_config` with an ordered device-ID array and
+optional matching layer weights. The constructor copies the configuration.
+IDs come from `devices()` as `vulkan:<32 lowercase UUID hex digits>`; enumeration
+indices and names such as `Vulkan0` are not accepted selection identities.
+Device metadata includes UUID/driver UUID, vendor/product IDs, RADV/ANV provider,
+PCI address when present, eligibility/reason and memory kind. Integrated memory
+is shared, with no dedicated-VRAM claim; unavailable free-memory budgets are null.
+CPU free memory is also null: the pinned native Linux backend estimates all
+physical RAM as free, which is not an available-memory measurement.
+UUIDs identify the device reported by the driver, not a permanently guaranteed
+hardware serial number. Khronos documents possible changes after hardware moves
+or driver changes; rediscover if a saved identity becomes unavailable. See
+[Vulkan identity properties](https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceIDProperties.html).
+
+The default strategy is layer splitting. Empty selection uses eligible devices;
+an explicit configuration requires GPU placement and disables automatic CPU
+retry. Nonnegative finite weights require an explicit selection and matching
+counts, with at least one positive value. They are normalized safely into the
+native float tensor-split representation, including very large input weights;
+unrepresentable positive values fail. Without weights the native free-memory
+heuristic remains active. Native cumulative fractions allocate whole layers;
+small shares may round to no layer. Every positive explicit participant must
+receive a repeating or output layer and own device-resident model buffers,
+otherwise loading fails. An assignment label alone does not satisfy explicit
+placement. Zero-weight
+devices need not participate. An unavailable, ambiguous or unusable selected
+device fails before model acquisition; it is never silently substituted.
+
+`AILO_GPU_SPLIT_NONE` selects one device; `AILO_GPU_SPLIT_ROW` returns unsupported
+because the pinned Vulkan backend has no row-split buffer procedure. The raw
+native facade keeps its upstream semantics. `backend=CPU` cannot accompany GPU
+configuration. Only Mesa RADV and ANV are eligible receiver drivers.
+
+Model cards include `placement`: requested/actual backend, ordered devices,
+requested/normalized weights, per-layer device and buffer type, output device,
+and native model/context/compute buffer allocations with a host-memory flag.
+These are native assignments/allocations, not proof that every operation executes
+on that device or a complete process/driver peak-memory measurement. Additional
+driver memory is explicitly unknown. Actual placement and driver/device identity
+also bind prompt/KV cache compatibility. The static driver integration and
+multi-GPU hardware acceptance remain governed by [static-vulkan.md](static-vulkan.md).
+
+Lua uses `gpu={devices={id1,id2},weights={3,1},split="layer"}` in `ailo.new`.
+`split` defaults to `layer`; `none` and rejected `row` map to the C enum. Keep
+the normal automatic backend selection by omitting GPU placement. Select
+`backend="cpu"` explicitly for CPU inference.
+
 ## Generation
 
 Supply ordered message items with UTF-8 text parts. The model's stored Jinja

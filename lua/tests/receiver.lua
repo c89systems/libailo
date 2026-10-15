@@ -9,6 +9,44 @@ local function config(extra)
   return c
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
+if arg[4]=='--vulkan' then
+  local discover=ok(ailo.new(config{lazy=true}))
+  local inventory=ok(discover:devices());discover:close()
+  local available={}
+  for entry in inventory:gmatch('%b{}')do
+    local id=entry:match('"id":"(vulkan:[a-f0-9]+)"')
+    if id and entry:find('"eligible":true',1,true)then available[#available+1]=id end
+  end
+  assert(#available>0,'actual eligible RADV/ANV hardware is required')
+  if arg[5]=='all'then assert(#available>=2,'multi-GPU qualification requires at least two devices')
+  else available={available[1]}end
+  local weights={};for i=1,#available do weights[i]=i end
+  local source={local_path=path};if arg[6]then source.sha256={arg[6]}end
+  local function gpu_config(devices,split,distribution)
+    return config{source=source,backend='vulkan',gpu={devices=devices,weights=distribution,split=split}}
+  end
+  local first=ok(ailo.new(gpu_config(available,'layer',weights)))
+  local second=ok(ailo.new(gpu_config({available[#available]},'none')))
+  print('Vulkan device inventory: '..inventory)
+  print('Requested/actual placement: '..ok(first:model_card()))
+  local tokens,deltas,ended=0,0,false
+  local input={items={{role='user',content='Reply with one short greeting.'}},max_tokens=8,temperature=0,logprobs=true}
+  local result=ok(first:generate(input,function(e)
+    if e.kind=='token'then tokens=tokens+1
+    elseif e.kind=='text_delta'then
+      assert(not ended);deltas=deltas+1
+      if deltas==1 then assert(tokens==1,'first available text was delayed past the first token')end
+      io.stdout:write(e.data);io.stdout:flush()
+    elseif e.kind=='run_end'then ended=true end
+  end))
+  assert(result.actual_backend=='vulkan'and ended and deltas>0 and result.usage.completion_tokens>0)
+  fails('cancelled',function()return first:generate(input,function(e)if e.kind=='text_delta'then return false end end)end)
+  first:close()
+  local recovered=ok(second:generate(input,function()end));assert(recovered.actual_backend=='vulkan')
+  print('\nIndependent single-device placement: '..ok(second:model_card()));second:close()
+  print('Explicit Vulkan placement, true token streaming, cancellation and independent-client teardown passed; devices='..#available)
+  return
+end
 dofile(assert(arg[3])).exercise(ailo,path,false)
 do
   local receiver=ok(ailo.new(config()))
@@ -403,3 +441,22 @@ local preflight=ok(ailo.new(config{lazy=true}))
 local preflight_error=fails("invalid_argument",function()return preflight:generate({items={}},function()end)end)
 assert(preflight_error.info.actual_backend=="auto","backend must remain unselected before inference")
 preflight:close()
+do
+  local id='vulkan:'..string.rep('f',32)
+  for _,gpu in ipairs{
+    {devices={id,id}}, {devices={'Vulkan0'}}, {devices={id},weights={0}},
+    {devices={id},weights={1,2}}, {devices={id},weights={-1}},
+    {devices={id},weights={math.huge}}, {devices={id},weights={0/0}},
+    {devices={id,id},split='none'}
+  }do fails('invalid_argument',function()return ailo.new(config{backend='auto',lazy=true,gpu=gpu})end)end
+  fails('unsupported',function()return ailo.new(config{backend='auto',lazy=true,gpu={split='row'}})end)
+  fails('invalid_argument',function()return ailo.new(config{lazy=true,gpu={devices={id}}})end)
+  local options={devices={id},weights={1}}
+  local receiver=ok(ailo.new(config{backend='auto',lazy=true,gpu=options}))
+  options.devices[1]='changed';options.weights[1]=0
+  fails('not_found',function()return receiver:model_card()end);receiver:close()
+  local cpu=ok(ailo.new(config()))
+  local card=ok(cpu:model_card())
+  assert(card:find('"placement"')and card:find('"actual_backend":"cpu"')and card:find('"native_buffers"'))
+  cpu:close()
+end

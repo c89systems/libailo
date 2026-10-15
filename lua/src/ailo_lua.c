@@ -50,6 +50,7 @@ typedef struct work {
   ailo_function_tool *tools;
   const char **allowed;
   ailo_compaction_key *keys;
+  double *weights;
   char *json;
   lua_State *L;
   int index;
@@ -274,6 +275,7 @@ static void release_work(work *value) {
   free(value->tools);
   free(value->allowed);
   free(value->keys);
+  free(value->weights);
   ailo_string_free(value->json);
   value->items = NULL;
   value->content = NULL;
@@ -282,6 +284,7 @@ static void release_work(work *value) {
   value->tools = NULL;
   value->allowed = NULL;
   value->keys = NULL;
+  value->weights = NULL;
   value->json = NULL;
 }
 static int work_gc(lua_State *L) {
@@ -1009,6 +1012,40 @@ static int new_client(lua_State *L) {
   config.threads = (int)integer(L, 1, "threads");
   config.context_tokens = (ailo_u32)integer(L, 1, "context_tokens");
   config.batch_tokens = (ailo_u32)integer(L, 1, "batch_tokens");
+  ailo_gpu_config gpu = {0};
+  lua_getfield(L, 1, "gpu");
+  if (!lua_isnil(L, -1)) {
+    int index = lua_gettop(L);
+    gpu.split = (ailo_gpu_split)integer(L, index, "split");
+    lua_getfield(L, index, "devices");
+    luaL_checktype(L, -1, LUA_TTABLE);
+    gpu.device_count = lua_rawlen(L, -1);
+    if (gpu.device_count > 16)
+      return failure(L, AILO_INVALID_ARGUMENT, "Too many GPU devices");
+    storage->allowed = allocate(L, gpu.device_count, sizeof(char *));
+    for (size_t n = 0; n < gpu.device_count; ++n) {
+      lua_geti(L, -1, (lua_Integer)n + 1);
+      storage->allowed[n] = luaL_checkstring(L, -1);
+      lua_pop(L, 1);
+    }
+    gpu.devices = storage->allowed;
+    lua_pop(L, 1);
+    lua_getfield(L, index, "weights");
+    luaL_checktype(L, -1, LUA_TTABLE);
+    gpu.weight_count = lua_rawlen(L, -1);
+    if (gpu.weight_count > 16)
+      return failure(L, AILO_INVALID_ARGUMENT, "Too many GPU weights");
+    storage->weights = allocate(L, gpu.weight_count, sizeof(double));
+    for (size_t n = 0; n < gpu.weight_count; ++n) {
+      lua_geti(L, -1, (lua_Integer)n + 1);
+      storage->weights[n] = luaL_checknumber(L, -1);
+      lua_pop(L, 1);
+    }
+    gpu.weights = storage->weights;
+    lua_pop(L, 1);
+    config.gpu = &gpu;
+  }
+  lua_pop(L, 1);
   config.disable_prompt_cache = boolean(L, 1, "disable_prompt_cache");
   ailo_openai_config api = ailo_openai_default_config();
   ailo_compaction_policy api_compaction = ailo_compaction_default_policy();
