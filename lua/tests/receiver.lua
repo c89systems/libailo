@@ -10,6 +10,21 @@ local function config(extra)
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
 do
+  local options={namespace_id="lua-snapshots",directory=work.."/snapshots",max_disk_bytes=1024*1024,
+    disk_ttl_seconds=60,key_id="test-key",key=string.rep("k",32)}
+  local cache=ok(ailo.new_cache(options));local first=ok(ailo.new(config{cache=cache}))
+  ok(first:generate(request(),function()end));assert(first:snapshot_export("lua-slot"))
+  local stats=ok(cache:stats());assert(stats.snapshot_writes>=2 and stats.disk_entries>=2)
+  first:close();cache:close()
+  cache=ok(ailo.new_cache(options));local second=ok(ailo.new(config{cache=cache}))
+  assert(second:snapshot_import("lua-slot"))
+  assert(ok(second:generate(request(),function()end)).usage.cached_tokens>0)
+  fails("invalid_argument",function()return second:snapshot_import("lua-slot","another-partition")end)
+  local invalid={};for k,v in pairs(options)do invalid[k]=v end;invalid.key="short"
+  fails("invalid_argument",function()return ailo.new_cache(invalid)end)
+  assert(second:cache_clear());second:close();cache:close()
+end
+do
   fails("invalid_argument",function()return ailo.new_cache{}end)
   local cache=ok(ailo.new_cache{namespace_id="lua-tenant",max_entries=2})
   local first=ok(ailo.new(config{cache=cache}))

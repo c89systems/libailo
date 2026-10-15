@@ -52,12 +52,39 @@ client:close()
 ```
 
 `new_cache` also accepts `max_memory_bytes` and `idle_ttl_seconds`; zero in any
-limit disables storage. Its `stats`, `clear`, `prune` and idempotent `close`
+RAM limit disables memory storage. Its `stats`, `clear`, `prune` and idempotent `close`
 methods never download weights. Requests can supply `prompt_cache_key` to
 partition entries; identity/configuration checks still apply. Statistics expose
 hits/misses/evictions, cached/evaluated token counts, bytes and microseconds;
 `usage.cached_tokens` counts actually skipped evaluation in the first candidate.
-This memory cache does not retain response records or create disk snapshots.
+The default memory cache does not retain response records or create files.
+For encrypted snapshots, add explicit disk limits and a 32-byte binary key:
+
+```lua
+local cache = assert(ailo.new_cache {
+  namespace_id="trusted-tenant", key_id="deployment-key-1", key=secret_key,
+  max_disk_bytes=256*1024*1024, disk_ttl_seconds=3600,
+  max_disk_entries=8, max_snapshot_bytes=64*1024*1024,
+  -- directory="/absolute/custom-cache/ailo/inference",
+})
+local client = assert(ailo.new {source={local_path="model.gguf"}, cache=cache})
+assert(client:generate(request, function(event) consume(event) end))
+assert(client:snapshot_export("warm-prompt"))
+-- A reconstructed client/cache with the same config can import the slot:
+assert(client:snapshot_import("warm-prompt", request.prompt_cache_key))
+client:close()
+cache:close()
+```
+
+Omit `directory` for `$XDG_CACHE_HOME/ailo/inference` or
+`$HOME/.cache/ailo/inference`. Automatic reuse also survives reconstruction.
+Slots share the disk quota and absolute TTL; export can fail after eviction.
+Import authenticates and validates before seeding the cache, without replacing
+the active native sequence. There is no conversation/generation resume here.
+Key rotation uses a new `key_id`; old domains require their own prune/clear.
+Lua key strings remain the caller's responsibility. Snapshot buffers are
+explicitly materialized within `max_snapshot_bytes`; output deltas remain
+immediate. See [snapshot semantics](../docs/client.md#encrypted-prompt-snapshots).
 
 Requests contain ordered `items` (kind, role, id, call_id, name, arguments and
 content), `max_tokens`, `candidates`, `temperature`, `top_p`, `seed`,

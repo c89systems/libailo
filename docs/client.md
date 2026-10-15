@@ -98,13 +98,12 @@ rendering can still reject a conversation the template does not accept.
 
 Capabilities currently advertise text, streaming, multiple candidates, logit
 bias, log probabilities, constrained output, qualified tool generation and
-bounded prompt/KV reuse, with their limits.
-Separated reasoning, media, persistent snapshots and compaction are reported
+bounded prompt/KV reuse and encrypted persistent snapshots, with their limits.
+Separated reasoning, media and compaction are reported
 unavailable. Reasoning, media
 and compaction input kinds return unsupported rather than losing semantics.
 Completed function histories are supported as described below. The rest remain
-implementation requirements in the full specification; no durable snapshots,
-compaction or
+implementation requirements in the full specification; no compaction or
 protocol handler is claimed by this initial core.
 
 ## Prompt/KV cache
@@ -115,11 +114,12 @@ and 300 seconds idle expiry. `disable_prompt_cache` disables it. An explicit
 its owner so the caller can destroy the shell afterwards. Explicit owners
 require a trusted application `namespace_id`; there is no global tenant cache.
 Use `ailo_cache_default_config()` then change bounds as needed. Zero memory,
-entry or TTL limits disable storage. Expiry is checked on cache operations;
+entry or idle TTL limits disable memory storage. Expiry is checked on cache operations;
 there is no background worker.
 
 This cache stores prompt checkpoints, not generated answers or retained API
-records. It never writes files or deletes model weights. `prompt_cache_key`
+records. The default memory owner never writes files; cache operations never
+delete model weights. `prompt_cache_key`
 adds a request partition within the owner; it does not authorize access or
 override identity. Identity binds actual model/shard bytes (verified digests
 or hashes), tokenizer/template, native patches/build/settings, effective
@@ -154,13 +154,82 @@ fails, inference recomputes with its live context. Buffers and tokens are wiped
 on eviction. Default cache hits/identity/trim/
 expiry/limits/corruption fallback are tested on the deterministic full-attention
 fixture; other architecture and GPU qualification remains separate.
-Encrypted disk snapshots and OpenAI response retention are separate required
-features and are not implemented by this memory cache.
 
 The cached SmolLM2-135M instruct model was also checked through the installed
 Lua ABI: a warm request reused 40 of 41 prompt tokens, evaluated only the final
 prompt token, and matched the cold run's generated token IDs and log
 probabilities (tolerance 1e-6). The serialized cache entry charged 923,207 bytes.
+
+## Encrypted prompt snapshots
+
+Persistence is opt-in on an explicit cache owner. Supply a 32-byte `key`,
+`key_size=32`, nonempty `key_id`, nonzero `max_disk_bytes` and
+`disk_ttl_seconds`. `max_disk_entries` defaults to eight (maximum 4096), and
+`max_snapshot_bytes` defaults to 64 MiB. The latter bounds the combined
+materialized tokens and native state of one snapshot. Zero RAM limits allow
+a disk-only owner. Incomplete persistence configuration fails at construction.
+
+`directory` is an absolute root; NULL selects `$XDG_CACHE_HOME/ailo/inference`
+or `$HOME/.cache/ailo/inference`. A custom model-cache root does not implicitly
+redirect it: supply that root's `inference` subdirectory explicitly. Files are
+scoped by hashes of the namespace and key ID, use private 0700 directories and
+0600 regular files, and reject symlinks and hard links. A nonblocking namespace
+lock protects publication, eviction and reads across processes. Explicit
+operations return BUSY on contention; generation can use RAM or recompute.
+
+Captured prompt checkpoints are published automatically and reused across
+cache/client reconstruction. `client->snapshot_export(client, slot, error)`
+also saves the last successfully cached prompt to a named slot. A cancelled
+request or rejected final event does not replace that reference. Export can
+fail if its checkpoint was evicted. `snapshot_import(client, slot,
+prompt_cache_key, error)` authenticates a named slot and validates its native
+state in a disposable context, then seeds the owner for subsequent requests.
+Import leaves the active sequence unchanged, even on success. Slots and
+partitions are bounded UTF-8 strings of at most 256 bytes. Neither operation
+resumes a transcript, sampler, generated reply or RNG state.
+
+The envelope uses AES-256-GCM with random 96-bit nonces, separate HKDF-SHA256
+derived keys for token metadata and native state, and authenticated identity,
+partition, lengths, checksums, creation/expiry times, key ID and filename.
+Tokens and native state are encrypted. Header counts, times and hashes are
+visible. Payload authentication completes before tokens are used or native
+restore is called; identity/configuration mismatches fail. An automatic bad or
+expired entry is evicted and recomputed; explicit import reports the failure.
+Copies into a different slot, namespace or key-ID domain cannot be replayed.
+Key IDs provide rotation domains: a new ID does not read or clean an older
+ID's files. Keep the old owner's key available to prune/clear that domain.
+The constructor derives and owns its keys, erasing them on destruction; the
+caller is responsible for its original key bytes, including immutable Lua strings.
+
+Publication writes only encrypted temporary files, fsyncs, then atomically
+renames and syncs the directory. Interrupted owned temporary files are pruned.
+Named and automatic snapshots share the byte/count quota and absolute TTL;
+newest publications are preferred, and reads do not extend lifetime. Publication
+can temporarily use the disk budget plus one bounded encrypted snapshot
+(256-byte header plus `max_snapshot_bytes`). Import/export materializes a
+bounded state buffer; this is separate from the resident RAM cache budget and
+live/disposable context allocations. Generation deltas still flow immediately.
+
+`clear` removes memory entries and snapshots in the owner's namespace/key-ID
+domain; `prune` enforces expiry and quotas. Statistics include snapshot reads,
+writes, errors, skipped automatic publications, disk evictions, file count and
+bytes. These slots are evictable performance data, not OpenAI retained response
+records. Response storage and its retention contract remain separate required
+adapter work.
+
+The focused snapshot test covers reconstruction reuse, longer disk prefixes,
+named round trips, tampered headers/ciphertext/tags, wrong keys/namespaces/key
+IDs/partitions/configuration, truncation, bounded import, disk-only use,
+contention, symlinks, quotas, expiry and last-successful-prompt behavior after
+a sink failure. Failed imports preserve the existing native sequence byte for
+byte. Lua exercises the same C ABI round trip and cleanup under Valgrind.
+
+A separate-process check with the cached SmolLM2-135M instruct model exported
+a named snapshot, exited, then imported it through a fresh installed Lua/C ABI
+process. It reused 40 of 41 prompt tokens and matched the cold run's token IDs
+and log probabilities within 1e-6. The automatic and named encrypted files
+totaled 1,846,496 bytes. This qualifies the CPU full-attention path; GPU and
+other architecture qualification remain separate.
 
 ## Conversation and function history
 

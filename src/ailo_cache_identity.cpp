@@ -65,7 +65,7 @@ std::string file_digest(state &self, const std::string &path) {
 } // namespace
 
 void identify_cache(state &self) {
-  if (!self.cache || !self.cache->enabled() || !self.cache_identity.empty())
+  if (!self.cache || !self.cache->available() || !self.cache_identity.empty())
     return;
   try {
     std::string identity;

@@ -109,12 +109,17 @@ function M.new(config)
 end
 function M.new_cache(config)
   return guarded(function()
-    object(config,keys("namespace_id max_memory_bytes max_entries idle_ttl_seconds"),"cache")
+    object(config,keys("namespace_id max_memory_bytes max_entries idle_ttl_seconds directory max_disk_bytes disk_ttl_seconds max_disk_entries max_snapshot_bytes key_id key"),"cache")
     return core.new_cache{
       namespace_id=str(config.namespace_id,"namespace_id",false),
       max_memory_bytes=number(config.max_memory_bytes,"max_memory_bytes",64*1024*1024,true,0,math.maxinteger),
       max_entries=number(config.max_entries,"max_entries",8,true,0,4096),
-      idle_ttl_seconds=number(config.idle_ttl_seconds,"idle_ttl_seconds",300,true,0,0xffffffff)}
+      idle_ttl_seconds=number(config.idle_ttl_seconds,"idle_ttl_seconds",300,true,0,0xffffffff),
+      directory=str(config.directory,"directory",true),key_id=str(config.key_id,"key_id",true),key=str(config.key,"key",true,true),
+      max_disk_bytes=number(config.max_disk_bytes,"max_disk_bytes",0,true,0,math.maxinteger),
+      disk_ttl_seconds=number(config.disk_ttl_seconds,"disk_ttl_seconds",0,true,0,0xffffffff),
+      max_disk_entries=number(config.max_disk_entries,"max_disk_entries",8,true,0,4096),
+      max_snapshot_bytes=number(config.max_snapshot_bytes,"max_snapshot_bytes",64*1024*1024,true,0,math.maxinteger)}
   end)
 end
 local roles={user=0,system=1,developer=2,assistant=3,tool=4}
@@ -189,6 +194,12 @@ function methods:generate(input,sink)
     if type(sink) ~= "function" then invalid("sink must be a function") end
     return self._native:generate(request(input),sink)
   end)
+end
+function methods:snapshot_export(slot)
+  return guarded(function()return self._native:snapshot_export(str(slot,"snapshot slot",false))end)
+end
+function methods:snapshot_import(slot,key)
+  return guarded(function()return self._native:snapshot_import(str(slot,"snapshot slot",false),str(key,"prompt_cache_key",true))end)
 end
 for _,name in ipairs{"model_card","capabilities","devices","cache_stats","cache_clear","cancel","close"} do
   methods[name]=function(self) return self._native[name](self._native) end

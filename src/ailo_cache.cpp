@@ -1,5 +1,6 @@
 #include "ailo_cache_internal.hpp"
 #include "ailo_logging_internal.hpp"
+#include "ailo_snapshot_internal.hpp"
 #include <algorithm>
 #include <cstring>
 #include <limits>
@@ -63,7 +64,15 @@ cache_state::cache_state(const ailo_cache_config &input)
     throw failure(AILO_OUT_OF_RANGE,
                   "Prompt cache supports at most 4096 entries");
   config.namespace_id = namespace_id.c_str();
+  if (input.directory || input.max_disk_bytes || input.disk_ttl_seconds ||
+      input.key || input.key_id || input.key_size)
+    disk = std::make_unique<snapshot_store>(*this, input);
+  config.directory = disk ? disk->root.c_str() : nullptr;
+  config.key_id = disk ? disk->key_id.c_str() : nullptr;
+  config.key = nullptr;
+  config.key_size = 0;
 }
+cache_state::~cache_state() = default;
 bool cache_state::enabled() const {
   return config.max_memory_bytes && config.max_entries &&
          config.idle_ttl_seconds;
@@ -85,6 +94,11 @@ void cache_state::stats(ailo_cache_stats &output) {
   cache_guard lock(active, true);
   prune_locked();
   output = {};
+  if (disk) {
+    auto sizes = disk->prune();
+    output.disk_entries = sizes.first;
+    output.disk_bytes = sizes.second;
+  }
 #define COUNT(name) output.name = detail::from_unsigned(name.load())
   COUNT(hits);
   COUNT(misses);
@@ -97,6 +111,11 @@ void cache_state::stats(ailo_cache_stats &output) {
   COUNT(lookup_microseconds);
   COUNT(capture_microseconds);
   COUNT(prefill_microseconds);
+  COUNT(snapshot_reads);
+  COUNT(snapshot_writes);
+  COUNT(snapshot_errors);
+  COUNT(snapshot_skipped);
+  COUNT(disk_evictions);
 #undef COUNT
   output.entries = entries.size();
   output.memory_bytes = bytes;
@@ -105,16 +124,71 @@ void cache_state::clear() {
   cache_guard lock(active, true);
   while (!entries.empty())
     erase(entries.begin());
+  if (disk)
+    (void)disk->prune(true);
 }
 void cache_state::prune() {
   cache_guard lock(active, true);
   prune_locked();
+  if (disk)
+    (void)disk->prune();
+}
+
+size_t matching_prefix(const cache_entry &entry,
+                       const std::vector<llama_token> &tokens, bool trim) {
+  if (tokens.size() < 2)
+    return 0;
+  const size_t end = std::min(entry.tokens.size(), tokens.size() - 1);
+  size_t prefix = 0;
+  while (prefix < end && entry.tokens[prefix] == tokens[prefix])
+    ++prefix;
+  return trim || prefix == entry.tokens.size() ? prefix : 0;
+}
+std::unique_ptr<llama_context, decltype(&llama_free)>
+restore_checkpoint(state &client, const cache_entry &entry, size_t count,
+                   bool *allocation_failed) {
+  if (allocation_failed)
+    *allocation_failed = false;
+  if (client.cancelled.load())
+    throw failure(AILO_CANCELLED, "Snapshot restore cancelled");
+  std::unique_ptr<llama_context, decltype(&llama_free)> empty(nullptr,
+                                                              llama_free);
+  if (!count || count > entry.tokens.size() ||
+      entry.tokens.size() >= llama_n_ctx(client.context.get()))
+    return empty;
+  const auto vocab = llama_model_get_vocab(client.model.get());
+  for (auto token : entry.tokens)
+    if (token < 0 || token >= llama_vocab_n_tokens(vocab))
+      return empty;
+  auto candidate = client.new_context();
+  if (!candidate) {
+    if (allocation_failed)
+      *allocation_failed = true;
+    return empty;
+  }
+  bool valid = llama_state_seq_set_data_ext(
+                   candidate.get(), entry.bytes.data(), entry.bytes.size(), 0,
+                   LLAMA_STATE_SEQ_FLAGS_NONE) == entry.bytes.size();
+  if (valid && count < entry.tokens.size())
+    valid = llama_memory_seq_rm(llama_get_memory(candidate.get()), 0,
+                                static_cast<llama_pos>(count), -1);
+  if (valid)
+    valid = llama_memory_seq_pos_max(llama_get_memory(candidate.get()), 0) ==
+            static_cast<llama_pos>(count - 1);
+  const bool trim = !llama_model_is_recurrent(client.model.get()) &&
+                    !llama_model_is_hybrid(client.model.get()) &&
+                    llama_model_n_swa(client.model.get()) == 0;
+  if (valid && trim)
+    valid = llama_memory_seq_pos_min(llama_get_memory(candidate.get()), 0) == 0;
+  if (!valid)
+    return empty;
+  return candidate;
 }
 
 size_t cache_state::restore(state &client,
                             const std::vector<llama_token> &tokens,
                             const std::string &partition) {
-  if (!enabled() || tokens.size() < 2)
+  if (!available() || tokens.size() < 2)
     return 0;
   timing timer{{std::chrono::steady_clock::now()}, lookup_microseconds};
   cache_guard lock(active);
@@ -132,13 +206,32 @@ size_t cache_state::restore(state &client,
   for (auto it = entries.begin(); it != entries.end(); ++it) {
     if (it->identity != client.cache_identity || it->partition != partition)
       continue;
-    const size_t end = std::min(it->tokens.size(), tokens.size() - 1);
-    size_t prefix = 0;
-    while (prefix < end && it->tokens[prefix] == tokens[prefix])
-      ++prefix;
-    if (prefix > count && (trim || prefix == it->tokens.size())) {
+    const size_t prefix = matching_prefix(*it, tokens, trim);
+    if (prefix > count) {
       best = it;
       count = prefix;
+    }
+  }
+  if (disk) {
+    try {
+      std::unique_ptr<cache_entry> loaded;
+      const size_t reused =
+          disk->restore(client, tokens, partition, count, trim, loaded);
+      if (reused) {
+        (void)admit(loaded);
+        hits.fetch_add(1);
+        cached_tokens.fetch_add(reused);
+        return reused;
+      }
+    } catch (const failure &error) {
+      if (error.status == AILO_CANCELLED)
+        throw;
+      snapshot_errors.fetch_add(1);
+      if (error.status == AILO_BUSY)
+        busy_skips.fetch_add(1);
+      log_scope(client.logging.get(), log_phase::generate)
+          .trace(
+              "Persistent cache lookup unavailable; using RAM or recomputing");
     }
   }
   if (best == entries.end()) {
@@ -147,23 +240,13 @@ size_t cache_state::restore(state &client,
   }
   // Native restore may partially modify its context on failure. Never restore
   // into the live context or adopt a candidate until every check has passed.
-  auto candidate = client.new_context();
-  if (!candidate) {
+  bool allocation_failed = false;
+  auto candidate = restore_checkpoint(client, *best, count, &allocation_failed);
+  if (allocation_failed) {
     misses.fetch_add(1);
     return 0;
   }
-  bool valid = llama_state_seq_set_data_ext(
-                   candidate.get(), best->bytes.data(), best->bytes.size(), 0,
-                   LLAMA_STATE_SEQ_FLAGS_NONE) == best->bytes.size();
-  if (valid && count < best->tokens.size())
-    valid = llama_memory_seq_rm(llama_get_memory(candidate.get()), 0,
-                                static_cast<llama_pos>(count), -1);
-  if (valid)
-    valid = llama_memory_seq_pos_max(llama_get_memory(candidate.get()), 0) ==
-            static_cast<llama_pos>(count - 1);
-  if (valid && trim)
-    valid = llama_memory_seq_pos_min(llama_get_memory(candidate.get()), 0) == 0;
-  if (!valid) {
+  if (!candidate) {
     erase(best);
     invalid.fetch_add(1);
     misses.fetch_add(1);
@@ -179,15 +262,16 @@ size_t cache_state::restore(state &client,
   return count;
 }
 
-void cache_state::capture(state &client, const std::vector<llama_token> &tokens,
-                          size_t count, const std::string &partition) {
-  if (!enabled() || !count)
-    return;
+std::string cache_state::capture(state &client,
+                                 const std::vector<llama_token> &tokens,
+                                 size_t count, const std::string &partition) {
+  if (!available() || !count)
+    return {};
   timing timer{{std::chrono::steady_clock::now()}, capture_microseconds};
   cache_guard lock(active);
   if (!lock) {
     busy_skips.fetch_add(1);
-    return;
+    return {};
   }
   prune_locked();
   for (auto it = entries.begin(); it != entries.end(); ++it)
@@ -196,51 +280,150 @@ void cache_state::capture(state &client, const std::vector<llama_token> &tokens,
         std::equal(it->tokens.begin(), it->tokens.end(), tokens.begin())) {
       it->used = std::chrono::steady_clock::now();
       entries.splice(entries.begin(), entries, it);
-      return;
+      const auto key = checkpoint_key(*it);
+      if (disk) {
+        try {
+          disk->write(*it, ".ailo-kv-a-" + key + ".bin", &client);
+        } catch (const failure &error) {
+          if (error.status == AILO_CANCELLED)
+            throw;
+          snapshot_errors.fetch_add(1);
+          snapshot_skipped.fetch_add(1);
+        }
+      }
+      return key;
     }
   const size_t size = llama_state_seq_get_size_ext(client.context.get(), 0,
                                                    LLAMA_STATE_SEQ_FLAGS_NONE);
   if (!size) {
     invalid.fetch_add(1);
-    return;
+    return {};
   }
   // Bound the complete native state BEFORE allocating it. Evict first, so a
   // new cache buffer cannot temporarily double the configured resident bound.
   const size_t overhead = sizeof(cache_entry) + 2 * sizeof(void *) +
                           std::max(size_t(64), client.cache_identity.size()) +
                           std::max(size_t(256), partition.size());
-  if (overhead > config.max_memory_bytes ||
-      count > (config.max_memory_bytes - overhead) / sizeof(llama_token) ||
-      size > config.max_memory_bytes - overhead - count * sizeof(llama_token)) {
+  const bool fits =
+      enabled() &&
+      !(overhead > config.max_memory_bytes ||
+        count > (config.max_memory_bytes - overhead) / sizeof(llama_token) ||
+        size >
+            config.max_memory_bytes - overhead - count * sizeof(llama_token));
+  const bool fits_disk =
+      disk && count <= config.max_snapshot_bytes / sizeof(llama_token) &&
+      size <= config.max_snapshot_bytes - count * sizeof(llama_token);
+  if (!fits && !fits_disk) {
     oversized.fetch_add(1);
-    return;
+    return {};
   }
   const size_t required = overhead + size + count * sizeof(llama_token);
-  while (!entries.empty() && (entries.size() >= config.max_entries ||
-                              bytes > config.max_memory_bytes - required))
+  while (fits && !entries.empty() &&
+         (entries.size() >= config.max_entries ||
+          bytes > config.max_memory_bytes - required))
     erase(std::prev(entries.end()));
-  entries.emplace_front();
-  auto &entry = entries.front();
-  try {
-    entry.identity = client.cache_identity;
-    entry.partition = partition;
-    entry.tokens.assign(tokens.begin(),
-                        tokens.begin() + static_cast<ptrdiff_t>(count));
-    entry.bytes.resize(size);
-    if (entry.charge() > config.max_memory_bytes - bytes ||
-        llama_state_seq_get_data_ext(client.context.get(), entry.bytes.data(),
-                                     size, 0,
-                                     LLAMA_STATE_SEQ_FLAGS_NONE) != size) {
-      entries.pop_front();
-      invalid.fetch_add(1);
+  auto owned = std::make_unique<cache_entry>();
+  auto &entry = *owned;
+  entry.identity = client.cache_identity;
+  entry.partition = partition;
+  entry.tokens.assign(tokens.begin(),
+                      tokens.begin() + static_cast<ptrdiff_t>(count));
+  entry.bytes.resize(size);
+  if (llama_state_seq_get_data_ext(client.context.get(), entry.bytes.data(),
+                                   size, 0,
+                                   LLAMA_STATE_SEQ_FLAGS_NONE) != size) {
+    invalid.fetch_add(1);
+    return {};
+  }
+  entry.used = std::chrono::steady_clock::now();
+  const auto key = checkpoint_key(entry);
+  bool saved = false;
+  if (disk) {
+    try {
+      saved = disk->write(entry, ".ailo-kv-a-" + key + ".bin", &client);
+    } catch (const failure &error) {
+      if (error.status == AILO_CANCELLED)
+        throw;
+      snapshot_errors.fetch_add(1);
+      snapshot_skipped.fetch_add(1);
+      log_scope(client.logging.get(), log_phase::generate)
+          .trace("Automatic snapshot skipped; prompt inference continues");
+    }
+  }
+  saved = admit(owned) || saved;
+  return saved ? key : std::string{};
+}
+bool cache_state::admit(std::unique_ptr<cache_entry> &entry) {
+  if (!enabled() || entry->charge() > config.max_memory_bytes)
+    return false;
+  for (auto it = entries.begin(); it != entries.end();) {
+    auto current = it++;
+    if (current->identity == entry->identity &&
+        current->partition == entry->partition &&
+        current->tokens == entry->tokens)
+      erase(current);
+  }
+  while (!entries.empty() &&
+         (entries.size() >= config.max_entries ||
+          bytes > config.max_memory_bytes - entry->charge()))
+    erase(std::prev(entries.end()));
+  entry->used = std::chrono::steady_clock::now();
+  const auto charge = entry->charge();
+  entries.emplace_front(std::move(*entry));
+  bytes += charge;
+  entry.reset();
+  return true;
+}
+void cache_state::snapshot_export(state &client, const char *slot) {
+  cache_guard guard(active, true);
+  prune_locked();
+  if (!disk)
+    throw failure(AILO_UNSUPPORTED, "Encrypted snapshots are not configured");
+  const auto name = cache_partition(slot);
+  if (name.empty())
+    throw failure(AILO_INVALID_ARGUMENT, "Snapshot slot is required");
+  if (client.last_checkpoint.empty())
+    throw failure(AILO_INVALID_ARGUMENT,
+                  "No successfully cached prompt is available");
+  const auto target =
+      ".ailo-kv-s-" + model::digest_hex(name.data(), name.size()) + ".bin";
+  for (const auto &entry : entries)
+    if (checkpoint_key(entry) == client.last_checkpoint) {
+      disk->write(entry, target, &client);
       return;
     }
-    entry.used = std::chrono::steady_clock::now();
-    bytes += entry.charge();
-  } catch (...) {
-    entries.pop_front();
-    throw;
-  }
+  auto entry = disk->load(".ailo-kv-a-" + client.last_checkpoint + ".bin",
+                          client.cache_identity,
+                          client.last_checkpoint_partition, &client);
+  disk->write(*entry, target, &client);
+}
+void cache_state::snapshot_import(state &client, const char *slot,
+                                  const char *key) {
+  cache_guard guard(active, true);
+  if (!disk)
+    throw failure(AILO_UNSUPPORTED, "Encrypted snapshots are not configured");
+  const auto name = cache_partition(slot), partition = cache_partition(key);
+  if (name.empty())
+    throw failure(AILO_INVALID_ARGUMENT, "Snapshot slot is required");
+  auto entry = disk->load(
+      ".ailo-kv-s-" + model::digest_hex(name.data(), name.size()) + ".bin",
+      client.cache_identity, partition, &client);
+  bool allocation_failed = false;
+  auto candidate = restore_checkpoint(client, *entry, entry->tokens.size(),
+                                      &allocation_failed);
+  if (allocation_failed)
+    throw failure(AILO_NO_MEMORY,
+                  "Cannot allocate a disposable snapshot context");
+  if (!candidate)
+    throw failure(AILO_MODEL_FAILED,
+                  "Snapshot native state cannot be restored");
+  const auto id = checkpoint_key(*entry);
+  // Explicit import validates without replacing the live context. Publish the
+  // automatic entry as well so disk-only owners can reuse the imported state.
+  disk->write(*entry, ".ailo-kv-a-" + id + ".bin", &client, true);
+  (void)admit(entry);
+  client.last_checkpoint = id;
+  client.last_checkpoint_partition = partition;
 }
 std::shared_ptr<cache_state> retain_cache(ailo_cache *cache) {
   if (!cache || !cache->state)
@@ -255,6 +438,8 @@ AILO_PUBLIC ailo_cache_config ailo_cache_default_config(void) {
   value.max_memory_bytes = 64 * 1024 * 1024;
   value.max_entries = 8;
   value.idle_ttl_seconds = 300;
+  value.max_disk_entries = 8;
+  value.max_snapshot_bytes = 64 * 1024 * 1024;
   return value;
 }
 AILO_PUBLIC ailo_status ailo_cache_new(const ailo_cache_config *config,

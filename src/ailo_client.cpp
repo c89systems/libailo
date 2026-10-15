@@ -287,6 +287,8 @@ AILO_PUBLIC ailo_status ailo_client_new_with_logger(
     shell->devices = ailo_client_devices;
     shell->cache_stats = ailo_client_cache_stats;
     shell->cache_clear = ailo_client_cache_clear;
+    shell->snapshot_export = ailo_client_snapshot_export;
+    shell->snapshot_import = ailo_client_snapshot_import;
     shell->cancel = ailo_client_cancel;
     shell->destroy = ailo_client_destroy;
     *output = shell.release();
@@ -362,6 +364,34 @@ AILO_PUBLIC ailo_status ailo_client_model_card(ailo_client *client,
                           self.ensure_loaded();
                           return ailo::client::model_card(self);
                         });
+}
+
+AILO_PUBLIC ailo_status ailo_client_snapshot_export(ailo_client *client,
+                                                    const char *slot,
+                                                    ailo_error *error) {
+  return ailo::client::boundary(error, [&]() {
+    ailo::client::operation call(client);
+    if (!call.self.cache)
+      throw ailo::client::failure(AILO_UNSUPPORTED,
+                                  "Prompt caching is disabled");
+    call.self.cache->snapshot_export(call.self, slot);
+  });
+}
+AILO_PUBLIC ailo_status ailo_client_snapshot_import(ailo_client *client,
+                                                    const char *slot,
+                                                    const char *key,
+                                                    ailo_error *error) {
+  return ailo::client::boundary(error, [&]() {
+    ailo::client::operation call(client);
+    if (!call.self.cache || !call.self.cache->disk)
+      throw ailo::client::failure(AILO_UNSUPPORTED,
+                                  "Encrypted snapshots are not configured");
+    ailo::client::log_scope logs(call.self.logging.get(),
+                                 ailo::client::log_phase::generate);
+    call.self.ensure_loaded();
+    ailo::client::identify_cache(call.self);
+    call.self.cache->snapshot_import(call.self, slot, key);
+  });
 }
 
 AILO_PUBLIC ailo_status ailo_client_capabilities(ailo_client *client,

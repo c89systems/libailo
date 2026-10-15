@@ -145,7 +145,7 @@ void feature_fields(json &out) {
   out.key("default_prompt_cache_idle_seconds");
   out.number(300);
   out.key("persistent_snapshots");
-  out.boolean(false);
+  out.boolean(true);
   out.key("media");
   out.array();
   out.end_array();

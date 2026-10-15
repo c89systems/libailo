@@ -219,6 +219,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   } reset_context{self};
   uint64_t generated = 0;
   size_t output_bytes = 0;
+  std::string checkpoint_key;
   const size_t output_limit =
       request.max_output_bytes ? request.max_output_bytes : 16 * 1024 * 1024;
   for (unsigned candidate = 0; candidate < candidates; ++candidate) {
@@ -247,7 +248,8 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
         evaluate(self, tokens.data() + reused, checkpoint - reused, reused,
                  true);
       if (self.cache)
-        self.cache->capture(self, tokens, checkpoint, partition);
+        checkpoint_key =
+            self.cache->capture(self, tokens, checkpoint, partition);
       // Sequence states don't include fresh logits. Always replay the last
       // token.
       evaluate(self, tokens.data() + checkpoint, 1, checkpoint, true);
@@ -344,6 +346,8 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   }
   output.send(AILO_EVENT_USAGE, nullptr, 0, info.finish_reason);
   output.send(AILO_EVENT_RUN_END, nullptr, 0, info.finish_reason);
+  self.last_checkpoint = std::move(checkpoint_key);
+  self.last_checkpoint_partition = partition;
 }
 } // namespace client
 } // namespace ailo

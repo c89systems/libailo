@@ -275,6 +275,13 @@ struct ailo_client {
   ailo_status (*devices)(ailo_client *, char **, ailo_error *);
   ailo_status (*cache_stats)(ailo_client *, ailo_cache_stats *, ailo_error *);
   ailo_status (*cache_clear)(ailo_client *, ailo_error *);
+  /** Export the last successful prompt checkpoint to a named cache slot.
+   * Import validates into disposable state and seeds reuse; it does not resume
+   * generation or change conversation history. Slots are quota/TTL evictable.
+   */
+  ailo_status (*snapshot_export)(ailo_client *, const char *, ailo_error *);
+  ailo_status (*snapshot_import)(ailo_client *, const char *, const char *,
+                                 ailo_error *);
   void (*cancel)(ailo_client *);
   void (*destroy)(ailo_client *);
 };
@@ -303,6 +310,10 @@ ailo_status ailo_client_generate(ailo_client *client,
 ailo_status ailo_client_cache_stats(ailo_client *, ailo_cache_stats *,
                                     ailo_error *);
 ailo_status ailo_client_cache_clear(ailo_client *, ailo_error *);
+ailo_status ailo_client_snapshot_export(ailo_client *, const char *,
+                                        ailo_error *);
+ailo_status ailo_client_snapshot_import(ailo_client *, const char *,
+                                        const char *, ailo_error *);
 /** Owned JSON outputs; release with ailo_string_free. model_card forces a
  * configured lazy load; devices and capabilities never download model files. */
 ailo_status ailo_client_model_card(ailo_client *client, char **output,

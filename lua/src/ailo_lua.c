@@ -149,6 +149,16 @@ static int new_cache(lua_State *L) {
   config.max_memory_bytes = (size_t)integer(L, 1, "max_memory_bytes");
   config.max_entries = (size_t)integer(L, 1, "max_entries");
   config.idle_ttl_seconds = (ailo_u32)integer(L, 1, "idle_ttl_seconds");
+  config.directory = string(L, 1, "directory");
+  config.key_id = string(L, 1, "key_id");
+  config.max_disk_bytes = (size_t)integer(L, 1, "max_disk_bytes");
+  config.disk_ttl_seconds = (ailo_u32)integer(L, 1, "disk_ttl_seconds");
+  config.max_disk_entries = (size_t)integer(L, 1, "max_disk_entries");
+  config.max_snapshot_bytes = (size_t)integer(L, 1, "max_snapshot_bytes");
+  lua_getfield(L, 1, "key");
+  if (!lua_isnil(L, -1))
+    config.key = luaL_checklstring(L, -1, &config.key_size);
+  lua_pop(L, 1);
   ailo_error error = {0};
   ailo_status status = ailo_cache_new(&config, &value->native, &error);
   if (status != AILO_OK)
@@ -156,7 +166,7 @@ static int new_cache(lua_State *L) {
   return 1;
 }
 static int cache_statistics(lua_State *L, const ailo_cache_stats *value) {
-  lua_createtable(L, 0, 13);
+  lua_createtable(L, 0, 20);
 #define COUNT(name)                                                            \
   push_u64(L, value->name);                                                    \
   lua_setfield(L, -2, #name)
@@ -171,9 +181,16 @@ static int cache_statistics(lua_State *L, const ailo_cache_stats *value) {
   COUNT(lookup_microseconds);
   COUNT(capture_microseconds);
   COUNT(prefill_microseconds);
+  COUNT(snapshot_reads);
+  COUNT(snapshot_writes);
+  COUNT(snapshot_errors);
+  COUNT(snapshot_skipped);
+  COUNT(disk_evictions);
 #undef COUNT
   set_integer(L, "entries", (lua_Integer)value->entries);
   set_integer(L, "memory_bytes", (lua_Integer)value->memory_bytes);
+  set_integer(L, "disk_entries", (lua_Integer)value->disk_entries);
+  set_integer(L, "disk_bytes", (lua_Integer)value->disk_bytes);
   return 1;
 }
 static int cache_operation(lua_State *L, int kind) {
@@ -751,6 +768,34 @@ static int client_cache_stats(lua_State *L) {
 static int client_cache_clear(lua_State *L) {
   return client_cache_operation(L, 1);
 }
+static int client_snapshot(lua_State *L, int importing) {
+  client *value = get_client(L);
+  int failed = ready(L, value);
+  if (failed)
+    return failed;
+  const char *slot = luaL_checkstring(L, 2);
+  const char *key = lua_isnoneornil(L, 3) ? NULL : luaL_checkstring(L, 3);
+  ailo_error error = {0};
+  begin(L, value, 1);
+  ailo_status status =
+      importing ? ailo_client_snapshot_import(value->native, slot, key, &error)
+                : ailo_client_snapshot_export(value->native, slot, &error);
+  end(value);
+  if (status != AILO_OK) {
+    if (value->progress_failed) {
+      status = AILO_SINK_FAILED;
+      strcpy(error.message, "model progress callback failed");
+    }
+    failure(L, status, error.message);
+    if (value->progress_failed)
+      cause(L, 1, 3);
+    return 2;
+  }
+  lua_pushboolean(L, 1);
+  return 1;
+}
+static int snapshot_export(lua_State *L) { return client_snapshot(L, 0); }
+static int snapshot_import(lua_State *L) { return client_snapshot(L, 1); }
 static int cancel(lua_State *L) {
   client *value = get_client(L);
   if (value->native)
@@ -810,6 +855,8 @@ EXPORT int luaopen_ailo_core(lua_State *L) {
                                      {"devices", devices},
                                      {"cache_stats", client_cache_stats},
                                      {"cache_clear", client_cache_clear},
+                                     {"snapshot_export", snapshot_export},
+                                     {"snapshot_import", snapshot_import},
                                      {"cancel", cancel},
                                      {"close", close_client},
                                      {NULL, NULL}};

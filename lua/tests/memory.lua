@@ -38,6 +38,16 @@ ok(client:generate(mutated,function()mutated.items=nil;mutated.logit_bias=nil;co
 assert(client:close() and client:close())
 collectgarbage("collect");assert(not weak[1])
 do
+  local options={namespace_id="snapshot-memory",directory=work.."/snapshots",max_disk_bytes=1024*1024,
+    disk_ttl_seconds=60,key_id="memory-key",key=string.rep("s",32)}
+  local cache=ok(ailo.new_cache(options));local snapshot=ok(ailo.new(config{cache=cache}))
+  ok(snapshot:generate(request(),function()end));assert(snapshot:snapshot_export("memory-slot"))
+  snapshot:close();cache:close()
+  cache=ok(ailo.new_cache(options));snapshot=ok(ailo.new(config{cache=cache}))
+  assert(snapshot:snapshot_import("memory-slot"));ok(snapshot:generate(request(),function()end))
+  assert(snapshot:cache_clear());snapshot:close();cache:close()
+end
+do
   local cache=ok(ailo.new_cache{namespace_id="memory-tenant"})
   local weak_cache=setmetatable({cache},{__mode="v"})
   local cached=ok(ailo.new(config{cache=cache}))

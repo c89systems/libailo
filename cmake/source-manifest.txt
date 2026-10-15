@@ -9,7 +9,10 @@ include/ailo/cache.h
 src/ailo_cache.cpp
 src/ailo_cache_internal.hpp
 src/ailo_cache_identity.cpp
+src/ailo_snapshot.cpp
+src/ailo_snapshot_internal.hpp
 tests/prompt_cache.cpp
+tests/snapshots.cpp
 CMakePresets.json
 LICENSE
 Makefile
