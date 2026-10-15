@@ -390,7 +390,7 @@ prefill/decode throughput or complete GPU memory use.
 
 All four release configurations now build the integrated library and strict C89
 header probes. Their extracted development SDKs pass target ABI, privacy and
-exact-export checks. The x86-64 glibc release suite passes 71/71 CTests; the
+exact-export checks. The x86-64 glibc release suite passes 72/72 CTests; the
 installed Lua/shared C ABI passes its three Vulkan-profile tests, including
 LuaRocks installation. The same trained Lua hardware scenario described above
 also passes with the built-in static ANV provider: first text at token 1,
@@ -403,6 +403,16 @@ identity, repeats the offline GPU/CPU output comparison and incremental output
 trace successfully. It performs 488 successful i915 submissions, with socket
 creation denied and no shared-library or manifest attempts. The executable size
 remains 95,010,784 bytes.
+
+The final core refresh passes 72/72 glibc and 69/69 musl CTests; the different
+counts reflect three glibc-only packaging/install gates. All four refreshed
+development SDKs pass extraction, target ABI, privacy and exact-export checks.
+The current strict C89 static musl executable is 95,113,184 bytes and again has
+no interpreter or dynamic dependencies. Its offline Intel SmolLM2 run makes
+488 successful i915 submissions, no network/shared-library/manifest attempts,
+and writes output fragments between decode submissions. Its 12-token output
+matches the CPU run. Component parser/writer and snapshot RSS bounds are
+measured separately in [the receiver tests](client.md#encrypted-prompt-snapshots).
 
 The comprehensive hardware campaign remains pending: firmware identification,
 AMD, AArch64 GPU and multi-GPU execution, and numerical/performance acceptance.
