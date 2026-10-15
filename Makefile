@@ -28,6 +28,11 @@ release-matrix:
 deps:
 	scripts/deps.sh --target "$(TARGET)" --component "$(DEPENDENCY)"
 .PHONY: gpu-deps test-gpu-deps
+.PHONY: gpu-tools test-gpu-tools
+gpu-tools:
+	scripts/build-gpu-tools.sh
+test-gpu-tools: gpu-tools
+	cmake -P tests/test_gpu_tools.cmake
 gpu-deps:
 	scripts/build-gpu-deps.sh --target "$(TARGET)"
 test-gpu-deps: gpu-deps

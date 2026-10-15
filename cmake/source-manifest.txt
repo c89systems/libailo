@@ -108,6 +108,7 @@ scripts/cpkt-aflpp.sh
 scripts/cpkt-toolchains.sh
 scripts/deps.sh
 scripts/build-gpu-deps.sh
+scripts/build-gpu-tools.sh
 scripts/discover_target_tools.sh
 scripts/format.sh
 scripts/generate_native.py
@@ -208,6 +209,8 @@ tests/test_build_drivers.cmake
 tests/test_drm_ids.c
 tests/test_gpu_deps.c
 tests/test_gpu_deps.cmake
+tests/test_gpu_tools.cmake
+tests/test_gpu_tools.cpp
 tests/test_cache_defaults.cmake
 tests/test_clean.cmake
 tests/test_install_privacy.cmake

@@ -28,7 +28,7 @@ foreach(preset base nonexistent "../debug" armhf-linux-gnu-release armhf-linux-m
     message(FATAL_ERROR "Invalid/hidden preset ${preset} was accepted")
   endif()
 endforeach()
-foreach(driver build deps format build-gpu-deps)
+foreach(driver build deps format build-gpu-deps build-gpu-tools)
   execute_process(COMMAND "${root}/scripts/${driver}.sh" --unknown
     RESULT_VARIABLE result OUTPUT_QUIET ERROR_QUIET)
   if(NOT result EQUAL 2)
@@ -46,6 +46,21 @@ execute_process(COMMAND "${CMAKE_COMMAND}" -E env AILO_JOBS=0 "${root}/scripts/b
   RESULT_VARIABLE result OUTPUT_QUIET ERROR_QUIET)
 if(NOT result EQUAL 2)
   message(FATAL_ERROR "Invalid GPU dependency worker count was accepted")
+endif()
+execute_process(COMMAND "${root}/scripts/build-gpu-tools.sh" --component unknown
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_QUIET)
+if(NOT result EQUAL 2)
+  message(FATAL_ERROR "Unknown host GPU tool was accepted")
+endif()
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env AILO_JOBS=0 "${root}/scripts/build-gpu-tools.sh"
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_QUIET)
+if(NOT result EQUAL 2)
+  message(FATAL_ERROR "Invalid host GPU tool worker count was accepted")
+endif()
+execute_process(COMMAND "${CMAKE_COMMAND}" -DAILO_TARGET_ID=host -DAILO_DEPENDENCY=cpkt
+  -P "${root}/cmake/AiloDependencies.cmake" RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(result EQUAL 0 OR NOT error MATCHES "source archives only")
+  message(FATAL_ERROR "Host source preparation accepted a target SDK: ${error}")
 endif()
 foreach(target armhf-linux-gnu armhf-linux-musl)
   execute_process(COMMAND "${root}/scripts/deps.sh" --target "${target}" --component cpkt
@@ -87,6 +102,16 @@ foreach(target x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linu
   endif()
 endforeach()
 
+# A wrong host compiler version must fail before any download/build action.
+file(COPY "${root}/scripts/build-gpu-tools.sh" DESTINATION "${work}/driver/scripts")
+file(WRITE "${work}/bin/llvm-config-20" "#!/usr/bin/env bash\nprintf '21.1.0\\n'\n")
+file(CHMOD "${work}/bin/llvm-config-20" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
+  "${work}/driver/scripts/build-gpu-tools.sh" RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(NOT result EQUAL 2 OR NOT error MATCHES "requires LLVM 20")
+  message(FATAL_ERROR "Mismatched host LLVM was not rejected before dependency preparation: ${error}")
+endif()
+
 # Synthetic source acquisition uses its own counted/test archive cache only.
 set(component "fixture-${random}")
 file(MAKE_DIRECTORY "${work}/seed/${component}")
@@ -115,6 +140,17 @@ foreach(iteration RANGE 1 3)
     file(WRITE "${work}/pins.json" "{\"${component}\": {\"url\": \"https://invalid.invalid/different-name.tar.gz\", \"sha256\": \"${sha}\"}}")
   endif()
 endforeach()
+execute_process(COMMAND "${CMAKE_COMMAND}" -DAILO_TARGET_ID=host
+  "-DAILO_DEPENDENCY_LOCK=${work}/pins.json" "-DAILO_DEPENDENCY=${component}"
+  "-DCPKT_DEPENDENCY_CACHE=${work}/shared" -P "${root}/cmake/AiloDependencies.cmake"
+  RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+set(host_prepared "${root}/.cache/deps-build/host/${component}")
+if(NOT result EQUAL 0 OR NOT EXISTS "${host_prepared}/source/CMakeLists.txt")
+  message(FATAL_ERROR "Independent host source preparation failed: ${output} ${error}")
+endif()
+file(REMOVE_RECURSE "${host_prepared}" "${root}/.cache/deps/host/${component}")
+file(REMOVE "${root}/.cache/dependency-contracts/host/${component}.txt"
+  "${root}/.cache/dependency-contracts/host/${component}.txt.lock")
 file(REMOVE_RECURSE "${prepared}" "${install}")
 file(REMOVE "${contract}" "${contract}.lock")
 

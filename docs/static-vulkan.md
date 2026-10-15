@@ -171,6 +171,16 @@ prerequisites resolved by this selected upstream build, with actionable failures
 Host tooling may be installed on the workstation; target libraries may not be
 taken from its package database or library directories.
 
+`make gpu-tools` builds pinned host SPIR-V Tools 2026.4, LLVM/SPIR-V translator
+20.1.18 and glslang 16.6.0. The translator requires an installed LLVM 20 development
+toolchain; these native builds use separate `host` source/build/install roots.
+SPIR-V Tools and glslang share the headers revision selected by their upstream
+dependency declarations. `make test-gpu-tools` exercises actual GLSL/SPIR-V
+compilation, validation/optimization, invalid inputs and an LLVM kernel round
+trip. These tools and their host libraries are excluded from target pkg-config
+and CMake roots and from the SDK. Mesa's matching `mesa_clc`/`vtn_bindgen2` build
+is still pending; it additionally needs Clang development headers and libraries.
+
 Project sequencing stays in Make/Bash/CMake/CTest. Invoke Mesa's native Meson
 build as a dependency build with an explicit cross file and prepared host tools;
 do not create a competing Python build controller. Target C/C++ comes from the

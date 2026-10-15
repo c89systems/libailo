@@ -134,6 +134,30 @@
     "sha256": "bce5f7fbebb934373b86c999a064d52fb5065878dc57f287f95346648ec832e9",
     "build_system": "meson"
   },
+  "spirv-tools": {
+    "version": "v2026.4",
+    "upstream": "https://github.com/KhronosGroup/SPIRV-Tools",
+    "url": "https://codeload.github.com/KhronosGroup/SPIRV-Tools/tar.gz/refs/tags/v2026.4",
+    "sha256": "92df4c377603f086c3d2a1eb2bd9b8f883a73ca890fb939d78a0cecdcc01686c"
+  },
+  "spirv-tools-headers": {
+    "version": "496543121ce6419f23d6fa5d7194ba66c36212d2",
+    "upstream": "https://github.com/KhronosGroup/SPIRV-Headers",
+    "url": "https://codeload.github.com/KhronosGroup/SPIRV-Headers/tar.gz/496543121ce6419f23d6fa5d7194ba66c36212d2",
+    "sha256": "a9bb9c48713245eacf97cc539b6f1d45405a92d8813f8b82e635f0a085ee9898"
+  },
+  "spirv-llvm-translator": {
+    "version": "v20.1.18",
+    "upstream": "https://github.com/KhronosGroup/SPIRV-LLVM-Translator",
+    "url": "https://codeload.github.com/KhronosGroup/SPIRV-LLVM-Translator/tar.gz/refs/tags/v20.1.18",
+    "sha256": "6704bef05b20ca52afd0fb134876959a8f63ed7a70829a1cbc04e70ea719635b"
+  },
+  "glslang": {
+    "version": "16.6.0",
+    "upstream": "https://github.com/KhronosGroup/glslang",
+    "url": "https://codeload.github.com/KhronosGroup/glslang/tar.gz/refs/tags/16.6.0",
+    "sha256": "9c09b901149c729df745057dafa815278aaa101b84d2b6e14f16a42de52f97f2"
+  },
   "libdrm": {
     "version": "2.4.134",
     "upstream": "https://gitlab.freedesktop.org/mesa/drm",
