@@ -111,6 +111,30 @@ execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
 if(NOT result EQUAL 2 OR NOT error MATCHES "requires LLVM 20")
   message(FATAL_ERROR "Mismatched host LLVM was not rejected before dependency preparation: ${error}")
 endif()
+file(WRITE "${work}/bin/llvm-config-20" "#!/usr/bin/env bash\nprintf '20.1.7\\n'\n")
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
+  "${work}/driver/scripts/build-gpu-tools.sh" RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(NOT result EQUAL 2 OR NOT error MATCHES "require LLVM/Clang 20.1.8")
+  message(FATAL_ERROR "Mismatched Clang SDK patch version was accepted: ${error}")
+endif()
+file(MAKE_DIRECTORY "${work}/llvm/lib")
+file(WRITE "${work}/bin/llvm-config-20"
+  "#!/usr/bin/env bash\ncase \"$1\" in --version) printf '20.1.8\\n' ;; *) printf '%s\\n' '${work}/llvm/lib' ;; esac\n")
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
+  "${work}/driver/scripts/build-gpu-tools.sh" --component clang-headers
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(NOT result EQUAL 2 OR NOT error MATCHES "shared runtime missing")
+  message(FATAL_ERROR "Missing Clang host runtime was accepted: ${error}")
+endif()
+file(WRITE "${work}/llvm/lib/libclang-cpp.so.20.1" "synthetic preflight marker only\n")
+file(WRITE "${work}/bin/meson" "#!/usr/bin/env bash\nexit 75\n")
+file(CHMOD "${work}/bin/meson" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
+  "${work}/driver/scripts/build-gpu-tools.sh" --component mesa
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(NOT result EQUAL 2 OR NOT error MATCHES "prepare host prerequisites")
+  message(FATAL_ERROR "Missing Mesa host prerequisites were not rejected before source preparation: ${error}")
+endif()
 
 # Synthetic source acquisition uses its own counted/test archive cache only.
 set(component "fixture-${random}")

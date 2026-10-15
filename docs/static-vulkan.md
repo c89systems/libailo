@@ -162,24 +162,31 @@ non-ELF native binary. These consequences are documented in the dependency audit
 Host tools have a separate closure. glslc produces portable SPIR-V for each
 application target; no CPU-target GLSL cross compiler is required. ANV internal
 shader generation also needs matching host mesa_clc and vtn_bindgen2, plus host
-glslangValidator for internal GLSL shaders. Building the Mesa host tools can
-require LLVM/Clang, SPIR-V LLVM translator and libclc;
-that is not a requirement to link LLVM into the target. Use Mesa's system host
-tool modes for mesa-clc/precomp-compiler in the target build, with explicit tool
-paths and version checks. Document Meson/Ninja, Mako/PyYAML and any generator
-prerequisites resolved by this selected upstream build, with actionable failures.
+glslangValidator for internal GLSL shaders. The selected Mesa host tools use
+LLVM/Clang, SPIR-V LLVM translator and SPIR-V Tools; this Intel profile requires
+neither libclc nor Rust. LLVM is a host prerequisite, not a target dependency.
+Use Mesa's system `mesa-clc` mode in the target build, with explicit tool
+paths and matching source versions. Document Meson/Ninja, Mako/PyYAML and any
+generator prerequisites resolved by this selected upstream build, with actionable
+failures.
 Host tooling may be installed on the workstation; target libraries may not be
 taken from its package database or library directories.
 
 `make gpu-tools` builds pinned host SPIR-V Tools 2026.4, LLVM/SPIR-V translator
-20.1.18 and glslang 16.6.0. The translator requires an installed LLVM 20 development
-toolchain; these native builds use separate `host` source/build/install roots.
+20.1.18, glslang 16.6.0 and Mesa 26.2.4 `mesa_clc`/`vtn_bindgen2`. These builds
+require installed LLVM 20.1.8 development tools, the matching Clang shared runtime,
+Meson >= 1.4, Ninja, Mako and PyYAML. Clang 20.1.8 development headers are generated
+and installed inside the repository using upstream's `clang-headers` target;
+the host compiler installation is not modified. Native sources/builds/installs
+have separate per-component `host` roots.
 SPIR-V Tools and glslang share the headers revision selected by their upstream
 dependency declarations. `make test-gpu-tools` exercises actual GLSL/SPIR-V
 compilation, validation/optimization, invalid inputs and an LLVM kernel round
-trip. These tools and their host libraries are excluded from target pkg-config
-and CMake roots and from the SDK. Mesa's matching `mesa_clc`/`vtn_bindgen2` build
-is still pending; it additionally needs Clang development headers and libraries.
+trip, plus OpenCL through Mesa CLC and SPIR-V binding generation. Invalid GLSL,
+OpenCL, missing SPIR-V, mismatched LLVM/Clang and missing SDK prerequisites have
+explicit failure checks. The installed Mesa generators run with their dependency
+paths resolved and bundle the LLVM OpenCL resource headers. These tools and host
+libraries are excluded from target pkg-config/CMake roots and the SDK.
 
 Project sequencing stays in Make/Bash/CMake/CTest. Invoke Mesa's native Meson
 build as a dependency build with an explicit cross file and prepared host tools;

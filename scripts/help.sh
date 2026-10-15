@@ -2,7 +2,7 @@
 set -euo pipefail
 cat <<'HELP'
 deps [DEPENDENCY=name] [TARGET=id]  Acquire verified pinned components.
-gpu-tools                        Build pinned host SPIR-V tools, LLVM translator and glslang.
+gpu-tools                        Build pinned host shader tools and matching Mesa generators.
 test-gpu-tools                   Verify real shader compilation and invalid-input failures.
 gpu-deps [TARGET=id]              Build static libdrm core/amdgpu with pinned Bootlin.
 test-gpu-deps [TARGET=id]         Check relocated static dependency linkage (no GPU needed).

@@ -158,6 +158,18 @@
     "url": "https://codeload.github.com/KhronosGroup/glslang/tar.gz/refs/tags/16.6.0",
     "sha256": "9c09b901149c729df745057dafa815278aaa101b84d2b6e14f16a42de52f97f2"
   },
+  "clang-headers": {
+    "version": "20.1.8",
+    "upstream": "https://github.com/llvm/llvm-project",
+    "url": "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/clang-20.1.8.src.tar.xz",
+    "sha256": "b7a1b7b0af7b9c7596af6bd46e36d11321926eaa66a7a7dc957ab0a1375ee4b0"
+  },
+  "llvm-cmake": {
+    "version": "20.1.8",
+    "upstream": "https://github.com/llvm/llvm-project",
+    "url": "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/cmake-20.1.8.src.tar.xz",
+    "sha256": "3319203cfd1172bbac50f06fa68e318af84dcb5d65353310c0586354069d6634"
+  },
   "libdrm": {
     "version": "2.4.134",
     "upstream": "https://gitlab.freedesktop.org/mesa/drm",
