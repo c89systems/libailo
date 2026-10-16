@@ -95,6 +95,7 @@ struct item {
        has_encrypted = false, has_calls = false, has_summary = false;
   bool encrypted_null = false;
   bool content_string = false;
+  bool trigger_extra_fields = false;
 };
 class decoder {
   openai_request &out;
@@ -399,6 +400,7 @@ class decoder {
     auto &m = input.at(i);
     const auto &field = p[2];
     if (p.size() == 3) {
+      m.trigger_extra_fields |= field != "type" && field != "id";
       if (field == "content" || (!chat && field == "output")) {
         if (m.has_content)
           invalid("Input item cannot contain both content and output");
@@ -415,6 +417,8 @@ class decoder {
         m.has_summary = true;
       } else if (!chat && field == "encrypted_content" && k == kind::null) {
         m.has_encrypted = m.encrypted_null = true;
+      } else if (!chat && field == "id" && k == kind::null) {
+        // Input item IDs, including compaction triggers, may be omitted/null.
       } else if (field == "tool_calls" && chat) {
         m.has_calls = true;
         if (k != kind::null)
@@ -1016,7 +1020,20 @@ class decoder {
         unsupported();
       if (m.has_summary && m.type != "reasoning")
         invalid("Summary belongs to a reasoning item");
-      if (m.type.empty() || m.type == "message") {
+      if (m.type == "compaction_trigger" && !selected_items &&
+          out.protocol == openai_protocol::responses) {
+        if (&m != &input.back() || out.compaction_trigger ||
+            m.trigger_extra_fields)
+          invalid("compaction_trigger must be the final item and contain only "
+                  "type and optional id");
+        out.compaction_trigger = true;
+        out.compaction_trigger_id = m.id;
+        if (out.capture_wire) {
+          out.wire_items.pop_back();
+          out.wire_status.pop_back();
+          out.wire_simple.pop_back();
+        }
+      } else if (m.type.empty() || m.type == "message") {
         if ((!chat && (m.content_field == "output" || !m.name.empty())) ||
             (m.content_null && m.role != "assistant") ||
             (m.has_calls && m.role != "assistant"))

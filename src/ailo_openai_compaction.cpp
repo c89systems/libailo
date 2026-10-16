@@ -186,8 +186,28 @@ void api_expand_compaction(state &self, openai_request &request) {
                 request.items[position].encrypted_content, plain);
   openai_request decoded(openai_protocol::responses, plain.bytes.data(),
                          plain.bytes.size(), self.id, "input");
-  const size_t cut = token_position(decoded.items, true),
+  const size_t cut = token_position(decoded.items, false),
                count = decoded.items.size(), prefix = request.instruction_items;
+  // A triggered compact of an already-small window still returns an opaque,
+  // replayable checkpoint. The outer authenticated envelope contains the whole
+  // canonical window; there is no inner semantic summary in this case.
+  if (cut == count) {
+    if (!decoded.record_automatic)
+      invalid();
+    transcript expanded;
+    for (size_t i = 0; i < prefix; ++i)
+      add(expanded, request.items[i]);
+    for (const auto &item : decoded.items)
+      add(expanded, item);
+    openai_request output(openai_protocol::responses, plain.bytes.data(),
+                          plain.bytes.size(), self.id, "output");
+    for (const auto &item : output.items)
+      add(expanded, item);
+    for (size_t i = position + 1; i < request.items.size(); ++i)
+      add(expanded, request.items[i]);
+    bind_request(request, std::move(expanded));
+    return;
+  }
   if (!decoded.record_automatic) {
     (void)token_position(request.items, false);
     if (position != prefix + cut || count > request.items.size() - prefix)

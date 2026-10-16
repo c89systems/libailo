@@ -368,6 +368,21 @@ void api_response_input_page(state &self, openai_request &request,
     } else
       api_canonical_item(out, item);
   }
+  if (request.compaction_trigger) {
+    ailo_api_info identity{};
+    api_identity(identity, "ct_");
+    const auto &id = request.compaction_trigger_id.empty()
+                         ? std::string(identity.id)
+                         : request.compaction_trigger_id;
+    if (!ids.insert(id).second)
+      throw failure(AILO_INVALID_ARGUMENT, "Duplicate response input ID");
+    out.object();
+    out.key("type");
+    out.string("compaction_trigger");
+    out.key("id");
+    out.string(id);
+    out.end_object();
+  }
   out.end_array();
   out.finish();
 }

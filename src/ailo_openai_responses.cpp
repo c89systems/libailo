@@ -2,6 +2,8 @@
 #include "ailo_compaction_internal.hpp"
 #include "ailo_logging_internal.hpp"
 #include "ailo_openai_internal.hpp"
+#include "ailo_reasoning_internal.hpp"
+#include "ailo_tools_internal.hpp"
 #include "src/unicode.h"
 #include <algorithm>
 #include <chrono>
@@ -860,6 +862,48 @@ class response_writer {
   }
 
 public:
+  void triggered_compaction() {
+    self.ensure_loaded();
+    identify_cache(self, true);
+    if (!request.generation.item_count)
+      throw failure(AILO_INVALID_ARGUMENT,
+                    "compaction_trigger requires context to compact");
+    auto tools = prepare_tools(request.generation);
+    const auto rendered =
+        render_prompt(self, prepare_replay(self, request.generation), tools,
+                      request.generation);
+    if (prompt_token_count(self, rendered.prompt) >
+        llama_n_ctx(self.context.get()))
+      throw failure(
+          AILO_CONTEXT_LIMIT,
+          "Triggered Responses compaction input exceeds the model context");
+    ailo_compaction_info compact{};
+    compaction_task task{};
+    task.instructions =
+        request.instructions.empty() ? nullptr : request.instructions.c_str();
+    task.usage = &info.run.usage;
+    task.begin = [&] { compact_begin(); };
+    task.progress = [&] { compact_progress(); };
+    std::unique_ptr<ailo_continuation, decltype(&ailo_continuation_destroy)>
+        window(compact_window(self, request.generation, self.openai->compaction,
+                              compact, nullptr, &task),
+               ailo_continuation_destroy);
+    if (active_control == SIZE_MAX)
+      compact_begin();
+    auto snapshot =
+        std::make_shared<transcript>(*get_continuation(window.get()).current);
+    charge(snapshot->bytes);
+    items[active_control].window = std::move(snapshot);
+    info.run.actual_backend = self.actual;
+    info.run.finish_reason = AILO_FINISH_STOP;
+    info.run.usage.prompt_tokens = compact.summary_prompt_tokens;
+    info.run.usage.completion_tokens = compact.summary_completion_tokens;
+    info.run.usage.compaction_prompt_tokens = compact.summary_prompt_tokens;
+    info.run.usage.compaction_completion_tokens =
+        compact.summary_completion_tokens;
+    info.run.usage.compaction_passes = compact.summary_passes;
+    completed();
+  }
   void input_page() {
     if (store)
       api_response_input_page(self, request, *record);
@@ -1033,13 +1077,18 @@ AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
       bool compacted = false;
       for (const auto &i : request.items)
         compacted |= i.kind == AILO_ITEM_COMPACTION;
-      if ((compacted || request.automatic_compaction) &&
+      if ((compacted || request.automatic_compaction ||
+           request.compaction_trigger) &&
           (plan.store_response || conversation))
         api_require_replay_storage(call.self, conversation != nullptr);
       api_expand_compaction(call.self, request);
       api_expand_reasoning(call.self, request);
       api_prepare_reasoning(call.self, request, plan.store_response,
                             conversation != nullptr);
+      if (request.compaction_trigger) {
+        output.triggered_compaction();
+        return;
+      }
       auto native = request.generation;
       if (native.logprobs)
         native.top_logprobs = 20;

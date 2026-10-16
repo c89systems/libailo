@@ -31,6 +31,8 @@ struct openai_request {
   bool streaming = false, include_usage = false, include_obfuscation = true;
   int store = -1; // -1: omitted/null; resolved by trusted retention policy
   bool automatic_compaction = false;
+  bool compaction_trigger = false;
+  std::string compaction_trigger_id;
   bool record_automatic =
       false; // authenticated private compaction payload only
   bool record_deleted = false, record_rebuild = false,

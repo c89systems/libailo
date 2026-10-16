@@ -74,42 +74,68 @@ not acquire hosted tools or modalities merely because they appear in a schema.
 
 ## Reproduction and evidence
 
-Final verification passed 73/73 glibc CTests, 70/70 musl CTests and 4/4 installed
-Lua checks, including LuaRocks and public-only shared ABI imports. Full builds
-and strict C89 standalone-header probes passed for all four Linux targets:
-x86_64/AArch64 with glibc/musl. The glibc suite includes source/package checks,
-exact exports, install privacy and relocated C/C++ consumers. Cross compilation
-does not establish native AArch64 GPU hardware qualification.
+Ordinary CTest's `openai-http` runs the loopback fixture without Codex or external
+credentials. It covers every implemented method/path in the route table, including
+stored Chat CRUD/filtering, response retrieval/deletion/input pages, conversation
+CRUD/item pagination, and these state transitions:
 
-`make test-openai-agent PRESET=x86_64-linux-gnu-release` builds an explicit
-test-only target, checks model discovery and a malformed-request HTTP error,
-then runs the installed Codex CLI against an ephemeral loopback port. Host
-`codex`, `timeout`, `curl`, `jq` and `rg` are test prerequisites; they do not enter
-the target dependency closure. Ordinary CTest does not require Codex or start a
-listener. The fixture uses a stateless ZDR policy, independently of the retained
-record tests. It loads the tiny generated model for real template preflight but
-substitutes only generation at link time. Prompt qualification remains production
-code, separated from generation in `ailo_prompt.cpp`.
+- Responses chaining with `previous_response_id` and **only new input**, including
+  a function-call/result round trip, changed instructions, parent deletion,
+  missing/unstored/expired IDs and namespace isolation.
+- Chat history replay with assistant function calls and tool results supplied by
+  the client. Chat does not acquire server-managed continuation semantics.
+- Standalone, automatic and explicitly triggered compaction; real authenticated
+  envelopes, tampering rejection, stateful continuation and stateless replay.
+- Provider reconstruction and file reload on **every HTTP request**, with stable
+  test keys. The application-owned test repository implements the public callback
+  contract; it is serial, bounded test storage, not a production provider.
+- Reserve/write/commit/open/read failures, abort/close balance, failed-stream
+  termination and private-error redaction. A live consumer receives a text delta
+  while generation is held; disconnecting then aborts the unfinished record.
 
-The local model catalog explicitly selects function tools, no reasoning summary,
-no multi-agent namespace, no freeform apply-patch tool and no Responses Lite or
-WebSocket transport. These are declared capabilities of this test profile.
-Requests reach the production parser unchanged. `client_metadata` follows the
-documented bounded telemetry extension in [openai.md](openai.md).
+`make test-openai-agent PRESET=x86_64-linux-gnu-release` drives the installed
+Codex CLI's `app-server --stdio` with explicit `thread/start`, `turn/start`,
+`turn/completed` and `thread/compact/start` messages. It completes two user turns
+with real shell tools, requires a successful remote compaction model pass, then
+runs a third tool round trip after replay. The generation observer requires both
+a remembered identifier and an earlier tool finding to survive compaction.
+Matched function-call/result groups reach the compactor together. The observed
+current CLI sends `compaction_trigger` to `/v1/responses`; standalone
+`/v1/responses/compact` is covered independently by HTTP and native tests.
 
-Codex CLI **0.162.0-alpha.20** passed the round-trip on 2026-10-16. It executed
-the requested `exec_command` printf with exit status zero, returned the real
-`AILO_TOOL_OK` output under the original call ID, and received
-`AILO_AGENT_DONE`. Generation emitted 91 one-byte token pieces for the function
-name/arguments and 15 for the final answer. Both `/v1/responses` requests
-completed with HTTP 200; the production serializers forwarded 41,368 and 21,933
-bytes respectively, including their required terminal objects and padding.
-The fixture never collected those output bytes. Evidence is in the ignored
-`build/openai-agent.Qpzq4z/` directory; the script preserves a new evidence
-directory on every invocation and cleans up its owned server process.
+The gate declares a custom function-tool HTTP Responses provider with
+`capabilities.remote_compaction="v2"`, no reasoning summary, no multi-agent
+namespace, no freeform apply-patch tool and no Responses Lite/WebSocket transport.
+Requests reach the product parser unchanged. A successful local summarization
+fallback or a no-op checkpoint cannot satisfy the remote-compaction assertion.
+Codex's state root, logs, catalog and ephemeral thread are confined to the owned
+build evidence directory; no workstation config, MCP services or credentials are
+used. Host `codex`, `timeout`, `curl`, `jq`, `sed` and `rg` are test tools, not
+product dependencies. The test repository uses llama's already-pinned vendored
+JSON header for explicitly materialized fixture storage only; all product HTTP
+serialization still uses lonejson and generated bytes are forwarded directly.
 
-This establishes function-tool client interoperability. It does not qualify
-trained-model tool selection or hosted tools, namespace tools, freeform tools,
-reasoning summaries, background execution, WebSockets or production networking.
-The supported protocol profile and explicit rejection behavior remain in
-openai.md; network-framework acceptance belongs to the eventual embedding app.
+The producer substitutes only generation at static link time. Summary generation
+is simulated, while selection, authenticated checkpoint construction, replay,
+retention, protocol serialization and transport are production code. The automatic
+scenario invokes the native compaction controller; the actual sampling-loop
+preflight/in-flight behavior has separate real-model native tests. This qualifies
+protocol and state interoperability, not trained-model semantic quality.
+
+Each invocation preserves requests, provider receipts, resolved generation input,
+Codex events and diagnostics in an ignored `build/.../openai-serving.*` directory.
+The scripts clean up their owned processes. The fixture is not installed or shipped
+in SDKs and is not a supported production listener. Unsupported hosted tools,
+namespace/freeform tools, reasoning summaries, background execution, WebSockets,
+production networking and actual model tool-selection quality remain outside this
+declared profile.
+
+Qualification on 2026-10-16 passed with Codex CLI **0.162.0-alpha.20**:
+three real tool round trips and one semantic compaction pass across seven
+successful streamed HTTP requests. The final run is recorded in
+`build/openai-serving.JqAtRv/`. Full native suites passed 74/74 glibc and 71/71
+musl CTests; a final focused glibc run also passed the added malformed-trigger
+and short-window cases. Installed Lua passed 4/4 checks, including LuaRocks.
+All four Linux builds passed with strict C89 public-header probes; AArch64
+build evidence does not establish hardware execution. Format and shell syntax
+checks passed. Logs use the `build/e2e-final-*` prefix.

@@ -457,7 +457,13 @@ specifies opaque encrypted items for Responses, automatic context management
 and standalone compaction. Standalone Responses compaction now returns that
 canonical window, including retained items and an authenticated opaque envelope.
 Automatic context-management emits compaction output items in the same stream
-and supports pruning before the latest completed automatic item. Local tokens are
+and supports pruning before the latest completed automatic item. A final
+`compaction_trigger` input on Responses create performs an immediate compaction-only
+Response through the same serializers and persistence contract. This is the
+current Codex remote-compaction protocol. Its opaque item carries the complete
+canonical checkpoint; already-small histories can be checkpointed without a
+summary pass. HTTP and real Codex acceptance cover continuation after compaction.
+Local tokens are
 replayable by compatible libailo instances only; OpenAI-issued encrypted content
 cannot be decrypted or accepted as local state, and vice versa.
 

@@ -458,6 +458,89 @@ void reasoning_cases(const std::string &base, ailo_openai_config profile,
   CHECK(generate(receiver.get(), legacy, seen, info) == AILO_OK &&
         seen.bytes.find("\"encrypted_content\":\"") != std::string::npos);
 }
+void triggered_cases(const std::string &path, ailo_openai_config profile,
+                     ailo_compactor *owner) {
+  auto receiver = create(path, profile, owner);
+  const auto body = [](const std::vector<ailo_item> &items) {
+    auto json = request(items, "Only the triggered request");
+    const auto end = json.find("],\"instructions\":");
+    CHECK(end != std::string::npos);
+    json.insert(end, ",{\"type\":\"compaction_trigger\",\"id\":null}");
+    return json;
+  };
+  history source;
+  output seen;
+  ailo_api_info info{};
+  seen.info = &info;
+  CHECK(generate(receiver.get(), body(source.items), seen, info) == AILO_OK);
+  CHECK(info.run.usage.compaction_passes == 1 && seen.control_at == 0 &&
+        seen.first_delta == SIZE_MAX && !info.stored);
+  const auto result = terminal(seen.bytes);
+  openai_request compacted(openai_protocol::responses, result.data(),
+                           result.size(), "local-model", "output");
+  CHECK(compacted.items.size() == 1 &&
+        compacted.items[0].kind == AILO_ITEM_COMPACTION &&
+        compacted.items[0].encrypted_content);
+  auto replay = compacted.items;
+  ailo_content next{AILO_CONTENT_TEXT, "Continue", 8};
+  ailo_item user{};
+  user.content = &next;
+  user.content_count = 1;
+  replay.push_back(user);
+  receiver = create(path, profile, owner);
+  seen = {};
+  CHECK(generate(receiver.get(), request(replay, "New instructions"), seen,
+                 info) == AILO_OK &&
+        info.run.usage.prompt_tokens.lo < 900);
+  const auto encrypted = std::string(replay[0].encrypted_content) + "A";
+  auto corrupted = replay;
+  corrupted[0].encrypted_content = encrypted.c_str();
+  seen = {};
+  CHECK(generate(receiver.get(), request(corrupted, nullptr), seen, info) ==
+            AILO_INVALID_ARGUMENT &&
+        !info.started);
+  // Already-small input gets an authenticated full-window checkpoint, without
+  // a summary model pass or an ordinary generated assistant answer.
+  const std::vector<ailo_item> small(source.items.end() - 2,
+                                     source.items.end());
+  seen = {};
+  CHECK(generate(receiver.get(), body(small), seen, info) == AILO_OK &&
+        info.run.usage.compaction_passes == 0 &&
+        seen.bytes.find("event: response.output_text.delta") ==
+            std::string::npos);
+  const auto short_result = terminal(seen.bytes);
+  openai_request checkpoint(openai_protocol::responses, short_result.data(),
+                            short_result.size(), "local-model", "output");
+  CHECK(checkpoint.items.size() == 1 &&
+        checkpoint.items[0].kind == AILO_ITEM_COMPACTION);
+  auto short_replay = checkpoint.items;
+  short_replay.push_back(user);
+  receiver = create(path, profile, owner);
+  seen = {};
+  CHECK(generate(receiver.get(), request(short_replay, nullptr), seen, info) ==
+        AILO_OK);
+  for (int action : {0, -1}) {
+    seen = {};
+    seen.control_action = action;
+    CHECK(generate(receiver.get(), body(source.items), seen, info) ==
+          (action ? AILO_SINK_FAILED : AILO_CANCELLED));
+    CHECK(seen.bytes.find("event: response.completed") == std::string::npos);
+  }
+  seen = {};
+  CHECK(generate(receiver.get(),
+                 R"({"input":[{"type":"compaction_trigger"}],"store":false})",
+                 seen, info) == AILO_INVALID_ARGUMENT &&
+        !info.started);
+  auto failed_policy = *profile.compaction;
+  failed_policy.summary_tokens = 1;
+  profile.compaction = &failed_policy;
+  auto failed = create(path, profile, owner);
+  seen = {};
+  CHECK(generate(failed.get(), body(source.items), seen, info) ==
+            AILO_MODEL_FAILED &&
+        seen.bytes.find("event: response.failed") != std::string::npos &&
+        seen.bytes.find("event: response.completed") == std::string::npos);
+}
 int main(int argc, char **argv) {
   try {
     CHECK(argc == 2);
@@ -470,6 +553,7 @@ int main(int argc, char **argv) {
     profile.compaction = &policy;
     const std::string key(32, 'k');
     auto owner = keys(key);
+    triggered_cases(path, profile, owner.get());
     auto client = create(path, profile, owner.get());
     owner.reset();
     history input;

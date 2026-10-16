@@ -228,6 +228,8 @@ std::string capabilities(state &self) {
   out.boolean(true);
   out.key("response_automatic_compaction");
   out.boolean(true);
+  out.key("response_compaction_trigger");
+  out.boolean(true);
   out.key("response_compaction");
   out.boolean(true);
   out.key("response_reasoning_encryption");

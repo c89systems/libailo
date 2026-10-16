@@ -121,6 +121,24 @@ int main(int argc, char **argv) {
           !std::strcmp(rh.generation.reasoning_effort, "high") &&
           rh.generation.max_tool_calls == 0 && rh.max_builtin_tool_calls == 1);
     CHECK(prepare_conversation(rh.generation).pending_calls == 0);
+    const std::string triggered =
+        R"({"input":[{"role":"user","content":"history"},{"type":"compaction_trigger","id":null}]})";
+    openai_request trigger(responses, triggered.data(), triggered.size(),
+                           "local-model", nullptr, true);
+    CHECK(trigger.compaction_trigger && trigger.compaction_trigger_id.empty() &&
+          trigger.items.size() == 1 && trigger.wire_items.size() == 1);
+    for (
+        const auto &bad :
+        {R"({"input":[{"type":"compaction_trigger"},{"role":"user","content":"after"}]})",
+         R"({"input":[{"type":"compaction_trigger"},{"type":"compaction_trigger"}]})",
+         R"({"input":[{"type":"compaction_trigger","content":"incompatible"}]})",
+         R"({"input":[{"type":"compaction_trigger","role":""}]})",
+         R"({"input":[{"type":"compaction_trigger","call_id":""}]})",
+         R"({"input":[{"type":"compaction_trigger","id":1}]})"})
+      reject(responses, bad, AILO_INVALID_ARGUMENT);
+    reject(openai_protocol::compact,
+           R"({"model":"local-model","input":[{"type":"compaction_trigger"}]})",
+           AILO_UNSUPPORTED);
     const std::string reasoning_history =
         R"({"input":[{"type":"reasoning","id":"rs_1","summary":[],"content":[{"type":"reasoning_text","text":"Consider the question."}],"status":"completed"},{"role":"assistant","content":"Answer"},{"role":"user","content":"Continue"}]})";
     openai_request reasoning_replay(responses, reasoning_history.data(),

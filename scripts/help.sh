@@ -35,7 +35,7 @@ valgrind                          Check native executables (requires Valgrind).
 valgrind-model                    Check static/shared GGUF inference in the native CPU build.
 valgrind-acquisition              Check C89 model cache and TLS transport ownership.
 inference-smoke-vulkan            Require GGUF decode on a real Vulkan device.
-test-openai-agent [PRESET=name]    Verify loopback Responses/SSE and a Codex CLI tool round-trip.
+test-openai-agent [PRESET=name]    Verify Codex turns/tools, remote compaction and opaque replay.
 test-scalar-matrix                 Run scalar/bridge checks on four Linux targets.
                                   Cross execution requires qemu-arm/aarch64.
 example-smoke-local                Build and exercise local C89 examples.

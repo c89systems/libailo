@@ -2,7 +2,11 @@
 // The generate definition below replaces only the static archive's inference
 // translation unit in THIS executable; it introduces no product test hook.
 #include "ailo/handler.h"
+#include "ailo_auto_compaction_internal.hpp"
 #include "ailo_client_internal.hpp"
+#include "ailo_reasoning_internal.hpp"
+#include "ailo_tools_internal.hpp"
+#include "serving_repository.hpp"
 #include <arpa/inet.h>
 #include <charconv>
 #include <csignal>
@@ -15,12 +19,15 @@
 #include <sstream>
 #include <string>
 #include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
 
 namespace {
 volatile std::sig_atomic_t stopping = 0;
 unsigned generations = 0, tool_calls = 0, tool_results = 0, answers = 0;
+unsigned summaries = 0, current_request = 0;
 std::string directory;
+using serving_test::json;
 void stop(int) { stopping = 1; }
 void require(bool condition, const char *message) {
   if (!condition)
@@ -84,7 +91,8 @@ std::string receive(int fd, size_t maximum) {
           "Invalid fixture request size/read");
   return {bytes, static_cast<size_t>(n)};
 }
-void request(int fd, ailo_handler *handler, unsigned number) {
+void request(int fd, const char *model, unsigned number) {
+  current_request = number;
   constexpr size_t limit = 8 * 1024 * 1024;
   std::string input;
   while (input.find("\r\n\r\n") == std::string::npos) {
@@ -130,6 +138,57 @@ void request(int fd, ailo_handler *handler, unsigned number) {
   std::ofstream saved(directory + "/request-" + std::to_string(number) +
                       ".json");
   saved.write(input.data() + boundary, static_cast<std::streamsize>(length));
+  saved.close();
+  const auto control = serving_test::load(directory + "/control.json");
+  serving_test::repository repository(directory, control.value("fault", ""));
+  auto config = ailo_client_default_config();
+  config.source.local_path = model;
+  config.model_id = "ailo-fixture";
+  config.lazy = 1;
+  config.backend = AILO_BACKEND_CPU;
+  config.context_tokens = 32768;
+  config.threads = 1;
+  auto api = ailo_openai_default_config();
+  const auto ns = control.value("namespace", "tenant-A");
+  api.namespace_id = ns.c_str();
+  api.repository = &repository.api;
+  auto policy = ailo_compaction_default_policy();
+  policy.target_tokens = 9000;
+  policy.recent_turns = 0;
+  policy.summary_tokens = 512;
+  policy.summary_context_tokens = 32768;
+  api.compaction = &policy;
+  config.openai = &api;
+  const std::string key(32,
+                        'k'); // Public test key, never used outside fixtures.
+  auto keys = ailo_compactor_default_config();
+  keys.namespace_id = "ailo-serving-tests";
+  keys.current_key = {"fixture", key.data(), key.size()};
+  ailo_compactor *owner = nullptr;
+  ailo_error error{};
+  require(ailo_compactor_new(&keys, &owner, &error) == AILO_OK, error.message);
+  std::unique_ptr<ailo_compactor, decltype(&ailo_compactor_destroy)> compactor(
+      owner, ailo_compactor_destroy);
+  config.compactor = owner;
+  config.chat_template =
+      "{% if tools %}{{tools | tojson}}{% endif %}{% for m in messages "
+      "%}{{m.role}}:{{m.content}}{% if m.tool_calls is defined %}{% for c in "
+      "m.tool_calls %}<call>{\"name\":{{c.function.name | "
+      "tojson}},\"arguments\":{% if c.function.arguments is string "
+      "%}{{c.function.arguments}}{% else %}{{c.function.arguments | "
+      "tojson}}{% endif %}}</call>{% endfor %}{% endif %}|{% endfor %}{% if "
+      "add_generation_prompt %}assistant:{% endif %}";
+  ailo_client *raw = nullptr;
+  require(ailo_client_new(&config, &raw, &error) == AILO_OK, error.message);
+  std::unique_ptr<ailo_client, decltype(&ailo_client_destroy)> client(
+      raw, ailo_client_destroy);
+  auto handler_config = ailo_handler_default_config();
+  handler_config.client = raw;
+  ailo_handler *serving = nullptr;
+  require(ailo_handler_new(&handler_config, &serving, &error) == AILO_OK,
+          error.message);
+  std::unique_ptr<ailo_handler, decltype(&ailo_handler_destroy)> handler(
+      serving, ailo_handler_destroy);
   ailo_http_request incoming{};
   incoming.method = method.c_str();
   incoming.target = target.c_str();
@@ -143,9 +202,20 @@ void request(int fd, ailo_handler *handler, unsigned number) {
                                   : nullptr;
   ailo_http_transport outgoing{&fd, begin, write, finish, abort_response};
   ailo_handler_info info{};
-  ailo_error error{};
   const auto status =
-      handler->handle(handler, &incoming, &outgoing, &info, &error);
+      serving->handle(serving, &incoming, &outgoing, &info, &error);
+  auto receipt = repository.stats;
+  receipt["target"] = target;
+  receipt["method"] = method;
+  receipt["status"] = info.http_status;
+  receipt["result"] = ailo_status_name(status);
+  receipt["stored"] = bool(info.api.stored);
+  receipt["id"] = info.api.id;
+  receipt["generations"] = generations;
+  receipt["summaries"] = summaries;
+  serving_test::save(directory + "/receipt-" + std::to_string(number) + ".json",
+                     receipt);
+  serving_test::save(directory + "/latest.json", receipt);
   std::fprintf(stderr,
                "request=%u method=%s target=%s status=%d result=%s "
                "completed=%d bytes=%u diagnostic=%s\n",
@@ -158,64 +228,175 @@ void request(int fd, ailo_handler *handler, unsigned number) {
 namespace ailo {
 namespace client {
 void generate(state &self, const ailo_request &request, ailo_event_sink sink,
-              void *user, ailo_run_info &info, continuation_transaction *,
-              const compaction_task *) {
-  require(++generations <= 8, "Agent fixture exceeded its generation bound");
-  bool received = false;
-  for (size_t n = 0; n < request.item_count; ++n) {
-    const auto &item = request.items[n];
-    if (item.kind != AILO_ITEM_FUNCTION_RESULT || !item.call_id ||
-        std::strcmp(item.call_id, "call_ailo_agent"))
-      continue;
-    for (size_t c = 0; c < item.content_count; ++c) {
-      const auto &part = item.content[c];
-      received |= std::string(static_cast<const char *>(part.data), part.size)
-                      .find("AILO_TOOL_OK") != std::string::npos;
+              void *user, ailo_run_info &info,
+              continuation_transaction *history, const compaction_task *task) {
+  const unsigned generation = ++generations;
+  require(generation <= 256, "Fixture exceeded its generation bound");
+  self.ensure_loaded();
+  std::unique_ptr<automatic_compaction> automatic;
+  std::unique_ptr<compaction_change> changed;
+  if (request.auto_compaction) {
+    require(history != nullptr, "Fixture automatic history is missing");
+    automatic = std::make_unique<automatic_compaction>(
+        self, *history, *request.auto_compaction, task);
+    auto tools = prepare_tools(request);
+    const auto rendered =
+        render_prompt(self, prepare_replay(self, request), tools, request);
+    if (prompt_token_count(self, rendered.prompt) >=
+        automatic->policy.trigger_tokens) {
+      changed = std::make_unique<compaction_change>(automatic->propose(0));
+      automatic->adopt(*changed);
     }
   }
+  const auto conversation = prepare_replay(self, request);
+  std::string effective, latest;
+  for (const auto &m : conversation.messages) {
+    effective += m.role + ":" + m.content + "\n";
+    for (const auto &c : m.calls)
+      effective += c.id + ":" + c.arguments + "\n";
+    if (m.role == "user")
+      latest = m.content;
+  }
+  serving_test::save(directory + "/generation-" + std::to_string(generation) +
+                         ".json",
+                     {{"request", current_request},
+                      {"effective", effective},
+                      {"latest", latest},
+                      {"automatic", bool(changed)},
+                      {"items", request.item_count}});
+  const auto marker = [](const std::string &s, const std::string &prefix) {
+    const auto at = s.rfind(prefix);
+    if (at == std::string::npos)
+      return std::string();
+    const auto begin = at + prefix.size();
+    return s.substr(
+        begin,
+        s.find_first_not_of(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-",
+            begin) -
+            begin);
+  };
   std::string name, text;
-  if (received) {
-    require(tool_calls == 1 && tool_results == 0,
-            "Unexpected duplicate/missing tool call");
-    ++tool_results;
-    ++answers;
-    text = "AILO_AGENT_DONE";
-  } else {
-    require(tool_calls == 0, "Agent did not return the expected tool result");
+  const bool summary =
+      request.json_schema && std::strstr(request.json_schema, "\"facts\"");
+  const auto memory = marker(effective, "AILO_REMEMBER:");
+  const auto expected = marker(latest, "AILO_EXPECT:");
+  const auto finding = marker(latest, "AILO_CHECK_TOOL:");
+  const auto command = marker(latest, "AILO_TOOL:");
+  bool received = false;
+  const auto call_id = "call_ailo_" + command;
+  if (!command.empty())
+    for (size_t n = 0; n < request.item_count; ++n) {
+      const auto &item = request.items[n];
+      if (item.kind == AILO_ITEM_FUNCTION_RESULT && item.call_id &&
+          call_id == item.call_id)
+        for (size_t c = 0; c < item.content_count; ++c)
+          received |=
+              std::string(static_cast<const char *>(item.content[c].data),
+                          item.content[c].size)
+                  .find("AILO_TOOL_OK_" + command) != std::string::npos;
+    }
+  if (summary) {
+    ++summaries;
+    const auto &part = request.items[request.item_count - 1].content[0];
+    const auto sources =
+        json::parse(static_cast<const char *>(part.data),
+                    static_cast<const char *>(part.data) + part.size);
+    auto facts = json::array();
+    for (const auto &source : sources) {
+      const auto remembered = marker(source.dump(), "AILO_REMEMBER:");
+      if (!remembered.empty())
+        facts.push_back({{"source", source.at("source")},
+                         {"category", "identifier"},
+                         {"text", "AILO_REMEMBER:" + remembered}});
+      if (source.at("kind") == "function_call") {
+        require(std::any_of(sources.begin(), sources.end(),
+                            [&](const json &row) {
+                              return row.at("kind") == "function_result" &&
+                                     row.at("call_id") == source.at("call_id");
+                            }),
+                "Compaction split a complete function call/result group");
+      }
+      if (source.at("kind") == "function_result") {
+        const auto result = marker(source.dump(), "AILO_TOOL_OK_");
+        if (!result.empty())
+          facts.push_back({{"source", source.at("source")},
+                           {"category", "finding"},
+                           {"text", "AILO_TOOL_OK_" + result}});
+      }
+    }
+    if (facts.empty())
+      facts.push_back({{"source", sources.at(0).at("source")},
+                       {"category", "other"},
+                       {"text", "Earlier task completed."}});
+    text = json{{"facts", facts}}.dump();
+  } else if ((!expected.empty() && memory != expected) ||
+             (!finding.empty() &&
+              effective.find("AILO_TOOL_OK_" + finding) == std::string::npos)) {
+    throw failure(AILO_MODEL_FAILED,
+                  "Fixture resolved history lost the expected memory");
+  } else if (!command.empty() && !received) {
     for (size_t n = 0; n < request.tool_count; ++n) {
       const auto &tool = request.tools[n];
       if (!std::strcmp(tool.name, "exec_command")) {
         name = tool.name;
-        text =
-            R"({"cmd":"printf 'AILO_TOOL_OK\\n'","max_output_tokens":128,"yield_time_ms":1000})";
+        text = json{{"cmd", "printf 'AILO_TOOL_OK_" + command + "\\n'"},
+                    {"max_output_tokens", 128},
+                    {"yield_time_ms", 1000}}
+                   .dump();
         break;
       }
       if (!std::strcmp(tool.name, "shell_command")) {
         name = tool.name;
-        text = R"({"command":"printf 'AILO_TOOL_OK\\n'","timeout_ms":1000})";
+        text = json{{"command", "printf 'AILO_TOOL_OK_" + command + "\\n'"},
+                    {"timeout_ms", 1000}}
+                   .dump();
         break;
       }
       if (!std::strcmp(tool.name, "shell")) {
         name = tool.name;
         text =
-            R"({"command":["bash","-c","printf 'AILO_TOOL_OK\\n'"],"timeout_ms":1000})";
+            json{{"command",
+                  {"bash", "-c", "printf 'AILO_TOOL_OK_" + command + "\\n'"}},
+                 {"timeout_ms", 1000}}
+                .dump();
+        break;
+      }
+      if (!std::strcmp(tool.name, "fixture_echo")) {
+        name = tool.name;
+        text = json{{"value", command}}.dump();
         break;
       }
     }
     require(!name.empty(),
             "Agent must advertise a supported function shell tool");
     ++tool_calls;
+  } else {
+    if (received)
+      ++tool_results;
+    ++answers;
+    text = !command.empty()    ? "AILO_DONE:" + command
+           : !expected.empty() ? "AILO_RECALLED:" + memory
+                               : "AILO_ACK:" + memory;
   }
+  const bool function = !name.empty();
   info = {};
   std::snprintf(info.id, sizeof(info.id), "00000000-0000-4000-8000-%012u",
-                generations);
+                generation);
   info.actual_backend = AILO_BACKEND_CPU;
+  if (changed) {
+    info.usage.compaction_passes = changed->info.summary_passes;
+    info.usage.compaction_prompt_tokens = changed->info.summary_prompt_tokens;
+    info.usage.compaction_completion_tokens =
+        changed->info.summary_completion_tokens;
+  }
   ailo_event event{};
   event.model_id = self.id.c_str();
   event.run_id = info.id;
-  event.item_kind = received ? AILO_ITEM_MESSAGE : AILO_ITEM_FUNCTION_CALL;
-  event.item_id = received ? "msg_ailo_agent" : "fc_ailo_agent";
-  event.call_id = received ? nullptr : "call_ailo_agent";
+  event.item_kind = function ? AILO_ITEM_FUNCTION_CALL : AILO_ITEM_MESSAGE;
+  const auto item_id = std::string(function ? "fc_" : "msg_") + info.id;
+  event.item_id = item_id.c_str();
+  event.call_id = function ? call_id.c_str() : nullptr;
   unsigned sequence = 0, tokens = 0;
   const auto emit = [&](ailo_event_kind kind, const void *data = nullptr,
                         size_t size = 0) {
@@ -232,9 +413,18 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
                     "Fixture event consumer stopped");
   };
   emit(AILO_EVENT_RUN_BEGIN);
+  if (changed) {
+    event.compaction = &changed->info;
+    event.compacted_items = changed->items.data();
+    event.compacted_item_count = changed->items.size();
+    emit(AILO_EVENT_COMPACTION);
+    event.compaction = nullptr;
+    event.compacted_items = nullptr;
+    event.compacted_item_count = 0;
+  }
   emit(AILO_EVENT_CHOICE_BEGIN);
   emit(AILO_EVENT_ITEM_BEGIN);
-  if (received)
+  if (!function)
     emit(AILO_EVENT_CONTENT_BEGIN);
   const auto stream = [&](const std::string &bytes, ailo_event_kind kind) {
     for (char c : bytes) {
@@ -252,18 +442,28 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
         emit(AILO_EVENT_TOKEN);
       event.token = nullptr;
       emit(kind, &c, 1);
+      if (!summary && tokens == 1 &&
+          std::ifstream(directory + "/hold-stream")) {
+        std::ofstream(directory + "/first-delta") << "ready\n";
+        unsigned waits = 0;
+        while (!std::ifstream(directory + "/release-stream") && ++waits < 500 &&
+               !stopping)
+          std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        require(waits < 500 && !stopping,
+                "HTTP consumer did not release first delta");
+      }
       if (request.logprobs) {
         event.raw_offset = detail::from_unsigned(tokens);
         emit(AILO_EVENT_OUTPUT_PROGRESS);
       }
     }
   };
-  if (!received)
+  if (function)
     stream(name, AILO_EVENT_FUNCTION_NAME_DELTA);
-  stream(text, received ? AILO_EVENT_TEXT_DELTA
-                        : AILO_EVENT_FUNCTION_ARGUMENTS_DELTA);
-  event.finish_reason = received ? AILO_FINISH_STOP : AILO_FINISH_TOOL_CALLS;
-  if (received)
+  stream(text, function ? AILO_EVENT_FUNCTION_ARGUMENTS_DELTA
+                        : AILO_EVENT_TEXT_DELTA);
+  event.finish_reason = function ? AILO_FINISH_TOOL_CALLS : AILO_FINISH_STOP;
+  if (!function)
     emit(AILO_EVENT_CONTENT_END);
   emit(AILO_EVENT_ITEM_END);
   emit(AILO_EVENT_CHOICE_END);
@@ -271,8 +471,9 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   info.completed_candidates = 1;
   emit(AILO_EVENT_USAGE);
   emit(AILO_EVENT_RUN_END);
-  std::fprintf(stderr, "fixture calls=%u results=%u answers=%u tokens=%u\n",
-               tool_calls, tool_results, answers, tokens);
+  std::fprintf(
+      stderr, "fixture calls=%u results=%u answers=%u summaries=%u tokens=%u\n",
+      tool_calls, tool_results, answers, summaries, tokens);
 }
 } // namespace client
 } // namespace ailo
@@ -281,36 +482,6 @@ int main(int argc, char **argv) {
   try {
     require(argc == 3, "Usage: ailo_serving_fixture MODEL WORK_DIRECTORY");
     directory = argv[2];
-    auto config = ailo_client_default_config();
-    config.source.local_path = argv[1];
-    config.model_id = "ailo-fixture";
-    config.lazy = 1;
-    config.backend = AILO_BACKEND_CPU;
-    config.context_tokens = 1024;
-    config.threads = 1;
-    auto api = ailo_openai_default_config();
-    api.zero_data_retention = 1;
-    config.openai = &api;
-    config.chat_template =
-        "{% if tools %}{{tools | tojson}}{% endif %}{% for m in messages "
-        "%}{{m.role}}:{{m.content}}{% if m.tool_calls is defined %}{% for c in "
-        "m.tool_calls %}<call>{\"name\":{{c.function.name | "
-        "tojson}},\"arguments\":{% if c.function.arguments is string "
-        "%}{{c.function.arguments}}{% else %}{{c.function.arguments | "
-        "tojson}}{% endif %}}</call>{% endfor %}{% endif %}|{% endfor %}{% if "
-        "add_generation_prompt %}assistant:{% endif %}";
-    ailo_error error{};
-    ailo_client *raw = nullptr;
-    require(ailo_client_new(&config, &raw, &error) == AILO_OK, error.message);
-    std::unique_ptr<ailo_client, decltype(&ailo_client_destroy)> client(
-        raw, ailo_client_destroy);
-    auto handler_config = ailo_handler_default_config();
-    handler_config.client = raw;
-    ailo_handler *serving = nullptr;
-    require(ailo_handler_new(&handler_config, &serving, &error) == AILO_OK,
-            error.message);
-    std::unique_ptr<ailo_handler, decltype(&ailo_handler_destroy)> handler(
-        serving, ailo_handler_destroy);
     socket_owner listener{socket(AF_INET, SOCK_STREAM, 0)};
     require(listener.fd >= 0, "Fixture socket failed");
     sockaddr_in address{};
@@ -331,7 +502,7 @@ int main(int argc, char **argv) {
       ready << ntohs(address.sin_port) << '\n';
     }
     unsigned count = 0;
-    while (!stopping && count < 12) {
+    while (!stopping && count < 256) {
       pollfd pending{listener.fd, POLLIN, 0};
       if (poll(&pending, 1, 250) <= 0)
         continue;
@@ -342,7 +513,7 @@ int main(int argc, char **argv) {
       setsockopt(peer.fd, IPPROTO_TCP, TCP_NODELAY, &enabled, sizeof(enabled));
       setsockopt(peer.fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
       setsockopt(peer.fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-      request(peer.fd, serving, ++count);
+      request(peer.fd, argv[1], ++count);
     }
     return 0;
   } catch (const std::exception &e) {

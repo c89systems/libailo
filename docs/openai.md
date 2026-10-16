@@ -457,6 +457,25 @@ for as long as records remain usable; no plaintext key file is created.
 
 ## Automatic Responses compaction
 
+Responses create also accepts a final
+`{"type":"compaction_trigger","id":"optional"}` input item (the ID may be
+omitted or null), as defined by the current
+[Responses input schema](https://developers.openai.com/api/reference/resources/responses/methods/create).
+This performs compaction immediately and returns a normal Response containing
+only an opaque compaction output item. No ordinary answer or tool call is
+generated. `stream=true` delivers the existing created/in-progress, compaction
+item and completed events; buffered requests use the ordinary Response shape.
+The trusted compaction policy still bounds summary work and protected history.
+An already-small window returns an authenticated full-window checkpoint without
+a summary pass. Replay the output array with new input, or chain a stored result
+with `previous_response_id`. Both survive receiver reconstruction with compatible
+keys. Prior top-level instructions remain per-request. Stored input-item pages
+include the trigger; inference lineage excludes this consumed control item.
+The same admission, stable-key/retention, quota, cancellation and atomic-publication
+rules apply. `response_compaction_trigger` advertises this capability. A trigger
+must be last and contain only its type and optional ID; other input item kinds
+and unsupported protocol extensions retain their explicit rejection behavior.
+
 Responses create accepts `context_management: [{"type":"compaction",
 "compact_threshold":N}]`, following the official
 [compaction guide](https://developers.openai.com/api/docs/guides/compaction).

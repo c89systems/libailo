@@ -180,6 +180,17 @@ function M.compaction(ailo,path,memory)
   local chunks={};local compact=ok(c:response_compact(body,function(bytes)chunks[#chunks+1]=bytes;if memory then collectgarbage("collect")end end))
   assert(not compact.stored and r.reserved==0 and compact.usage.compaction_passes>0 and #chunks>3)
   local json=table.concat(chunks)
+  -- Current Codex uses a final compaction_trigger through Responses create.
+  -- Verify the Lua receiver reaches the same streamed control/replay path.
+  local triggered=body:gsub('%]%}$', ',{"type":"compaction_trigger"}]}')
+  triggered=triggered:sub(1,-2)..',"stream":true,"store":false,"stream_options":{"include_obfuscation":false}}'
+  local frames={};local control=ok(c:responses(triggered,function(s)frames[#frames+1]=s end))
+  local wire=table.concat(frames)
+  assert(not control.stored and control.usage.compaction_passes==1 and wire:find('event: response.completed') and not wire:find('event: response.output_text.delta'))
+  local encrypted=assert(wire:match('"encrypted_content":"([^"]+)"'))
+  local compact_id=assert(wire:match('"id":"(cmp_[^"]+)"'))
+  local restored=ok(c:responses('{"input":[{"type":"compaction","id":"'..compact_id..'","encrypted_content":"'..encrypted..'"},{"role":"user","content":"Next"}],"store":false,"max_output_tokens":2,"temperature":0}',function()end))
+  assert(not restored.stored and not next(r.active) and not next(r.reading))
   -- Fixed test data has no brackets inside strings; this extracts the canonical
   -- output array, not a production JSON parser.
   local window=assert(json:match('"output":(%b[])'))
