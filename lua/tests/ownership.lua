@@ -1,5 +1,5 @@
--- Ownership/failure gate; feature semantics run in receiver.lua. One CPU thread
--- avoids instrumenting unrelated worker scheduling in every Lua lifetime case.
+-- Ownership/failure assertions run without inference instrumentation. The
+-- model-free Pouch unload regression has its own focused Valgrind test.
 local ailo,pslog=require("ailo"),require("pslog")
 local path,work=arg[1],arg[2]
 local function ok(value,err) assert(value,err and err.message);return value end

@@ -396,13 +396,21 @@ the installed-layout tests. `PRESET=debug` selects the Vulkan-enabled core.
 `make package-lua` produces a minimal source archive, release rockspec and source
 rock; those products are separate from per-target C SDKs.
 
-The CPU-only local memory gate checks all lost/reachable allocation kinds. A narrowly
-matched suppression covers loader metadata and libstdc++'s emergency exception
-pool retained after module loading (87,320 bytes in 22 blocks on the pinned
-x86_64 Bootlin runtime). `tests/load_only.lua` reproduces exactly that baseline
-without constructing a client or logger. The focused callback/finalizer/OOM suite
-retains the same baseline, with zero lost allocations; Lua, libailo and pslog
-allocation sites are not suppressed.
+The normal CPU test run includes a model-free Pouch open/close/module-unload
+regression, both directly and under Valgrind. It has no sleeps, expiry waits or
+inference. Callback/finalizer/OOM assertions run separately without Valgrind.
+`make lua-valgrind` explicitly runs the complete inference/ownership suite under
+Valgrind; that broader E2E suite is excluded from the normal Lua test selection.
+Both memory checks reject all lost/reachable allocation kinds. The existing
+narrow suppressions cover only loader metadata and libstdc++'s emergency
+exception pool; `tests/load_only.lua` reproduces that baseline. Lua, libailo and
+pslog allocation sites are not suppressed.
+
+After building the CPU facade, run just the unload regressions with:
+
+```sh
+ctest --test-dir build/lua-cpu/build --output-on-failure --no-tests=error -R '^lua-(pouch-unload|memory)$'
+```
 
 LuaRocks uses its per-rock lib/lua staging directories, supplied explicitly to
 CMake by the rockspec. The direct CMake layout keeps the normal versioned Lua

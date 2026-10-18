@@ -50,18 +50,36 @@ if(AILO_LUA_TESTS)
   add_test(NAME lua-handler COMMAND "${AILO_LUA_LOADER}" --library-path "${runtime}" $<TARGET_FILE:ailo_lua_runner>
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/handler.lua" "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua" "${cpath}" "${AILO_LUA_MODEL}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/record_repository.lua")
   set_tests_properties(lua-handler PROPERTIES TIMEOUT 60 LABELS "lua;integration;local")
-  # GPU driver lifetime has a separate hardware gate; this checks CPU ownership.
+  # Preserve the complete ownership/OOM assertions without instrumenting model
+  # generation. Only the model-free unload regression needs Valgrind here.
   if(NOT ailo_VULKAN)
+    add_test(NAME lua-ownership COMMAND "${AILO_LUA_LOADER}" --library-path "${runtime}" $<TARGET_FILE:ailo_lua_runner>
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/ownership.lua"
+      "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua"
+      "${cpath}" "${AILO_LUA_MODEL}" "${AILO_LUA_WORK}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/record_repository.lua")
+    set_tests_properties(lua-ownership PROPERTIES TIMEOUT 15 LABELS "lua;integration;local")
+    add_test(NAME lua-pouch-unload COMMAND "${AILO_LUA_LOADER}" --library-path "${runtime}" $<TARGET_FILE:ailo_lua_runner>
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/pouch_unload.lua"
+      "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua"
+      "${cpath}" "${AILO_LUA_WORK}/pouch-unload")
+    set_tests_properties(lua-pouch-unload PROPERTIES TIMEOUT 5 LABELS "lua;unit;local")
     find_program(VALGRIND_EXECUTABLE valgrind REQUIRED)
     add_test(NAME lua-memory COMMAND "${VALGRIND_EXECUTABLE}" --error-exitcode=99
       "--suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime.supp"
       --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all
       $<TARGET_FILE:ailo_lua_runner>
-      "${CMAKE_CURRENT_SOURCE_DIR}/tests/memory.lua"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/pouch_unload.lua"
+      "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua"
+      "${cpath}" "${AILO_LUA_WORK}/pouch-unload-memory")
+    set_tests_properties(lua-memory PROPERTIES TIMEOUT 10 LABELS "lua;memory;local")
+    add_test(NAME lua-inference-memory COMMAND "${VALGRIND_EXECUTABLE}" --error-exitcode=99
+      "--suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime.supp"
+      --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all
+      $<TARGET_FILE:ailo_lua_runner>
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/ownership.lua"
       "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua"
       "${cpath}" "${AILO_LUA_MODEL}" "${AILO_LUA_WORK}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/record_repository.lua")
-    # The complete ownership gate takes about 182 seconds under Valgrind.
-    set_tests_properties(lua-memory PROPERTIES TIMEOUT 240 LABELS "lua;memory;local")
+    set_tests_properties(lua-inference-memory PROPERTIES TIMEOUT 240 LABELS "lua;memory;inference-memory;e2e;local")
   endif()
   get_target_property(pslog_library pslog::pslog_shared IMPORTED_LOCATION)
   get_filename_component(pslog_prefix "${pslog_library}/../.." ABSOLUTE)

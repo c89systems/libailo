@@ -3,7 +3,8 @@ set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 action=${1:-test}
 preset=${2:-cpu}
-[[ $# -le 2 && "$action" =~ ^(build|test)$ && "$preset" =~ ^(cpu|debug|x86_64-linux-gnu-release)$ ]] || { printf 'Usage: lua.sh [build|test] [cpu|debug]\n' >&2; exit 2; }
+[[ $# -le 2 && "$action" =~ ^(build|test|valgrind)$ && "$preset" =~ ^(cpu|debug|x86_64-linux-gnu-release)$ ]] || { printf 'Usage: lua.sh [build|test|valgrind] [cpu|debug|x86_64-linux-gnu-release]\n' >&2; exit 2; }
+[[ "$action" != valgrind || "$preset" == cpu ]] || { printf 'lua: the inference Valgrind suite requires the cpu preset\n' >&2; exit 2; }
 cd "$root"
 scripts/build.sh --preset "$preset"
 scripts/deps.sh --target x86_64-linux-gnu --component lua-pslog
@@ -39,4 +40,7 @@ cmake -S lua -B "$work/build" -G Ninja \
   "-DCMAKE_C_FLAGS=-ffile-prefix-map=$root=libailo"
 cmake --build "$work/build" --parallel "${AILO_JOBS:-2}"
 cmake --install "$work/build"
-if [[ "$action" == test ]]; then ctest --test-dir "$work/build" --output-on-failure -j1; fi
+case "$action" in
+  test) ctest --test-dir "$work/build" --output-on-failure --stop-on-failure --no-tests=error -j1 -LE '^inference-memory$' ;;
+  valgrind) ctest --test-dir "$work/build" --output-on-failure --stop-on-failure --no-tests=error -j1 -L '^inference-memory$' ;;
+esac

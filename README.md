@@ -383,6 +383,10 @@ clients. Borrowed output resources must live until receiver destruction. Prompt
 and generated text are not logged by the bridge. Unattributable shared device
 messages use the existing native global hook.
 
+`make lua-valgrind` runs the full CPU inference/ownership suite under Valgrind.
+The normal Lua test selection uses a separate model-free Pouch unload memory
+regression, with no sleeps or inference.
+
 `make lua-test PRESET=cpu` builds the Lua 5.5.1 facade against an installed shared
 SDK and tests real token callbacks, cancellation/error recovery, allocation
 failure, logger retention and finalizers. Configure pslog in Lua and pass its

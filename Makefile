@@ -98,10 +98,12 @@ generate-native:
 	python3 scripts/generate_native.py
 facade-coverage:
 	python3 scripts/generate_native.py --check --require-complete
-.PHONY: lua-build lua-test package-lua
+.PHONY: lua-build lua-test lua-valgrind package-lua
 lua-build:
 	scripts/lua.sh build "$(PRESET)"
 lua-test:
 	scripts/lua.sh test "$(PRESET)"
+lua-valgrind:
+	scripts/lua.sh valgrind cpu
 package-lua:
 	scripts/package_lua.sh

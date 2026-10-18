@@ -340,7 +340,9 @@ named round trips, tampered headers/ciphertext/tags, wrong keys/namespaces/key
 IDs/partitions/configuration, truncation, bounded import, disk-only use,
 contention, symlinks, quotas, expiry and last-successful-prompt behavior after
 a sink failure. Failed imports preserve the existing native sequence byte for
-byte. Lua exercises the same C ABI round trip and cleanup under Valgrind.
+byte. Lua exercises the same C ABI round trip; `make lua-valgrind` checks the
+complete inference/ownership suite under Valgrind separately from the fast,
+model-free unload regression.
 
 A separate-process check with the cached SmolLM2-135M instruct model exported
 a named snapshot, exited, then imported it through a fresh installed Lua/C ABI

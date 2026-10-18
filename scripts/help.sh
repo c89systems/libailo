@@ -20,6 +20,7 @@ clean                             Remove build/, dist/ and local .cache/; preser
 print-release-version             Read exact lightweight tag/candidate/archive version.
 lua-build [PRESET=cpu|debug]       Build Lua receiver against installed shared ABI.
 lua-test [PRESET=cpu|debug]        Test installed Lua receiver and pslog interop.
+lua-valgrind                     Run the full CPU inference/ownership Valgrind suite.
 package-lua                      Package separate Lua source, rockspec and source rock.
 package-source                   Require an exact release tag and complete facade, then archive.
 test-source-archive               Check development source archive staging/rejection/determinism.
