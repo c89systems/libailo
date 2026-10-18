@@ -42,11 +42,17 @@ rg -q 'duplicate artifact' "$work/result"
 mkdir "$work/changed"
 tar -xzf "$work/original.tar.gz" -C "$work/changed"
 sdk="$work/changed/${name%.tar.gz}"
-cp "$sdk/PACKAGE-MANIFEST.sha256" "$work/complete-ledger"
+# Real binary/ABI/privacy checks passed above. These rejection cases exercise
+# header presence and payload checksums; keep their ledger-valid fixtures small.
+while IFS= read -r -d '' file; do
+  case "$file" in *.a|*.so|*.so.*) : > "$file" ;; esac
+done < <(find "$sdk/lib" -type f -print0)
+(cd "$sdk" && find . -type f ! -name PACKAGE-MANIFEST.sha256 -printf '%P\0' | LC_ALL=C sort -z | xargs -0 sha256sum) > "$work/complete-ledger"
+cp "$work/complete-ledger" "$sdk/PACKAGE-MANIFEST.sha256"
 for header in cache continuation compaction; do
   mv "$sdk/include/ailo/$header.h" "$work/$header-header"
   rg -v -F "  include/ailo/$header.h" "$work/complete-ledger" > "$sdk/PACKAGE-MANIFEST.sha256"
-  tar -czf "$work/changed/$name" -C "$work/changed" "${name%.tar.gz}"
+  tar -I 'gzip -1n' -cf "$work/changed/$name" -C "$work/changed" "${name%.tar.gz}"
   if "$root/scripts/verify_sdk_archive.sh" "$work/changed/$name" >"$work/result" 2>&1; then
     printf 'package-test: SDK missing the %s header was accepted\n' "$header" >&2; exit 1
   fi
@@ -55,7 +61,7 @@ for header in cache continuation compaction; do
 done
 cp "$work/complete-ledger" "$sdk/PACKAGE-MANIFEST.sha256"
 printf 'corrupt\n' >> "$sdk/share/doc/ailo/LICENSE"
-tar -czf "$work/changed/$name" -C "$work/changed" "${name%.tar.gz}"
+tar -I 'gzip -1n' -cf "$work/changed/$name" -C "$work/changed" "${name%.tar.gz}"
 if "$root/scripts/verify_sdk_archive.sh" "$work/changed/$name" >"$work/result" 2>&1; then
   printf 'package-test: corrupt inner payload was accepted\n' >&2; exit 1
 fi
