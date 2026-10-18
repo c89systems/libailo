@@ -17,7 +17,9 @@ run_abort() {
   fi
 }
 run_abort "$work/plain" "$1" --abort
-rg -q '^facade-test:37: fatal-19/message$' "$work/plain"
+[[ ! -s "$work/plain" ]]
+GGML_NO_BACKTRACE=1 run_abort "$work/logged" "$2" --logged-abort
+rg -q '^error: logger-test:42: logged-fatal$' "$work/logged"
 run_abort "$work/native" "$2" --native-abort
 run_abort "$work/facade" "$2" --facade-abort
 cmp "$work/native" "$work/facade"

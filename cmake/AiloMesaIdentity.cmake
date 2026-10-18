@@ -4,10 +4,13 @@ set(identity "ailo-static-mesa:1;${AILO_TARGET_ID}")
 set(inputs cmake/dependencies.json scripts/build-gpu-deps.sh scripts/cpkt-toolchains.sh
   cmake/AiloToolchain.cmake cmake/AiloMesonToolchain.cmake cmake/meson-cross.ini.in
   cmake/meson-native.ini.in cmake/AiloMesaIdentity.cmake cmake/mesa-static.build
-  vendor/libdrm/patches/0001-embed-marketing-names.patch cmake/AiloEmbedDrmIds.cmake)
-file(STRINGS "${AILO_SOURCE_ROOT}/vendor/mesa/patches/series" patches)
-foreach(patch IN LISTS patches)
-  list(APPEND inputs "vendor/mesa/patches/${patch}")
+  cmake/AiloEmbedDrmIds.cmake)
+foreach(component mesa libdrm)
+  list(APPEND inputs "vendor/${component}/patches/series")
+  file(STRINGS "${AILO_SOURCE_ROOT}/vendor/${component}/patches/series" patches)
+  foreach(patch IN LISTS patches)
+    list(APPEND inputs "vendor/${component}/patches/${patch}")
+  endforeach()
 endforeach()
 foreach(input IN LISTS inputs)
   file(SHA256 "${AILO_SOURCE_ROOT}/${input}" digest)

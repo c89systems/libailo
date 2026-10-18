@@ -2,5 +2,8 @@
 vendor/licenses/gcc-COPYING.RUNTIME whitespace=-blank-at-eof
 # Unified patches preserve the space prefix on otherwise empty context lines.
 vendor/llama/patches/*.patch whitespace=-blank-at-eol
+# Upstream tab indentation follows the unified patch's context-space prefix.
+vendor/mesa/patches/*.patch whitespace=-blank-at-eol,-space-before-tab
+vendor/libdrm/patches/*.patch whitespace=-blank-at-eol,-space-before-tab
 # The loader patch ends with a required empty context line as well.
 vendor/vulkan-loader/patches/*.patch whitespace=-blank-at-eol,-blank-at-eof

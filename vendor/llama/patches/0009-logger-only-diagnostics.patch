@@ -1,0 +1,2410 @@
+--- a/common/json-schema-to-grammar.cpp
++++ b/common/json-schema-to-grammar.cpp
+@@ -1,4 +1,5 @@
+ #include "json-schema-to-grammar.h"
++#include "../ggml/src/ggml-library-log.h"
+ #include "common.h"
+ #include "trie.h"
+ #include "unicode.h"
+@@ -977,7 +978,7 @@
+             throw std::invalid_argument("JSON schema conversion failed:\n" + string_join(_errors, "\n"));
+         }
+         if (!_warnings.empty()) {
+-            fprintf(stderr, "WARNING: JSON schema conversion was incomplete: %s\n", string_join(_warnings, "; ").c_str());
++            ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "WARNING: JSON schema conversion was incomplete: %s\n", string_join(_warnings, "; ").c_str());
+         }
+     }
+ 
+--- a/ggml/src/ggml-cpu/amx/amx.cpp
++++ b/ggml/src/ggml-cpu/amx/amx.cpp
+@@ -1,4 +1,5 @@
+ #include "amx.h"
++#include "../../ggml-library-log.h"
+ #include "common.h"
+ #include "mmq.h"
+ #include "ggml-backend-impl.h"
+@@ -127,7 +128,7 @@
+ static ggml_backend_buffer_t ggml_backend_amx_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
+     void * data = ggml_aligned_malloc(size);
+     if (data == NULL) {
+-        fprintf(stderr, "%s: failed to allocate buffer of size %zu\n", __func__, size);
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: failed to allocate buffer of size %zu\n", __func__, size);
+         return NULL;
+     }
+ 
+@@ -214,7 +215,7 @@
+ static bool ggml_amx_init() {
+ #if defined(__linux__)
+     if (syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA)) {
+-        fprintf(stderr, "AMX is not ready to be used!\n");
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "AMX is not ready to be used!\n");
+         return false;
+     }
+     return true;
+--- a/ggml/src/ggml-cpu/amx/mmq.cpp
++++ b/ggml/src/ggml-cpu/amx/mmq.cpp
+@@ -4,6 +4,7 @@
+ #endif
+ 
+ #include "amx.h"
++#include "../../ggml-library-log.h"
+ #include "mmq.h"
+ #include "ggml-impl.h"
+ #include "ggml-cpu-impl.h"
+@@ -91,7 +92,7 @@
+                 return __VA_ARGS__();                                                  \
+             }                                                                          \
+             default:                                                                   \
+-                fprintf(stderr, "Unsupported floating data type\n");                   \
++                ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "Unsupported floating data type\n");                   \
+         }                                                                              \
+     }()
+ 
+@@ -141,7 +142,7 @@
+                 return __VA_ARGS__();                                                  \
+             }                                                                          \
+             default:                                                                   \
+-                fprintf(stderr, "Unsupported quantized data type: %d\n", int(TYPE));   \
++                ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "Unsupported quantized data type: %d\n", int(TYPE));   \
+         }                                                                              \
+     }()
+ 
+@@ -2393,7 +2394,7 @@
+                         case 0x42: LAUNCH_TINYGEMM_KERNEL_AVX(4, 2); break;
+                         case 0x44: LAUNCH_TINYGEMM_KERNEL_AVX(4, 4); break;
+                         case 0x46: LAUNCH_TINYGEMM_KERNEL_AVX(4, 6); break;
+-                        default: fprintf(stderr, "Unexpected block size!\n");
++                        default: ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "Unexpected block size!\n");
+                     }
+                 }
+             });
+@@ -2460,7 +2461,7 @@
+                         case 96: LAUNCH_TINYGEMM_KERNEL_VNNI(96); break;
+                         case 64: LAUNCH_TINYGEMM_KERNEL_VNNI(64); break;
+                         case 32: LAUNCH_TINYGEMM_KERNEL_VNNI(32); break;
+-                        default: fprintf(stderr, "Unexpected n block size!\n");
++                        default: ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "Unexpected n block size!\n");
+                     }
+                 }
+             });
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -2,6 +2,7 @@
+ #define _USE_MATH_DEFINES // For M_PI on MSVC
+ 
+ #include "ggml-backend-impl.h"
++#include "../ggml-library-log.h"
+ #include "ggml-backend.h"
+ #include "traits.h"
+ #include "ggml-cpu-impl.h"
+@@ -639,7 +640,7 @@
+ 
+ void ggml_numa_init(enum ggml_numa_strategy numa_flag) {
+     if (g_state.numa.n_nodes > 0) {
+-        fprintf(stderr, "ggml_numa_init: NUMA already initialized\n");
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "ggml_numa_init: NUMA already initialized\n");
+ 
+         return;
+     }
+@@ -2199,7 +2200,7 @@
+             // use the cpuset that numactl gave us
+             rv = pthread_setaffinity_np(pthread_self(), setsize, &g_state.numa.cpuset);
+             if (rv) {
+-                fprintf(stderr, "warning: pthread_setaffinity_np() failed: %s\n",strerror(rv));
++                ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "warning: pthread_setaffinity_np() failed: %s\n",strerror(rv));
+             }
+             return;
+         default:
+@@ -2216,7 +2217,7 @@
+ 
+     rv = pthread_setaffinity_np(pthread_self(), setsize, cpus);
+     if (rv) {
+-            fprintf(stderr, "warning: pthread_setaffinity_np() failed: %s\n", strerror(rv));
++            ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "warning: pthread_setaffinity_np() failed: %s\n", strerror(rv));
+     }
+ 
+     CPU_FREE(cpus);
+@@ -2237,7 +2238,7 @@
+ 
+     int rv = pthread_setaffinity_np(pthread_self(), setsize, cpus);
+     if (rv) {
+-        fprintf(stderr, "warning: pthread_setaffinity_np() failed: %s\n", strerror(rv));
++        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "warning: pthread_setaffinity_np() failed: %s\n", strerror(rv));
+     }
+ 
+     CPU_FREE(cpus);
+@@ -2506,11 +2507,11 @@
+             }
+         default:
+             {
+-                fprintf(stderr, "%s: op not implemented: ", __func__);
++                ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: op not implemented: ", __func__);
+                 if (node->op < GGML_OP_COUNT) {
+-                    fprintf(stderr, "%s\n", ggml_op_name(node->op));
++                    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s\n", ggml_op_name(node->op));
+                 } else {
+-                    fprintf(stderr, "%d\n", node->op);
++                    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%d\n", node->op);
+                 }
+                 GGML_ABORT("fatal error");
+             }
+@@ -2549,7 +2550,7 @@
+ 
+     for (int32_t i = 64; i < GGML_MAX_N_THREADS; i++) {
+         if (mask[i]) {
+-            fprintf(stderr, "warn: setting thread-affinity for > 64 CPUs isn't supported on windows!\n");
++            ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "warn: setting thread-affinity for > 64 CPUs isn't supported on windows!\n");
+             break;
+         }
+     }
+@@ -2598,7 +2599,7 @@
+     }
+ 
+     if (!SetThreadPriority(GetCurrentThread(), p)) {
+-        fprintf(stderr, "warn: failed to set thread priority %d : (%d)\n", prio, (int) GetLastError());
++        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "warn: failed to set thread priority %d : (%d)\n", prio, (int) GetLastError());
+         return false;
+     }
+ 
+@@ -2634,7 +2635,7 @@
+ 
+     int32_t err = pthread_setschedparam(pthread_self(), policy, &p);
+     if (err != 0) {
+-        fprintf(stderr, "warn: failed to set thread priority %d : %s (%d)\n", prio, strerror(err), err);
++        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "warn: failed to set thread priority %d : %s (%d)\n", prio, strerror(err), err);
+         return false;
+     }
+ 
+@@ -2666,7 +2667,7 @@
+     err = pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
+ #endif
+     if (err != 0) {
+-        fprintf(stderr, "warn: failed to set affinity mask 0x%llx : %s (%d)\n", (unsigned long long)mask, strerror(err), err);
++        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "warn: failed to set affinity mask 0x%llx : %s (%d)\n", (unsigned long long)mask, strerror(err), err);
+         return false;
+     }
+ 
+@@ -2691,7 +2692,7 @@
+ 
+     int32_t err = pthread_setschedparam(pthread_self(), policy, &p);
+     if (err != 0) {
+-        fprintf(stderr, "warn: failed to set thread priority %d : %s (%d)\n", prio, strerror(err), err);
++        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "warn: failed to set thread priority %d : %s (%d)\n", prio, strerror(err), err);
+         return false;
+     }
+ 
+--- a/ggml/src/ggml-cpu/unary-ops.cpp
++++ b/ggml/src/ggml-cpu/unary-ops.cpp
+@@ -1,4 +1,5 @@
+ #include "unary-ops.h"
++#include "../ggml-library-log.h"
+ 
+ static inline float op_abs(float x) {
+     return fabsf(x);
+@@ -148,7 +149,7 @@
+     } else if (src0->type == GGML_TYPE_F16  && dst->type == GGML_TYPE_F32) {
+         apply_unary_op<op, ggml_fp16_t, float>(params, dst);
+     } else {
+-        fprintf(stderr, "%s: unsupported types: dst: %s, src0: %s\n", __func__,
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: unsupported types: dst: %s, src0: %s\n", __func__,
+             ggml_type_name(dst->type), ggml_type_name(src0->type));
+         GGML_ABORT("fatal error");
+     }
+@@ -169,7 +170,7 @@
+     } else if (src0->type == GGML_TYPE_F16  && dst->type == GGML_TYPE_F32) {
+         apply_unary_op<op, ggml_fp16_t, float>(params, dst);
+     } else {
+-        fprintf(stderr, "%s: unsupported types: dst: %s, src0: %s\n", __func__,
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: unsupported types: dst: %s, src0: %s\n", __func__,
+             ggml_type_name(dst->type), ggml_type_name(src0->type));
+         GGML_ABORT("fatal error");
+     }
+@@ -228,7 +229,7 @@
+     } else if (src0->type == GGML_TYPE_F16  && dst->type == GGML_TYPE_F32) {
+         apply_unary_op_functor<Op, ggml_fp16_t, float>(params, dst, op);
+     } else {
+-        fprintf(stderr, "%s: unsupported types: dst: %s, src0: %s\n", __func__,
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: unsupported types: dst: %s, src0: %s\n", __func__,
+             ggml_type_name(dst->type), ggml_type_name(src0->type));
+         GGML_ABORT("fatal error");
+     }
+--- a/ggml/src/ggml-library-log.h
++++ b/ggml/src/ggml-library-log.h
+@@ -0,0 +1,49 @@
++#ifndef GGML_LIBRARY_LOG_H
++#define GGML_LIBRARY_LOG_H
++#include "ggml.h"
++#include <stdio.h>
++#include <stdarg.h>
++#ifdef __cplusplus
++extern "C" {
++#endif
++GGML_API void ggml_log_internal(enum ggml_log_level, const char *, ...);
++GGML_API int ggml_log_fprintf(enum ggml_log_level, FILE *, const char *, ...);
++GGML_API int ggml_log_printf(enum ggml_log_level, const char *, ...);
++GGML_API void ggml_library_driver_log(int, const char *, const char *, va_list);
++#ifdef __cplusplus
++}
++#include <ostream>
++#include <streambuf>
++#include <climits>
++// Stack-owned stream: forward each borrowed fragment immediately. No TLS
++// destructor, retained logger, unbounded buffer or process-global stream swap.
++class ggml_log_stream {
++    class buffer : public std::streambuf {
++        ggml_log_level level;
++        std::streamsize xsputn(const char *p, std::streamsize n) override {
++            const auto total = n;
++            while (n > 0) {
++                const int count = n > INT_MAX ? INT_MAX : int(n);
++                ggml_log_internal(level, "%.*s", count, p);
++                p += count;
++                n -= count;
++            }
++            return total;
++        }
++        int_type overflow(int_type c) override {
++            if (!traits_type::eq_int_type(c, traits_type::eof())) {
++                const char value = traits_type::to_char_type(c);
++                xsputn(&value, 1);
++            }
++            return traits_type::not_eof(c);
++        }
++    public:
++        explicit buffer(ggml_log_level value) : level(value) {}
++    } output;
++    std::ostream target;
++public:
++    explicit ggml_log_stream(ggml_log_level level) : output(level), target(&output) {}
++    std::ostream &stream() { return target; }
++};
++#endif
++#endif
+--- a/ggml/src/ggml-opt.cpp
++++ b/ggml/src/ggml-opt.cpp
+@@ -1,4 +1,5 @@
+ #include "ggml-opt.h"
++#include "ggml-library-log.h"
+ 
+ #include "ggml.h"
+ #include "ggml-alloc.h"
+@@ -931,30 +932,30 @@
+         int64_t            ibatch,
+         int64_t            ibatch_max,
+         int64_t            t_start_us) {
+-    fprintf(stderr, "%s[", train ? "train: " : "val:   ");
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%s[", train ? "train: " : "val:   ");
+ 
+     // The progress bar consists of partially filled blocks, unicode has 8 separate fill levels.
+     constexpr int64_t bar_length = 8;
+     const int64_t ibatch8 = 8 * ibatch;
+     for (int64_t j = 0; j < bar_length; ++j) {
+         if        (ibatch_max * (8*j + 8) / bar_length < ibatch8) {
+-            fprintf(stderr, "\u2588"); // full block
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\u2588"); // full block
+         } else if (ibatch_max * (8*j + 7) / bar_length < ibatch8) {
+-            fprintf(stderr, "\u2589"); // 7/8 filled
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\u2589"); // 7/8 filled
+         } else if (ibatch_max * (8*j + 6) / bar_length < ibatch8) {
+-            fprintf(stderr, "\u258A"); // 6/8 filled
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\u258A"); // 6/8 filled
+         } else if (ibatch_max * (8*j + 5) / bar_length < ibatch8) {
+-            fprintf(stderr, "\u258B"); // 5/8 filled
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\u258B"); // 5/8 filled
+         } else if (ibatch_max * (8*j + 4) / bar_length < ibatch8) {
+-            fprintf(stderr, "\u258C"); // 4/8 filled
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\u258C"); // 4/8 filled
+         } else if (ibatch_max * (8*j + 3) / bar_length < ibatch8) {
+-            fprintf(stderr, "\u258D"); // 3/8 filled
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\u258D"); // 3/8 filled
+         } else if (ibatch_max * (8*j + 2) / bar_length < ibatch8) {
+-            fprintf(stderr, "\u258E"); // 2/8 filled
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\u258E"); // 2/8 filled
+         } else if (ibatch_max * (8*j + 1) / bar_length < ibatch8) {
+-            fprintf(stderr, "\u258F"); // 1/8 filled
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\u258F"); // 1/8 filled
+         } else {
+-            fprintf(stderr, " ");
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, " ");
+         }
+     }
+ 
+@@ -984,14 +985,13 @@
+     const int64_t t_eta_m = t_eta_s / 60;
+     t_eta_s -= t_eta_m * 60;
+ 
+-    fprintf(stderr, "] data=%07" PRId64 "/%07" PRId64 " loss=%.5lf±%.5lf acc=%.2lf±%.2lf%% "
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "] data=%07" PRId64 "/%07" PRId64 " loss=%.5lf±%.5lf acc=%.2lf±%.2lf%% "
+             "t=%02" PRId64 ":%02" PRId64 ":%02" PRId64 " ETA=%02" PRId64 ":%02" PRId64 ":%02" PRId64 " \r",
+             idata, idata_max, loss, loss_unc, 100.0*accuracy, 100.0*accuracy_unc,
+             t_ibatch_h, t_ibatch_m, t_ibatch_s, t_eta_h, t_eta_m, t_eta_s);
+     if (ibatch == ibatch_max) {
+-        fprintf(stderr, "\n");
+-    }
+-    fflush(stderr);
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
++    }
+ 
+     GGML_UNUSED(dataset);
+ }
+@@ -1056,11 +1056,11 @@
+         ggml_opt_result_reset(result_val);
+ 
+         if (!silent) {
+-            fprintf(stderr, "%s: epoch %04" PRId64 "/%04" PRId64 ":\n", __func__, epoch, nepoch);
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%s: epoch %04" PRId64 "/%04" PRId64 ":\n", __func__, epoch, nepoch);
+         }
+         ggml_opt_epoch(opt_ctx, dataset, result_train, result_val, idata_split, epoch_callback, epoch_callback);
+         if (!silent) {
+-            fprintf(stderr, "\n");
++            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
+         }
+     }
+ 
+@@ -1070,7 +1070,7 @@
+         t_total_s -= t_total_h * 3600;
+         const int64_t t_total_m = t_total_s / 60;
+         t_total_s -= t_total_m * 60;
+-        fprintf(stderr, "%s: training took %02" PRId64 ":%02" PRId64 ":%02" PRId64 "\n", __func__, t_total_h, t_total_m, t_total_s);
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%s: training took %02" PRId64 ":%02" PRId64 ":%02" PRId64 "\n", __func__, t_total_h, t_total_m, t_total_s);
+     }
+ 
+     ggml_opt_free(opt_ctx);
+--- a/ggml/src/ggml-quants.c
++++ b/ggml/src/ggml-quants.c
+@@ -1,5 +1,6 @@
+ #define GGML_COMMON_IMPL_C
+ #include "ggml-common.h"
++#include "ggml-library-log.h"
+ 
+ #include "ggml-quants.h"
+ #include "ggml-impl.h"
+@@ -3440,9 +3441,9 @@
+                 for (int i = 0; i < 8; ++i) u |= (L[8*k+i] << 2*i);
+                 int grid_index = kmap_q2xs[u];
+                 if (grid_index < 0) {
+-                    printf("Oops: found point %u not on grid:", u);
+-                    for (int i = 0; i < 8; ++i) printf(" %d", L[8*k+i]);
+-                    printf("\n");
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "Oops: found point %u not on grid:", u);
++                    for (int i = 0; i < 8; ++i) ggml_log_printf(GGML_LOG_LEVEL_ERROR, " %d", L[8*k+i]);
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "\n");
+                     GGML_ABORT("fatal error");
+                 }
+                 q2[2*ib+0] |= ((uint32_t) grid_index << 8*k);
+@@ -3619,9 +3620,9 @@
+                 for (int i = 0; i < 8; ++i) u |= (L[8*k+i] << 2*i);
+                 int grid_index = kmap_q2xs[u];
+                 if (grid_index < 0) {
+-                    printf("Oops: found point %u not on grid:", u);
+-                    for (int i = 0; i < 8; ++i) printf(" %d", L[8*k+i]);
+-                    printf("\n");
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "Oops: found point %u not on grid:", u);
++                    for (int i = 0; i < 8; ++i) ggml_log_printf(GGML_LOG_LEVEL_ERROR, " %d", L[8*k+i]);
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "\n");
+                     GGML_ABORT("fatal error");
+                 }
+                 q2[2*ib+k] = grid_index | (block_signs[k] << 9);
+@@ -4108,9 +4109,9 @@
+                 for (int i = 0; i < 4; ++i) u |= (L[4*k+i] << 3*i);
+                 int grid_index = kmap_q3xs[u];
+                 if (grid_index < 0) {
+-                    printf("Oops: found point %u not on grid:", u);
+-                    for (int i = 0; i < 4; ++i) printf(" %d", L[4*k+i]);
+-                    printf("\n");
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "Oops: found point %u not on grid:", u);
++                    for (int i = 0; i < 4; ++i) ggml_log_printf(GGML_LOG_LEVEL_ERROR, " %d", L[4*k+i]);
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "\n");
+                     GGML_ABORT("fatal error");
+                 }
+                 if (grid_size == 256) {
+@@ -4316,9 +4317,9 @@
+                 for (int i = 0; i < 4; ++i) u |= (L[4*k+i] << 3*i);
+                 int grid_index = kmap_q3xs[u];
+                 if (grid_index < 0) {
+-                    printf("Oops: found point %u not on grid:", u);
+-                    for (int i = 0; i < 4; ++i) printf(" %d", L[4*k+i]);
+-                    printf("\n");
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "Oops: found point %u not on grid:", u);
++                    for (int i = 0; i < 4; ++i) ggml_log_printf(GGML_LOG_LEVEL_ERROR, " %d", L[4*k+i]);
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "\n");
+                     GGML_ABORT("fatal error");
+                 }
+                 qs[k] = grid_index & 255;
+@@ -4418,8 +4419,8 @@
+         }
+     }
+     if (grid_index < 0) {
+-        printf("Oops, did not find grid point\n");
+-        printf("Have %d neighbours\n", num_neighbors);
++        ggml_log_printf(GGML_LOG_LEVEL_ERROR, "Oops, did not find grid point\n");
++        ggml_log_printf(GGML_LOG_LEVEL_ERROR, "Have %d neighbours\n", num_neighbors);
+         for (int j = 1; j <= num_neighbors; ++j) {
+             const int8_t * pg = (const int8_t *)(grid + neighbours[j]);
+             float sumqx = 0, sumq2 = 0;
+@@ -4429,7 +4430,7 @@
+                 sumqx += w*q*xval[i];
+                 sumq2 += w*q*q;
+             }
+-            printf("    neighbour %d: sumqx = %g sumq2 = %g\n", j, (double)sumqx, (double)sumq2);
++            ggml_log_printf(GGML_LOG_LEVEL_ERROR, "    neighbour %d: sumqx = %g sumq2 = %g\n", j, (double)sumqx, (double)sumq2);
+         }
+     }
+     GGML_ASSERT(grid_index >= 0);
+@@ -4478,8 +4479,8 @@
+         }
+     }
+     if (grid_index < 0) {
+-        printf("Oops, did not find grid point\n");
+-        printf("Have %d neighbours\n", num_neighbors);
++        ggml_log_printf(GGML_LOG_LEVEL_ERROR, "Oops, did not find grid point\n");
++        ggml_log_printf(GGML_LOG_LEVEL_ERROR, "Have %d neighbours\n", num_neighbors);
+         for (int j = 1; j <= num_neighbors; ++j) {
+             const int8_t * pg = (const int8_t *)(grid + neighbours[j]);
+             float sumqx = 0, sumq2 = 0;
+@@ -4489,7 +4490,7 @@
+                 sumqx += w*q*xval[i];
+                 sumq2 += w*q*q;
+             }
+-            printf("    neighbour %d: sumqx = %g sumq2 = %g\n", j, (double)sumqx, (double)sumq2);
++            ggml_log_printf(GGML_LOG_LEVEL_ERROR, "    neighbour %d: sumqx = %g sumq2 = %g\n", j, (double)sumqx, (double)sumq2);
+         }
+     }
+     GGML_ASSERT(grid_index >= 0);
+@@ -5249,9 +5250,9 @@
+                 for (int i = 0; i < 8; ++i) u |= (L[8*k+i] << 2*i);
+                 int grid_index = kmap_q2xs[u];
+                 if (grid_index < 0) {
+-                    printf("Oops: found point %u not on grid:", u);
+-                    for (int i = 0; i < 8; ++i) printf(" %d", L[8*k+i]);
+-                    printf("\n");
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "Oops: found point %u not on grid:", u);
++                    for (int i = 0; i < 8; ++i) ggml_log_printf(GGML_LOG_LEVEL_ERROR, " %d", L[8*k+i]);
++                    ggml_log_printf(GGML_LOG_LEVEL_ERROR, "\n");
+                     GGML_ABORT("fatal error");
+                 }
+                 const int i8 = 2*ib + k;
+@@ -5301,12 +5302,12 @@
+ 
+ static bool validate_float(float f, size_t i) {
+     if (isinf(f)) {
+-        fprintf(stderr, "ggml_validate_row_data: found inf value at block %zu\n", i);
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "ggml_validate_row_data: found inf value at block %zu\n", i);
+         return false;
+     }
+ 
+     if (isnan(f)) {
+-        fprintf(stderr, "ggml_validate_row_data: found nan value at block %zu\n", i);
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "ggml_validate_row_data: found nan value at block %zu\n", i);
+         return false;
+     }
+ 
+@@ -5323,12 +5324,12 @@
+ 
+ static bool validate_fp16(ggml_fp16_t f, size_t i) {
+     if (isinf_fp16(f)) {
+-        fprintf(stderr, "ggml_validate_row_data: found inf value at block %zu\n", i);
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "ggml_validate_row_data: found inf value at block %zu\n", i);
+         return false;
+     }
+ 
+     if (isnan_fp16(f)) {
+-        fprintf(stderr, "ggml_validate_row_data: found nan value at block %zu\n", i);
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "ggml_validate_row_data: found nan value at block %zu\n", i);
+         return false;
+     }
+ 
+@@ -5337,7 +5338,7 @@
+ 
+ static bool validate_e_e8m0(uint8_t e, size_t i) {
+     if (e == 0xff) {
+-        fprintf(stderr, "ggml_validate_row_data: found invalid e value %d at block %zu\n", e, i);
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "ggml_validate_row_data: found invalid e value %d at block %zu\n", e, i);
+         return false;
+     }
+ 
+@@ -5380,12 +5381,12 @@
+ 
+ bool ggml_validate_row_data(enum ggml_type type, const void * data, size_t nbytes) {
+     if (type < 0 || type >= GGML_TYPE_COUNT) {
+-        fprintf(stderr, "%s: invalid type %d\n", __func__, type);
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: invalid type %d\n", __func__, type);
+         return false;
+     }
+ 
+     if (nbytes % ggml_type_size(type) != 0) {
+-        fprintf(stderr, "%s: invalid size %zu for type %s (type size = %zu)\n", __func__, nbytes, ggml_type_name(type), ggml_type_size(type));
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: invalid size %zu for type %s (type size = %zu)\n", __func__, nbytes, ggml_type_name(type), ggml_type_size(type));
+         return false;
+     }
+ 
+@@ -5402,11 +5403,11 @@
+                     infs += (f[i] & 0x7fff) == 0x7f80;
+                 }
+                 if (nans) {
+-                    fprintf(stderr, "%s: found %d NaNs in row of %zu BF16 values\n", __func__, nans, nb);
++                    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: found %d NaNs in row of %zu BF16 values\n", __func__, nans, nb);
+                     return false;
+                 }
+                 if (infs) {
+-                    fprintf(stderr, "%s: found %d infinities in row of %zu BF16 values\n", __func__, infs, nb);
++                    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: found %d infinities in row of %zu BF16 values\n", __func__, infs, nb);
+                     return false;
+                 }
+             } break;
+@@ -5630,7 +5631,7 @@
+             break;
+         default:
+             {
+-                fprintf(stderr, "%s: invalid type %d\n", __func__, type);
++                ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: invalid type %d\n", __func__, type);
+                 return false;
+             }
+     }
+--- a/ggml/src/ggml-vulkan/ggml-vulkan-buffers.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan-buffers.cpp
+@@ -1,4 +1,5 @@
+ #include "ggml-vulkan-common.h"
++#include "../ggml-library-log.h"
+ 
+ ggml_backend_buffer_type_i ggml_backend_vk_buffer_type_interface = {
+     /* .get_name            = */ ggml_backend_vk_buffer_type_name,
+@@ -186,8 +187,8 @@
+     try {
+         return ggml_vk_create_buffer(device, size, {req_flags, fallback_flags});
+     } catch (const vk::SystemError& e) {
+-        std::cerr << "ggml_vulkan: Memory allocation of size " << size << " failed." << std::endl;
+-        std::cerr << "ggml_vulkan: " << e.what() << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Memory allocation of size " << size << " failed." << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: " << e.what() << std::endl;
+         throw e;
+     }
+ }
+@@ -223,8 +224,8 @@
+             }
+         }
+     } catch (const vk::SystemError& e) {
+-        std::cerr << "ggml_vulkan: Device memory allocation of size " << size << " failed." << std::endl;
+-        std::cerr << "ggml_vulkan: " << e.what() << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Device memory allocation of size " << size << " failed." << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: " << e.what() << std::endl;
+         throw e;
+     }
+ 
+@@ -250,7 +251,7 @@
+          vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent});
+ 
+     if(!(buf->memory_property_flags & vk::MemoryPropertyFlagBits::eHostVisible)) {
+-        fprintf(stderr, "WARNING: failed to allocate %.2f MB of pinned memory\n",
++        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "WARNING: failed to allocate %.2f MB of pinned memory\n",
+             size/1024.0/1024.0);
+         device->device.freeMemory(buf->device_memory);
+         device->device.destroyBuffer(buf->buffer);
+@@ -282,7 +283,7 @@
+         }
+     }
+     if (buf == nullptr) {
+-        fprintf(stderr, "WARNING: failed to free pinned memory: memory not in map\n");
++        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "WARNING: failed to free pinned memory: memory not in map\n");
+         return;
+     }
+ 
+@@ -331,7 +332,7 @@
+     GGML_ASSERT(!ggml_is_contiguous(tensor));
+     // Buffer is already mapped
+     if(dst->memory_property_flags & vk::MemoryPropertyFlagBits::eHostVisible) {
+-        std::cerr << "ggml_vulkan: buffer_write_nc_async dst buffer is host_visible. Use synchronous write." << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_WARN}.stream() << "ggml_vulkan: buffer_write_nc_async dst buffer is host_visible. Use synchronous write." << std::endl;
+         GGML_ABORT("fatal error");
+     }
+     // Check if src is pinned memory
+--- a/ggml/src/ggml-vulkan/ggml-vulkan-common.h
++++ b/ggml/src/ggml-vulkan/ggml-vulkan-common.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ #include "ggml-vulkan-push-constants.h"
++#include "../ggml-library-log.h"
+ 
+ // shared globals
+ extern ggml_backend_buffer_type_i ggml_backend_vk_buffer_type_interface;
+@@ -264,9 +265,9 @@
+     const uint32_t wg2 = CEIL_DIV(elements[2], pipeline->wg_denoms[2]);
+     VK_LOG_DEBUG("ggml_vk_dispatch_pipeline(" << pipeline->name << ", {";
+     for (auto& buffer : descriptor_buffer_infos) {
+-        std::cerr << "(" << buffer.buffer << ", " << buffer.offset << ", " << buffer.range << "), ";
+-    }
+-    std::cerr << "}, (" << wg0 << "," << wg1 << "," << wg2 << "))");
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "(" << buffer.buffer << ", " << buffer.offset << ", " << buffer.range << "), ";
++    }
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "}, (" << wg0 << "," << wg1 << "," << wg2 << "))");
+     GGML_ASSERT(wg0 <= ctx->device->properties.limits.maxComputeWorkGroupCount[0] &&
+                 wg1 <= ctx->device->properties.limits.maxComputeWorkGroupCount[1] &&
+                 wg2 <= ctx->device->properties.limits.maxComputeWorkGroupCount[2]);
+--- a/ggml/src/ggml-vulkan/ggml-vulkan-debug.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan-debug.cpp
+@@ -1,4 +1,5 @@
+ #include "ggml-vulkan-common.h"
++#include "../ggml-library-log.h"
+ 
+ bool vk_memory_logger_enabled = false;
+ 
+@@ -61,13 +62,13 @@
+     i0 = std::max(i0, 5);
+     i1 = std::max(i1, 5);
+     i2 = std::max(i2, 0);
+-    fprintf(stderr, "         ");
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "         ");
+     for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
+-        fprintf(stderr, "%7d ", idx1);
+-    }
+-    fprintf(stderr, "\n");
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%7d ", idx1);
++    }
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
+     for (int idx0 = i0 - 5; idx0 < i0 + 5; idx0++) {
+-        fprintf(stderr, "%7d: ", idx0);
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%7d: ", idx0);
+         for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
+             if (idx0 >= 0 && idx0 < ne0 && idx1 >= 0 && idx1 < ne1) {
+                 float val;
+@@ -78,12 +79,12 @@
+                 } else {
+                     GGML_ABORT("fatal error");
+                 }
+-                fprintf(stderr, "% 7.2f ", val);
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "% 7.2f ", val);
+             } else {
+-                fprintf(stderr, "        ");
+-            }
+-        }
+-        fprintf(stderr, "\n");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "        ");
++            }
++        }
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
+     }
+ }
+ 
+@@ -253,29 +254,29 @@
+ 
+     double tflops = 2.0*m*n*k*batch*num_it / (time / 1000.0) / (1000.0*1000.0*1000.0*1000.0);
+ 
+-    std::cerr << "TEST " << shname << " m=" << m << " n=" << n << " k=" << k << " batch=" << batch << " split_k=" << split_k << " matmul " << time / num_it << "ms " << tflops << " TFLOPS avg_err=" << avg_err << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "TEST " << shname << " m=" << m << " n=" << n << " k=" << k << " batch=" << batch << " split_k=" << split_k << " matmul " << time / num_it << "ms " << tflops << " TFLOPS avg_err=" << avg_err << std::endl;
+ 
+     if (avg_err > 0.1 || std::isnan(avg_err)) {
+-        std::cerr << "m = " << first_err_m << " n = " << first_err_n << " b = " << first_err_b << std::endl;
+-        std::cerr << "Actual result: " << std::endl << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "m = " << first_err_m << " n = " << first_err_n << " b = " << first_err_b << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Actual result: " << std::endl << std::endl;
+         ggml_vk_print_matrix_area(d, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+-        std::cerr << "Expected result: " << std::endl << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Expected result: " << std::endl << std::endl;
+         ggml_vk_print_matrix_area(d_chk, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+         if (split_k > 1) {
+             float * split_k_buf = (float *) malloc(sizeof(float) * d_ne * split_k);
+             ggml_vk_buffer_read(ctx->prealloc_split_k, 0, split_k_buf, sizeof(float) * d_ne * split_k);
+ 
+-            std::cerr << "d_buf0: " << std::endl << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "d_buf0: " << std::endl << std::endl;
+             ggml_vk_print_matrix_area(split_k_buf, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+-            std::cerr << "d_buf1: " << std::endl << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "d_buf1: " << std::endl << std::endl;
+             ggml_vk_print_matrix_area(split_k_buf + d_ne, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+-            std::cerr << "d_buf2: " << std::endl << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "d_buf2: " << std::endl << std::endl;
+             ggml_vk_print_matrix_area(split_k_buf + 2 * d_ne, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+-            std::cerr << "d_buf3: " << std::endl << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "d_buf3: " << std::endl << std::endl;
+             ggml_vk_print_matrix_area(split_k_buf + 3 * d_ne, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+             free(split_k_buf);
+@@ -305,13 +306,13 @@
+     i1 = std::max(i1, 5);
+     i2 = std::max(i2, 0);
+     i3 = std::max(i3, 0);
+-    fprintf(stderr, "         ");
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "         ");
+     for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
+-        fprintf(stderr, "%7d ", idx1);
+-    }
+-    fprintf(stderr, "\n");
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%7d ", idx1);
++    }
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
+     for (int idx0 = i0 - 5; idx0 < i0 + 5; idx0++) {
+-        fprintf(stderr, "%7d: ", idx0);
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%7d: ", idx0);
+         for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
+             if (idx0 >= 0 && idx0 < tensor->ne[0] && idx1 >= 0 && idx1 < tensor->ne[1] && i2 >= 0 && i2 < tensor->ne[2] && i3 >= 0 && i3 < tensor->ne[3]) {
+                 float val;
+@@ -322,12 +323,12 @@
+                 } else {
+                     GGML_ABORT("fatal error");
+                 }
+-                fprintf(stderr, "% 7.2f ", val);
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "% 7.2f ", val);
+             } else {
+-                fprintf(stderr, "        ");
+-            }
+-        }
+-        fprintf(stderr, "\n");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "        ");
++            }
++        }
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
+     }
+ }
+ 
+@@ -407,19 +408,19 @@
+ 
+     avg_err /= ne;
+ 
+-    std::cerr << "TEST DEQUANT " << ggml_type_name(quant) << " time=" << ms_dequant << "ms avg_err=" << avg_err << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "TEST DEQUANT " << ggml_type_name(quant) << " time=" << ms_dequant << "ms avg_err=" << avg_err << std::endl;
+ 
+     if (avg_err > 0.1) {
+-        std::cerr << "first_error = " << first_err << std::endl;
+-        std::cerr << "Actual result: " << std::endl << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "first_error = " << first_err << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Actual result: " << std::endl << std::endl;
+         for (int i = std::max(0, first_err - 5); i < std::min((int)ne, first_err + 5); i++) {
+-            std::cerr << ggml_fp16_to_fp32(x_chk[i]) << ", ";
+-        }
+-        std::cerr << std::endl << "Expected result: " << std::endl << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << ggml_fp16_to_fp32(x_chk[i]) << ", ";
++        }
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Expected result: " << std::endl << std::endl;
+         for (int i = std::max(0, first_err - 5); i < std::min((int)ne, first_err + 5); i++) {
+-            std::cerr << x_ref[i] << ", ";
+-        }
+-        std::cerr << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << x_ref[i] << ", ";
++        }
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
+     }
+ 
+     ggml_vk_destroy_buffer(x_buf);
+@@ -557,12 +558,12 @@
+         }
+     }
+     if (dq_it == ctx->device->pipeline_matmul.end() || dq_it->second.empty()) {
+-        std::cerr << "error: no pipeline for ggml_vk_test_dequant_matmul " << ggml_type_name(quant) << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "error: no pipeline for ggml_vk_test_dequant_matmul " << ggml_type_name(quant) << std::endl;
+         return;
+     }
+     auto& dq_configs = dq_it->second;
+     if (shader_size >= (int)dq_configs.size()) {
+-        std::cerr << "error: shader_size " << shader_size << " >= configs.size() " << dq_configs.size() << " for " << ggml_type_name(quant) << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "error: shader_size " << shader_size << " >= configs.size() " << dq_configs.size() << " for " << ggml_type_name(quant) << std::endl;
+         return;
+     }
+ 
+@@ -577,7 +578,7 @@
+     }
+ 
+     if (p == nullptr) {
+-        std::cerr << "error: no pipeline for ggml_vk_test_dequant_matmul " << ggml_type_name(quant) << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "error: no pipeline for ggml_vk_test_dequant_matmul " << ggml_type_name(quant) << std::endl;
+         return;
+     }
+ 
+@@ -710,40 +711,40 @@
+ 
+     double tflops = 2.0*m*n*k*batch*num_it / (time_ms / 1000.0) / (1000.0*1000.0*1000.0*1000.0);
+ 
+-    std::cerr << "TEST dequant matmul " << shname;
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "TEST dequant matmul " << shname;
+     if (mmq) {
+-        std::cerr << " mmq";
+-    }
+-    std::cerr << " m=" << m << " n=" << n << " k=" << k << " batch=" << batch << " split_k=" << split_k << " matmul " << time_ms / num_it << "ms " << tflops << " TFLOPS avg_err=" << avg_err << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " mmq";
++    }
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " m=" << m << " n=" << n << " k=" << k << " batch=" << batch << " split_k=" << split_k << " matmul " << time_ms / num_it << "ms " << tflops << " TFLOPS avg_err=" << avg_err << std::endl;
+ 
+     if (avg_err > 0.01 || std::isnan(avg_err)) {
+-        std::cerr << "m = " << first_err_m << " n = " << first_err_n << " b = " << first_err_b << std::endl;
+-        std::cerr << "Actual result: " << std::endl << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "m = " << first_err_m << " n = " << first_err_n << " b = " << first_err_b << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Actual result: " << std::endl << std::endl;
+         ggml_vk_print_matrix_area(d, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+-        std::cerr << std::endl;
+-        std::cerr << "Expected result: " << std::endl << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Expected result: " << std::endl << std::endl;
+         ggml_vk_print_matrix_area(d_chk, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+-        std::cerr << "src0: " << std::endl << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src0: " << std::endl << std::endl;
+         ggml_vk_print_matrix_area(x, GGML_TYPE_F32, k, m, first_err_m, first_err_n, first_err_b);
+-        std::cerr << std::endl;
+-        std::cerr << "src1: " << std::endl << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src1: " << std::endl << std::endl;
+         ggml_vk_print_matrix_area(y, GGML_TYPE_F32, k, n, first_err_m, first_err_n, first_err_b);
+ 
+         if (split_k > 1) {
+             float * split_k_buf = (float *) malloc(sizeof(float) * d_ne * split_k);
+             ggml_vk_buffer_read(ctx->prealloc_split_k, 0, split_k_buf, sizeof(float) * d_ne * split_k);
+ 
+-            std::cerr << "d_buf0: " << std::endl << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "d_buf0: " << std::endl << std::endl;
+             ggml_vk_print_matrix_area(split_k_buf, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+-            std::cerr << "d_buf1: " << std::endl << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "d_buf1: " << std::endl << std::endl;
+             ggml_vk_print_matrix_area(split_k_buf + d_ne, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+-            std::cerr << "d_buf2: " << std::endl << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "d_buf2: " << std::endl << std::endl;
+             ggml_vk_print_matrix_area(split_k_buf + 2 * d_ne, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+-            std::cerr << "d_buf3: " << std::endl << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "d_buf3: " << std::endl << std::endl;
+             ggml_vk_print_matrix_area(split_k_buf + 3 * d_ne, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
+ 
+             free(split_k_buf);
+@@ -784,9 +785,9 @@
+         return;
+     }
+     for (int j = 0; j < level; j++) {
+-        std::cerr << " ";
+-    }
+-    std::cerr << ggml_op_name(tensor->op) << " gpu=" << (tensor->extra != nullptr) << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " ";
++    }
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << ggml_op_name(tensor->op) << " gpu=" << (tensor->extra != nullptr) << std::endl;
+ 
+     done.push_back(tensor);
+ 
+@@ -805,13 +806,13 @@
+     i1 = std::max(i1, 5);
+     i2 = std::max(i2, 0);
+     i3 = std::max(i3, 0);
+-    fprintf(stderr, "         ");
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "         ");
+     for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
+-        fprintf(stderr, "%7d ", idx1);
+-    }
+-    fprintf(stderr, "\n");
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%7d ", idx1);
++    }
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
+     for (int idx0 = i0 - 5; idx0 < i0 + 5; idx0++) {
+-        fprintf(stderr, "%7d: ", idx0);
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%7d: ", idx0);
+         for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
+             if (idx0 >= 0 && idx0 < tensor->ne[0] && idx1 >= 0 && idx1 < tensor->ne[1] && i2 >= 0 && i2 < tensor->ne[2] && i3 >= 0 && i3 < tensor->ne[3]) {
+                 float val;
+@@ -824,12 +825,12 @@
+                 } else {
+                     GGML_ABORT("fatal error");
+                 }
+-                fprintf(stderr, "% 7.2f ", val);
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "% 7.2f ", val);
+             } else {
+-                fprintf(stderr, "        ");
+-            }
+-        }
+-        fprintf(stderr, "\n");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "        ");
++            }
++        }
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
+     }
+ }
+ 
+@@ -848,17 +849,17 @@
+         ggml_vk_buffer_read(buffer_gpu, vk_tensor_offset(tensor) + tensor->view_offs, tensor_data, tensor_size);
+     }
+ 
+-    std::cerr << "TENSOR CHECK " << name << " (" << tensor->name << "): " << ggml_op_name(tensor->op) << std::endl;
+-    std::cerr << "tensor=" << tensor << " tensor->type: " << ggml_type_name(tensor->type) << " ne0=" << tensor->ne[0] << " nb0=" << tensor->nb[0] << " ne1=" << tensor->ne[1] << " nb1=" << tensor->nb[1] << " ne2=" << tensor->ne[2] << " nb2=" << tensor->nb[2] << " ne3=" << tensor->ne[3] << " nb3=" << tensor->nb[3] << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "TENSOR CHECK " << name << " (" << tensor->name << "): " << ggml_op_name(tensor->op) << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "tensor=" << tensor << " tensor->type: " << ggml_type_name(tensor->type) << " ne0=" << tensor->ne[0] << " nb0=" << tensor->nb[0] << " ne1=" << tensor->ne[1] << " nb1=" << tensor->nb[1] << " ne2=" << tensor->ne[2] << " nb2=" << tensor->nb[2] << " ne3=" << tensor->ne[3] << " nb3=" << tensor->nb[3] << std::endl;
+     if (tensor->src[0] != nullptr) {
+-        std::cerr << "tensor->src[0]=" << tensor->src[0] << " name=" << tensor->src[0]->name << " op=" << ggml_op_name(tensor->src[0]->op) << " type=" << ggml_type_name(tensor->src[0]->type) << " ne0=" << tensor->src[0]->ne[0] << " nb0=" << tensor->src[0]->nb[0] << " ne1=" << tensor->src[0]->ne[1] << " nb1=" << tensor->src[0]->nb[1] << " ne2=" << tensor->src[0]->ne[2] << " nb2=" << tensor->src[0]->nb[2] << " ne3=" << tensor->src[0]->ne[3] << " nb3=" << tensor->src[0]->nb[3] << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "tensor->src[0]=" << tensor->src[0] << " name=" << tensor->src[0]->name << " op=" << ggml_op_name(tensor->src[0]->op) << " type=" << ggml_type_name(tensor->src[0]->type) << " ne0=" << tensor->src[0]->ne[0] << " nb0=" << tensor->src[0]->nb[0] << " ne1=" << tensor->src[0]->ne[1] << " nb1=" << tensor->src[0]->nb[1] << " ne2=" << tensor->src[0]->ne[2] << " nb2=" << tensor->src[0]->nb[2] << " ne3=" << tensor->src[0]->ne[3] << " nb3=" << tensor->src[0]->nb[3] << std::endl;
+     }
+     if (tensor->src[1] != nullptr) {
+-        std::cerr << "tensor->src[1]=" << tensor->src[1] << " name=" << tensor->src[1]->name << " op=" << ggml_op_name(tensor->src[1]->op) << " type=" << ggml_type_name(tensor->src[1]->type) << " ne0=" << tensor->src[1]->ne[0] << " nb0=" << tensor->src[1]->nb[0] << " ne1=" << tensor->src[1]->ne[1] << " nb1=" << tensor->src[1]->nb[1] << " ne2=" << tensor->src[1]->ne[2] << " nb2=" << tensor->src[1]->nb[2] << " ne3=" << tensor->src[1]->ne[3] << " nb3=" << tensor->src[1]->nb[3] << std::endl;
+-    }
+-    std::cerr << std::endl << "Result:" << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "tensor->src[1]=" << tensor->src[1] << " name=" << tensor->src[1]->name << " op=" << ggml_op_name(tensor->src[1]->op) << " type=" << ggml_type_name(tensor->src[1]->type) << " ne0=" << tensor->src[1]->ne[0] << " nb0=" << tensor->src[1]->nb[0] << " ne1=" << tensor->src[1]->ne[1] << " nb1=" << tensor->src[1]->nb[1] << " ne2=" << tensor->src[1]->ne[2] << " nb2=" << tensor->src[1]->nb[2] << " ne3=" << tensor->src[1]->ne[3] << " nb3=" << tensor->src[1]->nb[3] << std::endl;
++    }
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Result:" << std::endl;
+     ggml_vk_print_tensor_area(tensor, tensor_data, 5, 5, 0, 0);
+-    std::cerr << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
+     std::vector<const ggml_tensor *> done;
+     ggml_vk_print_graph_origin(tensor, done);
+ 
+@@ -1150,7 +1151,7 @@
+                 tensor_clone = ggml_sgn(ggml_ctx, src_clone[0]);
+                 break;
+             default:
+-                std::cerr << "Missing vk_check_results OP: " << ggml_op_name(tensor->op) << std::endl;
++                ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Missing vk_check_results OP: " << ggml_op_name(tensor->op) << std::endl;
+                 GGML_ABORT("fatal error");
+             }
+         } else if (tensor->op == GGML_OP_GLU) {
+@@ -1344,7 +1345,7 @@
+             tensor_clone = ggml_roll(ggml_ctx, src_clone[0], s0, s1, s2, s3);
+         }
+         else {
+-            std::cerr << "Missing vk_check_results OP: " << ggml_op_name(tensor->op) << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Missing vk_check_results OP: " << ggml_op_name(tensor->op) << std::endl;
+             GGML_ABORT("fatal error");
+         }
+         cloned_tensors[tensor] = tensor_clone;
+@@ -1439,34 +1440,34 @@
+                             correct = *(int64_t *) ((char *) comp_result + i3*comp_nb[3] + i2*comp_nb[2] + i1*comp_nb[1] + i0*comp_nb[0]);
+                             result  = *(int64_t *) ((char *) tensor_data + i3*tensor->nb[3] + i2*tensor->nb[2] + i1*tensor->nb[1] + i0*tensor->nb[0]);
+                         } else {
+-                            std::cerr << "Results check not implemented for type " << ggml_type_name(tensor->type) << std::endl;
++                            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Results check not implemented for type " << ggml_type_name(tensor->type) << std::endl;
+                         }
+                     } else {
+-                        std::cerr << "Missing debug code for type " << ggml_type_name(tensor->type) << std::endl;
++                        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Missing debug code for type " << ggml_type_name(tensor->type) << std::endl;
+                         GGML_ABORT("fatal error");
+                     }
+ 
+                     if ((std::isnan(correct) != std::isnan(result)) || (std::isinf(correct) != std::isinf(result)) || !buffer_size_fit) {
+-                        std::cerr << "ERROR: Invalid value in " << ggml_op_name(tensor->op) << " i3=" << i3 << " i2=" << i2 << " i1=" << i1 << " i0=" << i0 << " result=" << result << " correct=" << correct << " avg_err=" << (avg_err / counter) << std::endl;
+-                        std::cerr << "tensor=" << tensor << " tensor->name=" << tensor->name << " tensor->type: " << ggml_type_name(tensor->type) << " ne0=" << tensor->ne[0] << " nb0=" << tensor->nb[0] << " ne1=" << tensor->ne[1] << " nb1=" << tensor->nb[1] << " ne2=" << tensor->ne[2] << " nb2=" << tensor->nb[2] << " ne3=" << tensor->ne[3] << " nb3=" << tensor->nb[3] << " offset=" << tensor->view_offs << std::endl;
++                        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ERROR: Invalid value in " << ggml_op_name(tensor->op) << " i3=" << i3 << " i2=" << i2 << " i1=" << i1 << " i0=" << i0 << " result=" << result << " correct=" << correct << " avg_err=" << (avg_err / counter) << std::endl;
++                        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "tensor=" << tensor << " tensor->name=" << tensor->name << " tensor->type: " << ggml_type_name(tensor->type) << " ne0=" << tensor->ne[0] << " nb0=" << tensor->nb[0] << " ne1=" << tensor->ne[1] << " nb1=" << tensor->nb[1] << " ne2=" << tensor->ne[2] << " nb2=" << tensor->nb[2] << " ne3=" << tensor->ne[3] << " nb3=" << tensor->nb[3] << " offset=" << tensor->view_offs << std::endl;
+                         if (src0 != nullptr) {
+-                            std::cerr << "src0=" << src0 << " src0->name=" << src0->name << " op=" << ggml_op_name(src0->op) << " type=" << ggml_type_name(src0->type) << " ne0=" << src0->ne[0] << " nb0=" << src0->nb[0] << " ne1=" << src0->ne[1] << " nb1=" << src0->nb[1] << " ne2=" << src0->ne[2] << " nb2=" << src0->nb[2] << " ne3=" << src0->ne[3] << " nb3=" << src0->nb[3] << " offset=" << src0->view_offs << std::endl;
++                            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src0=" << src0 << " src0->name=" << src0->name << " op=" << ggml_op_name(src0->op) << " type=" << ggml_type_name(src0->type) << " ne0=" << src0->ne[0] << " nb0=" << src0->nb[0] << " ne1=" << src0->ne[1] << " nb1=" << src0->nb[1] << " ne2=" << src0->ne[2] << " nb2=" << src0->nb[2] << " ne3=" << src0->ne[3] << " nb3=" << src0->nb[3] << " offset=" << src0->view_offs << std::endl;
+                         }
+                         if (src1 != nullptr) {
+-                            std::cerr << "src1=" << src1 << " src1->name=" << src1->name << " op=" << ggml_op_name(src1->op) << " type=" << ggml_type_name(src1->type) << " ne0=" << src1->ne[0] << " nb0=" << src1->nb[0] << " ne1=" << src1->ne[1] << " nb1=" << src1->nb[1] << " ne2=" << src1->ne[2] << " nb2=" << src1->nb[2] << " ne3=" << src1->ne[3] << " nb3=" << src1->nb[3] << " offset=" << src1->view_offs << std::endl;
++                            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src1=" << src1 << " src1->name=" << src1->name << " op=" << ggml_op_name(src1->op) << " type=" << ggml_type_name(src1->type) << " ne0=" << src1->ne[0] << " nb0=" << src1->nb[0] << " ne1=" << src1->ne[1] << " nb1=" << src1->nb[1] << " ne2=" << src1->ne[2] << " nb2=" << src1->nb[2] << " ne3=" << src1->ne[3] << " nb3=" << src1->nb[3] << " offset=" << src1->view_offs << std::endl;
+                         }
+                         if (src2 != nullptr) {
+-                            std::cerr << "src2=" << src2 << " src2->name=" << src2->name << " op=" << ggml_op_name(src2->op) << " type=" << ggml_type_name(src2->type) << " ne0=" << src2->ne[0] << " nb0=" << src2->nb[0] << " ne1=" << src2->ne[1] << " nb1=" << src2->nb[1] << " ne2=" << src2->ne[2] << " nb2=" << src2->nb[2] << " ne3=" << src2->ne[3] << " nb3=" << src2->nb[3] << " offset=" << src2->view_offs << std::endl;
++                            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src2=" << src2 << " src2->name=" << src2->name << " op=" << ggml_op_name(src2->op) << " type=" << ggml_type_name(src2->type) << " ne0=" << src2->ne[0] << " nb0=" << src2->nb[0] << " ne1=" << src2->ne[1] << " nb1=" << src2->nb[1] << " ne2=" << src2->ne[2] << " nb2=" << src2->nb[2] << " ne3=" << src2->ne[3] << " nb3=" << src2->nb[3] << " offset=" << src2->view_offs << std::endl;
+                         }
+                         if (src3 != nullptr) {
+-                            std::cerr << "src3=" << src3 << " src3->name=" << src3->name << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
++                            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src3=" << src3 << " src3->name=" << src3->name << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
+                         }
+-                        std::cerr << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
+-                        std::cerr << std::endl << "Result:" << std::endl;
++                        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
++                        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Result:" << std::endl;
+                         ggml_vk_print_tensor_area(tensor, tensor_data, i0, i1, i2, i3);
+-                        std::cerr << std::endl << "Correct:" << std::endl;
++                        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Correct:" << std::endl;
+                         ggml_vk_print_tensor_area(tensor, comp_result, i0, i1, i2, i3);
+-                        std::cerr << std::endl;
++                        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
+                         std::vector<const ggml_tensor *> done;
+                         ggml_vk_print_graph_origin(tensor, done);
+                         GGML_ABORT("fatal error");
+@@ -1495,56 +1496,56 @@
+     avg_err /= counter;
+ 
+     if (vk_output_tensor > 0 && vk_output_tensor == check_counter) {
+-        std::cerr << "TENSOR CHECK: avg_err=" << avg_err << " in " << ggml_op_name(tensor->op) << " (check " << check_counter << ")" << std::endl;
+-        std::cerr << "tensor=" << tensor << " tensor->name=" << tensor->name << " tensor->type: " << ggml_type_name(tensor->type) << " ne0=" << tensor->ne[0] << " nb0=" << tensor->nb[0] << " ne1=" << tensor->ne[1] << " nb1=" << tensor->nb[1] << " ne2=" << tensor->ne[2] << " nb2=" << tensor->nb[2] << " ne3=" << tensor->ne[3] << " nb3=" << tensor->nb[3] << " offset=" << tensor->view_offs << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "TENSOR CHECK: avg_err=" << avg_err << " in " << ggml_op_name(tensor->op) << " (check " << check_counter << ")" << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "tensor=" << tensor << " tensor->name=" << tensor->name << " tensor->type: " << ggml_type_name(tensor->type) << " ne0=" << tensor->ne[0] << " nb0=" << tensor->nb[0] << " ne1=" << tensor->ne[1] << " nb1=" << tensor->nb[1] << " ne2=" << tensor->ne[2] << " nb2=" << tensor->nb[2] << " ne3=" << tensor->ne[3] << " nb3=" << tensor->nb[3] << " offset=" << tensor->view_offs << std::endl;
+         if (src0 != nullptr) {
+-            std::cerr << "src0=" << src0 << " op=" << ggml_op_name(src0->op) << " type=" << ggml_type_name(src0->type) << " ne0=" << src0->ne[0] << " nb0=" << src0->nb[0] << " ne1=" << src0->ne[1] << " nb1=" << src0->nb[1] << " ne2=" << src0->ne[2] << " nb2=" << src0->nb[2] << " ne3=" << src0->ne[3] << " nb3=" << src0->nb[3] << " offset=" << src0->view_offs << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src0=" << src0 << " op=" << ggml_op_name(src0->op) << " type=" << ggml_type_name(src0->type) << " ne0=" << src0->ne[0] << " nb0=" << src0->nb[0] << " ne1=" << src0->ne[1] << " nb1=" << src0->nb[1] << " ne2=" << src0->ne[2] << " nb2=" << src0->nb[2] << " ne3=" << src0->ne[3] << " nb3=" << src0->nb[3] << " offset=" << src0->view_offs << std::endl;
+         }
+         if (src1 != nullptr) {
+-            std::cerr << "src1=" << src1 << " op=" << ggml_op_name(src1->op) << " type=" << ggml_type_name(src1->type) << " ne0=" << src1->ne[0] << " nb0=" << src1->nb[0] << " ne1=" << src1->ne[1] << " nb1=" << src1->nb[1] << " ne2=" << src1->ne[2] << " nb2=" << src1->nb[2] << " ne3=" << src1->ne[3] << " nb3=" << src1->nb[3] << " offset=" << src1->view_offs << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src1=" << src1 << " op=" << ggml_op_name(src1->op) << " type=" << ggml_type_name(src1->type) << " ne0=" << src1->ne[0] << " nb0=" << src1->nb[0] << " ne1=" << src1->ne[1] << " nb1=" << src1->nb[1] << " ne2=" << src1->ne[2] << " nb2=" << src1->nb[2] << " ne3=" << src1->ne[3] << " nb3=" << src1->nb[3] << " offset=" << src1->view_offs << std::endl;
+         }
+         if (src2 != nullptr) {
+-            std::cerr << "src2=" << src2 << " op=" << ggml_op_name(src2->op) << " type=" << ggml_type_name(src2->type) << " ne0=" << src2->ne[0] << " nb0=" << src2->nb[0] << " ne1=" << src2->ne[1] << " nb1=" << src2->nb[1] << " ne2=" << src2->ne[2] << " nb2=" << src2->nb[2] << " ne3=" << src2->ne[3] << " nb3=" << src2->nb[3] << " offset=" << src2->view_offs << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src2=" << src2 << " op=" << ggml_op_name(src2->op) << " type=" << ggml_type_name(src2->type) << " ne0=" << src2->ne[0] << " nb0=" << src2->nb[0] << " ne1=" << src2->ne[1] << " nb1=" << src2->nb[1] << " ne2=" << src2->ne[2] << " nb2=" << src2->nb[2] << " ne3=" << src2->ne[3] << " nb3=" << src2->nb[3] << " offset=" << src2->view_offs << std::endl;
+         }
+         if (src3 != nullptr) {
+-            std::cerr << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
+-        }
+-        std::cerr << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
+-        std::cerr << std::endl << "Result:" << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
++        }
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Result:" << std::endl;
+         ggml_vk_print_tensor_area(tensor, tensor_data, 5, 5, 0, 0);
+-        std::cerr << std::endl << "Correct:" << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Correct:" << std::endl;
+         ggml_vk_print_tensor_area(tensor, comp_result, 5, 5, 0, 0);
+-        std::cerr << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
+         std::vector<const ggml_tensor *> done;
+         ggml_vk_print_graph_origin(tensor, done);
+     }
+ 
+     if (avg_err > 0.01 || std::isnan(avg_err)) {
+-        std::cerr << "ERROR: avg_err=" << avg_err << " in " << ggml_op_name(tensor->op) << " (check " << check_counter << ")" << std::endl;
+-        std::cerr << "tensor=" << tensor << " tensor->name=" << tensor->name << " tensor->type: " << ggml_type_name(tensor->type) << " ne0=" << tensor->ne[0] << " nb0=" << tensor->nb[0] << " ne1=" << tensor->ne[1] << " nb1=" << tensor->nb[1] << " ne2=" << tensor->ne[2] << " nb2=" << tensor->nb[2] << " ne3=" << tensor->ne[3] << " nb3=" << tensor->nb[3] << " offset=" << tensor->view_offs << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ERROR: avg_err=" << avg_err << " in " << ggml_op_name(tensor->op) << " (check " << check_counter << ")" << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "tensor=" << tensor << " tensor->name=" << tensor->name << " tensor->type: " << ggml_type_name(tensor->type) << " ne0=" << tensor->ne[0] << " nb0=" << tensor->nb[0] << " ne1=" << tensor->ne[1] << " nb1=" << tensor->nb[1] << " ne2=" << tensor->ne[2] << " nb2=" << tensor->nb[2] << " ne3=" << tensor->ne[3] << " nb3=" << tensor->nb[3] << " offset=" << tensor->view_offs << std::endl;
+         if (src0 != nullptr) {
+-            std::cerr << "src0=" << src0 << " op=" << ggml_op_name(src0->op) << " type=" << ggml_type_name(src0->type) << " ne0=" << src0->ne[0] << " nb0=" << src0->nb[0] << " ne1=" << src0->ne[1] << " nb1=" << src0->nb[1] << " ne2=" << src0->ne[2] << " nb2=" << src0->nb[2] << " ne3=" << src0->ne[3] << " nb3=" << src0->nb[3] << " offset=" << src0->view_offs << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src0=" << src0 << " op=" << ggml_op_name(src0->op) << " type=" << ggml_type_name(src0->type) << " ne0=" << src0->ne[0] << " nb0=" << src0->nb[0] << " ne1=" << src0->ne[1] << " nb1=" << src0->nb[1] << " ne2=" << src0->ne[2] << " nb2=" << src0->nb[2] << " ne3=" << src0->ne[3] << " nb3=" << src0->nb[3] << " offset=" << src0->view_offs << std::endl;
+         }
+         if (src1 != nullptr) {
+-            std::cerr << "src1=" << src1 << " op=" << ggml_op_name(src1->op) << " type=" << ggml_type_name(src1->type) << " ne0=" << src1->ne[0] << " nb0=" << src1->nb[0] << " ne1=" << src1->ne[1] << " nb1=" << src1->nb[1] << " ne2=" << src1->ne[2] << " nb2=" << src1->nb[2] << " ne3=" << src1->ne[3] << " nb3=" << src1->nb[3] << " offset=" << src1->view_offs << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src1=" << src1 << " op=" << ggml_op_name(src1->op) << " type=" << ggml_type_name(src1->type) << " ne0=" << src1->ne[0] << " nb0=" << src1->nb[0] << " ne1=" << src1->ne[1] << " nb1=" << src1->nb[1] << " ne2=" << src1->ne[2] << " nb2=" << src1->nb[2] << " ne3=" << src1->ne[3] << " nb3=" << src1->nb[3] << " offset=" << src1->view_offs << std::endl;
+         }
+         if (src2 != nullptr) {
+-            std::cerr << "src2=" << src2 << " op=" << ggml_op_name(src2->op) << " type=" << ggml_type_name(src2->type) << " ne0=" << src2->ne[0] << " nb0=" << src2->nb[0] << " ne1=" << src2->ne[1] << " nb1=" << src2->nb[1] << " ne2=" << src2->ne[2] << " nb2=" << src2->nb[2] << " ne3=" << src2->ne[3] << " nb3=" << src2->nb[3] << " offset=" << src2->view_offs << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src2=" << src2 << " op=" << ggml_op_name(src2->op) << " type=" << ggml_type_name(src2->type) << " ne0=" << src2->ne[0] << " nb0=" << src2->nb[0] << " ne1=" << src2->ne[1] << " nb1=" << src2->nb[1] << " ne2=" << src2->ne[2] << " nb2=" << src2->nb[2] << " ne3=" << src2->ne[3] << " nb3=" << src2->nb[3] << " offset=" << src2->view_offs << std::endl;
+         }
+         if (src3 != nullptr) {
+-            std::cerr << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
+-        }
+-        std::cerr << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
+-        std::cerr << std::endl << "Result:" << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
++        }
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Result:" << std::endl;
+         ggml_vk_print_tensor_area(tensor, tensor_data, first_error[0], first_error[1], first_error[2], first_error[3]);
+-        std::cerr << std::endl << "Correct:" << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Correct:" << std::endl;
+         ggml_vk_print_tensor_area(tensor, comp_result, first_error[0], first_error[1], first_error[2], first_error[3]);
+-        std::cerr << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
+         std::vector<const ggml_tensor *> done;
+         ggml_vk_print_graph_origin(tensor, done);
+         GGML_ABORT("fatal error");
+     } else {
+-        std::cerr << check_counter << " " << tensor->name << " op=" << ggml_op_name(tensor->op) << " avg_err=" << avg_err << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << check_counter << " " << tensor->name << " op=" << ggml_op_name(tensor->op) << " avg_err=" << avg_err << std::endl;
+     }
+ 
+     free(comp_result);
+--- a/ggml/src/ggml-vulkan/ggml-vulkan-types.h
++++ b/ggml/src/ggml-vulkan/ggml-vulkan-types.h
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include "ggml-vulkan.h"
++#include "../ggml-library-log.h"
+ 
+ #include <vulkan/vulkan_core.h>
+ 
+@@ -233,7 +234,7 @@
+     } while (0)
+ 
+ #ifdef GGML_VULKAN_DEBUG
+-#define VK_LOG_DEBUG(msg) std::cerr << msg << std::endl
++#define VK_LOG_DEBUG(msg) ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << msg << std::endl
+ #else
+ #define VK_LOG_DEBUG(msg) ((void) 0)
+ #endif // GGML_VULKAN_DEBUG
+@@ -1162,7 +1163,7 @@
+     std::vector<vk_context> contexts;
+ };
+ 
+-#define VK_LOG_MEMORY(msg) if (vk_memory_logger_enabled) { std::cerr << "ggml_vulkan memory: " << msg << std::endl; }
++#define VK_LOG_MEMORY(msg) if (vk_memory_logger_enabled) { ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "ggml_vulkan memory: " << msg << std::endl; }
+ 
+ static std::string format_size(size_t size) {
+     const size_t kib = 1024;
+@@ -1370,7 +1371,7 @@
+     uint32_t limit_occupancy_shmem;
+ 
+     void print() const {
+-        std::cerr << "path=" << path << " workgroup_size=" << workgroup_size << " subgroup_size=" << subgroup_size <<
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "path=" << path << " workgroup_size=" << workgroup_size << " subgroup_size=" << subgroup_size <<
+                      " block_rows=" << block_rows << " block_cols=" << block_cols << " d_split=" << d_split <<
+                      " row_split=" << row_split << " shmem_staging=" << shmem_staging << " disable_subgroups=" << disable_subgroups <<
+                      " limit_occupancy_shmem=" << limit_occupancy_shmem << std::endl;
+--- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+@@ -1,4 +1,5 @@
+ #include "ggml-vulkan-common.h"
++#include "../ggml-library-log.h"
+ 
+ namespace {
+ inline std::ostream & operator<<(std::ostream & os, vk::Buffer buffer) {
+@@ -692,7 +693,7 @@
+     try {
+         pipeline->shader_module = device->device.createShaderModule(shader_module_create_info);
+     } catch (const vk::SystemError& e) {
+-        std::cerr << "ggml_vulkan: shader module creation failed for " << pipeline->name << ": " << e.what() << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: shader module creation failed for " << pipeline->name << ": " << e.what() << std::endl;
+         throw;
+     }
+ 
+@@ -706,7 +707,7 @@
+     try {
+         pipeline->layout = device->device.createPipelineLayout(pipeline_layout_create_info);
+     } catch (const vk::SystemError& e) {
+-        std::cerr << "ggml_vulkan: pipeline layout creation failed for " << pipeline->name << ": " << e.what() << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: pipeline layout creation failed for " << pipeline->name << ": " << e.what() << std::endl;
+         throw;
+     }
+ 
+@@ -776,7 +777,7 @@
+     try {
+         pipeline->pipeline = device->device.createComputePipeline(VK_NULL_HANDLE, compute_pipeline_create_info).value;
+     } catch (const vk::SystemError& e) {
+-        std::cerr << "ggml_vulkan: compute pipeline creation failed for " << pipeline->name << ": " << e.what() << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: compute pipeline creation failed for " << pipeline->name << ": " << e.what() << std::endl;
+         throw;
+     }
+ 
+@@ -797,27 +798,27 @@
+         bool print_stats = !vk_pipeline_stats_filter.empty() &&
+                            pipeline->name.find(vk_pipeline_stats_filter) != std::string::npos;
+         if (print_stats) {
+-            std::cerr << "ggml_vulkan: pipeline stats for " << pipeline->name << ":" << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "ggml_vulkan: pipeline stats for " << pipeline->name << ":" << std::endl;
+         }
+ 
+         for (auto & s : statistics) {
+             if (print_stats) {
+-                std::cerr << "ggml_vulkan:   " << s.name.data() << ": ";
++                ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "ggml_vulkan:   " << s.name.data() << ": ";
+                 switch (s.format) {
+                     case vk::PipelineExecutableStatisticFormatKHR::eBool32:
+-                        std::cerr << (s.value.b32 ? "true" : "false");
++                        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << (s.value.b32 ? "true" : "false");
+                         break;
+                     case vk::PipelineExecutableStatisticFormatKHR::eInt64:
+-                        std::cerr << s.value.i64;
++                        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << s.value.i64;
+                         break;
+                     case vk::PipelineExecutableStatisticFormatKHR::eUint64:
+-                        std::cerr << s.value.u64;
++                        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << s.value.u64;
+                         break;
+                     case vk::PipelineExecutableStatisticFormatKHR::eFloat64:
+-                        std::cerr << s.value.f64;
++                        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << s.value.f64;
+                         break;
+                 }
+-                std::cerr << std::endl;
++                ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
+             }
+             // "Register Count" is reported by NVIDIA drivers.
+             if (strcmp(s.name, "Register Count") == 0) {
+@@ -1019,10 +1020,10 @@
+         return compute_index;
+     }
+ 
+-    std::cerr << "ggml_vulkan: No suitable queue family index found." << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: No suitable queue family index found." << std::endl;
+ 
+     for(auto &q_family : queue_family_props) {
+-        std::cerr << "Queue number: "  + std::to_string(q_family.queueCount) << " flags: " + to_string(q_family.queueFlags) << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Queue number: "  + std::to_string(q_family.queueCount) << " flags: " + to_string(q_family.queueFlags) << std::endl;
+     }
+     abort();
+ }
+@@ -1893,7 +1894,7 @@
+             // Check mmq warptiles as the largest configuration
+             // Throw an error if not enough for any matrix multiplication is available
+             if (!ggml_vk_matmul_shmem_support(device, s_warptile_mmq, false, t)) {
+-                std::cerr << "ggml_vulkan: Error: Shared memory size too small for matrix multiplication." << std::endl;
++                ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Error: Shared memory size too small for matrix multiplication." << std::endl;
+                 throw std::runtime_error("Shared memory size too small for matrix multiplication.");
+             } else if (!ggml_vk_matmul_shmem_support(device, m_warptile_mmq, false, t)) {
+                 device->mul_mat_m[i] = false;
+@@ -4004,7 +4005,7 @@
+         std::vector<vk::PhysicalDevice> physical_devices = vk_instance.instance.enumeratePhysicalDevices();
+ 
+         if (dev_num >= physical_devices.size()) {
+-            std::cerr << "ggml_vulkan: Device with index " << dev_num << " does not exist." << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Device with index " << dev_num << " does not exist." << std::endl;
+             throw std::runtime_error("Device not found");
+         }
+ 
+@@ -4187,7 +4188,7 @@
+                                 getenv("GGML_VK_DISABLE_ASYNC") == nullptr;
+ 
+         if (!device->support_async) {
+-            GGML_LOG_DEBUG("ggml_vulkan: WARNING: Async execution disabled on certain Intel devices.\n");
++            GGML_LOG_WARN("ggml_vulkan: WARNING: Async execution disabled on certain Intel devices.\n");
+         }
+ 
+         const char* GGML_VK_FORCE_MAX_ALLOCATION_SIZE = getenv("GGML_VK_FORCE_MAX_ALLOCATION_SIZE");
+@@ -4640,7 +4641,7 @@
+         }
+ 
+         if (!vk11_features.storageBuffer16BitAccess) {
+-            std::cerr << "ggml_vulkan: device " << GGML_VK_NAME << idx << " does not support 16-bit storage." << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: device " << GGML_VK_NAME << idx << " does not support 16-bit storage." << std::endl;
+             throw std::runtime_error("Unsupported device");
+         }
+ 
+@@ -4750,7 +4751,7 @@
+ 
+             if (device->coopmat_m == 0 || !device->coopmat_acc_f32_support) {
+                 // No suitable matmul mode found
+-                GGML_LOG_DEBUG("ggml_vulkan: WARNING: No suitable matrix core mode found. Disabling matrix cores.\n");
++                GGML_LOG_WARN("ggml_vulkan: WARNING: No suitable matrix core mode found. Disabling matrix cores.\n");
+                 device->coopmat_support = false;
+             }
+         }
+@@ -4937,7 +4938,7 @@
+     std::vector<vk::PhysicalDevice> devices = vk_instance.instance.enumeratePhysicalDevices();
+ 
+     if (dev_num >= devices.size()) {
+-        std::cerr << "ggml_vulkan: Device with index " << dev_num << " does not exist." << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Device with index " << dev_num << " does not exist." << std::endl;
+         throw std::runtime_error("Device not found");
+     }
+ 
+@@ -5165,12 +5166,12 @@
+ #endif
+ 
+     std::string device_name = props2.properties.deviceName.data();
+-    GGML_LOG_DEBUG("ggml_vulkan: %zu = %s (%s) | uma: %d | fp16: %s | bf16: %d | fp4: %d | warp size: %zu | shared memory: %d | int dot: %d | matrix cores: %s\n",
++    GGML_LOG_TRACE("ggml_vulkan: %zu = %s (%s) | uma: %d | fp16: %s | bf16: %d | fp4: %d | warp size: %zu | shared memory: %d | int dot: %d | matrix cores: %s\n",
+               idx, device_name.c_str(), driver_props.driverName.data(), uma, fp16_str, bf16, fp4, subgroup_size,
+               props2.properties.limits.maxComputeSharedMemorySize, integer_dot_product, matrix_cores.c_str());
+ 
+     if (props2.properties.deviceType == vk::PhysicalDeviceType::eCpu) {
+-        GGML_LOG_DEBUG("ggml_vulkan: Warning: Device type is CPU. This is probably not the device you want.\n");
++        GGML_LOG_WARN("ggml_vulkan: Warning: Device type is CPU. This is probably not the device you want.\n");
+     }
+ }
+ 
+@@ -5192,7 +5193,7 @@
+     uint32_t api_version = vk::enumerateInstanceVersion();
+ 
+     if (api_version < VK_API_VERSION_1_2) {
+-        std::cerr << "ggml_vulkan: Error: Vulkan 1.2 required." << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Error: Vulkan 1.2 required." << std::endl;
+         throw vk::SystemError(vk::Result::eErrorFeatureNotPresent, "Vulkan 1.2 required");
+     }
+ 
+@@ -5283,7 +5284,7 @@
+         size_t tmp;
+         while (ss >> tmp) {
+             if(tmp >= num_available_devices) {
+-                std::cerr << "ggml_vulkan: Invalid device index " << tmp << " in GGML_VK_VISIBLE_DEVICES." << std::endl;
++                ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Invalid device index " << tmp << " in GGML_VK_VISIBLE_DEVICES." << std::endl;
+                 throw std::runtime_error("Invalid Vulkan device index");
+             }
+             vk_instance.device_indices.push_back(tmp);
+@@ -5410,7 +5411,7 @@
+             return;
+         }
+     }
+-    GGML_LOG_DEBUG("ggml_vulkan: Found %zu Vulkan devices:\n", vk_instance.device_indices.size());
++    GGML_LOG_TRACE("ggml_vulkan: Found %zu Vulkan devices:\n", vk_instance.device_indices.size());
+ 
+     for (size_t i = 0; i < vk_instance.device_indices.size(); i++) {
+         vk::PhysicalDevice vkdev = devices[vk_instance.device_indices[i]];
+@@ -6167,13 +6168,13 @@
+         }
+     }
+ 
+-    std::cerr << "Missing CPY op for types: " << ggml_type_name(src->type) << " " << ggml_type_name(to) << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "Missing CPY op for types: " << ggml_type_name(src->type) << " " << ggml_type_name(to) << std::endl;
+     GGML_ABORT("fatal error");
+ }
+ 
+ void ggml_vk_cpy_to_contiguous(ggml_backend_vk_context * ctx, vk_context& subctx, vk_pipeline pipeline, const ggml_tensor * tensor, const vk_subbuffer & in, const vk_subbuffer & out) {
+     VK_LOG_DEBUG("ggml_vk_cpy_to_contiguous((" << tensor << ", type=" << tensor->type << ", ne0=" << tensor->ne[0] << ", ne1=" << tensor->ne[1] << ", ne2=" << tensor->ne[2] << ", ne3=" << tensor->ne[3] << ", nb0=" << tensor->nb[0] << ", nb1=" << tensor->nb[1] << ", nb2=" << tensor->nb[2] << ", nb3=" << tensor->nb[3] << "), ";
+-    std::cerr << "buffer in size=" << in.buffer->size << ", buffer out size=" << out.buffer->size << ")");
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "buffer in size=" << in.buffer->size << ", buffer out size=" << out.buffer->size << ")");
+ 
+     const uint32_t ne = ggml_nelements(tensor);
+     std::array<uint32_t, 3> elements;
+@@ -6201,7 +6202,7 @@
+         const vk_subbuffer & in, const vk_subbuffer & out,
+         uint32_t nb10, uint32_t nb11, uint32_t nb12, uint32_t nb13) {
+     VK_LOG_DEBUG("ggml_vk_cpy_to_strided((" << tensor << ", type=" << tensor->type << ", ne0=" << tensor->ne[0] << ", ne1=" << tensor->ne[1] << ", ne2=" << tensor->ne[2] << ", ne3=" << tensor->ne[3] << ", nb0=" << tensor->nb[0] << ", nb1=" << tensor->nb[1] << ", nb2=" << tensor->nb[2] << ", nb3=" << tensor->nb[3] << "), ";
+-    std::cerr << "dst_nb=(" << nb10 << ", " << nb11 << ", " << nb12 << ", " << nb13 << "), buffer in size=" << in.buffer->size << ", buffer out size=" << out.buffer->size << ")");
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "dst_nb=(" << nb10 << ", " << nb11 << ", " << nb12 << ", " << nb13 << "), buffer in size=" << in.buffer->size << ", buffer out size=" << out.buffer->size << ")");
+ 
+     const uint32_t ne = ggml_nelements(tensor);
+     std::array<uint32_t, 3> elements;
+@@ -6229,7 +6230,7 @@
+         case GGML_TYPE_Q8_1:
+             return ctx->device->pipeline_quantize_q8_1_x4;
+         default:
+-            std::cerr << "Missing quantize pipeline for type: " << ggml_type_name(type) << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "Missing quantize pipeline for type: " << ggml_type_name(type) << std::endl;
+             GGML_ABORT("fatal error");
+     }
+ }
+@@ -6269,9 +6270,9 @@
+ 
+ static void ggml_vk_mul_mat_q_f16(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst, bool disable_split_k) {
+     VK_LOG_DEBUG("ggml_vk_mul_mat_q_f16((" << src0 << ", name=" << src0->name << ", type=" << ggml_type_name(src0->type) << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
+-    std::cerr << "), (" << src1 << ", name=" << src1->name << ", type=" << ggml_type_name(src1->type) << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
+-    std::cerr << "), (" << dst << ", name=" << dst->name << ", type=" << ggml_type_name(dst->type) << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
+-    std::cerr << "))");
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src1 << ", name=" << src1->name << ", type=" << ggml_type_name(src1->type) << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << ggml_type_name(dst->type) << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "))");
+     GGML_ASSERT(ggml_vk_dim01_contiguous(src0) || src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16 || src0->type == GGML_TYPE_BF16);  // NOLINT
+     GGML_ASSERT(ggml_vk_dim01_contiguous(src1) || src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);  // NOLINT
+ 
+@@ -6641,9 +6642,9 @@
+     const ggml_tensor * src1 = dst->src[swap_inputs ? 0 : 1];
+ 
+     VK_LOG_DEBUG("ggml_vk_mul_mat_vec_q_f16((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
+-    std::cerr << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
+-    std::cerr << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
+-    std::cerr << ")),)");
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << ")),)");
+     GGML_ASSERT(ggml_vk_dim01_contiguous(src0) || src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16 || src0->type == GGML_TYPE_BF16);  // NOLINT
+     GGML_ASSERT(ggml_vk_dim01_contiguous(src1) || src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);  // NOLINT
+ 
+@@ -6883,9 +6884,9 @@
+     const ggml_tensor * src0 = dst->src[0];
+     const ggml_tensor * src1 = dst->src[1];
+     VK_LOG_DEBUG("ggml_vk_mul_mat_p021_f16_f32(" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
+-    std::cerr << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
+-    std::cerr << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
+-    std::cerr << "))");
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "))");
+     GGML_ASSERT(ggml_is_permuted(src0) && ggml_is_permuted(src1));
+     GGML_ASSERT(src0->nb[0] <= src0->nb[1] && src0->nb[2] <= src0->nb[3]);  // NOLINT
+     GGML_ASSERT(src1->nb[0] <= src1->nb[1] && src1->nb[2] <= src1->nb[3]);  // NOLINT
+@@ -6975,9 +6976,9 @@
+     const ggml_tensor * src0 = dst->src[0];
+     const ggml_tensor * src1 = dst->src[1];
+     VK_LOG_DEBUG("ggml_vk_mul_mat_nc_f16_f32((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
+-    std::cerr << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
+-    std::cerr << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
+-    std::cerr << "))");
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "))");
+     GGML_ASSERT(!ggml_is_transposed(src0));
+     GGML_ASSERT(!ggml_is_transposed(src1));
+     GGML_ASSERT(!ggml_is_permuted(src0));
+@@ -7303,9 +7304,9 @@
+ 
+ static void ggml_vk_mul_mat_id_q_f16(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, const ggml_tensor * src1, const ggml_tensor * ids, ggml_tensor * dst) {
+     VK_LOG_DEBUG("ggml_vk_mul_mat_id_q_f16((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
+-    std::cerr << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
+-    std::cerr << "), (" << ids << ", name=" << ids->name << ", type=" << ids->type << ", ne0=" << ids->ne[0] << ", ne1=" << ids->ne[1] << ", ne2=" << ids->ne[2] << ", ne3=" << ids->ne[3] << ", nb0=" << ids->nb[0] << ", nb1=" << ids->nb[1] << ", nb2=" << ids->nb[2] << ", nb3=" << ids->nb[3];
+-    std::cerr << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3] << "),)");
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << ids << ", name=" << ids->name << ", type=" << ids->type << ", ne0=" << ids->ne[0] << ", ne1=" << ids->ne[1] << ", ne2=" << ids->ne[2] << ", ne3=" << ids->ne[3] << ", nb0=" << ids->nb[0] << ", nb1=" << ids->nb[1] << ", nb2=" << ids->nb[2] << ", nb3=" << ids->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3] << "),)");
+     GGML_ASSERT(ggml_vk_dim01_contiguous(src1) || src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);  // NOLINT
+     GGML_ASSERT(ids->type == GGML_TYPE_I32);
+ 
+@@ -7680,10 +7681,10 @@
+     ggml_tensor * src1 = dst->src[1];
+     ggml_tensor * ids = dst->src[2];
+     VK_LOG_DEBUG("ggml_vk_mul_mat_vec_id_q_f16((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
+-    std::cerr << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
+-    std::cerr << "), (" << ids << ", name=" << ids->name << ", type=" << ids->type << ", ne0=" << ids->ne[0] << ", ne1=" << ids->ne[1] << ", ne2=" << ids->ne[2] << ", ne3=" << ids->ne[3] << ", nb0=" << ids->nb[0] << ", nb1=" << ids->nb[1] << ", nb2=" << ids->nb[2] << ", nb3=" << ids->nb[3];
+-    std::cerr << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
+-    std::cerr << "))");
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << ids << ", name=" << ids->name << ", type=" << ids->type << ", ne0=" << ids->ne[0] << ", ne1=" << ids->ne[1] << ", ne2=" << ids->ne[2] << ", ne3=" << ids->ne[3] << ", nb0=" << ids->nb[0] << ", nb1=" << ids->nb[1] << ", nb2=" << ids->nb[2] << ", nb3=" << ids->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "))");
+     GGML_ASSERT(ggml_vk_dim01_contiguous(src0) || src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16 || src0->type == GGML_TYPE_BF16);  // NOLINT
+     GGML_ASSERT(ggml_vk_dim01_contiguous(src1) || src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);  // NOLINT
+     GGML_ASSERT(ids->type == GGML_TYPE_I32);
+@@ -8032,13 +8033,13 @@
+ 
+ void ggml_vk_flash_attn(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * q, const ggml_tensor * k, const ggml_tensor * v, const ggml_tensor * mask, const ggml_tensor * sinks, ggml_tensor * dst) {
+     VK_LOG_DEBUG("ggml_vk_flash_attn((" << q << ", name=" << q->name << ", type=" << q->type << ", ne0=" << q->ne[0] << ", ne1=" << q->ne[1] << ", ne2=" << q->ne[2] << ", ne3=" << q->ne[3] << ", nb0=" << q->nb[0] << ", nb1=" << q->nb[1] << ", nb2=" << q->nb[2] << ", nb3=" << q->nb[3];
+-    std::cerr << "), (" << k << ", name=" << k->name << ", type=" << k->type << ", ne0=" << k->ne[0] << ", ne1=" << k->ne[1] << ", ne2=" << k->ne[2] << ", ne3=" << k->ne[3] << ", nb0=" << k->nb[0] << ", nb1=" << k->nb[1] << ", nb2=" << k->nb[2] << ", nb3=" << k->nb[3];
+-    std::cerr << "), (" << v << ", name=" << v->name << ", type=" << v->type << ", ne0=" << v->ne[0] << ", ne1=" << v->ne[1] << ", ne2=" << v->ne[2] << ", ne3=" << v->ne[3] << ", nb0=" << v->nb[0] << ", nb1=" << v->nb[1] << ", nb2=" << v->nb[2] << ", nb3=" << v->nb[3];
+-    std::cerr << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << k << ", name=" << k->name << ", type=" << k->type << ", ne0=" << k->ne[0] << ", ne1=" << k->ne[1] << ", ne2=" << k->ne[2] << ", ne3=" << k->ne[3] << ", nb0=" << k->nb[0] << ", nb1=" << k->nb[1] << ", nb2=" << k->nb[2] << ", nb3=" << k->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << v << ", name=" << v->name << ", type=" << v->type << ", ne0=" << v->ne[0] << ", ne1=" << v->ne[1] << ", ne2=" << v->ne[2] << ", ne3=" << v->ne[3] << ", nb0=" << v->nb[0] << ", nb1=" << v->nb[1] << ", nb2=" << v->nb[2] << ", nb3=" << v->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
+     if (sinks) {
+-        std::cerr << "), (" << sinks << ", name=" << sinks->name << ", type=" << sinks->type << ", ne0=" << sinks->ne[0] << ", ne1=" << sinks->ne[1] << ", ne2=" << sinks->ne[2] << ", ne3=" << sinks->ne[3] << ", nb0=" << sinks->nb[0] << ", nb1=" << sinks->nb[1] << ", nb2=" << sinks->nb[2] << ", nb3=" << sinks->nb[3];
+-    }
+-    std::cerr << "))");
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << sinks << ", name=" << sinks->name << ", type=" << sinks->type << ", ne0=" << sinks->ne[0] << ", ne1=" << sinks->ne[1] << ", ne2=" << sinks->ne[2] << ", ne3=" << sinks->ne[3] << ", nb0=" << sinks->nb[0] << ", nb1=" << sinks->nb[1] << ", nb2=" << sinks->nb[2] << ", nb3=" << sinks->nb[3];
++    }
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "))");
+ 
+     GGML_TENSOR_LOCALS(int64_t, neq, q,   ne)
+     GGML_TENSOR_LOCALS(size_t,  nbq, q,   nb)
+@@ -9350,16 +9351,16 @@
+ static void ggml_vk_op_f32(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, const ggml_tensor * src1, const ggml_tensor * src2, const ggml_tensor * src3, ggml_tensor * dst, ggml_op op, PC&& pc, vk_pipeline pipeline_override = nullptr) {
+     VK_LOG_DEBUG("ggml_vk_op_f32((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
+     if (src1 != nullptr) {
+-        std::cerr << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src1 << ", name=" << src1->name << ", type=" << src1->type << ", ne0=" << src1->ne[0] << ", ne1=" << src1->ne[1] << ", ne2=" << src1->ne[2] << ", ne3=" << src1->ne[3] << ", nb0=" << src1->nb[0] << ", nb1=" << src1->nb[1] << ", nb2=" << src1->nb[2] << ", nb3=" << src1->nb[3];
+     }
+     if (src2 != nullptr) {
+-        std::cerr << "), (" << src2 << ", name=" << src2->name << ", type=" << src2->type << ", ne0=" << src2->ne[0] << ", ne1=" << src2->ne[1] << ", ne2=" << src2->ne[2] << ", ne3=" << src2->ne[3] << ", nb0=" << src2->nb[0] << ", nb1=" << src2->nb[1] << ", nb2=" << src2->nb[2] << ", nb3=" << src2->nb[3];
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src2 << ", name=" << src2->name << ", type=" << src2->type << ", ne0=" << src2->ne[0] << ", ne1=" << src2->ne[1] << ", ne2=" << src2->ne[2] << ", ne3=" << src2->ne[3] << ", nb0=" << src2->nb[0] << ", nb1=" << src2->nb[1] << ", nb2=" << src2->nb[2] << ", nb3=" << src2->nb[3];
+     }
+     if (src3 != nullptr) {
+-        std::cerr << "), (" << src3 << ", name=" << src3->name << ", type=" << src3->type << ", ne0=" << src3->ne[0] << ", ne1=" << src3->ne[1] << ", ne2=" << src3->ne[2] << ", ne3=" << src3->ne[3] << ", nb0=" << src3->nb[0] << ", nb1=" << src3->nb[1] << ", nb2=" << src3->nb[2] << ", nb3=" << src3->nb[3];
+-    }
+-    std::cerr << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
+-    std::cerr << "), " << ggml_op_name(op) << ")");
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src3 << ", name=" << src3->name << ", type=" << src3->type << ", ne0=" << src3->ne[0] << ", ne1=" << src3->ne[1] << ", ne2=" << src3->ne[2] << ", ne3=" << src3->ne[3] << ", nb0=" << src3->nb[0] << ", nb1=" << src3->nb[1] << ", nb2=" << src3->nb[2] << ", nb3=" << src3->nb[3];
++    }
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), " << ggml_op_name(op) << ")");
+     GGML_ASSERT(op == GGML_OP_GET_ROWS || op == GGML_OP_CPY || op == GGML_OP_CONCAT || (!ggml_is_quantized(src0->type) && (src1 == nullptr || !ggml_is_quantized(src1->type))));  // NOLINT
+     GGML_ASSERT(dst->buffer != nullptr);
+     const uint64_t ne00 = src0->ne[0];
+@@ -9386,11 +9387,11 @@
+     }
+ 
+     if (pipeline == nullptr) {
+-        std::cerr << "ggml_vulkan: Error: Missing op: " << ggml_op_name(op) << " for " << ggml_type_name(src0->type);
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Error: Missing op: " << ggml_op_name(op) << " for " << ggml_type_name(src0->type);
+         if (src1 != nullptr) {
+-            std::cerr << " and " << ggml_type_name(src1->type);
+-        }
+-        std::cerr << " to " << ggml_type_name(dst->type) << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " and " << ggml_type_name(src1->type);
++        }
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " to " << ggml_type_name(dst->type) << std::endl;
+         GGML_ABORT("fatal error");
+     }
+ 
+@@ -9839,7 +9840,7 @@
+     vk_pipeline pipeline = ggml_vk_op_get_pipeline(ctx, tensors[0], tensors[1], nullptr, dst, dst->op);
+ 
+     if (pipeline == nullptr) {
+-        std::cerr << "ggml_vulkan: Error: Missing multi_add";
++        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Error: Missing multi_add";
+         GGML_ABORT("fatal error");
+     }
+ 
+@@ -12088,44 +12089,44 @@
+         ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 0);
+         ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 1);
+         ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 2);
+-        std::cerr << '\n';
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << '\n';
+         ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 2, 0);
+         ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 2, 1);
+         ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 2, 2);
+-        std::cerr << '\n';
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << '\n';
+         ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 4, 0);
+         ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 4, 1);
+         ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 4, 2);
+-        std::cerr << '\n' << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << '\n' << std::endl;
+ 
+         if (vals[i + 2] % 32 == 0) {
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 0, GGML_TYPE_Q4_0);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 1, GGML_TYPE_Q4_0);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 2, GGML_TYPE_Q4_0);
+-            std::cerr << '\n';
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << '\n';
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 2, 0, GGML_TYPE_Q4_0);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 2, 1, GGML_TYPE_Q4_0);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 2, 2, GGML_TYPE_Q4_0);
+-            std::cerr << '\n';
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << '\n';
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 4, 0, GGML_TYPE_Q4_0);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 4, 1, GGML_TYPE_Q4_0);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 4, 2, GGML_TYPE_Q4_0);
+-            std::cerr << '\n' << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << '\n' << std::endl;
+         }
+ 
+         if (vals[i + 2] % 256 == 0) {
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 0, GGML_TYPE_Q4_K);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 1, GGML_TYPE_Q4_K);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 2, GGML_TYPE_Q4_K);
+-            std::cerr << '\n';
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << '\n';
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 2, 0, GGML_TYPE_Q4_K);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 2, 1, GGML_TYPE_Q4_K);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 2, 2, GGML_TYPE_Q4_K);
+-            std::cerr << '\n';
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << '\n';
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 4, 0, GGML_TYPE_Q4_K);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 4, 1, GGML_TYPE_Q4_K);
+             ggml_vk_test_dequant_matmul(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 4, 2, GGML_TYPE_Q4_K);
+-            std::cerr << '\n' << std::endl;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << '\n' << std::endl;
+         }
+     }
+ 
+@@ -12275,7 +12276,7 @@
+ 
+         if (need_sync) {
+             if (vk_enable_sync_logger) {
+-                std::cerr <<  "sync" << std::endl;
++                ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() <<  "sync" << std::endl;
+             }
+             ctx->unsynced_nodes_written.clear();
+             ctx->unsynced_nodes_read.clear();
+@@ -12305,15 +12306,15 @@
+     if (vk_enable_sync_logger) {
+         for (int i = 0; i < ctx->num_additional_fused_ops + 1; ++i) {
+             auto *n = cgraph->nodes[node_idx + i];
+-            std::cerr << node_idx + i << " " << ggml_op_name(n->op) << " " <<  n->name;
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << node_idx + i << " " << ggml_op_name(n->op) << " " <<  n->name;
+             if (n->op == GGML_OP_GLU) {
+-                std::cerr << " " << ggml_glu_op_name(ggml_get_glu_op(n)) << " " << (n->src[1] ? "split" : "single") << " ";
++                ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " " << ggml_glu_op_name(ggml_get_glu_op(n)) << " " << (n->src[1] ? "split" : "single") << " ";
+             }
+             if (n->op == GGML_OP_ROPE) {
+                 const int mode = ((const int32_t *) n->op_params)[2];
+-                std::cerr << " rope mode: " << mode;
+-            }
+-            std::cerr << std::endl;
++                ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " rope mode: " << mode;
++            }
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
+         }
+     }
+ 
+@@ -16246,7 +16247,7 @@
+         }
+     }
+ 
+-    std::cerr << "ggml_vulkan: WARNING: Validation layer or layer extension VK_EXT_layer_settings not found." << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_WARN}.stream() << "ggml_vulkan: WARNING: Validation layer or layer extension VK_EXT_layer_settings not found." << std::endl;
+ #endif
+     return false;
+ }
+@@ -16259,7 +16260,7 @@
+             return true;
+         }
+     }
+-    std::cerr << "ggml_vulkan: WARNING: Instance extension VK_KHR_portability_enumeration not found." << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_WARN}.stream() << "ggml_vulkan: WARNING: Instance extension VK_KHR_portability_enumeration not found." << std::endl;
+ #endif
+     return false;
+ 
+@@ -16275,7 +16276,7 @@
+         }
+     }
+ 
+-    std::cerr << "ggml_vulkan: WARNING: Instance extension VK_EXT_debug_utils not found." << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_WARN}.stream() << "ggml_vulkan: WARNING: Instance extension VK_EXT_debug_utils not found." << std::endl;
+     return false;
+ 
+     UNUSED(instance_extensions);
+@@ -16456,13 +16457,13 @@
+     }
+     print_count = 0;
+     uint64_t total_all_op_times = 0;
+-    std::cerr << "----------------\nVulkan Timings:" << std::endl;
++    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "----------------\nVulkan Timings:" << std::endl;
+     for (const auto & t : timings) {
+         uint64_t total_op_times = 0;
+         for (const auto & time : t.second) {
+             total_op_times += time;
+         }
+-        std::cerr << t.first << ": " << t.second.size() << " x " << (total_op_times / t.second.size() / 1000.0)
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << t.first << ": " << t.second.size() << " x " << (total_op_times / t.second.size() / 1000.0)
+                   << " us = " << (total_op_times / 1000.0) << " us";
+ 
+         // If we have as many flops entries as timing entries for the op, then compute and log the flops/S.
+@@ -16472,7 +16473,7 @@
+             for (const auto & elem : it->second) {
+                 total_op_flops += elem;
+             }
+-            std::cerr << " ("
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " ("
+                       << (double(total_op_flops) / (1000.0 * 1000.0 * 1000.0)) /
+                              (double(total_op_times) / (1000.0 * 1000.0 * 1000.0))
+                       << " GFLOPS/s)";
+@@ -16480,11 +16481,11 @@
+ 
+         total_all_op_times += total_op_times;
+ 
+-        std::cerr << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
+     }
+ 
+     if (timings.size() > 0) {
+-        std::cerr << "Total time: " << total_all_op_times / 1000.0 << " us." << std::endl;
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Total time: " << total_all_op_times / 1000.0 << " us." << std::endl;
+     }
+ 
+     timings.clear();
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -2,6 +2,7 @@
+ #define _USE_MATH_DEFINES // For M_PI on MSVC
+ 
+ #include "ggml-version.h"
++#include "ggml-library-log.h"
+ #include "ggml-backend.h"
+ #include "ggml-impl.h"
+ #include "ggml-log-scope.h"
+@@ -80,171 +81,25 @@
+ #endif // defined(_MSC_VER)
+ #endif // defined(__AVX512BF16__)
+ 
+-#if defined(__linux__) || \
+-    defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
+-    (defined(__APPLE__) && !TARGET_OS_TV && !TARGET_OS_WATCH)
+-
+-#include <unistd.h>
+-#include <sys/types.h>
+-#include <sys/stat.h>
+-#include <sys/wait.h>
+-#if defined(__linux__)
+-#include <sys/prctl.h>
+-#endif
+-
+-#if defined(__ANDROID__)
++// Log bounded instruction addresses using the existing compiler runtime.
++// No debugger process, symbol-loader introspection or shared unwind library.
+ #include <unwind.h>
+-#include <dlfcn.h>
+-#include <stdio.h>
+-
+-struct backtrace_state {
+-    void ** current;
+-    void ** end;
+-};
+-
+-static _Unwind_Reason_Code unwind_callback(struct _Unwind_Context* context, void* arg) {
+-    struct backtrace_state * state = (struct backtrace_state *)arg;
+-    uintptr_t pc = _Unwind_GetIP(context);
+-    if (pc) {
+-        if (state->current == state->end) {
+-            return _URC_END_OF_STACK;
+-        } else {
+-            *state->current++ = (void*)pc;
+-        }
+-    }
++static _Unwind_Reason_Code ggml_log_frame(struct _Unwind_Context *frame, void *data) {
++    unsigned *count = (unsigned *)data;
++    if (*count == 64) return _URC_END_OF_STACK;
++    const uintptr_t ip = _Unwind_GetIP(frame);
++    if (ip) ggml_log_internal(GGML_LOG_LEVEL_ERROR, "#%u %p\n", (*count)++, (void *)ip);
+     return _URC_NO_REASON;
+ }
+-
+-static void ggml_print_backtrace_symbols(void) {
+-    const int max = 100;
+-    void* buffer[max];
+-
+-    struct backtrace_state state = {buffer, buffer + max};
+-    _Unwind_Backtrace(unwind_callback, &state);
+-
+-    int count = state.current - buffer;
+-
+-    for (int idx = 0; idx < count; ++idx) {
+-        const void * addr = buffer[idx];
+-        const char * symbol = "";
+-
+-        Dl_info info;
+-        if (dladdr(addr, &info) && info.dli_sname) {
+-            symbol = info.dli_sname;
+-        }
+-
+-        fprintf(stderr, "%d: %p %s\n", idx, addr, symbol);
+-    }
+-}
+-#elif defined(__linux__) && defined(__GLIBC__)
+-#include <execinfo.h>
+-static void ggml_print_backtrace_symbols(void) {
+-    void * trace[100];
+-    int nptrs = backtrace(trace, sizeof(trace)/sizeof(trace[0]));
+-    backtrace_symbols_fd(trace, nptrs, STDERR_FILENO);
+-}
+-#elif defined(__APPLE__)
+-#include <execinfo.h>
+-static void ggml_print_backtrace_symbols(void) {
+-    void * trace[100];
+-    int nptrs = backtrace(trace, sizeof(trace)/sizeof(trace[0]));
+-    backtrace_symbols_fd(trace, nptrs, STDERR_FILENO);
+-}
+-#else
+-static void ggml_print_backtrace_symbols(void) {
+-    // platform not supported
+-}
+-#endif
+-
+ void ggml_print_backtrace(void) {
+-    const char * GGML_NO_BACKTRACE = getenv("GGML_NO_BACKTRACE");
+-    if (GGML_NO_BACKTRACE) {
+-        return;
+-    }
+-#if defined(__APPLE__)
+-    // On macOS, fork+debugger attachment is problematic due to:
+-    // 1. libdispatch "poisons" forked child processes
+-    // 2. lldb has issues attaching to parent from forked child
+-    // Use simple backtrace() instead to avoid Terminal.app crashes
+-    const char * GGML_BACKTRACE_LLDB = getenv("GGML_BACKTRACE_LLDB");
+-    if (!GGML_BACKTRACE_LLDB) {
+-        fprintf(stderr, "WARNING: Using native backtrace. Set GGML_BACKTRACE_LLDB for more info.\n");
+-        fprintf(stderr, "WARNING: GGML_BACKTRACE_LLDB may cause native MacOS Terminal.app to crash.\n");
+-        fprintf(stderr, "See: https://github.com/ggml-org/llama.cpp/pull/17869\n");
+-        ggml_print_backtrace_symbols();
+-        return;
+-    }
+-#endif
+-#if defined(__linux__)
+-    FILE * f = fopen("/proc/self/status", "r");
+-    size_t size = 0;
+-    char * line = NULL;
+-    ssize_t length = 0;
+-    while ((length = getline(&line, &size, f)) > 0) {
+-        if (!strncmp(line, "TracerPid:", sizeof("TracerPid:") - 1) &&
+-            (length != sizeof("TracerPid:\t0\n") - 1 || line[length - 2] != '0')) {
+-            // Already being debugged, and the breakpoint is the later abort()
+-            free(line);
+-            fclose(f);
+-            return;
+-        }
+-    }
+-    free(line);
+-    fclose(f);
+-    int lock[2] = { -1, -1 };
+-    (void) !pipe(lock); // Don't start gdb until after PR_SET_PTRACER
+-#endif
+-    const int parent_pid = getpid();
+-    const int child_pid = fork();
+-    if (child_pid < 0) { // error
+-#if defined(__linux__)
+-        close(lock[1]);
+-        close(lock[0]);
+-#endif
+-        return;
+-    } else if (child_pid == 0) { // child
+-        char attach[32];
+-        snprintf(attach, sizeof(attach), "attach %d", parent_pid);
+-#if defined(__linux__)
+-        close(lock[1]);
+-        (void) !read(lock[0], lock, 1);
+-        close(lock[0]);
+-#endif
+-        // try gdb
+-        execlp("gdb", "gdb", "--batch",
+-            "-ex", "set style enabled on",
+-            "-ex", attach,
+-            "-ex", "bt -frame-info source-and-location",
+-            "-ex", "detach",
+-            "-ex", "quit",
+-            (char *) NULL);
+-        // try lldb
+-        execlp("lldb", "lldb", "--batch",
+-            "-o", "bt",
+-            "-o", "quit",
+-            "-p", &attach[sizeof("attach ") - 1],
+-            (char *) NULL);
+-        // gdb failed, fallback to backtrace_symbols
+-        ggml_print_backtrace_symbols();
+-        _Exit(0);
+-    } else { // parent
+-#if defined(__linux__)
+-        prctl(PR_SET_PTRACER, child_pid);
+-        close(lock[1]);
+-        close(lock[0]);
+-#endif
+-        waitpid(child_pid, NULL, 0);
+-    }
+-}
+-#else
+-void ggml_print_backtrace(void) {
+-    // platform not supported
+-}
+-#endif
++    if (getenv("GGML_NO_BACKTRACE")) return;
++    unsigned count = 0;
++    _Unwind_Backtrace(ggml_log_frame, &count);
++}
+ 
+ static ggml_abort_callback_t g_abort_callback = NULL;
+ 
+-// Set the abort callback (passing null will restore original abort functionality: printing a message to stdout)
++// A NULL abort callback restores logger-based diagnostics followed by abort().
+ GGML_API ggml_abort_callback_t ggml_set_abort_callback(ggml_abort_callback_t callback) {
+     ggml_abort_callback_t ret_val = g_abort_callback;
+     g_abort_callback = callback;
+@@ -252,7 +107,6 @@
+ }
+ 
+ void ggml_abort(const char * file, int line, const char * fmt, ...) {
+-    fflush(stdout);
+ 
+     char message[2048];
+     int offset = snprintf(message, sizeof(message), "%s:%d: ", file, line);
+@@ -265,8 +119,8 @@
+     if (g_abort_callback) {
+         g_abort_callback(message);
+     } else {
+-        // default: print error and backtrace to stderr
+-        fprintf(stderr, "%s\n", message);
++        // Default: log the error and bounded backtrace, then abort.
++        ggml_log_internal(GGML_LOG_LEVEL_ERROR, "%s\n", message);
+         ggml_print_backtrace();
+     }
+ 
+@@ -320,8 +174,42 @@
+ void ggml_log_callback_default(enum ggml_log_level level, const char * text, void * user_data) {
+     (void) level;
+     (void) user_data;
+-    fputs(text, stderr);
+-    fflush(stderr);
++    (void) text; // Library default is silent; explicit logging hooks are retained.
++}
++
++int ggml_log_fprintf(enum ggml_log_level level, FILE *stream, const char *format, ...) {
++    va_list args;
++    va_start(args, format);
++    int result;
++    if (stream != stdout && stream != stderr) {
++        result = vfprintf(stream, format, args);
++    } else {
++        va_list count;
++        va_copy(count, args);
++        result = vsnprintf(NULL, 0, format, count);
++        va_end(count);
++        if (result >= 0) ggml_log_internal_v(level, format, args);
++    }
++    va_end(args);
++    return result;
++}
++int ggml_log_printf(enum ggml_log_level level, const char *format, ...) {
++    va_list args, count;
++    va_start(args, format);
++    va_copy(count, args);
++    const int result = vsnprintf(NULL, 0, format, count);
++    va_end(count);
++    if (result >= 0) ggml_log_internal_v(level, format, args);
++    va_end(args);
++    return result;
++}
++// Private bridge for the built-in Mesa drivers and Vulkan loader. Driver
++// severities are 0=error, 1=warning, 2=routine detail (trace).
++void ggml_library_driver_log(int level, const char *component, const char *format, va_list args) {
++    const enum ggml_log_level mapped = level == 0 ? GGML_LOG_LEVEL_ERROR :
++                                      level == 1 ? GGML_LOG_LEVEL_WARN : GGML_LOG_LEVEL_TRACE;
++    ggml_log_internal(mapped, "%s: ", component);
++    ggml_log_internal_v(GGML_LOG_LEVEL_CONT, format, args);
+ }
+ 
+ //
+@@ -7206,7 +7094,7 @@
+                     }
+                 } break;
+                 default: {
+-                    fprintf(stderr, "%s: unsupported unary op for backward pass: %s\n",
++                    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "%s: unsupported unary op for backward pass: %s\n",
+                         __func__, ggml_unary_op_name(ggml_get_unary_op(tensor)));
+                     GGML_ABORT("fatal error");
+                 } //break;
+@@ -7862,7 +7750,7 @@
+ static void ggml_graph_dump_dot_node_edge(FILE * fp, const struct ggml_cgraph * gb, struct ggml_tensor * node, struct ggml_tensor * parent, const char * label)  {
+     struct ggml_tensor * gparent = ggml_graph_get_parent(gb, node);
+     struct ggml_tensor * gparent0 = ggml_graph_get_parent(gb, parent);
+-    fprintf(fp, "  \"%p\" -> \"%p\" [ arrowhead = %s; style = %s; label = \"%s\"; ]\n",
++    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "  \"%p\" -> \"%p\" [ arrowhead = %s; style = %s; label = \"%s\"; ]\n",
+             gparent0 ? (void *) gparent0 : (void *) parent,
+             gparent ? (void *) gparent : (void *) node,
+             gparent ? "empty" : "vee",
+@@ -7871,7 +7759,7 @@
+ }
+ 
+ static void ggml_graph_dump_dot_leaf_edge(FILE * fp, struct ggml_tensor * node, struct ggml_tensor * parent, const char * label)  {
+-    fprintf(fp, "  \"%p\" -> \"%p\" [ label = \"%s\"; ]\n",
++    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "  \"%p\" -> \"%p\" [ label = \"%s\"; ]\n",
+             (void *) parent,
+             (void *) node,
+             label);
+@@ -7883,9 +7771,9 @@
+     FILE * fp = ggml_fopen(filename, "w");
+     GGML_ASSERT(fp);
+ 
+-    fprintf(fp, "digraph G {\n");
+-    fprintf(fp, "  newrank = true;\n");
+-    fprintf(fp, "  rankdir = TB;\n");
++    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "digraph G {\n");
++    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "  newrank = true;\n");
++    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "  rankdir = TB;\n");
+ 
+     for (int i = 0; i < gb->n_nodes; i++) {
+         struct ggml_tensor * node = gb->nodes[i];
+@@ -7907,27 +7795,27 @@
+             snprintf(color, sizeof(color), "white");
+         }
+ 
+-        fprintf(fp, "  \"%p\" [ "
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "  \"%p\" [ "
+                     "style = filled; fillcolor = %s; shape = record; "
+                     "label=\"",
+                 (void *) node, color);
+ 
+         if (strlen(node->name) > 0) {
+-            fprintf(fp, "%s (%s)|", node->name, ggml_type_name(node->type));
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "%s (%s)|", node->name, ggml_type_name(node->type));
+         } else {
+-            fprintf(fp, "(%s)|", ggml_type_name(node->type));
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "(%s)|", ggml_type_name(node->type));
+         }
+ 
+         if (ggml_is_matrix(node)) {
+-            fprintf(fp, "%d [%" PRId64 ", %" PRId64 "] | <x>%s", i, node->ne[0], node->ne[1], ggml_op_symbol(node->op));
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "%d [%" PRId64 ", %" PRId64 "] | <x>%s", i, node->ne[0], node->ne[1], ggml_op_symbol(node->op));
+         } else {
+-            fprintf(fp, "%d [%" PRId64 ", %" PRId64 ", %" PRId64 "] | <x>%s", i, node->ne[0], node->ne[1], node->ne[2], ggml_op_symbol(node->op));
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "%d [%" PRId64 ", %" PRId64 ", %" PRId64 "] | <x>%s", i, node->ne[0], node->ne[1], node->ne[2], ggml_op_symbol(node->op));
+         }
+ 
+         if (grad) {
+-            fprintf(fp, " | <g>%s\"; ]\n", ggml_op_symbol(grad->op));
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, " | <g>%s\"; ]\n", ggml_op_symbol(grad->op));
+         } else {
+-            fprintf(fp, "\"; ]\n");
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "\"; ]\n");
+         }
+     }
+ 
+@@ -7936,20 +7824,20 @@
+ 
+         snprintf(color, sizeof(color), "pink");
+ 
+-        fprintf(fp, "  \"%p\" [ "
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "  \"%p\" [ "
+                     "style = filled; fillcolor = %s; shape = record; "
+                     "label=\"<x>",
+                 (void *) node, color);
+ 
+         if (strlen(node->name) > 0) {
+-            fprintf(fp, "%s (%s)|", node->name, ggml_type_name(node->type));
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "%s (%s)|", node->name, ggml_type_name(node->type));
+         } else {
+-            fprintf(fp, "(%s)|", ggml_type_name(node->type));
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "(%s)|", ggml_type_name(node->type));
+         }
+ 
+-        fprintf(fp, "CONST %d [%" PRId64 ", %" PRId64 "]", i, node->ne[0], node->ne[1]);
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "CONST %d [%" PRId64 ", %" PRId64 "]", i, node->ne[0], node->ne[1]);
+         if (ggml_nelements(node) < 5 && node->data != NULL) {
+-            fprintf(fp, " | (");
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, " | (");
+             for (int j = 0; j < ggml_nelements(node); j++) {
+                 // FIXME: use ggml-backend to obtain the tensor data
+                 //if (node->type == GGML_TYPE_I8 || node->type == GGML_TYPE_I16 || node->type == GGML_TYPE_I32) {
+@@ -7962,15 +7850,15 @@
+                 //}
+                 //else
+                 {
+-                    fprintf(fp, "#");
++                    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "#");
+                 }
+                 if (j < ggml_nelements(node) - 1) {
+-                    fprintf(fp, ", ");
++                    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, ", ");
+                 }
+             }
+-            fprintf(fp, ")");
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, ")");
+         }
+-        fprintf(fp, "\"; ]\n");
++        ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "\"; ]\n");
+     }
+ 
+     for (int i = 0; i < gb->n_nodes; i++) {
+@@ -7997,7 +7885,7 @@
+         }
+     }
+ 
+-    fprintf(fp, "}\n");
++    ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, fp, "}\n");
+ 
+     fclose(fp);
+ 
+--- a/src/llama-grammar.cpp
++++ b/src/llama-grammar.cpp
+@@ -1,4 +1,5 @@
+ #include "llama-grammar.h"
++#include "../ggml/src/ggml-library-log.h"
+ 
+ #include "llama-impl.h"
+ #include "llama-vocab.h"
+@@ -235,10 +236,10 @@
+ 
+ static void print_grammar_char(FILE * file, uint32_t c) {
+     if (0x20 <= c && c <= 0x7f) {
+-        fprintf(file, "%c", static_cast<char>(c));
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "%c", static_cast<char>(c));
+     } else {
+         // cop out of encoding UTF-8
+-        fprintf(file, "<U+%04X>", c);
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "<U+%04X>", c);
+     }
+ }
+ 
+@@ -256,46 +257,46 @@
+ static void print_rule_binary(FILE * file, const llama_grammar_rule & rule) {
+     for (auto elem : rule) {
+         switch (elem.type) {
+-            case LLAMA_GRETYPE_END:            fprintf(file, "END");            break;
+-            case LLAMA_GRETYPE_ALT:            fprintf(file, "ALT");            break;
+-            case LLAMA_GRETYPE_RULE_REF:       fprintf(file, "RULE_REF");       break;
+-            case LLAMA_GRETYPE_CHAR:           fprintf(file, "CHAR");           break;
+-            case LLAMA_GRETYPE_CHAR_NOT:       fprintf(file, "CHAR_NOT");       break;
+-            case LLAMA_GRETYPE_CHAR_RNG_UPPER: fprintf(file, "CHAR_RNG_UPPER"); break;
+-            case LLAMA_GRETYPE_CHAR_ALT:       fprintf(file, "CHAR_ALT");       break;
+-            case LLAMA_GRETYPE_CHAR_ANY:       fprintf(file, "CHAR_ANY");       break;
+-            case LLAMA_GRETYPE_TOKEN:          fprintf(file, "TOKEN");          break;
+-            case LLAMA_GRETYPE_TOKEN_NOT:      fprintf(file, "TOKEN_NOT");      break;
++            case LLAMA_GRETYPE_END:            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "END");            break;
++            case LLAMA_GRETYPE_ALT:            ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "ALT");            break;
++            case LLAMA_GRETYPE_RULE_REF:       ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "RULE_REF");       break;
++            case LLAMA_GRETYPE_CHAR:           ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "CHAR");           break;
++            case LLAMA_GRETYPE_CHAR_NOT:       ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "CHAR_NOT");       break;
++            case LLAMA_GRETYPE_CHAR_RNG_UPPER: ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "CHAR_RNG_UPPER"); break;
++            case LLAMA_GRETYPE_CHAR_ALT:       ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "CHAR_ALT");       break;
++            case LLAMA_GRETYPE_CHAR_ANY:       ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "CHAR_ANY");       break;
++            case LLAMA_GRETYPE_TOKEN:          ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "TOKEN");          break;
++            case LLAMA_GRETYPE_TOKEN_NOT:      ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "TOKEN_NOT");      break;
+         }
+         switch (elem.type) {
+             case LLAMA_GRETYPE_END:
+             case LLAMA_GRETYPE_ALT:
+             case LLAMA_GRETYPE_RULE_REF:
+-                fprintf(file, "(%u) ", elem.value);
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "(%u) ", elem.value);
+                 break;
+             case LLAMA_GRETYPE_CHAR:
+             case LLAMA_GRETYPE_CHAR_NOT:
+             case LLAMA_GRETYPE_CHAR_RNG_UPPER:
+             case LLAMA_GRETYPE_CHAR_ALT:
+             case LLAMA_GRETYPE_CHAR_ANY:
+-                fprintf(file, "(\"");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "(\"");
+                 print_grammar_char(file, elem.value);
+-                fprintf(file, "\") ");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "\") ");
+                 break;
+             case LLAMA_GRETYPE_TOKEN:
+-                fprintf(file, "<[");
+-                fprintf(file, "%u", elem.value);
+-                fprintf(file, "]> ");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "<[");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "%u", elem.value);
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "]> ");
+                 break;
+             case LLAMA_GRETYPE_TOKEN_NOT:
+-                fprintf(file, "!");
+-                fprintf(file, "<[");
+-                fprintf(file, "%u", elem.value);
+-                fprintf(file, "]> ");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "!");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "<[");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "%u", elem.value);
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "]> ");
+                 break;
+         }
+     }
+-    fprintf(file, "\n");
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "\n");
+ }
+ 
+ static void print_rule(
+@@ -307,7 +308,7 @@
+         throw std::runtime_error(
+             "malformed rule, does not end with LLAMA_GRETYPE_END: " + std::to_string(rule_id));
+     }
+-    fprintf(file, "%s ::= ", symbol_id_names.at(rule_id).c_str());
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "%s ::= ", symbol_id_names.at(rule_id).c_str());
+     for (size_t i = 0, end = rule.size() - 1; i < end; i++) {
+         llama_grammar_element elem = rule[i];
+         switch (elem.type) {
+@@ -316,17 +317,17 @@
+                     "unexpected end of rule: " + std::to_string(rule_id) + "," +
+                     std::to_string(i));
+             case LLAMA_GRETYPE_ALT:
+-                fprintf(file, "| ");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "| ");
+                 break;
+             case LLAMA_GRETYPE_RULE_REF:
+-                fprintf(file, "%s ", symbol_id_names.at(elem.value).c_str());
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "%s ", symbol_id_names.at(elem.value).c_str());
+                 break;
+             case LLAMA_GRETYPE_CHAR:
+-                fprintf(file, "[");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "[");
+                 print_grammar_char(file, elem.value);
+                 break;
+             case LLAMA_GRETYPE_CHAR_NOT:
+-                fprintf(file, "[^");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "[^");
+                 print_grammar_char(file, elem.value);
+                 break;
+             case LLAMA_GRETYPE_CHAR_RNG_UPPER:
+@@ -335,7 +336,7 @@
+                         "LLAMA_GRETYPE_CHAR_RNG_UPPER without preceding char: " +
+                         std::to_string(rule_id) + "," + std::to_string(i));
+                 }
+-                fprintf(file, "-");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "-");
+                 print_grammar_char(file, elem.value);
+                 break;
+             case LLAMA_GRETYPE_CHAR_ALT:
+@@ -347,18 +348,18 @@
+                 print_grammar_char(file, elem.value);
+                 break;
+             case LLAMA_GRETYPE_CHAR_ANY:
+-                fprintf(file, ".");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, ".");
+                 break;
+             case LLAMA_GRETYPE_TOKEN:
+-                fprintf(file, "<[");
+-                fprintf(file, "%u", elem.value);
+-                fprintf(file, "]> ");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "<[");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "%u", elem.value);
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "]> ");
+                 break;
+             case LLAMA_GRETYPE_TOKEN_NOT:
+-                fprintf(file, "!");
+-                fprintf(file, "<[");
+-                fprintf(file, "%u", elem.value);
+-                fprintf(file, "]> ");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "!");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "<[");
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "%u", elem.value);
++                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "]> ");
+                 break;
+         }
+         if (is_char_element(elem)) {
+@@ -368,11 +369,11 @@
+                 case LLAMA_GRETYPE_CHAR_ANY:
+                     break;
+                 default:
+-                    fprintf(file, "] ");
+-            }
+-        }
+-    }
+-    fprintf(file, "\n");
++                    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "] ");
++            }
++        }
++    }
++    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "\n");
+ }
+ 
+ //
+@@ -717,7 +718,7 @@
+             }
+         }
+     } catch (const std::exception & err) {
+-        fprintf(stderr, "%s: error parsing grammar: %s\n\n%s\n", __func__, err.what(), src);
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%s: error parsing grammar: %s\n\n%s\n", __func__, err.what(), src);
+         rules.clear();
+         return false;
+     }
+@@ -738,7 +739,7 @@
+             // fprintf(file, "\n");
+         }
+     } catch (const std::exception & err) {
+-        fprintf(stderr, "\n%s: error printing grammar: %s\n", __func__, err.what());
++        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n%s: error printing grammar: %s\n", __func__, err.what());
+     }
+ }
+ 
+--- a/src/llama-impl.cpp
++++ b/src/llama-impl.cpp
+@@ -3,6 +3,7 @@
+ #include "llama-mmap.h"
+ 
+ #include "ggml-backend.h"
++#include "../ggml/src/ggml-library-log.h"
+ #include "gguf.h"
+ #include "llama.h"
+ 
+@@ -89,8 +90,7 @@
+ void llama_log_callback_default(ggml_log_level level, const char * text, void * user_data) {
+     (void) level;
+     (void) user_data;
+-    fputs(text, stderr);
+-    fflush(stderr);
++    (void) text; // Library default is silent; explicit hooks remain available.
+ }
+ 
+ void llama_clear_tensor_data(ggml_tensor * t, size_t offset, size_t size) {
+--- a/src/llama-quant.cpp
++++ b/src/llama-quant.cpp
+@@ -1,4 +1,5 @@
+ #include "llama-impl.h"
++#include "../ggml/src/ggml-library-log.h"
+ #include "llama-model.h"
+ #include "llama-model-loader.h"
+ #include "llama-ext.h"
+@@ -1308,7 +1309,6 @@
+                 }
+ 
+                 LLAMA_LOG_INFO("converting to %s .. ", ggml_type_name(new_type));
+-                fflush(stdout);
+ 
+                 const int64_t n_per_row = tensor->ne[0];
+                 const int64_t nrows_per_expert = tensor->ne[1];
+--- a/src/unicode.cpp
++++ b/src/unicode.cpp
+@@ -1,4 +1,5 @@
+ #include "unicode.h"
++#include "../ggml/src/ggml-library-log.h"
+ #include "unicode-data.h"
+ 
+ #include <algorithm>
+@@ -1382,8 +1383,8 @@
+                 bpe_offsets = unicode_regex_split_stl(wtext, wregex_expr, bpe_offsets);
+             }
+         } catch (std::regex_error & e) {
+-            fprintf(stderr, "Failed to process regex: '%s'\n", regex_expr.c_str());
+-            fprintf(stderr, "Regex error: %s\n", e.what());
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "Failed to process regex: '%s'\n", regex_expr.c_str());
++            ggml_log_fprintf(GGML_LOG_LEVEL_ERROR, stderr, "Regex error: %s\n", e.what());
+             throw std::runtime_error("Failed to process regex");
+         }
+     }
+--- a/tools/mtmd/clip-impl.h
++++ b/tools/mtmd/clip-impl.h
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include "ggml.h"
++#include "../../ggml/src/ggml-library-log.h"
+ #include "gguf.h"
+ #include "clip.h"
+ 
+@@ -807,8 +808,7 @@
+ static void clip_log_callback_default(enum ggml_log_level level, const char * text, void * user_data) {
+     (void) level;
+     (void) user_data;
+-    fputs(text, stderr);
+-    fflush(stderr);
++    ggml_log_internal(level, "%s", text);
+ }
+ 
+ struct clip_logger_state {
+@@ -1021,14 +1021,14 @@
+ //
+ 
+ static void print_tensor_shape(ggml_tensor * t) {
+-    printf("%s.shape = [", t->name);
++    ggml_log_printf(GGML_LOG_LEVEL_TRACE, "%s.shape = [", t->name);
+     for (int i = 0; i < ggml_n_dims(t); ++i) {
+-        printf("%" PRId64, t->ne[i]);
++        ggml_log_printf(GGML_LOG_LEVEL_TRACE, "%" PRId64, t->ne[i]);
+         if (i < ggml_n_dims(t) - 1) {
+-            printf(", ");
+-        }
+-    }
+-    printf("]\n");
++            ggml_log_printf(GGML_LOG_LEVEL_TRACE, ", ");
++        }
++    }
++    ggml_log_printf(GGML_LOG_LEVEL_TRACE, "]\n");
+ }
+ 
+ static void print_tensor_data(ggml_tensor * t, uint8_t * data, int64_t n) {
+@@ -1036,22 +1036,22 @@
+     int64_t * ne = t->ne;
+     size_t * nb = t->nb;
+     for (int64_t i3 = 0; i3 < ne[3]; i3++) {
+-        printf("%s.data: [\n", t->name);
++        ggml_log_printf(GGML_LOG_LEVEL_TRACE, "%s.data: [\n", t->name);
+         for (int64_t i2 = 0; i2 < ne[2]; i2++) {
+             if (i2 == n && ne[2] > 2*n) {
+-                printf("     ..., \n");
++                ggml_log_printf(GGML_LOG_LEVEL_TRACE, "     ..., \n");
+                 i2 = ne[2] - n;
+             }
+-            printf("     [\n");
++            ggml_log_printf(GGML_LOG_LEVEL_TRACE, "     [\n");
+             for (int64_t i1 = 0; i1 < ne[1]; i1++) {
+                 if (i1 == n && ne[1] > 2*n) {
+-                    printf("      ..., \n");
++                    ggml_log_printf(GGML_LOG_LEVEL_TRACE, "      ..., \n");
+                     i1 = ne[1] - n;
+                 }
+-                printf("      [");
++                ggml_log_printf(GGML_LOG_LEVEL_TRACE, "      [");
+                 for (int64_t i0 = 0; i0 < ne[0]; i0++) {
+                     if (i0 == n && ne[0] > 2*n) {
+-                        printf("..., ");
++                        ggml_log_printf(GGML_LOG_LEVEL_TRACE, "..., ");
+                         i0 = ne[0] - n;
+                     }
+                     size_t i = i3 * nb[3] + i2 * nb[2] + i1 * nb[1] + i0 * nb[0];
+@@ -1069,14 +1069,14 @@
+                     } else {
+                         GGML_ABORT("fatal error");
+                     }
+-                    printf("%8.4f", v);
+-                    if (i0 < ne[0] - 1) printf(", ");
++                    ggml_log_printf(GGML_LOG_LEVEL_TRACE, "%8.4f", v);
++                    if (i0 < ne[0] - 1) ggml_log_printf(GGML_LOG_LEVEL_TRACE, ", ");
+                 }
+-                printf("],\n");
++                ggml_log_printf(GGML_LOG_LEVEL_TRACE, "],\n");
+             }
+-            printf("     ],\n");
+-        }
+-        printf("    ]\n");
++            ggml_log_printf(GGML_LOG_LEVEL_TRACE, "     ],\n");
++        }
++        ggml_log_printf(GGML_LOG_LEVEL_TRACE, "    ]\n");
+     }
+ }
+ 
+--- a/tools/mtmd/mtmd-audio.cpp
++++ b/tools/mtmd/mtmd-audio.cpp
+@@ -1,4 +1,5 @@
+ #include "mtmd-audio.h"
++#include "../../ggml/src/ggml-library-log.h"
+ 
+ #define _USE_MATH_DEFINES // for M_PI
+ #include <cmath>
+@@ -123,7 +124,7 @@
+     if (DEBUG) {  // debug
+         for (size_t i = 0; i < filters.data.size(); ++i) {
+             if (filters.data[i] != 0.0f) {
+-                printf("filters[%zu] = %f\n", i, filters.data[i] * 1000.0f);
++                ggml_log_printf(GGML_LOG_LEVEL_TRACE, "filters[%zu] = %f\n", i, filters.data[i] * 1000.0f);
+             }
+         }
+     }
+@@ -594,7 +595,7 @@
+     // because the cgraph in clip.cpp only accepts 3000 frames each, we need to split the mel
+     // we always expect the mel to have 3000 silent frames at the end
+     if (DEBUG) {
+-        printf("output: n_mel = %d, n_len = %d\n", (int) out_full.n_mel, (int) out_full.n_len);
++        ggml_log_printf(GGML_LOG_LEVEL_TRACE, "output: n_mel = %d, n_len = %d\n", (int) out_full.n_mel, (int) out_full.n_len);
+     }
+     const size_t frames_per_chunk = 3000;
+     GGML_ASSERT((size_t) out_full.n_len > frames_per_chunk);
+--- a/tools/mtmd/mtmd-helper-common.h
++++ b/tools/mtmd/mtmd-helper-common.h
+@@ -5,6 +5,7 @@
+ // NOT part of the public mtmd-helper.h API
+ 
+ #include "ggml.h"
++#include "../../ggml/src/ggml-library-log.h"
+ #include "llama.h"
+ #include "llama-cpp.h"
+ #include "mtmd.h"
+@@ -22,8 +23,7 @@
+     ggml_log_callback default_callback = [](ggml_log_level level, const char * text, void * user_data) {
+         (void) level;
+         (void) user_data;
+-        fputs(text, stderr);
+-        fflush(stderr);
++        ggml_log_internal(level, "%s", text);
+     };
+ 
+     ggml_log_callback log_callback = default_callback;

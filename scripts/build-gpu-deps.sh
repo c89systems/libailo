@@ -101,10 +101,13 @@ if [[ "$component" == mesa ]]; then
   cmake -E rm -rf "$prefix/share/vulkan/icd.d"
   exit
 fi
-patch_file="$root/vendor/libdrm/patches/0001-embed-marketing-names.patch"
-if ! patch --directory="$base/source" --dry-run --reverse --silent -p1 -i "$patch_file" >/dev/null 2>&1; then
-  patch --directory="$base/source" --batch --forward -p1 -i "$patch_file"
-fi
+while IFS= read -r name; do
+  [[ -n "$name" && "$name" != \#* ]] || continue
+  patch_file="$root/vendor/libdrm/patches/$name"
+  if ! patch --directory="$base/source" --dry-run --reverse --silent -p1 -i "$patch_file" >/dev/null 2>&1; then
+    patch --directory="$base/source" --batch --forward -p1 -i "$patch_file"
+  fi
+done < "$root/vendor/libdrm/patches/series"
 cmake -E copy_if_different "$root/cmake/AiloEmbedDrmIds.cmake" "$base/source/amdgpu/ailo_embed_ids.cmake"
 # Ambient host include/library paths must not enter target dependency discovery.
 configure=(setup)

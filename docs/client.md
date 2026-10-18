@@ -920,10 +920,20 @@ one record with phase and continuation fields, preserving streaming without
 accumulating a complete native log message. Continuations inherit the preceding
 level on that receiver/thread (info before any level). The private native patch
 propagates scopes into CPU graph workers and asynchronous tensor validation;
-process-global native setters remain untouched as fallback. Raw facade logging
-setters retain their native semantics. Shared device diagnostics without an
-active scope cannot be attributed to a receiver; high-level media inference is
-still unavailable and its separate raw hooks remain caller-controlled.
+process-global native setters remain available as an explicit fallback. Native
+defaults are silent when no logger is supplied; errors still return through the
+ordinary status/error surfaces. Raw facade logging setters retain their native
+semantics. Shared device diagnostics without an active scope cannot be attributed
+to a receiver. High-level media inference is still unavailable.
+
+The pinned llama/GGML, built-in Mesa RADV/ANV drivers, libdrm and Vulkan loader
+route host diagnostics through the native logging hook rather than stdout or
+stderr. Frequent Vulkan shader, pipeline, queue, allocation and operation detail
+uses TRACE; initialization summaries use INFO, recoverable issues WARN and
+failures ERROR. Explicit caller-directed file output is preserved. Fatal GGML
+errors still abort after invoking the configured abort callback or logging;
+backtraces use the logger without launching an external debugger. These private
+patches do not redirect the embedding process's standard streams.
 
 The [Lua facade](../lua/README.md) uses this same installed shared ABI and the
 public pslog Lua interop ABI1. Logger qualification/retention happens before

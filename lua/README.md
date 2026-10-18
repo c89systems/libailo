@@ -378,8 +378,11 @@ package.searchpath/loadlib facilities; private userdata layouts are never read.
 The logger stays retained even after the constructing coroutine is collected.
 Do not close borrowed files or explicitly close logger-owned outputs until the
 client is closed. Trace/debug/info/warn/error native records carry component,
-model_id, phase and continuation fields. Shared device diagnostics that cannot
-be attributed to a receiver use the existing process-global fallback.
+model_id, phase and continuation fields. Native defaults are silent without a
+logger, including llama/GGML and the built-in Vulkan driver stack. Routine
+Vulkan diagnostics use TRACE; warnings and failures retain WARN/ERROR severity.
+Shared device diagnostics without a receiver scope can use an explicitly
+configured native global hook. Errors remain available through returned values.
 
 Build with CMake 3.24+, the installed libailo/pslog SDKs, Lua 5.5.1 SDK CMake
 config, and the public pslog_lua.h interop header from lua-pslog 0.12.0. Supply

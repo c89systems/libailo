@@ -191,6 +191,9 @@ archive during preparation:
   add `GGML_LOG_LEVEL_TRACE = 6` without changing existing enum values.
 - Expose private Vulkan device identity to the receiver's placement controls.
 - Track the host shader compiler as a shader-generation dependency.
+- Route host diagnostics through the logging hooks, with silent native defaults
+  and frequent Vulkan details at TRACE; preserve returned errors and explicit
+  file output. Fatal GGML diagnostics use the logger without debugger subprocesses.
 
 The ownership patches address allocations observed by Valgrind during backend
 enumeration and CPU graph execution. The trace enum and private device-identity
@@ -200,8 +203,10 @@ operation remains covered.
 
 Mesa/libdrm patches embed required identity data and select the headless static
 profile. The Khronos loader patch fixes its providers to the linked RADV/ANV
-entrypoints and disables external driver/layer discovery. These private details
-do not expand the exported libailo C ABI.
+entrypoints and disables external driver/layer discovery. The driver stack's
+host diagnostics also use the scoped native logging bridge, preserving
+WARN/ERROR severity and assigning routine driver detail to TRACE. These private
+details do not expand the exported libailo C ABI.
 
 No HTTP server, Kore integration, release, tag or push is part of this work.
 
@@ -381,7 +386,8 @@ owned child. Native trace/debug/info/warn/error records are scoped per receiver,
 including CPU workers, without replacing global hooks or serializing independent
 clients. Borrowed output resources must live until receiver destruction. Prompt
 and generated text are not logged by the bridge. Unattributable shared device
-messages use the existing native global hook.
+messages can use an explicitly configured native global hook. Without a logger,
+native defaults are silent; errors remain available through returned values.
 
 `make lua-valgrind` runs the full CPU inference/ownership suite under Valgrind.
 The normal Lua test selection uses a separate model-free Pouch unload memory

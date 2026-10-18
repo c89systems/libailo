@@ -9,8 +9,16 @@ static void capture(const char *message) {
   std::fputs(captured, stderr);
   std::fputc('\n', stderr);
 }
+static void logged(ggml_log_level level, const char *message, void *) {
+  std::fprintf(stderr, "%s: %s",
+               level == GGML_LOG_LEVEL_ERROR ? "error" : "other", message);
+}
 
 int main(int argc, char **argv) {
+  if (argc == 2 && std::strcmp(argv[1], "--logged-abort") == 0) {
+    ggml_log_set(logged, nullptr);
+    ggml_abort("logger-test", 42, "logged-fatal");
+  }
   if (argc == 2 && std::strcmp(argv[1], "--native-abort") == 0) {
     ggml_set_abort_callback(capture);
     ggml_abort("parity-test", 41, "%03000d", 7);

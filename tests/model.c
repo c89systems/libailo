@@ -241,16 +241,41 @@ cleanup:
   return result;
 }
 
+/* The offload gate opts into diagnostics through the public logging hook. */
+static void log_offload(enum ailo_ggml_log_level level, const char *text,
+                        void *native_user, void *binding_user) {
+  (void)level;
+  (void)native_user;
+  (void)binding_user;
+  fputs(text, stderr);
+}
+
 int main(int argc, char **argv) {
   ailo_error error;
+  ailo_ggml_log_callback logger = NULL;
   int result;
   if (argc < 2 || argc > 3 || (argc == 3 && strcmp(argv[2], "--vulkan") != 0)) {
     fputs("Usage: ailo_model_test model.gguf [--vulkan]\n", stderr);
     return 2;
   }
+  if (argc == 3) {
+    if (ailo_ggml_log_callback_new(log_offload, NULL, &logger, &error) !=
+        AILO_OK)
+      return 1;
+    if (ailo_llama_log_set(logger, NULL, &error) != AILO_OK) {
+      ailo_ggml_log_callback_free(logger, NULL);
+      return 1;
+    }
+  }
   if (ailo_llama_backend_init(&error) != AILO_OK)
-    return 1;
-  result = run(argv[1], argc == 3);
-  ailo_llama_backend_free(NULL);
+    result = 1;
+  else {
+    result = run(argv[1], argc == 3);
+    ailo_llama_backend_free(NULL);
+  }
+  if (logger) {
+    ailo_llama_log_set(NULL, NULL, NULL);
+    ailo_ggml_log_callback_free(logger, NULL);
+  }
   return result;
 }

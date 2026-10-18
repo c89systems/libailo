@@ -6,3 +6,4 @@
 0006-route-scoped-logging-through-workers.patch
 0007-expose-vulkan-physical-identity.patch
 0008-track-shader-compiler-input.patch
+0009-logger-only-diagnostics.patch

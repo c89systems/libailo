@@ -1,0 +1,36 @@
+--- a/loader/log.c
++++ b/loader/log.c
+@@ -36,6 +36,8 @@
+ #include "loader_environment.h"
+ #include "settings.h"
+ #include "vk_loader_platform.h"
++
++extern void ggml_library_driver_log(int, const char *, const char *, va_list) __attribute__((weak));
+ 
+ uint32_t g_loader_debug = 0;
+ 
+@@ -144,6 +146,13 @@
+ 
+     va_list ap;
+     va_start(ap, format);
++    if (ggml_library_driver_log) {
++        va_list copy; va_copy(copy, ap);
++        int severity = (msg_type & (VULKAN_LOADER_ERROR_BIT | VULKAN_LOADER_FATAL_ERROR_BIT)) ? 0 :
++                       (msg_type & VULKAN_LOADER_WARN_BIT) ? 1 : 2;
++        ggml_library_driver_log(severity, "vulkan-loader", format, copy);
++        va_end(copy);
++    }
+     int ret = vsnprintf(msg, sizeof(msg), format, ap);
+     if ((ret >= (int)sizeof(msg)) || ret < 0) {
+         msg[sizeof(msg) - 1] = '\0';
+@@ -266,9 +275,7 @@
+     assert(cmd_line_size > num_used);
+ 
+     // NOLINTBEGIN(cert-err33-c) - this is the logger itself; no sane recovery from a failed stderr write
+-    fputs(cmd_line_msg, stderr);
+-    fputs(msg, stderr);
+-    fputc('\n', stderr);
++    // Standard-stream output is owned exclusively by the embedding logger.
+     // NOLINTEND(cert-err33-c)
+ #if defined(WIN32)
+     OutputDebugString(cmd_line_msg);

@@ -435,6 +435,14 @@ if(AILO_BUILD_TESTS)
     set_tests_properties(model-metadata PROPERTIES TIMEOUT 60 LABELS "integration;local" FIXTURES_REQUIRED model-gguf)
     add_executable(ailo_logging_test tests/logging.cpp)
     target_include_directories(ailo_logging_test PRIVATE src "${ailo_llama_source}")
+    if(AILO_VULKAN)
+      target_compile_definitions(ailo_logging_test PRIVATE AILO_TEST_VULKAN=1)
+      target_include_directories(ailo_logging_test SYSTEM PRIVATE
+        "${AILO_DEPENDENCY_BUILD_ROOT}/mesa/source/src"
+        "${AILO_DEPENDENCY_BUILD_ROOT}/libdrm/source"
+        "${AILO_DEPENDENCY_BUILD_ROOT}/vulkan-loader/source"
+        "${Vulkan_INCLUDE_DIR}")
+    endif()
     target_link_libraries(ailo_logging_test PRIVATE ailo_static llama ggml pslog::pslog_static lonejson::lonejson_static Threads::Threads)
     target_compile_features(ailo_logging_test PRIVATE cxx_std_17)
     target_compile_options(ailo_logging_test PRIVATE -Wall -Wextra -Wpedantic -Werror)

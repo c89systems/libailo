@@ -276,11 +276,16 @@ vendor/llama/patches/0005-format-vulkan-handles-portably.patch
 vendor/llama/patches/0006-route-scoped-logging-through-workers.patch
 vendor/llama/patches/0007-expose-vulkan-physical-identity.patch
 vendor/llama/patches/0008-track-shader-compiler-input.patch
+vendor/llama/patches/0009-logger-only-diagnostics.patch
 vendor/llama/patches/series
 vendor/libdrm/patches/0001-embed-marketing-names.patch
+vendor/libdrm/patches/0002-logger-only-diagnostics.patch
+vendor/libdrm/patches/series
 vendor/mesa/patches/0001-static-headless-drivers.patch
+vendor/mesa/patches/0002-logger-only-diagnostics.patch
 vendor/mesa/patches/series
 vendor/vulkan-loader/patches/0001-built-in-static-providers.patch
+vendor/vulkan-loader/patches/0002-logger-only-diagnostics.patch
 vendor/vulkan-loader/patches/series
 lua/CMakeLists.txt
 lua/README.md

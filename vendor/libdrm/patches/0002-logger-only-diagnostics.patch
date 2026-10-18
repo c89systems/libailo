@@ -1,0 +1,447 @@
+--- a/amdgpu/amdgpu_asic_id.c
++++ b/amdgpu/amdgpu_asic_id.c
+@@ -23,6 +23,7 @@
+  */
+ 
+ #include <stdio.h>
++#include "../drm-library-log.h"
+ #include <stdlib.h>
+ #include <stdint.h>
+ #include <string.h>
+@@ -43,7 +44,7 @@
+ 
+ 	fp = fopen("/proc/cpuinfo", "r");
+ 	if (fp == NULL) {
+-		fprintf(stderr, "%s\n", strerror(errno));
++		drm_library_fprintf(0, stderr, "%s\n", strerror(errno));
+ 		return;
+ 	}
+ 
+--- a/amdgpu/amdgpu_bo.c
++++ b/amdgpu/amdgpu_bo.c
+@@ -23,6 +23,7 @@
+  */
+ 
+ #include <stdlib.h>
++#include "../drm-library-log.h"
+ #include <stdio.h>
+ #include <stdint.h>
+ #include <string.h>
+@@ -528,7 +529,7 @@
+ 		*busy = args.out.status;
+ 		return 0;
+ 	} else {
+-		fprintf(stderr, "amdgpu: GEM_WAIT_IDLE failed with %i\n", r);
++		drm_library_fprintf(0, stderr, "amdgpu: GEM_WAIT_IDLE failed with %i\n", r);
+ 		return r;
+ 	}
+ }
+--- a/amdgpu/amdgpu_cs.c
++++ b/amdgpu/amdgpu_cs.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <stdlib.h>
++#include "../drm-library-log.h"
+ #include <stdio.h>
+ #include <string.h>
+ #include <errno.h>
+@@ -67,7 +68,7 @@
+ 		 * wrong. If parsing fails, priority is unchanged.
+ 		 */
+ 		if (sscanf(override_priority, "%i", &priority) == 1) {
+-			printf("amdgpu: context priority changed to %i\n",
++			drm_library_printf(2, "amdgpu: context priority changed to %i\n",
+ 			       priority);
+ 		}
+ 	}
+@@ -430,7 +431,7 @@
+ 		uint64_t current_ns;
+ 		r = clock_gettime(CLOCK_MONOTONIC, &current);
+ 		if (r) {
+-			fprintf(stderr, "clock_gettime() returned error (%d)!", errno);
++			drm_library_fprintf(0, stderr, "clock_gettime() returned error (%d)!", errno);
+ 			return AMDGPU_TIMEOUT_INFINITE;
+ 		}
+ 
+--- a/amdgpu/amdgpu_device.c
++++ b/amdgpu/amdgpu_device.c
+@@ -29,6 +29,7 @@
+  */
+ 
+ #include <sys/stat.h>
++#include "../drm-library-log.h"
+ #include <errno.h>
+ #include <string.h>
+ #include <stdio.h>
+@@ -198,7 +199,7 @@
+ 
+ 	r = amdgpu_get_auth(fd, &flag_auth);
+ 	if (r) {
+-		fprintf(stderr, "%s: amdgpu_get_auth (1) failed (%i)\n",
++		drm_library_fprintf(0, stderr, "%s: amdgpu_get_auth (1) failed (%i)\n",
+ 			__func__, r);
+ 		pthread_mutex_unlock(&dev_mutex);
+ 		return r;
+@@ -212,7 +213,7 @@
+ 	if (dev) {
+ 		r = amdgpu_get_auth(dev->fd, &flag_authexist);
+ 		if (r) {
+-			fprintf(stderr, "%s: amdgpu_get_auth (2) failed (%i)\n",
++			drm_library_fprintf(0, stderr, "%s: amdgpu_get_auth (2) failed (%i)\n",
+ 				__func__, r);
+ 			pthread_mutex_unlock(&dev_mutex);
+ 			return r;
+@@ -229,7 +230,7 @@
+ 
+ 	dev = calloc(1, sizeof(struct amdgpu_device));
+ 	if (!dev) {
+-		fprintf(stderr, "%s: calloc failed\n", __func__);
++		drm_library_fprintf(0, stderr, "%s: calloc failed\n", __func__);
+ 		pthread_mutex_unlock(&dev_mutex);
+ 		return -ENOMEM;
+ 	}
+@@ -241,7 +242,7 @@
+ 
+ 	version = drmGetVersion(fd);
+ 	if (version->version_major != 3) {
+-		fprintf(stderr, "%s: DRM version is %d.%d.%d but this driver is "
++		drm_library_fprintf(0, stderr, "%s: DRM version is %d.%d.%d but this driver is "
+ 			"only compatible with 3.x.x.\n",
+ 			__func__,
+ 			version->version_major,
+@@ -263,19 +264,19 @@
+ 	/* Check if acceleration is working. */
+ 	r = amdgpu_query_info(dev, AMDGPU_INFO_ACCEL_WORKING, 4, &accel_working);
+ 	if (r) {
+-		fprintf(stderr, "%s: amdgpu_query_info(ACCEL_WORKING) failed (%i)\n",
++		drm_library_fprintf(0, stderr, "%s: amdgpu_query_info(ACCEL_WORKING) failed (%i)\n",
+ 			__func__, r);
+ 		goto cleanup;
+ 	}
+ 	if (!accel_working) {
+-		fprintf(stderr, "%s: AMDGPU_INFO_ACCEL_WORKING = 0\n", __func__);
++		drm_library_fprintf(0, stderr, "%s: AMDGPU_INFO_ACCEL_WORKING = 0\n", __func__);
+ 		r = -EBADF;
+ 		goto cleanup;
+ 	}
+ 
+ 	r = amdgpu_query_gpu_info_init(dev);
+ 	if (r) {
+-		fprintf(stderr, "%s: amdgpu_query_gpu_info_init failed\n", __func__);
++		drm_library_fprintf(0, stderr, "%s: amdgpu_query_gpu_info_init failed\n", __func__);
+ 		goto cleanup;
+ 	}
+ 
+--- a/drm-library-log.h
++++ b/drm-library-log.h
+@@ -0,0 +1,33 @@
++/* SPDX-License-Identifier: MIT */
++#ifndef DRM_LIBRARY_LOG_H
++#define DRM_LIBRARY_LOG_H
++#include <stdio.h>
++#include <stdarg.h>
++extern void ggml_library_driver_log(int, const char *, const char *, va_list) __attribute__((weak));
++static inline int drm_library_vfprintf(int level, FILE *stream, const char *format, va_list args)
++{
++    if (stream != stdout && stream != stderr) return vfprintf(stream, format, args);
++    va_list copy;
++    va_copy(copy,args);
++    int result=vsnprintf(NULL,0,format,copy);
++    va_end(copy);
++    if (result>=0 && ggml_library_driver_log) ggml_library_driver_log(level,"drm",format,args);
++    return result;
++}
++static inline int drm_library_fprintf(int level, FILE *stream, const char *format, ...)
++{
++    va_list args;
++    va_start(args,format);
++    int result=drm_library_vfprintf(level,stream,format,args);
++    va_end(args);
++    return result;
++}
++static inline int drm_library_printf(int level, const char *format, ...)
++{
++    va_list args;
++    va_start(args,format);
++    int result=drm_library_vfprintf(level,stdout,format,args);
++    va_end(args);
++    return result;
++}
++#endif
+--- a/xf86drm.c
++++ b/xf86drm.c
+@@ -32,6 +32,7 @@
+  */
+ 
+ #include <stdio.h>
++#include "drm-library-log.h"
+ #include <stdlib.h>
+ #include <stdbool.h>
+ #include <unistd.h>
+@@ -232,17 +233,17 @@
+         return false;
+     }
+ 
+-    fprintf(fp, "BLOCK_SIZE=%s,", block);
++    drm_library_fprintf(0, fp, "BLOCK_SIZE=%s,", block);
+ 
+     /* add mode */
+     for (unsigned int i = 0; i < ARRAY_SIZE(arm_mode_value_table); i++) {
+         if (arm_mode_value_table[i].modifier & mode_value) {
+             mode = arm_mode_value_table[i].modifier_name;
+             if (!did_print_mode) {
+-                fprintf(fp, "MODE=%s", mode);
++                drm_library_fprintf(0, fp, "MODE=%s", mode);
+                 did_print_mode = true;
+             } else {
+-                fprintf(fp, "|%s", mode);
++                drm_library_fprintf(0, fp, "|%s", mode);
+             }
+         }
+     }
+@@ -279,18 +280,18 @@
+         }
+ 
+         if (i == 0) {
+-            fprintf(fp, "P0=%s,", coding_unit_size);
++            drm_library_fprintf(0, fp, "P0=%s,", coding_unit_size);
+         } else {
+-            fprintf(fp, "P12=%s,", coding_unit_size);
++            drm_library_fprintf(0, fp, "P12=%s,", coding_unit_size);
+         }
+     }
+ 
+     scan_layout =
+         (modifier & AFRC_FORMAT_MOD_LAYOUT_SCAN) == AFRC_FORMAT_MOD_LAYOUT_SCAN;
+     if (scan_layout) {
+-        fprintf(fp, "SCAN");
++        drm_library_fprintf(0, fp, "SCAN");
+     } else {
+-        fprintf(fp, "ROT");
++        drm_library_fprintf(0, fp, "ROT");
+     }
+     return true;
+ }
+@@ -417,19 +418,19 @@
+ 
+     switch (tile_version) {
+     case AMD_FMT_MOD_TILE_VER_GFX9:
+-        fprintf(fp, "GFX9");
++        drm_library_fprintf(0, fp, "GFX9");
+         break;
+     case AMD_FMT_MOD_TILE_VER_GFX10:
+-        fprintf(fp, "GFX10");
++        drm_library_fprintf(0, fp, "GFX10");
+         break;
+     case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS:
+-        fprintf(fp, "GFX10_RBPLUS");
++        drm_library_fprintf(0, fp, "GFX10_RBPLUS");
+         break;
+     case AMD_FMT_MOD_TILE_VER_GFX11:
+-        fprintf(fp, "GFX11");
++        drm_library_fprintf(0, fp, "GFX11");
+         break;
+     case AMD_FMT_MOD_TILE_VER_GFX12:
+-        fprintf(fp, "GFX12");
++        drm_library_fprintf(0, fp, "GFX12");
+         break;
+     default:
+         fclose(fp);
+@@ -440,10 +441,10 @@
+     if (tile_version >= AMD_FMT_MOD_TILE_VER_GFX12) {
+         unsigned tile = AMD_FMT_MOD_GET(TILE, modifier);
+ 
+-        fprintf(fp, ",%s", gfx12_tile_strings[tile]);
++        drm_library_fprintf(0, fp, ",%s", gfx12_tile_strings[tile]);
+ 
+         if (AMD_FMT_MOD_GET(DCC, modifier)) {
+-            fprintf(fp, ",DCC,DCC_MAX_COMPRESSED_BLOCK=%uB",
++            drm_library_fprintf(0, fp, ",DCC,DCC_MAX_COMPRESSED_BLOCK=%uB",
+                     64 << AMD_FMT_MOD_GET(DCC_MAX_COMPRESSED_BLOCK, modifier));
+ 
+             /* Other DCC fields are unused by GFX12. */
+@@ -451,16 +452,16 @@
+     } else {
+         unsigned tile = AMD_FMT_MOD_GET(TILE, modifier);
+ 
+-        fprintf(fp, ",%s", gfx9_gfx11_tile_strings[tile]);
++        drm_library_fprintf(0, fp, ",%s", gfx9_gfx11_tile_strings[tile]);
+ 
+         /* All *_T and *_X modes are affected by chip-specific fields. */
+         if (tile >= 16) {
+-            fprintf(fp, ",PIPE_XOR_BITS=%u",
++            drm_library_fprintf(0, fp, ",PIPE_XOR_BITS=%u",
+                     (unsigned)AMD_FMT_MOD_GET(PIPE_XOR_BITS, modifier));
+ 
+             switch (tile_version) {
+             case AMD_FMT_MOD_TILE_VER_GFX9:
+-                fprintf(fp, ",BANK_XOR_BITS=%u",
++                drm_library_fprintf(0, fp, ",BANK_XOR_BITS=%u",
+                         (unsigned)AMD_FMT_MOD_GET(BANK_XOR_BITS, modifier));
+                 break;
+ 
+@@ -473,7 +474,7 @@
+                 /* This also determines the DCC layout, but DCC is only legal
+                  * with tile=27 and tile=31 (*_R_X modes).
+                  */
+-                fprintf(fp, ",PACKERS=%u",
++                drm_library_fprintf(0, fp, ",PACKERS=%u",
+                         (unsigned)AMD_FMT_MOD_GET(PACKERS, modifier));
+                 break;
+             }
+@@ -486,29 +487,29 @@
+                 /* These two only determine the layout of
+                  * the non-displayable DCC plane.
+                  */
+-                fprintf(fp, ",RB=%u",
++                drm_library_fprintf(0, fp, ",RB=%u",
+                         (unsigned)AMD_FMT_MOD_GET(RB, modifier));
+-                fprintf(fp, ",PIPE=%u",
++                drm_library_fprintf(0, fp, ",PIPE=%u",
+                         (unsigned)AMD_FMT_MOD_GET(PIPE, modifier));
+             }
+ 
+-            fprintf(fp, ",DCC,DCC_MAX_COMPRESSED_BLOCK=%uB",
++            drm_library_fprintf(0, fp, ",DCC,DCC_MAX_COMPRESSED_BLOCK=%uB",
+                     64 << AMD_FMT_MOD_GET(DCC_MAX_COMPRESSED_BLOCK, modifier));
+ 
+             if (AMD_FMT_MOD_GET(DCC_INDEPENDENT_64B, modifier))
+-                fprintf(fp, ",DCC_INDEPENDENT_64B");
++                drm_library_fprintf(0, fp, ",DCC_INDEPENDENT_64B");
+ 
+             if (AMD_FMT_MOD_GET(DCC_INDEPENDENT_128B, modifier))
+-                fprintf(fp, ",DCC_INDEPENDENT_128B");
++                drm_library_fprintf(0, fp, ",DCC_INDEPENDENT_128B");
+ 
+             if (AMD_FMT_MOD_GET(DCC_CONSTANT_ENCODE, modifier))
+-                fprintf(fp, ",DCC_CONSTANT_ENCODE");
++                drm_library_fprintf(0, fp, ",DCC_CONSTANT_ENCODE");
+ 
+             if (AMD_FMT_MOD_GET(DCC_PIPE_ALIGN, modifier))
+-                fprintf(fp, ",DCC_PIPE_ALIGN");
++                drm_library_fprintf(0, fp, ",DCC_PIPE_ALIGN");
+ 
+             if (AMD_FMT_MOD_GET(DCC_RETILE, modifier))
+-                fprintf(fp, ",DCC_RETILE");
++                drm_library_fprintf(0, fp, ",DCC_RETILE");
+         }
+     }
+ 
+@@ -646,7 +647,7 @@
+ static int DRM_PRINTFLIKE(1, 0)
+ drmDebugPrint(const char *format, va_list ap)
+ {
+-    return vfprintf(stderr, format, ap);
++    return drm_library_vfprintf(2, stderr, format, ap);
+ }
+ 
+ drm_public void
+@@ -2676,7 +2677,7 @@
+ 
+     ret = clock_gettime(CLOCK_MONOTONIC, &timeout);
+     if (ret < 0) {
+-        fprintf(stderr, "clock_gettime failed: %s\n", strerror(errno));
++        drm_library_fprintf(0, stderr, "clock_gettime failed: %s\n", strerror(errno));
+         goto out;
+     }
+     timeout.tv_sec++;
+@@ -2705,21 +2706,21 @@
+ {
+     switch (err) {
+     case DRM_ERR_NO_DEVICE:
+-        fprintf(stderr, "%s: no device\n", label);
++        drm_library_fprintf(0, stderr, "%s: no device\n", label);
+         break;
+     case DRM_ERR_NO_ACCESS:
+-        fprintf(stderr, "%s: no access\n", label);
++        drm_library_fprintf(0, stderr, "%s: no access\n", label);
+         break;
+     case DRM_ERR_NOT_ROOT:
+-        fprintf(stderr, "%s: not root\n", label);
++        drm_library_fprintf(0, stderr, "%s: not root\n", label);
+         break;
+     case DRM_ERR_INVALID:
+-        fprintf(stderr, "%s: invalid args\n", label);
++        drm_library_fprintf(0, stderr, "%s: invalid args\n", label);
+         break;
+     default:
+         if (err < 0)
+             err = -err;
+-        fprintf( stderr, "%s: error %d (%s)\n", label, err, strerror(err) );
++        drm_library_fprintf(0,  stderr, "%s: error %d (%s)\n", label, err, strerror(err) );
+         break;
+     }
+ 
+@@ -3225,7 +3226,7 @@
+     *newlyopened = 1;
+ 
+     if (0)
+-        fprintf(stderr, "saved connection %d for %s %d\n",
++        drm_library_fprintf(2, stderr, "saved connection %d for %s %d\n",
+                 nr_fds, connection[nr_fds].BusID,
+                 strcmp(BusID, connection[nr_fds].BusID));
+ 
+@@ -4733,7 +4734,7 @@
+             continue;
+ 
+         if (i >= MAX_DRM_NODES) {
+-            fprintf(stderr, "More than %d drm nodes detected. "
++            drm_library_fprintf(0, stderr, "More than %d drm nodes detected. "
+                     "Please report a bug - that should not happen.\n"
+                     "Skipping extra nodes\n", MAX_DRM_NODES);
+             break;
+@@ -4863,7 +4864,7 @@
+             continue;
+ 
+         if (i >= MAX_DRM_NODES) {
+-            fprintf(stderr, "More than %d drm nodes detected. "
++            drm_library_fprintf(0, stderr, "More than %d drm nodes detected. "
+                     "Please report a bug - that should not happen.\n"
+                     "Skipping extra nodes\n", MAX_DRM_NODES);
+             break;
+--- a/xf86drmSL.c
++++ b/xf86drmSL.c
+@@ -39,6 +39,7 @@
+  */
+ 
+ #include <stdio.h>
++#include "drm-library-log.h"
+ #include <stdlib.h>
+ 
+ #include "libdrm_macros.h"
+@@ -291,28 +292,28 @@
+     int           i;
+     
+     if (list->magic != SL_LIST_MAGIC) {
+-	printf("Bad magic: 0x%08lx (expected 0x%08lx)\n",
++	drm_library_printf(2, "Bad magic: 0x%08lx (expected 0x%08lx)\n",
+ 	       list->magic, SL_LIST_MAGIC);
+ 	return;
+     }
+ 
+-    printf("Level = %d, count = %d\n", list->level, list->count);
++    drm_library_printf(2, "Level = %d, count = %d\n", list->level, list->count);
+     for (entry = list->head; entry; entry = entry->forward[0]) {
+ 	if (entry->magic != SL_ENTRY_MAGIC) {
+-	    printf("Bad magic: 0x%08lx (expected 0x%08lx)\n",
++	    drm_library_printf(2, "Bad magic: 0x%08lx (expected 0x%08lx)\n",
+ 		   list->magic, SL_ENTRY_MAGIC);
+ 	}
+-	printf("\nEntry %p <0x%08lx, %p> has %2d levels\n",
++	drm_library_printf(2, "\nEntry %p <0x%08lx, %p> has %2d levels\n",
+ 	       entry, entry->key, entry->value, entry->levels);
+ 	for (i = 0; i < entry->levels; i++) {
+ 	    if (entry->forward[i]) {
+-		printf("   %2d: %p <0x%08lx, %p>\n",
++		drm_library_printf(2, "   %2d: %p <0x%08lx, %p>\n",
+ 		       i,
+ 		       entry->forward[i],
+ 		       entry->forward[i]->key,
+ 		       entry->forward[i]->value);
+ 	    } else {
+-		printf("   %2d: %p\n", i, entry->forward[i]);
++		drm_library_printf(2, "   %2d: %p\n", i, entry->forward[i]);
+ 	    }
+ 	}
+     }
