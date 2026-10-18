@@ -7,7 +7,7 @@ contract is in [docs/architecture.md](docs/architecture.md).
 ## Implementation state
 
 The dependency/build foundation is present: pinned llama.cpp b11430, CPU and
-Vulkan backends, public multimodal libraries, cpkt v0.3.0 and cpktmisc v0.2.0, lonejson
+Vulkan backends, public multimodal libraries, cpkt v0.5.0 and cpktmisc v0.2.0, lonejson
 v0.45.0, libpslog v0.12.0, and pinned Vulkan/SPIR-V components. The static/shared
 project libraries
 provide the portable C89 scalar/error boundary and generated native bindings
@@ -64,6 +64,11 @@ inventory. The generated coverage gate checks every declaration against the
 C89 facade and requires an empty gap list.
 
 ## Local commands
+
+Stored OpenAI Responses and Conversations use encrypted embedded Pouch storage
+by default, under `~/.local/state/ailo`, with its generated key under
+`~/.config/ailo/pouch.key`. XDG variables and C/Lua path overrides are supported;
+see [persistence](docs/persistence.md).
 
 Use `make help` for the current command index. The default native build requires
 CMake 3.24+, Ninja with its `inputs`/`deps` inspection tools, Bash, ripgrep,
@@ -295,7 +300,7 @@ install-tree verification does not constitute a release or completed SDK.
 
 For CMake, use `find_package(ailo CONFIG REQUIRED COMPONENTS static)` or
 `COMPONENTS shared`, then link `ailo::static` or `ailo::shared`. Static consumers
-supply a compatible cpkt core SDK (baseline v0.3.0) through `CMAKE_PREFIX_PATH` or
+supply a compatible cpkt core SDK (baseline v0.5.0) through `CMAKE_PREFIX_PATH` or
 `ailo_EXTERNAL_ROOT`. The metadata owns native and GNU runtime archive ordering,
 so C-only consumers do not need to enable C++ or write private library lists.
 `pkg-config --cflags --libs ailo` selects the shared library;

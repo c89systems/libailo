@@ -46,13 +46,14 @@ public:
 struct openai_state {
   openai_retention_policy policy;
   ailo_record_repository repository{};
+  std::shared_ptr<void> local_repository;
   size_t memory_limit = 32 * 1024 * 1024, record_limit = 64 * 1024 * 1024;
   ailo_compaction_policy compaction = ailo_compaction_default_policy();
   explicit openai_state(const ailo_openai_config *);
 };
 uint64_t api_now();
 void api_identity(ailo_api_info &, const char *prefix);
-void api_check(ailo_status);
+void api_check(ailo_status, const ailo_error * = nullptr);
 int api_http_status(ailo_status);
 byte_sink api_sink(state &, ailo_output_sink, void *, ailo_api_info &);
 void read_record(openai_state &, ailo_record_protocol, const char *,

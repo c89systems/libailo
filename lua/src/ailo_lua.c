@@ -1191,6 +1191,8 @@ static int new_client(lua_State *L) {
     if (!lua_isnil(L, -1)) {
       int api_index = lua_gettop(L);
       api.namespace_id = string(L, api_index, "namespace_id");
+      api.state_directory = string(L, api_index, "state_directory");
+      api.encryption_key_file = string(L, api_index, "encryption_key_file");
       api.zero_data_retention = boolean(L, api_index, "zero_data_retention");
       api.chat_store_opt_in = boolean(L, api_index, "chat_store_opt_in");
       api.max_output_memory_bytes =

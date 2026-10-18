@@ -44,8 +44,9 @@ original non-OK application status. Missing callbacks/invalid C arguments return
 without invoking transport. No callback may throw or longjmp across the C ABI.
 
 Retained CRUD, pagination, metadata, conversation transactions and streaming
-semantics are those in [openai.md](openai.md). Durable storage remains an
-explicit application-owned repository provider. Admission failures occur before
+semantics are those in [openai.md](openai.md). Durable storage defaults to
+[encrypted embedded Pouch](persistence.md); applications can supply a custom
+repository provider. Admission failures occur before
 inference. Output and repository quotas are not network queue limits.
 
 ## Qualification
@@ -73,6 +74,14 @@ The implemented capability profile is explicit in openai.md; a local model does
 not acquire hosted tools or modalities merely because they appear in a schema.
 
 ## Reproduction and evidence
+
+`openai-pouch` verifies the default provider's encryption, restart persistence,
+real-model streaming, stable readers, concurrent access, quota/cancellation
+failures and interrupted atomic publication. `openai-pouch-http` runs stored
+Chat CRUD, response continuations and conversation archives through the same
+HTTP fixture with production Pouch storage. The Codex acceptance harness also
+selects that provider. Every fixture request reconstructs its client, exercising
+durable state independently of a long-lived receiver.
 
 Ordinary CTest's `openai-http` runs the loopback fixture without Codex or external
 credentials. It covers every implemented method/path in the route table, including

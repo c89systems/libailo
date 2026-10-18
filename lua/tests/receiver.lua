@@ -9,6 +9,17 @@ local function config(extra)
   return c
 end
 local function request() return {items={{role="user",content="hello"}},max_tokens=3,temperature=0} end
+do
+  local options={namespace_id="lua-pouch",state_directory=work.."/pouch",encryption_key_file=work.."/pouch-config/pouch.key"}
+  local c=ok(ailo.new(config{lazy=true,openai=options}))
+  local chunks={};local function sink(s)chunks[#chunks+1]=s end
+  ok(c:conversation_create('{"metadata":{"purpose":"persist"},"items":[{"role":"user","content":"Lua durable item"}]}',sink))
+  local id=assert(table.concat(chunks):match('"id":"([^"]+)"'));c:close()
+  c=ok(ailo.new(config{lazy=true,openai=options}));chunks={}
+  ok(c:conversation_retrieve(id,sink));assert(table.concat(chunks):find('"purpose":"persist"',1,true))
+  chunks={};ok(c:conversation_items_list(id,sink,'{"order":"asc"}'));assert(table.concat(chunks):find('Lua durable item',1,true))
+  c:close()
+end
 if arg[4]=='--vulkan' then
   local discover=ok(ailo.new(config{lazy=true}))
   local inventory=ok(discover:devices());discover:close()

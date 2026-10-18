@@ -185,6 +185,16 @@ typedef struct ailo_openai_config {
   /** Trusted standalone/automatic compaction policy; copied at construction.
    * NULL selects the native defaults. No extra wire request controls. */
   const struct ailo_compaction_policy *compaction;
+  /** Default Pouch root. NULL selects $XDG_STATE_HOME/ailo, falling back to
+   * $HOME/.local/state/ailo. Opened lazily on the first storage operation.
+   * Ignored when repository supplies an application-owned provider. */
+  const char *state_directory;
+  /** Default Pouch encryption key file. NULL selects
+   * $XDG_CONFIG_HOME/ailo/pouch.key, falling back to
+   * $HOME/.config/ailo/pouch.key. A new store generates this mode-0600 file.
+   * Existing stores require their original key. Paths must be absolute.
+   * The constructor copies both paths. */
+  const char *encryption_key_file;
 } ailo_openai_config;
 
 typedef struct ailo_api_info {

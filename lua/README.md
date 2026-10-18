@@ -76,7 +76,10 @@ forwards JSON/SSE byte strings through the installed C ABI. Set `stream=true`
 for immediate deltas and `store=false` for stateless use. It returns ID, HTTP
 metadata, started/stored flags and native usage; false from the sink cancels,
 and a thrown Lua value is preserved in `error.cause`. The binding never assembles
-the reply. Configure a trusted `openai` profile and an application-owned
+the reply. The default store is encrypted Pouch; configure `openai.state_directory`
+and `openai.encryption_key_file` to override its XDG paths. See
+[persistence](../docs/persistence.md). For custom storage, configure a trusted
+`openai` profile and an application-owned
 repository receiver for retained records. `chat_retrieve(id, sink, options)`
 forwards stored JSON directly (`options.input=true` selects normalized input);
 `chat_delete(id, sink)` deletes the record. Repository callbacks and cleanup

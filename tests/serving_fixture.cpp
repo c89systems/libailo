@@ -151,7 +151,13 @@ void request(int fd, const char *model, unsigned number) {
   auto api = ailo_openai_default_config();
   const auto ns = control.value("namespace", "tenant-A");
   api.namespace_id = ns.c_str();
-  api.repository = &repository.api;
+  const auto pouch_root = directory + "/pouch";
+  const auto pouch_key = directory + "/pouch-config/pouch.key";
+  if (control.value("pouch", false)) {
+    api.state_directory = pouch_root.c_str();
+    api.encryption_key_file = pouch_key.c_str();
+  } else
+    api.repository = &repository.api;
   auto policy = ailo_compaction_default_policy();
   policy.target_tokens = 9000;
   policy.recent_turns = 0;

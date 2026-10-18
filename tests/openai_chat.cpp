@@ -758,8 +758,8 @@ int main(int argc, char **argv) {
     seen = {};
     CHECK(absent->responses(absent.get(), stored_response.data(),
                             stored_response.size(), output::send, &seen, &info,
-                            &error) == AILO_INVALID_ARGUMENT &&
-          !info.started);
+                            &error) == AILO_IO_FAILED &&
+          !info.started && !info.stored);
     seen = {};
     CHECK(zdr->responses(zdr.get(), stored_response.data(),
                          stored_response.size(), output::send, &seen, &info,

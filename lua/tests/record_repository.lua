@@ -638,7 +638,7 @@ function M.record_operations(ailo,path,memory)
   ok(c:response_delete(response.id,function()end));c:close()
   assert(not next(r.active)and not next(r.reading)and not next(r.locks))
   local bare=ok(ailo.new{source={local_path=path},backend='cpu',lazy=true})
-  fails('unsupported',function()return bare:chat_list(function()error('unavailable query emitted bytes')end)end);bare:close()
+  local empty={};ok(bare:chat_list(function(s)empty[#empty+1]=s end));assert(table.concat(empty):find('"data":%[%]'));bare:close()
 end
 function M.replay_input_page(c,id)
   local chunks={};local v,e=c:response_input_items_list(id,function(s)chunks[#chunks+1]=s end,'{"order":"asc","limit":100}')

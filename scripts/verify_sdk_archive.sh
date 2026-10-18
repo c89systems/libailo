@@ -78,5 +78,5 @@ while IFS= read -r -d '' library; do
   esac
 done < <(find "$sdk/lib" -type f -print0)
 "$root/scripts/verify_install_privacy.sh" "$sdk" "$readelf"
-"$root/scripts/verify_exports.sh" --library "$sdk/lib/libailo.so.0" --nm "$nm" --cc "$cc" --sysroot "$sysroot" --work "$work/exports" --runtime-directory "$root/.cache/deps/$target/cpkt/install/lib" --runtime-directory "$root/.cache/deps/$target/lonejson/install/lib" --runtime-directory "$root/.cache/deps/$target/cpktmisc/install/lib" --runtime-directory "$root/.cache/deps/$target/pslog/install/lib" --runtime-directory "$sdk/lib/ailo/native"
+"$root/scripts/verify_exports.sh" --library "$sdk/lib/libailo.so.0" --nm "$nm" --cc "$cc" --sysroot "$sysroot" --work "$work/exports" --runtime-directory "$root/.cache/deps/$target/cpkt/install/lib" --runtime-directory "$root/.cache/deps/$target/lonejson/install/lib" --runtime-directory "$root/.cache/deps/$target/cpktmisc/install/lib" --runtime-directory "$root/.cache/deps/$target/pslog/install/lib" --runtime-directory "$root/.cache/deps/$target/lockdc/install/lib" --runtime-directory "$root/.cache/deps/$target/liblql/install/lib" --runtime-directory "$sdk/lib/ailo/native"
 printf 'Checksummed extracted SDK %s: layout, target ABI, privacy and exact exports passed\n' "$target"

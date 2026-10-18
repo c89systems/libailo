@@ -42,15 +42,15 @@ if cmake -S "$root/tests/install-consumer" -B "$work/missing-sdk" -G Ninja \
   printf 'install-tree: missing external SDK was silently accepted\n' >&2
   exit 1
 fi
-rg -q 'cpkt >= 0.3.0' "$work/missing.log"
+rg -q 'cpkt >= 0.5.0' "$work/missing.log"
 [[ ! -d "$prefix/include/ggml" && ! -f "$prefix/include/llama.h" ]] || { printf 'install-tree: native headers leaked\n' >&2; exit 1; }
 for mode in static shared pkg-static pkg-shared; do
   for language in OFF ON; do
     consumer="$work/$mode-$language"
-    cmake -E env "PKG_CONFIG_PATH=$prefix/lib/pkgconfig:$dep/cpkt/install/lib/pkgconfig:$dep/lonejson/install/lib/pkgconfig:$dep/cpktmisc/install/lib/pkgconfig:$dep/pslog/install/lib/pkgconfig" \
+    cmake -E env "PKG_CONFIG_PATH=$prefix/lib/pkgconfig:$dep/cpkt/install/lib/pkgconfig:$dep/lonejson/install/lib/pkgconfig:$dep/cpktmisc/install/lib/pkgconfig:$dep/pslog/install/lib/pkgconfig:$dep/lockdc/install/lib/pkgconfig:$dep/liblql/install/lib/pkgconfig" \
       cmake -S "$root/tests/install-consumer" -B "$consumer" -G Ninja \
       -DCMAKE_TOOLCHAIN_FILE="$toolchain" -DAILO_TARGET_ID="$target" \
-      -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_PREFIX_PATH=$prefix;$dep/cpkt/install;$dep/lonejson/install;$dep/cpktmisc/install;$dep/pslog/install" \
+      -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_PREFIX_PATH=$prefix;$dep/cpkt/install;$dep/lonejson/install;$dep/cpktmisc/install;$dep/pslog/install;$dep/lockdc/install;$dep/liblql/install" \
       "-DAILO_CONSUMER_KIND=$mode" "-DAILO_CONSUMER_CXX=$language" \
       "-DAILO_POLICY_ROOT=$root" "-DAILO_TEST_DEPENDENCY_ROOT=$dep" "-DAILO_TEST_PREFIX=$prefix"
     cmake --build "$consumer" --parallel 1
@@ -77,5 +77,5 @@ done < <("$readelf" -d "$prefix/lib/libailo.so.0" | sed -n '/(RPATH)\|(RUNPATH)/
 "$root/scripts/verify_exports.sh" --library "$prefix/lib/libailo.so.0" --nm "$nm" \
   --cc "$cc" \
   --sysroot "$sysroot" \
-  --work "$work/exports" --runtime-directory "$dep/cpkt/install/lib" --runtime-directory "$dep/lonejson/install/lib" --runtime-directory "$dep/cpktmisc/install/lib" --runtime-directory "$dep/pslog/install/lib" --runtime-directory "$prefix/lib/ailo/native"
+  --work "$work/exports" --runtime-directory "$dep/cpkt/install/lib" --runtime-directory "$dep/lonejson/install/lib" --runtime-directory "$dep/cpktmisc/install/lib" --runtime-directory "$dep/pslog/install/lib" --runtime-directory "$dep/lockdc/install/lib" --runtime-directory "$dep/liblql/install/lib" --runtime-directory "$prefix/lib/ailo/native"
 printf 'Relocated CMake/pkg-config C-only and C++ consumers, header privacy and exports: passed\n'

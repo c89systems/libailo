@@ -76,8 +76,8 @@ it does not defer the required local multi-GPU implementation.
    providers and multi-GPU layer splitting. Single-GPU qualification does not
    replace the multi-GPU requirement.
 8. Use released SDK bundles from
-   [c89systems/cpkt](https://github.com/c89systems/cpkt/releases/tag/v0.3.0)
-   v0.3.0 for curl/OpenSSL, independent
+   [c89systems/cpkt](https://github.com/c89systems/cpkt/releases/tag/v0.5.0)
+   v0.5.0 for curl/OpenSSL, independent
    [cpktmisc](https://github.com/c89systems/cpktmisc/releases/tag/v0.2.0)
    v0.2.0 for private libffi 3.8.0 callback support, and
    [sa6mwa/lonejson](https://github.com/sa6mwa/lonejson/releases/tag/v0.45.0)

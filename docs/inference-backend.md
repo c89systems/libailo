@@ -158,7 +158,10 @@ the official [conversation-state contract](https://developers.openai.com/api/doc
 Responses defaults to store=true and response records remain retrievable for at
 least 30 days; store=false creates no retrievable response record. Conversation
 items explicitly attached to a conversation have no automatic 30-day expiry.
-The embedding handler supplies the stored-record repository and authorization;
+The library defaults to encrypted Pouch persistence in the XDG state directory,
+with its automatically generated key in the XDG configuration directory;
+[persistence](persistence.md) specifies paths, publication and cleanup. The
+embedding handler supplies authorization and may override the repository;
 do not substitute an evictable KV cache or silently weaken the retention period.
 An unavailable repository must reject storage-dependent requests before inference.
 Deletion, retrieval and previous_response_id use that repository. Temporary

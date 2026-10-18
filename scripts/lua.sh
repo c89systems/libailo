@@ -23,7 +23,7 @@ while IFS='=' read -r key value; do case "$key" in cc) cc=$value ;; cxx) cxx=$va
 loaders=("$sysroot"/lib/ld-linux*.so*)
 [[ ${#loaders[@]} -eq 1 && -f ${loaders[0]} ]] || { printf 'lua: expected one pinned loader\n' >&2; exit 1; }
 loader=${loaders[0]}
-runtime="$sysroot/lib;$sysroot/usr/lib;$sysroot/usr/lib64;$work/sdk/lib;$work/sdk/lib/ailo/native;$dep/cpkt/install/lib;$dep/cpktmisc/install/lib;$dep/lonejson/install/lib;$dep/pslog/install/lib"
+runtime="$sysroot/lib;$sysroot/usr/lib;$sysroot/usr/lib64;$work/sdk/lib;$work/sdk/lib/ailo/native;$dep/cpkt/install/lib;$dep/cpktmisc/install/lib;$dep/lonejson/install/lib;$dep/pslog/install/lib;$dep/lockdc/install/lib;$dep/liblql/install/lib"
 for lib in libstdc++.so.6 libgcc_s.so.1; do
   file=$("$cxx" -print-file-name="$lib")
   runtime+=";$(dirname "$(realpath "$file")")"

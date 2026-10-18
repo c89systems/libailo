@@ -1,27 +1,79 @@
 {
-  "cpkt": {
+  "lockdc": {
+    "version": "v0.21.0",
+    "upstream": "https://github.com/sa6mwa/liblockdc",
+    "assets": {
+      "x86_64-linux-gnu": {
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.21.0/liblockdc-0.21.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "87d1829895977b407a5f205df0016679b62021a986f885a2bcbbe53b94e06ba5"
+      },
+      "x86_64-linux-musl": {
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.21.0/liblockdc-0.21.0-x86_64-linux-musl.tar.gz",
+        "sha256": "c4316dc82ef203b540c6e074be9df47b5c036576187beaa04da86ecdd65ccd1c"
+      },
+      "aarch64-linux-gnu": {
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.21.0/liblockdc-0.21.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "8a3567d723aaf6bbff4b62b3e3779b3f4cfa5e3227b73724429dbed76c7ded95"
+      },
+      "aarch64-linux-musl": {
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.21.0/liblockdc-0.21.0-aarch64-linux-musl.tar.gz",
+        "sha256": "0fa67915c04dc72eca398c9e066da0de8cd2ec7f85013a6d94bacb4ad98a6c7a"
+      },
+      "arm64-apple-darwin": {
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.21.0/liblockdc-0.21.0-arm64-apple-darwin.tar.gz",
+        "sha256": "b58a105dc29c71579c9f5c28ef1b12171db49a8dc3d07499e34d9b082c546fa1"
+      }
+    }
+  },
+  "liblql": {
     "version": "v0.3.0",
+    "upstream": "https://github.com/sa6mwa/liblql",
+    "assets": {
+      "x86_64-linux-gnu": {
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "fafb04f9af5d9610f77380ac1f848d1edd3d60dcf7ce6a098f6a04e30dd2b47a"
+      },
+      "x86_64-linux-musl": {
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-x86_64-linux-musl.tar.gz",
+        "sha256": "e33a57e5d97337304c8541efaf8ab33bff9060cae600d1fe744a6734dca74ad4"
+      },
+      "aarch64-linux-gnu": {
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "becc67d67c9e50291d1cc0c7bfc124c7945576b773013b37f65e969bb32af4a8"
+      },
+      "aarch64-linux-musl": {
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-aarch64-linux-musl.tar.gz",
+        "sha256": "8981ed9a6d938d1fdcb9da08ebc30df5d48d78bcad423bd1c64e858795d17ccf"
+      },
+      "arm64-apple-darwin": {
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-arm64-apple-darwin.tar.gz",
+        "sha256": "24b60e9f73d4341451aeb43e331bb29569f112d0b940130dbf9eb401b054408c"
+      }
+    }
+  },
+  "cpkt": {
+    "version": "v0.5.0",
     "upstream": "https://github.com/c89systems/cpkt",
     "assets": {
       "aarch64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-aarch64-linux-gnu.tar.gz",
-        "sha256": "4f1f964e5e54f191162d42871815a74afd9da02c77adce304a52dd03397d4740"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "29aa58f4e68e8aa00ed5f652017018f003afdc10c8455be26030217bd3288d93"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-aarch64-linux-musl.tar.gz",
-        "sha256": "7e25be64d73bc7140f01659c0c0e11e066990c88587fce2ca49ba8bf874a31aa"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-aarch64-linux-musl.tar.gz",
+        "sha256": "a9f7f021a7430a3dbc7290b6cebd667800bb26d546bd73c157b764aa73f17996"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-arm64-apple-darwin.tar.gz",
-        "sha256": "5bf571b6dfeb19a8dc796cb584fd8e770eb1a10a3d2b98ab46269d7c8e895fce"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-arm64-apple-darwin.tar.gz",
+        "sha256": "46d20a8f471f48532134fa293d50003b63a5a20019f80486b6452b67cb611cdb"
       },
       "x86_64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-x86_64-linux-gnu.tar.gz",
-        "sha256": "7b59ac702da1aab906c48c33a67954954c074f591d714085f3e4bd7a23619a66"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "d58e7fff2fd4232c43687f466db4ec9a9dfdc94c0a7c016896de204d2e760846"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.3.0/cpkt-0.3.0-x86_64-linux-musl.tar.gz",
-        "sha256": "61c6e657cefd916b5f500374917ccc7e039d27b2ef1353a45a8f6f22d91c75ed"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-x86_64-linux-musl.tar.gz",
+        "sha256": "c36a236039701fe5d6d89c572c7a8d906880fcb33787659c213fdfa3181a15c2"
       }
     }
   },

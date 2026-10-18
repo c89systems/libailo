@@ -60,7 +60,8 @@ if(AILO_LUA_TESTS)
       "${CMAKE_CURRENT_SOURCE_DIR}/tests/memory.lua"
       "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua"
       "${cpath}" "${AILO_LUA_MODEL}" "${AILO_LUA_WORK}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/record_repository.lua")
-    set_tests_properties(lua-memory PROPERTIES TIMEOUT 180 LABELS "lua;memory;local")
+    # The complete ownership gate takes about 182 seconds under Valgrind.
+    set_tests_properties(lua-memory PROPERTIES TIMEOUT 240 LABELS "lua;memory;local")
   endif()
   get_target_property(pslog_library pslog::pslog_shared IMPORTED_LOCATION)
   get_filename_component(pslog_prefix "${pslog_library}/../.." ABSOLUTE)
@@ -71,4 +72,10 @@ if(AILO_LUA_TESTS)
     "${CMAKE_TOOLCHAIN_FILE}" $<TARGET_FILE:ailo_lua_runner> "${AILO_LUA_MODEL}" "${CMAKE_C_COMPILER}")
   set_tests_properties(lua-rocks PROPERTIES TIMEOUT 180 LABELS "lua;packaging;local")
   set_tests_properties(lua-receiver lua-public-imports PROPERTIES TIMEOUT 60 LABELS "lua;integration;local")
+  get_property(ailo_lua_tests DIRECTORY PROPERTY TESTS)
+  foreach(test IN LISTS ailo_lua_tests)
+    set_property(TEST ${test} APPEND PROPERTY ENVIRONMENT
+      "XDG_STATE_HOME=${AILO_LUA_WORK}/test-state/${test}"
+      "XDG_CONFIG_HOME=${AILO_LUA_WORK}/test-config/${test}")
+  endforeach()
 endif()

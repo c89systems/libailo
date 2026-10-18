@@ -19,6 +19,12 @@ tests/compaction.cpp
 tests/auto_compaction.cpp
 tests/output_provenance.cpp
 src/ailo_bounded_json_internal.hpp
+src/ailo_store_internal.hpp
+src/ailo_store.cpp
+src/ailo_store_json.cpp
+tests/store.cpp
+tests/test_pouch_http.sh
+docs/persistence.md
 src/ailo_openai_request_internal.hpp
 src/ailo_openai_request.cpp
 src/ailo_openai_retention_internal.hpp

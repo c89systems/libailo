@@ -149,12 +149,15 @@ A configured repository needs every transaction/read/delete method and a trusted
 `namespace_id`. Request `user`, `metadata` and `safety_identifier` never authorize
 record access. Separate clients may call a shared provider concurrently; the
 provider owns durable storage, authorization, atomic publication and expiry
-cleanup. These are records, not evictable KV entries.
+cleanup. These are records, not evictable KV entries. Omitting `repository`
+selects the built-in encrypted Pouch store and defaults the trusted namespace to
+`default`. Its paths, key ownership and concurrency are documented in
+[persistence](persistence.md).
 
 Chat defaults to storage for the current new-account profile; use
 `chat_store_opt_in` for an existing deployment's historical default. An explicit
-`store` selects storage except when trusted ZDR policy forces false. No repository
-means storage-dependent requests fail before loading a lazy model or sampling.
+`store` selects storage except when trusted ZDR policy forces false. The default
+repository opens lazily when a storage-dependent operation first needs it.
 Use explicit `store=false` for stateless operation. Chat's default local record
 policy is retention until deletion; an explicit application TTL is available.
 Responses' configured TTL is validated to at least 30 days and applied to each
@@ -395,7 +398,8 @@ parent conversation, optionally one item or a cursor page. It uses ordinary
 null canonical rows. Item IDs are namespace-wide unique and parent association
 must also be checked. These reads carry no TTL. The per-transaction byte allowance
 covers all sections together; total archive capacity is the provider's admission
-policy. No database, key file or repository is silently created by the library.
+policy. The built-in provider creates its configured state root and encryption
+key on first use; a custom provider retains its own construction policy.
 
 ## Standalone Responses compaction
 

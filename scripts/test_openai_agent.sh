@@ -11,6 +11,7 @@ cmake --build "build/$preset" --target ailo_serving_fixture --parallel "${AILO_J
 ctest --test-dir "build/$preset" --output-on-failure -j1 -R '^model-fixture$'
 source "$root/scripts/serving_test_lib.sh"
 serving_start "$root/build/$preset/ailo_serving_fixture" "$root/build/$preset/model-fixtures/tiny-llama.gguf" "$root/build"
+control '{"pouch":true}'
 mkdir -p "$work/agent" "$work/state" "$work/logs" "$work/codex-home"
 codex --version > "$work/codex.version"
 codex debug models --bundled > "$work/bundled-models.json"

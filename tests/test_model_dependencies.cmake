@@ -4,7 +4,7 @@ execute_process(COMMAND "${AILO_NM}" -g --defined-only "${AILO_STATIC_LIBRARY}"
 if(NOT result EQUAL 0)
   message(FATAL_ERROR "Cannot inspect model static dependency boundary: ${error}")
 endif()
-if(symbols MATCHES "[ \t](curl_|Curl_|EVP_|OPENSSL_|SSL_|X509_|lonejson_|ffi_|pslog_)[A-Za-z0-9_]+([\r\n]|$)")
+if(symbols MATCHES "[ \t](curl_|Curl_|EVP_|OPENSSL_|SSL_|X509_|lonejson_|ffi_|pslog_|lc_|lql_)[A-Za-z0-9_]+([\r\n]|$)")
   message(FATAL_ERROR "libailo.a contains SDK dependency implementation objects")
 endif()
 if(DEFINED AILO_SHARED_LIBRARY)
@@ -14,7 +14,8 @@ if(DEFINED AILO_SHARED_LIBRARY)
      NOT metadata MATCHES "NEEDED[^\r\n]*libcrypto\\.so" OR
      NOT metadata MATCHES "NEEDED[^\r\n]*liblonejson\\.so" OR
      NOT metadata MATCHES "NEEDED[^\r\n]*libffi\\.so" OR
-     NOT metadata MATCHES "NEEDED[^\r\n]*libpslog\\.so")
+     NOT metadata MATCHES "NEEDED[^\r\n]*libpslog\\.so" OR
+     NOT metadata MATCHES "NEEDED[^\r\n]*liblockdc\\.so\\.5")
     message(FATAL_ERROR "Shared model dependencies must remain separate SDK libraries: ${metadata}${error}")
   endif()
 endif()
