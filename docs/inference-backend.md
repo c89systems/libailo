@@ -130,6 +130,9 @@ document extraction belong to explicit embedding-application services, with
 byte/time limits; the inference engine does not fetch arbitrary user URLs.
 Media, custom tools and other item types require actual model/template/adapter
 capabilities. Preserve extensibility without treating an unknown item as text.
+The [multimodal receiver design](multimodal.md) records candidate model/projector
+pairs, execution, wire mappings, replay/storage implications and the remaining
+scope/admission decisions before high-level media implementation.
 
 Generation events include run/item/content start, text/refusal/reasoning deltas,
 function identity and argument deltas, item completion, compaction, usage and

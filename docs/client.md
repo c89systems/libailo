@@ -925,6 +925,9 @@ defaults are silent when no logger is supplied; errors still return through the
 ordinary status/error surfaces. Raw facade logging setters retain their native
 semantics. Shared device diagnostics without an active scope cannot be attributed
 to a receiver. High-level media inference is still unavailable.
+The proposed input pipeline and qualification models are recorded in the
+[multimodal receiver design](multimodal.md); its open scope and admission choices
+must be settled before implementation.
 
 The pinned llama/GGML, built-in Mesa RADV/ANV drivers, libdrm and Vulkan loader
 route host diagnostics through the native logging hook rather than stdout or
