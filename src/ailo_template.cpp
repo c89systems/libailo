@@ -51,9 +51,8 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
   if (is_jinja(source)) {
     try {
       auto program = parse(source);
-      jinja::caps caps;
+      const auto caps = jinja::caps_get(program);
       if (rich) {
-        caps = jinja::caps_get(program);
         if (input.max_parallel_calls && !caps.supports_tool_calls)
           throw failure(
               AILO_UNSUPPORTED,
@@ -73,6 +72,12 @@ std::string apply_template(const char *source, const llama_vocab *vocab,
           {"enable_thinking", options && options->thinking}};
       for (const auto &message : input.messages) {
         common_json value{{"role", message.role}, {"content", message.content}};
+        // Match the pinned upstream content normalizer. Typed-only templates
+        // receive ordered text containing private, collision-checked media
+        // spans; mtmd consumes those spans as typed bitmaps after rendering.
+        if (!caps.supports_string_content && caps.supports_typed_content)
+          value["content"] = common_json::array(
+              {common_json{{"type", "text"}, {"text", message.content}}});
         if (message.has_reasoning || !message.reasoning.empty())
           value["reasoning_content"] = message.reasoning;
         if (!message.name.empty())

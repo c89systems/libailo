@@ -2,6 +2,7 @@
 #include "ailo_cache_internal.hpp"
 #include "ailo_compaction_internal.hpp"
 #include "ailo_logging_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include "ailo_openai_crypto_internal.hpp"
 #include "ailo_openai_internal.hpp"
 #include "ailo_reasoning_internal.hpp"
@@ -48,8 +49,8 @@ sealed_summary seal(state &self, const std::vector<ailo_item> &items,
 void add(transcript &out, const ailo_item &item) {
   if (out.items.size() == 4096)
     throw failure(AILO_OUT_OF_RANGE, "Responses compaction exceeds 4096 items");
-  out.items.push_back(std::make_shared<owned_item>(item, out.bytes,
-                                                   4 * 1024 * 1024, out.parts));
+  out.items.push_back(std::make_shared<owned_item>(
+      item, out.bytes, 64 * 1024 * 1024, out.parts));
 }
 size_t token_position(const std::vector<ailo_item> &items, bool required) {
   size_t position = items.size();
@@ -286,6 +287,7 @@ AILO_PUBLIC ailo_status ailo_client_response_compact(
     operation call(client);
     auto &self = call.self;
     openai_request request(openai_protocol::compact, json, size, self.id);
+    resolve_media(self, request);
     // Compaction itself is stateless. Only an explicit prior-response read
     // needs a durable repository; no record is reserved or published here.
     request.store = 0;
@@ -297,11 +299,12 @@ AILO_PUBLIC ailo_status ailo_client_response_compact(
     identify_cache(self, true);
     log_scope logs(self.logging.get(), log_phase::compact);
     auto tools = prepare_tools(request.generation);
+    const auto input = prepare_replay(self, request.generation);
     const auto prompt =
-        render_prompt(self, prepare_replay(self, request.generation), tools,
-                      request.generation)
-            .prompt;
-    if (prompt_token_count(self, prompt) > llama_n_ctx(self.context.get()))
+        render_prompt(self, input, tools, request.generation).prompt;
+    if ((input.media.empty() ? prompt_token_count(self, prompt)
+                             : media_token_count(self, input, prompt)) >
+        llama_n_ctx(self.context.get()))
       throw failure(
           AILO_CONTEXT_LIMIT,
           "Standalone Responses compaction input exceeds the model context");

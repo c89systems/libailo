@@ -60,7 +60,7 @@ history_owner history(ailo_client *client) {
   ailo_content parts[10]{};
   ailo_item items[10]{};
   for (size_t i = 0; i < 10; ++i) {
-    parts[i] = {AILO_CONTENT_TEXT, text[i].data(), text[i].size()};
+    parts[i] = {AILO_CONTENT_TEXT, text[i].data(), text[i].size(), nullptr};
     items[i].role = i % 2 ? AILO_ROLE_USER : AILO_ROLE_ASSISTANT;
     items[i].content = &parts[i];
     items[i].content_count = 1;
@@ -408,7 +408,7 @@ int main(int argc, char **argv) {
     generate(peer.get(), request, peer_output);
     CHECK(peer_output.controls == 1);
     peer.reset();
-    ailo_content next_text{AILO_CONTENT_TEXT, "next", 4};
+    ailo_content next_text{AILO_CONTENT_TEXT, "next", 4, nullptr};
     ailo_item next{};
     next.content = &next_text;
     next.content_count = 1;

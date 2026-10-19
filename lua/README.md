@@ -289,7 +289,11 @@ content), `max_tokens`, `candidates`, `temperature`, `top_p`, `seed`,
 `top_logprobs` (0-20, requires logprobs), and `logit_bias` (a dense array of
 `{token_id=...,bias=...}` with unique IDs and finite biases in [-100,100]).
 Content is a string or a
-dense array of `{kind="text",data="..."}` parts. Core unsupported kinds retain
+dense array of `{kind="text",data="..."}` parts. Matched multimodal receivers also
+accept binary `{kind="image",data=bytes,detail="low"}` and `{kind="audio",data=bytes}`
+parts. Configure `multimodal.projector` with the ordinary source options; optional
+limits, encoder placement and a protected resolver callback follow the
+[multimodal contract](../docs/multimodal.md). Core unsupported kinds retain
 the C `unsupported` outcome. Token payloads are never assembled into a complete
 answer. Events have `kind`, monotonic `sequence`, zero-based `candidate`,
 `model_id`, `data`, `finish_reason`, and `usage`. Kinds are `run_begin`,

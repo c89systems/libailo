@@ -50,6 +50,9 @@ if(AILO_LUA_TESTS)
   add_test(NAME lua-handler COMMAND "${AILO_LUA_LOADER}" --library-path "${runtime}" $<TARGET_FILE:ailo_lua_runner>
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/handler.lua" "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua" "${cpath}" "${AILO_LUA_MODEL}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/record_repository.lua")
   set_tests_properties(lua-handler PROPERTIES TIMEOUT 60 LABELS "lua;integration;local")
+  add_test(NAME lua-media COMMAND "${AILO_LUA_LOADER}" --library-path "${runtime}" $<TARGET_FILE:ailo_lua_runner>
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/media.lua" "${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?.lua;${CMAKE_INSTALL_PREFIX}/share/lua/5.5/?/init.lua" "${cpath}" "${AILO_LUA_MODEL}")
+  set_tests_properties(lua-media PROPERTIES TIMEOUT 15 LABELS "lua;integration;local")
   # Preserve the complete ownership/OOM assertions without instrumenting model
   # generation. Only the model-free unload regression needs Valgrind here.
   if(NOT ailo_VULKAN)

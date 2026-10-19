@@ -1,6 +1,7 @@
 #include "ailo_cache_internal.hpp"
 #include "ailo_compaction_internal.hpp"
 #include "ailo_logging_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include "ailo_openai_internal.hpp"
 #include "ailo_reasoning_internal.hpp"
 #include "ailo_tools_internal.hpp"
@@ -116,6 +117,11 @@ void canonical_item(wire_json &out, const ailo_item &item) {
     out.key(result ? "output" : "content");
     out.array();
     for (size_t i = 0; i < item.content_count; ++i) {
+      if (item.content[i].kind == AILO_CONTENT_IMAGE ||
+          item.content[i].kind == AILO_CONTENT_AUDIO) {
+        write_media_part(out, item.content[i], false);
+        continue;
+      }
       out.object();
       out.key("type");
       out.string(reasoning ? "reasoning_text"
@@ -145,9 +151,9 @@ void prior_input(state &self, openai_request &request) {
     read_record(*self.openai, AILO_RECORD_RESPONSE,
                 request.previous_response_id.c_str(), part,
                 [&](const void *p, size_t n) {
-                  if (n > 8 * 1024 * 1024 - bytes.size())
+                  if (n > 64 * 1024 * 1024 - bytes.size())
                     throw failure(AILO_OUT_OF_RANGE,
-                                  "Retained response input exceeds 8 MiB");
+                                  "Retained response input exceeds 64 MiB");
                   bytes.append(static_cast<const char *>(p), n);
                 });
     return bytes;
@@ -168,7 +174,7 @@ void prior_input(state &self, openai_request &request) {
       throw failure(AILO_OUT_OF_RANGE,
                     "Response lineage exceeds its item/part budget");
     merged.items.push_back(std::make_shared<owned_item>(
-        item->view(), merged.bytes, 4 * 1024 * 1024, merged.parts));
+        item->view(), merged.bytes, 64 * 1024 * 1024, merged.parts));
   };
   for (size_t i = 0; i < request.instruction_items; ++i)
     add(request.input.items[i]);
@@ -852,7 +858,7 @@ class response_writer {
       for (size_t i = 0; i < e.compacted_item_count; ++i)
         window->items.push_back(
             std::make_shared<owned_item>(e.compacted_items[i], window->bytes,
-                                         4 * 1024 * 1024, window->parts));
+                                         64 * 1024 * 1024, window->parts));
       charge(window->bytes);
       items[active_control].window = std::move(window);
     } else if (e.kind == AILO_EVENT_OUTPUT_PROGRESS)
@@ -970,7 +976,8 @@ public:
         value.name = i.name.c_str();
         value.arguments = i.text.c_str();
       } else {
-        parts.push_back({AILO_CONTENT_TEXT, i.text.data(), i.text.size()});
+        parts.push_back(
+            {AILO_CONTENT_TEXT, i.text.data(), i.text.size(), nullptr});
         value.content = &parts.back();
         value.content_count = 1;
       }
@@ -1062,6 +1069,7 @@ AILO_PUBLIC ailo_status ailo_client_responses(ailo_client *client,
     operation call(client);
     openai_request request(openai_protocol::responses, json, size,
                            call.self.id);
+    resolve_media(call.self, request);
     const auto now = api_now();
     const auto plan = resolve_retention(request, call.self.openai->policy, now);
     info->content_type =

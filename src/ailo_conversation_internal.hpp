@@ -13,6 +13,7 @@ struct chat_message {
   std::string reasoning{};
   bool has_reasoning = false;
 };
+struct media_part;
 struct conversation {
   std::vector<chat_message> messages;
   bool rich = false;
@@ -21,6 +22,7 @@ struct conversation {
   // Nonempty only after authenticated replay; the actual renderer must preserve
   // this lower-trust message verbatim rather than silently dropping history.
   std::string compaction_text;
+  std::vector<std::shared_ptr<const media_part>> media;
 };
 conversation prepare_conversation(const ailo_request &request,
                                   bool allow_pending = false);

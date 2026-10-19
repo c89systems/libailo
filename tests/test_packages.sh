@@ -49,7 +49,7 @@ while IFS= read -r -d '' file; do
 done < <(find "$sdk/lib" -type f -print0)
 (cd "$sdk" && find . -type f ! -name PACKAGE-MANIFEST.sha256 -printf '%P\0' | LC_ALL=C sort -z | xargs -0 sha256sum) > "$work/complete-ledger"
 cp "$work/complete-ledger" "$sdk/PACKAGE-MANIFEST.sha256"
-for header in cache continuation compaction; do
+for header in cache continuation compaction media; do
   mv "$sdk/include/ailo/$header.h" "$work/$header-header"
   rg -v -F "  include/ailo/$header.h" "$work/complete-ledger" > "$sdk/PACKAGE-MANIFEST.sha256"
   tar -I 'gzip -1n' -cf "$work/changed/$name" -C "$work/changed" "${name%.tar.gz}"

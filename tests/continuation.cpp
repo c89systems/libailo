@@ -99,8 +99,8 @@ int main(int argc, char **argv) {
     CHECK(info(root.get()).item_count == 0 &&
           std::strlen(info(root.get()).identity) == 64);
     char input[] = "keep";
-    ailo_content parts[] = {{AILO_CONTENT_TEXT, input, 4},
-                            {AILO_CONTENT_TEXT, " me", 3}};
+    ailo_content parts[] = {{AILO_CONTENT_TEXT, input, 4, nullptr},
+                            {AILO_CONTENT_TEXT, " me", 3, nullptr}};
     ailo_item instruction{};
     instruction.id = "system-one";
     instruction.role = AILO_ROLE_SYSTEM;
@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
     ailo_continuation *copy = nullptr;
     CHECK(root->clone(root.get(), &copy, &error) == AILO_OK);
     history_owner fork(copy, ailo_continuation_destroy);
-    ailo_content question{AILO_CONTENT_TEXT, "hello", 5};
+    ailo_content question{AILO_CONTENT_TEXT, "hello", 5, nullptr};
     ailo_item user{};
     user.id = "user-one";
     user.content = &question;
@@ -234,7 +234,7 @@ int main(int argc, char **argv) {
               AILO_INVALID_ARGUMENT &&
           !copy);
     auto before = info(root.get());
-    ailo_content unsupported{AILO_CONTENT_IMAGE, "x", 1};
+    ailo_content unsupported{AILO_CONTENT_IMAGE, "x", 1, nullptr};
     user.id = "media";
     user.content = &unsupported;
     CHECK(root->append(root.get(), &user, 1, &error) == AILO_UNSUPPORTED &&

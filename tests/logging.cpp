@@ -187,7 +187,7 @@ void gpu_probe(const char *model, pslog_logger *logger) {
   }
   CHECK(status == AILO_OK && raw);
   std::unique_ptr<ailo_client, client_deleter> client(raw);
-  ailo_content content{AILO_CONTENT_TEXT, "hello", 5};
+  ailo_content content{AILO_CONTENT_TEXT, "hello", 5, nullptr};
   ailo_item item{};
   item.content = &content;
   item.content_count = 1;
@@ -222,7 +222,7 @@ void run(const char *model, const std::string &directory) {
     CHECK(quiet->devices(quiet.get(), &devices, &quiet_error) == AILO_OK &&
           devices);
     ailo_string_free(devices);
-    ailo_content content{AILO_CONTENT_TEXT, "hello", 5};
+    ailo_content content{AILO_CONTENT_TEXT, "hello", 5, nullptr};
     ailo_item item{};
     item.content = &content;
     item.content_count = 1;
@@ -392,7 +392,7 @@ void run(const char *model, const std::string &directory) {
   CHECK(client->devices(client.get(), &devices, &error) == AILO_OK && devices);
   ailo_string_free(devices);
   a.parent.reset();
-  ailo_content content{AILO_CONTENT_TEXT, "hello", 5};
+  ailo_content content{AILO_CONTENT_TEXT, "hello", 5, nullptr};
   ailo_item item{};
   item.content = &content;
   item.content_count = 1;

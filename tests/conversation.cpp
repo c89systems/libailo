@@ -69,10 +69,10 @@ int observe(void *user, const ailo_event *event) {
 int main(int argc, char **argv) {
   try {
     CHECK(argc == 2);
-    ailo_content question{AILO_CONTENT_TEXT, "question", 8};
-    ailo_content checking{AILO_CONTENT_TEXT, "checking", 8};
-    ailo_content first{AILO_CONTENT_TEXT, "first", 5};
-    ailo_content second{AILO_CONTENT_TEXT, "second", 6};
+    ailo_content question{AILO_CONTENT_TEXT, "question", 8, nullptr};
+    ailo_content checking{AILO_CONTENT_TEXT, "checking", 8, nullptr};
+    ailo_content first{AILO_CONTENT_TEXT, "first", 5, nullptr};
+    ailo_content second{AILO_CONTENT_TEXT, "second", 6, nullptr};
     ailo_item items[7]{};
     items[0].name = "Ada";
     items[0].content = &question;

@@ -3,6 +3,7 @@
 #include "ailo_continuation_internal.hpp"
 #include "ailo_conversation_internal.hpp"
 #include "ailo_logging_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include <algorithm>
 #include <cstring>
 #include <limits>
@@ -62,14 +63,28 @@ owned_item::owned_item(const ailo_item &input, size_t &bytes, size_t limit,
     const auto &part = input.content[i];
     charge(bytes, part.size, limit);
     charge(bytes, 1, limit);
-    parts.push_back(
-        {part.kind,
-         part.size
-             ? std::string(static_cast<const char *>(part.data), part.size)
-             : std::string{}});
+    if (!part.data && part.size)
+      throw failure(AILO_INVALID_ARGUMENT, "Content bytes are missing");
+    owned_part owned{};
+    owned.kind = part.kind;
+    if (part.size)
+      owned.data.assign(static_cast<const char *>(part.data), part.size);
+    if (part.media) {
+      owned.media = *part.media;
+      owned.format = copy(part.media->format, 32, bytes, limit);
+      owned.reference = copy(part.media->value, 16384, bytes, limit);
+    }
+    parts.push_back(std::move(owned));
   }
-  for (const auto &part : parts)
-    views.push_back({part.kind, part.data.data(), part.data.size()});
+  for (auto &part : parts) {
+    part.media.format = part.format.empty() ? nullptr : part.format.c_str();
+    part.media.value =
+        part.reference.empty() ? nullptr : part.reference.c_str();
+    const bool media =
+        part.kind == AILO_CONTENT_IMAGE || part.kind == AILO_CONTENT_AUDIO;
+    views.push_back({part.kind, part.data.data(), part.data.size(),
+                     media ? &part.media : nullptr});
+  }
 }
 owned_item::~owned_item() {
   for (auto *text : {&id, &call_id, &name, &arguments, &encrypted_content})
@@ -188,7 +203,7 @@ ailo_continuation *new_window(state &client,
 } // namespace ailo
 
 AILO_PUBLIC ailo_continuation_config ailo_continuation_default_config(void) {
-  return {4096, 4 * 1024 * 1024};
+  return {4096, 64 * 1024 * 1024};
 }
 AILO_PUBLIC ailo_status ailo_continuation_new(
     ailo_client *client, const ailo_continuation_config *config,

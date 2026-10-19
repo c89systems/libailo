@@ -3,6 +3,7 @@
 #include "ailo_compaction_internal.hpp"
 #include "ailo_continuation_internal.hpp"
 #include "ailo_logging_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include "ailo_openai_internal.hpp"
 #include "src/llama-model.h"
 #include <algorithm>
@@ -134,6 +135,9 @@ state::state(const ailo_client_config &input, pslog_logger *logger)
   config.compactor = nullptr;
   openai = std::make_unique<openai_state>(input.openai);
   config.openai = nullptr;
+  if (input.multimodal)
+    media = std::make_unique<media_state>(*input.multimodal);
+  config.multimodal = media ? &media->config : nullptr;
 }
 
 state::~state() {
@@ -141,14 +145,18 @@ state::~state() {
   log_scope logs(logging.get(), log_phase::destroy);
   logs.trace("Destroying inference receiver");
   context.reset();
+  media.reset();
   model.reset();
   if (backend_owned)
     detail::backend_release();
 }
 
 void state::ensure_loaded() {
-  if (context)
+  if (context) {
+    if (media)
+      media->load(*this);
     return;
+  }
   log_scope logs(logging.get(), log_phase::load);
   logs.trace("Loading inference model");
   if (is_cancelled())
@@ -224,7 +232,7 @@ void state::ensure_loaded() {
       if (cp.n_batch > cp.n_ctx)
         throw failure(AILO_INVALID_ARGUMENT,
                       "Batch tokens exceed context tokens");
-      cp.n_ubatch = std::min(cp.n_batch, 128u);
+      cp.n_ubatch = media ? cp.n_batch : std::min(cp.n_batch, 128u);
       cp.n_threads = cp.n_threads_batch = config.threads ? config.threads : 2;
       cp.abort_callback = abort_inference;
       cp.abort_callback_data = this;
@@ -237,6 +245,16 @@ void state::ensure_loaded() {
       throw failure(AILO_CANCELLED, "Model loading cancelled");
     }
     if (context) {
+      if (media) {
+        try {
+          media->load(*this);
+        } catch (...) {
+          media->context.reset();
+          context.reset();
+          model.reset();
+          throw;
+        }
+      }
       logs.trace("Inference model ready");
       return;
     }
@@ -413,12 +431,20 @@ AILO_PUBLIC ailo_status ailo_client_generate(ailo_client *client,
     ailo::client::log_scope logs(call.self.logging.get(),
                                  ailo::client::log_phase::generate);
     std::unique_ptr<ailo::client::continuation_transaction> history;
-    if (request->continuation) {
+    auto normalized = ailo::client::resolve_media(call.self, *request);
+    std::vector<ailo_item> normalized_items;
+    auto input = *request;
+    if (normalized) {
+      normalized_items = normalized->views();
+      input.items = normalized_items.data();
+      input.item_count = normalized_items.size();
+    }
+    if (input.continuation) {
       history = std::make_unique<ailo::client::continuation_transaction>(
-          call.self, *request);
+          call.self, input);
     }
     logs.trace("Starting generation");
-    ailo::client::generate(call.self, history ? history->input : *request, sink,
+    ailo::client::generate(call.self, history ? history->input : input, sink,
                            user, *output, history.get());
     if (history)
       history->commit();

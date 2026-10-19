@@ -8,6 +8,8 @@ namespace client {
 struct owned_part {
   ailo_content_kind kind;
   std::string data;
+  std::string format, reference;
+  ailo_media_metadata media{};
 };
 struct owned_item {
   ailo_item_kind kind;

@@ -56,7 +56,7 @@ local function guarded(fn, ...)
   return table.unpack(result,2,result.n)
 end
 local source_keys=keys("local_path repo revision filename cache_root sha256 allow_download split_shards bearer_token max_bytes connect_timeout_ms transfer_timeout_ms max_attempts progress")
-local config_keys=keys("source model_id chat_template model_metadata backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache compactor openai gpu")
+local config_keys=keys("source model_id chat_template model_metadata backend lazy gpu_layers context_tokens batch_tokens threads logger cache disable_prompt_cache compactor openai gpu multimodal")
 local backends={auto=0,cpu=1,vulkan=2}
 local function gpu(input)
   if input==nil then return nil end
@@ -169,6 +169,15 @@ function M.new(config)
     out.compactor=config.compactor
     out.openai=openai(config.openai)
     out.gpu=gpu(config.gpu)
+    if config.multimodal~=nil then
+      local m=object(config.multimodal,keys("projector backend device max_parts max_part_bytes max_total_bytes max_image_pixels max_decoded_bytes max_audio_seconds resolver_timeout_ms resolver"),"multimodal")
+      out.multimodal={projector=source(m.projector),backend=enumeration(m.backend,backends,0,"encoder backend"),device=str(m.device,"encoder device",true)}
+      for _,k in ipairs{"max_parts","max_part_bytes","max_total_bytes","max_image_pixels","max_decoded_bytes","max_audio_seconds","resolver_timeout_ms"}do
+        out.multimodal[k]=number(m[k],k,0,true,0,math.maxinteger)
+      end
+      if m.resolver~=nil and type(m.resolver)~="function" then invalid("media resolver must be a function")end
+      out.multimodal.resolver=m.resolver
+    end
     local native,err=core.new(out)
     if not native then return nil,err end
     return setmetatable({_native=native},{__index=methods,__close=function(self) self:close() end})
@@ -247,8 +256,15 @@ local function request(input)
     if type(item.content)=="string" then v.content[1]={kind=0,data=item.content}
     elseif item.content ~= nil then
       for j=1,array(item.content,"content") do
-        local p=object(item.content[j],keys("kind data"),"content part")
-        v.content[j]={kind=enumeration(p.kind,content_kinds,0,"content kind"),data=str(p.data,"content data",false,true)}
+        local p=object(item.content[j],keys("kind data format detail url file_id"),"content part")
+        local kind=enumeration(p.kind,content_kinds,0,"content kind")
+        if p.url~=nil and p.file_id~=nil then invalid("media needs one reference")end
+        if kind~=1 and kind~=2 and (p.format~=nil or p.detail~=nil or p.url~=nil or p.file_id~=nil)then invalid("media fields require image/audio")end
+        v.content[j]={kind=kind,data=str(p.data,"content data",p.url~=nil or p.file_id~=nil,true),
+          format=str(p.format,"media format",true),
+          detail=enumeration(p.detail,{auto=0,low=1,high=2,original=3},0,"image detail"),
+          reference=p.url~=nil and 1 or p.file_id~=nil and 2 or 0,
+          value=str(p.url or p.file_id,"media reference",true)}
       end
     end
     out.items[i]=v
@@ -308,7 +324,7 @@ function methods:new_continuation(config)
     config=object(config,keys("max_items max_bytes"),"continuation")
     return wrap_continuation(self._native:new_continuation{
       max_items=number(config.max_items,"max_items",4096,true,1,4096),
-      max_bytes=number(config.max_bytes,"max_bytes",4*1024*1024,true,1,64*1024*1024)})
+      max_bytes=number(config.max_bytes,"max_bytes",64*1024*1024,true,1,64*1024*1024)})
   end)
 end
 function continuation_methods:append(items)

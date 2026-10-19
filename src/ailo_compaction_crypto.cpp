@@ -1,5 +1,6 @@
 #include "ailo_cache_internal.hpp"
 #include "ailo_compaction_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include <algorithm>
 #include <climits>
 #include <cstring>
@@ -380,14 +381,23 @@ compaction_digest fingerprint(const ailo_item &item) {
   if (item.content_count > 4096 || (!item.content && item.content_count))
     invalid();
   number(item.content_count);
-  size_t total = 0;
+  size_t total = 0, media_total = 0;
   for (size_t i = 0; i < item.content_count; ++i) {
     const auto &part = item.content[i];
-    if (part.size > 4 * 1024 * 1024 - total)
+    const bool media =
+        part.kind == AILO_CONTENT_IMAGE || part.kind == AILO_CONTENT_AUDIO;
+    auto &charged = media ? media_total : total;
+    const size_t limit = media ? 256 * 1024 * 1024 : 4 * 1024 * 1024;
+    if (part.size > limit - charged)
       invalid();
-    total += part.size;
+    charged += part.size;
     number(part.kind);
     bytes(part.data, part.size);
+    if (media) {
+      const auto format = media_format(part.data, part.size, part.kind);
+      bytes(format.data(), format.size());
+      number(part.media ? part.media->detail : AILO_MEDIA_DETAIL_AUTO);
+    }
   }
   compaction_digest out{};
   unsigned n = 0;
@@ -401,7 +411,7 @@ void verify_compaction_binding(const compaction_payload &payload,
       payload.retained.size() >= count || count > 4096 ||
       items[position].kind != AILO_ITEM_COMPACTION)
     invalid("Compaction retained window is missing or misordered");
-  size_t total = 0;
+  size_t total = 0, media_total = 0;
   for (size_t i = 0; i < count; ++i) {
     if (items[i].kind == AILO_ITEM_COMPACTION) {
       if (i != position)
@@ -418,10 +428,14 @@ void verify_compaction_binding(const compaction_payload &payload,
         (!items[i].content && items[i].content_count))
       invalid();
     for (size_t j = 0; j < items[i].content_count; ++j) {
-      const auto n = items[i].content[j].size;
-      if (n > 4 * 1024 * 1024 - total)
-        invalid("Compaction retained text exceeds 4 MiB");
-      total += n;
+      const auto &part = items[i].content[j];
+      const bool media =
+          part.kind == AILO_CONTENT_IMAGE || part.kind == AILO_CONTENT_AUDIO;
+      auto &charged = media ? media_total : total;
+      const size_t limit = media ? 256 * 1024 * 1024 : 4 * 1024 * 1024;
+      if (part.size > limit - charged)
+        invalid("Compaction retained content exceeds its byte limit");
+      charged += part.size;
     }
   }
   for (size_t i = 0; i < payload.retained.size(); ++i) {

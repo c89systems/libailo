@@ -59,6 +59,12 @@ public:
   void string(const std::string &value) {
     check(writer.string(&writer, value.data(), value.size(), nullptr));
   }
+  void string_begin() { check(writer.string_begin(&writer, nullptr)); }
+  void string_chunk(const void *p, size_t n) {
+    check(
+        writer.string_chunk(&writer, static_cast<const char *>(p), n, nullptr));
+  }
+  void string_end() { check(writer.string_end(&writer, nullptr)); }
   void nullable(const std::string &value) {
     if (value.empty())
       null();

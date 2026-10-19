@@ -49,6 +49,7 @@ void verify_compaction_binding(const compaction_payload &, const ailo_item *,
 struct summary_fact {
   size_t source = 0;
   std::string kind, role, id, call_id, name, category, text;
+  std::string media{};
 };
 // Bounded, explicitly materialized summary data. No output collector is used
 // by ordinary generation. Authenticate replay envelopes before parsing. The

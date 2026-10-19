@@ -159,7 +159,7 @@ void receiver_contract(const char *path) {
   CHECK(ailo_client_new(&config, &raw, &error) == AILO_OK);
   std::unique_ptr<ailo_client, decltype(&ailo_client_destroy)> client(
       raw, ailo_client_destroy);
-  ailo_content content{AILO_CONTENT_TEXT, "hello", 5};
+  ailo_content content{AILO_CONTENT_TEXT, "hello", 5, nullptr};
   ailo_item item{};
   item.content = &content;
   item.content_count = 1;

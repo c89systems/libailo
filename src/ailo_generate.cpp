@@ -3,6 +3,7 @@
 #include "ailo_client_internal.hpp"
 #include "ailo_compaction_internal.hpp"
 #include "ailo_conversation_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include "ailo_reasoning_internal.hpp"
 #include "ailo_sampling_internal.hpp"
 #include "ailo_schema_internal.hpp"
@@ -138,21 +139,23 @@ void evaluate(state &self, const llama_token *tokens, size_t size,
     if (self.is_cancelled())
       throw failure(AILO_CANCELLED, "Generation cancelled");
     const auto n = static_cast<int32_t>(std::min(batch_size, size - offset));
-    llama_batch batch = llama_batch_init(n, 0, 1);
-    struct cleanup {
-      llama_batch &batch;
-      ~cleanup() { llama_batch_free(batch); }
-    } guard{batch};
-    batch.n_tokens = n;
+    std::unique_ptr<llama_batch_ext, decltype(&llama_batch_ext_free)> batch(
+        llama_batch_ext_init(self.context.get()), llama_batch_ext_free);
+    if (!batch)
+      throw std::bad_alloc();
     for (int32_t i = 0; i < n; ++i) {
-      batch.token[i] = tokens[offset + static_cast<size_t>(i)];
-      batch.pos[i] =
+      const auto index = llama_batch_ext_add_token(
+          batch.get(), 0, tokens[offset + static_cast<size_t>(i)]);
+      if (index < 0)
+        throw failure(AILO_MODEL_FAILED,
+                      "Cannot construct native text evaluation batch");
+      const llama_pos pos =
           static_cast<llama_pos>(position + offset + static_cast<size_t>(i));
-      batch.n_seq_id[i] = 1;
-      batch.seq_id[i][0] = 0;
-      batch.logits[i] = i == n - 1;
+      llama_batch_ext_set_pos(batch.get(), index, &pos);
+      llama_batch_ext_set_output_logits(batch.get(), index, i == n - 1);
     }
-    if (llama_decode(self.context.get(), batch))
+    if (llama_process(self.context.get(), LLAMA_PROCESS_TYPE_DECODE,
+                      batch.get()))
       throw failure(self.is_cancelled() ? AILO_CANCELLED : AILO_MODEL_FAILED,
                     "Native token evaluation failed");
     if (prompt && self.cache)
@@ -160,6 +163,46 @@ void evaluate(state &self, const llama_token *tokens, size_t size,
     offset += static_cast<size_t>(n);
   }
 }
+struct prompt_evaluation {
+  std::unique_ptr<media_prompt> media;
+  std::vector<llama_token> tokens;
+  size_t positions = 0, count = 0;
+  prompt_evaluation(state &self, const conversation &input,
+                    const std::string &prompt) {
+    if (!input.media.empty()) {
+      media = std::make_unique<media_prompt>(self, input, prompt);
+      tokens = media->text_tokens;
+      positions = media->positions;
+      count = media->tokens;
+    } else {
+      count = positions = prompt_token_count(self, prompt);
+      tokens.resize(count);
+      if (llama_tokenize(llama_model_get_vocab(self.model.get()), prompt.data(),
+                         static_cast<int32_t>(prompt.size()), tokens.data(),
+                         static_cast<int32_t>(count), true,
+                         true) != static_cast<int32_t>(count))
+        throw failure(AILO_MODEL_FAILED, "Prompt tokenization failed");
+    }
+  }
+  size_t capacity() const { return std::max(count, positions); }
+  size_t prefill(state &self, const std::string &partition, std::string &key) {
+    self.active_media_key = media ? media->identity : "";
+    self.active_media_positions = positions;
+    self.active_media_tokens = count;
+    const size_t reused =
+        self.cache ? self.cache->restore(self, tokens, partition) : 0;
+    const size_t checkpoint = tokens.size() - 1;
+    if (media) {
+      if (!reused)
+        media->evaluate_prefix();
+    } else if (reused < checkpoint)
+      evaluate(self, tokens.data() + reused, checkpoint - reused, reused, true);
+    if (self.cache)
+      key = self.cache->capture(self, tokens, checkpoint, partition);
+    evaluate(self, tokens.data() + checkpoint, 1, positions - 1, true);
+    return media && reused ? count - 1 : reused;
+  }
+};
 } // namespace
 
 void generate(state &self, const ailo_request &request, ailo_event_sink sink,
@@ -202,36 +245,35 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   auto tools = prepare_tools(request);
   auto input = prepare_replay(self, request);
   auto reasoning = render_prompt(self, input, tools, request);
+  auto prepared =
+      std::make_unique<prompt_evaluation>(self, input, reasoning.prompt);
   std::unique_ptr<compaction_change> preflight;
-  if (automatic && prompt_token_count(self, reasoning.prompt) >=
-                       automatic->policy.trigger_tokens) {
+  if (automatic && prepared->capacity() >= automatic->policy.trigger_tokens) {
     // Reject model-specific sampling errors before doing any summary work.
     sampling validate(llama_model_get_vocab(self.model.get()), request, 0,
                       llama_n_ctx(self.context.get()));
+    prepared.reset();
     preflight = std::make_unique<compaction_change>(automatic->propose(0));
     automatic->adopt(*preflight);
     tools = prepare_tools(request);
     input = prepare_replay(self, request);
     reasoning = render_prompt(self, input, tools, request);
+    prepared =
+        std::make_unique<prompt_evaluation>(self, input, reasoning.prompt);
   }
-  const std::string &prompt = reasoning.prompt;
   std::string grammar =
       tools.definitions.empty() ? answer_grammar : tool_grammar(tools, request);
   if (reasoning.active)
     grammar = reasoning_grammar(reasoning.format, grammar);
   const char *grammar_root = reasoning.active ? "reasoning-root" : "root";
   const auto *vocab = llama_model_get_vocab(self.model.get());
-  const auto count = static_cast<int32_t>(prompt_token_count(self, prompt));
-  if (static_cast<size_t>(count) +
+  const auto count = prepared->count;
+  if (prepared->capacity() +
           (automatic ? automatic->policy.compaction.output_reserve_tokens
                      : limit) >
       llama_n_ctx(self.context.get()))
     throw failure(AILO_CONTEXT_LIMIT,
                   "Prompt plus output budget exceeds the loaded context");
-  std::vector<llama_token> tokens(static_cast<size_t>(count));
-  if (llama_tokenize(vocab, prompt.data(), static_cast<int32_t>(prompt.size()),
-                     tokens.data(), count, true, true) != count)
-    throw failure(AILO_MODEL_FAILED, "Prompt tokenization failed");
   identify_cache(self);
   info.usage.prompt_tokens =
       detail::from_unsigned(static_cast<uint64_t>(count));
@@ -262,7 +304,11 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
   }
   struct reset {
     state &self;
-    ~reset() { llama_memory_clear(llama_get_memory(self.context.get()), true); }
+    ~reset() {
+      llama_memory_clear(llama_get_memory(self.context.get()), true);
+      self.active_media_key.clear();
+      self.active_media_positions = self.active_media_tokens = 0;
+    }
   } reset_context{self};
   uint64_t generated = 0;
   uint64_t reasoned = 0;
@@ -290,20 +336,9 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
             cache->prefill_microseconds.fetch_add(elapsed_us(start));
         }
       } timing{self.cache.get()};
-      const size_t reused =
-          self.cache ? self.cache->restore(self, tokens, partition) : 0;
+      const size_t reused = prepared->prefill(self, partition, checkpoint_key);
       if (!candidate)
         info.usage.cached_tokens = detail::from_unsigned(reused);
-      const size_t checkpoint = tokens.size() - 1;
-      if (reused < checkpoint)
-        evaluate(self, tokens.data() + reused, checkpoint - reused, reused,
-                 true);
-      if (self.cache)
-        checkpoint_key =
-            self.cache->capture(self, tokens, checkpoint, partition);
-      // Sequence states don't include fresh logits. Always replay the last
-      // token.
-      evaluate(self, tokens.data() + checkpoint, 1, checkpoint, true);
     }
     std::unique_ptr<sampling> additional;
     if (candidate)
@@ -311,7 +346,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
                                               llama_n_ctx(self.context.get()),
                                               grammar, grammar_root);
     sampling &sampler = candidate ? *additional : first_sampler;
-    for (llama_token token : tokens)
+    for (llama_token token : prepared->tokens)
       sampler.accept(token);
     std::unique_ptr<json_validation> validation;
     if (request.output_format != AILO_OUTPUT_TEXT)
@@ -355,14 +390,24 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
             } else
               answer_sink(data, size, reasoning_output->output_offset());
           });
-    text_stream carry(stops, [&](const char *data, size_t size) {
+    auto visible_output = [&](const char *data, size_t size, uint64_t origin) {
       if (reasoning_output)
-        reasoning_output->push(data, size, carry.output_offset());
+        reasoning_output->push(data, size, origin);
       else
-        answer_sink(data, size, carry.output_offset());
+        answer_sink(data, size, origin);
+    };
+    std::unique_ptr<audio_text_stream> audio_output;
+    if (prepared->media && self.media->asr_output && !reasoning.active &&
+        tools.definitions.empty() && request.output_format == AILO_OUTPUT_TEXT)
+      audio_output = std::make_unique<audio_text_stream>(visible_output);
+    text_stream carry(stops, [&](const char *data, size_t size) {
+      if (audio_output)
+        audio_output->push(data, size, carry.output_offset());
+      else
+        visible_output(data, size, carry.output_offset());
     });
     ailo_finish_reason finish = AILO_FINISH_LENGTH;
-    size_t position = tokens.size();
+    size_t position = prepared->positions;
     std::vector<llama_token> unfinished;
     if (automatic)
       unfinished.reserve(llama_n_ctx(self.context.get()));
@@ -372,8 +417,9 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
       refreshed.items = change.items.data();
       refreshed.item_count = change.items.size();
       auto refreshed_tools = prepare_tools(refreshed);
-      const auto refreshed_reasoning = render_prompt(
-          self, prepare_replay(self, refreshed), refreshed_tools, refreshed);
+      const auto refreshed_input = prepare_replay(self, refreshed);
+      const auto refreshed_reasoning =
+          render_prompt(self, refreshed_input, refreshed_tools, refreshed);
       auto refreshed_grammar = refreshed_tools.definitions.empty()
                                    ? answer_grammar
                                    : tool_grammar(refreshed_tools, refreshed);
@@ -390,19 +436,13 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
             AILO_UNSUPPORTED,
             "Compaction changes the active output framing or grammar");
       const auto &new_prompt = refreshed_reasoning.prompt;
-      const auto new_count =
-          static_cast<int32_t>(prompt_token_count(self, new_prompt));
-      if (static_cast<size_t>(new_count) + unfinished.size() >=
+      auto next = std::make_unique<prompt_evaluation>(self, refreshed_input,
+                                                      new_prompt);
+      if (next->capacity() + unfinished.size() >=
           automatic->policy.trigger_tokens)
         throw failure(AILO_CONTEXT_LIMIT,
                       "Compaction cannot fit the protected unfinished output "
                       "below its trigger");
-      std::vector<llama_token> new_tokens(static_cast<size_t>(new_count));
-      if (llama_tokenize(vocab, new_prompt.data(),
-                         static_cast<int32_t>(new_prompt.size()),
-                         new_tokens.data(), new_count, true, true) != new_count)
-        throw failure(AILO_MODEL_FAILED,
-                      "Compacted prompt tokenization failed");
       auto replacement = self.new_context();
       if (!replacement)
         throw failure(self.is_cancelled() ? AILO_CANCELLED : AILO_MODEL_FAILED,
@@ -410,29 +450,18 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
       auto previous = std::move(self.context);
       self.context = std::move(replacement);
       try {
-        const size_t reused =
-            self.cache ? self.cache->restore(self, new_tokens, partition) : 0;
-        const size_t checkpoint = new_tokens.size() - 1;
-        if (reused < checkpoint)
-          evaluate(self, new_tokens.data() + reused, checkpoint - reused,
-                   reused, true);
         std::string new_checkpoint;
-        if (self.cache)
-          new_checkpoint =
-              self.cache->capture(self, new_tokens, checkpoint, partition);
-        evaluate(self, new_tokens.data() + checkpoint, 1, checkpoint, true);
+        const size_t reused = next->prefill(self, partition, new_checkpoint);
         if (!unfinished.empty())
-          evaluate(self, unfinished.data(), unfinished.size(),
-                   new_tokens.size());
+          evaluate(self, unfinished.data(), unfinished.size(), next->positions);
         change.info.reused_tokens = reused;
-        change.info.replayed_tokens =
-            new_tokens.size() - reused + unfinished.size();
+        change.info.replayed_tokens = next->count - reused + unfinished.size();
         account(change);
         output.send(AILO_EVENT_COMPACTION, nullptr, 0, AILO_FINISH_NONE,
                     nullptr, &change);
         automatic->adopt(change);
-        position = new_tokens.size() + unfinished.size();
-        tokens = std::move(new_tokens);
+        position = next->positions + unfinished.size();
+        prepared = std::move(next);
         checkpoint_key = std::move(new_checkpoint);
       } catch (...) {
         self.context = std::move(previous);
@@ -483,6 +512,7 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
       if (request.logprobs) {
         const uint64_t settled = std::min(
             {byte_offset, carry.pending_offset(),
+             audio_output ? audio_output->pending_offset() : no_offset,
              reasoning_output ? reasoning_output->pending_offset() : no_offset,
              tool_output ? tool_output->pending_offset() : no_offset});
         output.send(AILO_EVENT_OUTPUT_PROGRESS, nullptr, 0, AILO_FINISH_NONE,
@@ -510,6 +540,8 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
       }
     }
     (void)carry.push({}, true);
+    if (audio_output)
+      audio_output->finish(finish == AILO_FINISH_LENGTH);
     if (reasoning_output)
       reasoning_output->finish(finish == AILO_FINISH_LENGTH);
     if (tool_output) {

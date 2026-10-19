@@ -37,6 +37,7 @@ struct logging_state;
 struct cache_state;
 struct compaction_state;
 struct openai_state;
+struct media_state;
 
 struct state {
   std::mutex mutex;
@@ -66,9 +67,12 @@ struct state {
   std::shared_ptr<cache_state> cache;
   std::shared_ptr<compaction_state> compactor;
   std::unique_ptr<openai_state> openai;
+  std::unique_ptr<media_state> media;
   std::string cache_identity;
   std::string conversation_identity;
   std::string last_checkpoint, last_checkpoint_partition;
+  std::string active_media_key;
+  size_t active_media_positions = 0, active_media_tokens = 0;
   llama_context_params context_parameters{};
   explicit state(const ailo_client_config &input, pslog_logger *logger);
   ~state();

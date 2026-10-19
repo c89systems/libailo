@@ -1,4 +1,19 @@
 # Explicit source artifact inputs; generated VERSION and SOURCE-MANIFEST.sha256 are added during staging.
+docs/multimodal.md
+include/ailo/media.h
+src/ailo_media.cpp
+src/ailo_media_decode.cpp
+src/ailo_media_internal.hpp
+tests/media.cpp
+tests/media_fixture.py
+tests/media_inference.cpp
+tests/fixtures/media/README.md
+tests/fixtures/media/red.jpg
+tests/fixtures/media/tone.mp3
+tests/fixtures/media/tone.flac
+lua/tests/media.lua
+lua/tests/media_inference.lua
+scripts/test_media_inference.sh
 .clang-format
 .gitattributes
 .gitignore

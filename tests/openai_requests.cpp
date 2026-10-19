@@ -347,10 +347,14 @@ int main(int argc, char **argv) {
         AILO_INVALID_ARGUMENT);
     reject(responses, std::string(8 * 1024 * 1024 + 1, ' '),
            AILO_INVALID_ARGUMENT);
-    reject(
-        responses,
-        R"({"input":[{"role":"user","content":[{"type":"input_image","image_url":"https://example.invalid/image"}]}]})",
-        AILO_UNSUPPORTED);
+    const std::string media_json =
+        R"({"input":[{"role":"user","content":[{"type":"input_image","image_url":"https://example.invalid/image"}]}]})";
+    openai_request media_request(responses, media_json.data(),
+                                 media_json.size(), "local-model");
+    CHECK(media_request.items[0].content[0].kind == AILO_CONTENT_IMAGE &&
+          media_request.items[0].content[0].media->reference ==
+              AILO_MEDIA_URL &&
+          media_request.items[0].content[0].size == 0);
     reject(
         chat,
         prefix +

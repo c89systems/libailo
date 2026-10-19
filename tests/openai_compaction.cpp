@@ -108,7 +108,7 @@ struct history {
   std::vector<ailo_item> items;
   history() {
     for (const auto &s : text)
-      parts.push_back({AILO_CONTENT_TEXT, s.data(), s.size()});
+      parts.push_back({AILO_CONTENT_TEXT, s.data(), s.size(), nullptr});
     for (size_t i = 0; i < parts.size(); ++i) {
       ailo_item item{};
       item.role = i % 2 ? AILO_ROLE_ASSISTANT : AILO_ROLE_USER;
@@ -227,7 +227,7 @@ void automatic_cases(const std::string &path, ailo_openai_config profile,
   auto full = source.items;
   full.insert(full.end(), result.items.begin(), result.items.end());
   std::vector<ailo_item> pruned{result.items.back()};
-  ailo_content next{AILO_CONTENT_TEXT, "Continue", 8};
+  ailo_content next{AILO_CONTENT_TEXT, "Continue", 8, nullptr};
   ailo_item user{};
   user.role = AILO_ROLE_USER;
   user.content = &next;
@@ -359,7 +359,7 @@ void reasoning_cases(const std::string &base, ailo_openai_config profile,
         seen.bytes.find("event: response.output_item.done"));
   const auto opaque = std::string(result.items[0].encrypted_content);
   auto replay = result.items;
-  ailo_content next{AILO_CONTENT_TEXT, "Next", 4};
+  ailo_content next{AILO_CONTENT_TEXT, "Next", 4, nullptr};
   ailo_item user{};
   user.role = AILO_ROLE_USER;
   user.content = &next;
@@ -400,7 +400,7 @@ void reasoning_cases(const std::string &base, ailo_openai_config profile,
   changed = replay;
   changed[0].encrypted_content = corrupt.c_str();
   bad(changed);
-  ailo_content substitution{AILO_CONTENT_TEXT, "different", 9};
+  ailo_content substitution{AILO_CONTENT_TEXT, "different", 9, nullptr};
   changed = replay;
   changed[0].content = &substitution;
   changed[0].content_count = 1;
@@ -482,7 +482,7 @@ void triggered_cases(const std::string &path, ailo_openai_config profile,
         compacted.items[0].kind == AILO_ITEM_COMPACTION &&
         compacted.items[0].encrypted_content);
   auto replay = compacted.items;
-  ailo_content next{AILO_CONTENT_TEXT, "Continue", 8};
+  ailo_content next{AILO_CONTENT_TEXT, "Continue", 8, nullptr};
   ailo_item user{};
   user.content = &next;
   user.content_count = 1;
@@ -604,7 +604,8 @@ int main(int argc, char **argv) {
     // Canonical system messages remain authenticated while per-request
     // instructions can be replaced on replay.
     auto persistent = input.items;
-    ailo_content text{AILO_CONTENT_TEXT, "Permanent canonical policy", 26};
+    ailo_content text{AILO_CONTENT_TEXT, "Permanent canonical policy", 26,
+                      nullptr};
     ailo_item system{};
     system.role = AILO_ROLE_SYSTEM;
     system.content = &text;
@@ -640,7 +641,7 @@ int main(int argc, char **argv) {
     call.call_id = "c1";
     call.name = "lookup";
     call.arguments = "{}";
-    ailo_content result_text{AILO_CONTENT_TEXT, "toolresult", 10};
+    ailo_content result_text{AILO_CONTENT_TEXT, "toolresult", 10, nullptr};
     ailo_item result{};
     result.kind = AILO_ITEM_FUNCTION_RESULT;
     result.call_id = "c1";
@@ -701,7 +702,7 @@ int main(int argc, char **argv) {
     changed.erase(changed.begin() + 1);
     bad(changed);
     changed = window.items;
-    ailo_content altered{AILO_CONTENT_TEXT, "substituted", 11};
+    ailo_content altered{AILO_CONTENT_TEXT, "substituted", 11, nullptr};
     changed[1].content = &altered;
     changed[1].content_count = 1;
     bad(changed);

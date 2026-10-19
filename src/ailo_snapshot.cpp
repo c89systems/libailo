@@ -18,6 +18,7 @@ namespace ailo {
 namespace client {
 namespace {
 using digest = std::array<unsigned char, 32>;
+constexpr size_t media_metadata_bytes = 80;
 [[noreturn]] void io(const char *message) {
   throw failure(AILO_IO_FAILED,
                 std::string(message) + ": " + std::strerror(errno));
@@ -257,7 +258,9 @@ std::string checkpoint_key(const cache_entry &entry) {
              tokens = sha(entry.tokens.data(),
                           entry.tokens.size() * sizeof(llama_token));
   const std::string value = entry.identity + hex(part.data(), part.size()) +
-                            hex(tokens.data(), tokens.size());
+                            hex(tokens.data(), tokens.size()) +
+                            entry.media_key + ':' +
+                            std::to_string(entry.positions);
   const auto sum = sha(value);
   return hex(sum.data(), sum.size());
 }
@@ -351,11 +354,13 @@ snapshot_record snapshot_store::inspect(const std::string &name) {
     bad();
   const uint64_t count = get(header + 24), native = get(header + 32);
   const size_t cap = owner.config.max_snapshot_bytes;
-  if (!count || count > INT32_MAX || count > cap / sizeof(llama_token) ||
-      !native || native > cap - count * sizeof(llama_token))
+  if (cap < media_metadata_bytes || !count || count > INT32_MAX ||
+      count > (cap - media_metadata_bytes) / sizeof(llama_token) || !native ||
+      native > cap - media_metadata_bytes - count * sizeof(llama_token))
     throw failure(AILO_OUT_OF_RANGE,
                   "Snapshot exceeds its materialization budget");
-  const uint64_t size = 256 + count * sizeof(llama_token) + native;
+  const uint64_t size =
+      256 + media_metadata_bytes + count * sizeof(llama_token) + native;
   if (size != static_cast<uint64_t>(st.st_size) ||
       size > owner.config.max_disk_bytes)
     bad("Snapshot length is invalid or exceeds its disk budget");
@@ -378,13 +383,37 @@ std::unique_ptr<cache_entry> snapshot_store::read(const snapshot_record &input,
     bad("Snapshot changed during lookup");
   auto entry = std::make_unique<cache_entry>();
   entry->tokens.resize(record.count);
-  auto *tokens = reinterpret_cast<unsigned char *>(entry->tokens.data());
-  const size_t token_bytes = record.count * sizeof(llama_token);
-  decrypt(fd.get(), 256, tokens, token_bytes, metadata_key, record, true,
-          client);
-  const auto token_sum = sha(tokens, token_bytes);
+  const size_t token_bytes =
+      media_metadata_bytes + record.count * sizeof(llama_token);
+  std::vector<unsigned char> payload(token_bytes);
+  decrypt(fd.get(), 256, payload.data(), token_bytes, metadata_key, record,
+          true, client);
+  const auto token_sum = sha(payload.data(), token_bytes);
   if (std::memcmp(token_sum.data(), record.header.data() + 104, 32))
     bad("Snapshot token checksum failed");
+  const auto positions = get(payload.data()),
+             evaluated = get(payload.data() + 8);
+  if (!positions || positions > INT_MAX || !evaluated || evaluated > INT_MAX)
+    bad("Snapshot evaluation counts are invalid");
+  entry->positions = static_cast<size_t>(positions);
+  entry->evaluated_tokens = static_cast<size_t>(evaluated);
+  if (payload[16]) {
+    entry->media_key.assign(reinterpret_cast<const char *>(payload.data() + 16),
+                            64);
+    if (!std::all_of(entry->media_key.begin(), entry->media_key.end(),
+                     [](char c) {
+                       return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+                     }))
+      bad("Snapshot media identity is invalid");
+  } else if (std::any_of(payload.begin() + 16, payload.begin() + 80,
+                         [](unsigned char c) { return c != 0; }))
+    bad("Snapshot text metadata is invalid");
+  if (entry->media_key.empty() &&
+      (positions != record.count || evaluated != record.count))
+    bad("Snapshot text counts are invalid");
+  std::memcpy(entry->tokens.data(), payload.data() + media_metadata_bytes,
+              record.count * sizeof(llama_token));
+  OPENSSL_cleanse(payload.data(), payload.size());
   const auto expires = get(record.header.data() + 16), current = now();
   if (record.created > current || expires <= current ||
       expires <= record.created ||
@@ -491,8 +520,11 @@ bool snapshot_store::write(const cache_entry &entry, const std::string &name,
   if (!reserved(name))
     bad("Invalid snapshot slot identity");
   const size_t cap = owner.config.max_snapshot_bytes;
-  if (entry.tokens.size() > cap / sizeof(llama_token) ||
-      entry.bytes.size() > cap - entry.tokens.size() * sizeof(llama_token) ||
+  if (cap < media_metadata_bytes ||
+      entry.tokens.size() >
+          (cap - media_metadata_bytes) / sizeof(llama_token) ||
+      entry.bytes.size() > cap - media_metadata_bytes -
+                               entry.tokens.size() * sizeof(llama_token) ||
       entry.tokens.empty() || entry.bytes.empty())
     throw failure(AILO_OUT_OF_RANGE,
                   "Snapshot exceeds its materialization budget");
@@ -500,8 +532,8 @@ bool snapshot_store::write(const cache_entry &entry, const std::string &name,
   record.name = name;
   record.count = entry.tokens.size();
   record.native_size = entry.bytes.size();
-  record.size =
-      256 + entry.tokens.size() * sizeof(llama_token) + entry.bytes.size();
+  record.size = 256 + media_metadata_bytes +
+                entry.tokens.size() * sizeof(llama_token) + entry.bytes.size();
   record.created = now();
   if (record.size > owner.config.max_disk_bytes)
     throw failure(AILO_OUT_OF_RANGE, "Snapshot exceeds its disk budget");
@@ -517,9 +549,19 @@ bool snapshot_store::write(const cache_entry &entry, const std::string &name,
   put(header + 16, record.created + owner.config.disk_ttl_seconds);
   put(header + 24, record.count);
   put(header + 32, record.native_size);
+  std::vector<unsigned char> payload(media_metadata_bytes +
+                                     entry.tokens.size() * sizeof(llama_token));
+  put(payload.data(), entry.positions);
+  put(payload.data() + 8, entry.evaluated_tokens);
+  if (!entry.media_key.empty()) {
+    if (entry.media_key.size() != 64)
+      bad("Snapshot media identity has an invalid length");
+    std::memcpy(payload.data() + 16, entry.media_key.data(), 64);
+  }
+  std::memcpy(payload.data() + media_metadata_bytes, entry.tokens.data(),
+              entry.tokens.size() * sizeof(llama_token));
   const auto model = sha(entry.identity), partition = sha(entry.partition),
-             tokens = sha(entry.tokens.data(),
-                          entry.tokens.size() * sizeof(llama_token)),
+             tokens = sha(payload.data(), payload.size()),
              native = sha(entry.bytes.data(), entry.bytes.size());
   std::memcpy(header + 40, model.data(), 32);
   std::memcpy(header + 72, partition.data(), 32);
@@ -528,13 +570,11 @@ bool snapshot_store::write(const cache_entry &entry, const std::string &name,
   std::memcpy(header + 168, key_hash.data(), 32);
   crypto(RAND_bytes(header + 200, 24) == 1);
   temporary_file temporary(directory.get());
-  encrypt(temporary.file.get(), 256,
-          reinterpret_cast<const unsigned char *>(entry.tokens.data()),
-          entry.tokens.size() * sizeof(llama_token), metadata_key, record, true,
-          client);
-  encrypt(temporary.file.get(), 256 + entry.tokens.size() * sizeof(llama_token),
-          entry.bytes.data(), entry.bytes.size(), state_key, record, false,
-          client);
+  encrypt(temporary.file.get(), 256, payload.data(), payload.size(),
+          metadata_key, record, true, client);
+  OPENSSL_cleanse(payload.data(), payload.size());
+  encrypt(temporary.file.get(), 256 + payload.size(), entry.bytes.data(),
+          entry.bytes.size(), state_key, record, false, client);
   write_at(temporary.file.get(), header, record.header.size(), 0);
   if (now() >= get(header + 16))
     bad("Snapshot expired before publication");
@@ -595,6 +635,10 @@ size_t snapshot_store::restore(state &client,
       throw failure(AILO_CANCELLED, "Snapshot restore cancelled");
     try {
       auto entry = read(record, false, &client);
+      if (entry->media_key != client.active_media_key ||
+          (!entry->media_key.empty() &&
+           entry->tokens.size() != tokens.size() - 1))
+        continue;
       const auto count = matching_prefix(*entry, tokens, trim);
       if (count > minimum)
         candidates.emplace_back(count, record);

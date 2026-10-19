@@ -172,8 +172,11 @@ The expanded contract includes `n`, participant names, function-tool calls and
 results, `tools`/`tool_choice`/`parallel_tool_calls`, `response_format`,
 frequency/presence penalties, `logit_bias`, `logprobs`/`top_logprobs` and the
 cache controls whose semantics are implemented. Reasoning/media controls are
-model/adapter dependent, not silently flattened into text. Missing required
-data, invalid types/ranges, conflicting limits, unknown fields with meaningful
+model/adapter dependent, not silently flattened into text. Media adapters
+require an explicit matched projector; the complete
+[image/audio contract](multimodal.md) includes bounded decoding, C/Lua parity,
+actual placement and Pouch replay. Generated speech/video remain separate work.
+Missing required data, invalid types/ranges, conflicting limits, unknown fields with meaningful
 unsupported semantics and unknown model IDs fail before generation. Stored
 completion records require a configured handler repository; prompt cache state
 does not implement `store`. Model capabilities are not inferred from its

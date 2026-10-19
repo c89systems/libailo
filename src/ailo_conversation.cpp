@@ -1,8 +1,10 @@
 #include "ailo_conversation_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include <algorithm>
 #include <cstring>
 #include <lonejson.h>
 #include <map>
+#include <openssl/rand.h>
 #include <set>
 
 namespace ailo {
@@ -50,12 +52,38 @@ std::string name(const char *value, bool required = false) {
                     "underscores or hyphens");
   return result;
 }
-std::string content(const ailo_item &item, size_t &total) {
+std::string content(const ailo_item &item, size_t &total, conversation &output,
+                    const std::string &prefix) {
   if ((!item.content && item.content_count) || item.content_count > 4096)
     throw failure(AILO_INVALID_ARGUMENT, "Invalid message content array");
   std::string result;
   for (size_t i = 0; i < item.content_count; ++i) {
     const auto &part = item.content[i];
+    if (part.kind == AILO_CONTENT_IMAGE || part.kind == AILO_CONTENT_AUDIO) {
+      if (item.role != AILO_ROLE_USER || item.kind != AILO_ITEM_MESSAGE)
+        throw failure(
+            AILO_UNSUPPORTED,
+            "This media adapter accepts user message attachments only");
+      if (!part.data || !part.size || part.size > 256 * 1024 * 1024)
+        throw failure(AILO_INVALID_ARGUMENT,
+                      "Resolved finite media bytes are required");
+      const auto format = media_format(part.data, part.size, part.kind);
+      if (part.media && ((part.media->format && format != part.media->format) ||
+                         part.media->detail < AILO_MEDIA_DETAIL_AUTO ||
+                         part.media->detail > AILO_MEDIA_DETAIL_ORIGINAL))
+        throw failure(AILO_INVALID_ARGUMENT, "Invalid media description");
+      auto media = std::make_shared<media_part>();
+      media->kind = part.kind;
+      media->bytes.assign(static_cast<const char *>(part.data), part.size);
+      media->detail = part.media ? part.media->detail : AILO_MEDIA_DETAIL_AUTO;
+      media->marker = prefix + std::to_string(output.media.size()) + "|>";
+      result += media->marker;
+      output.media.push_back(std::move(media));
+      continue;
+    }
+    if (part.media)
+      throw failure(AILO_INVALID_ARGUMENT,
+                    "Text content cannot have media metadata");
     if (part.kind != AILO_CONTENT_TEXT)
       throw failure(AILO_UNSUPPORTED,
                     "This model adapter accepts text content only");
@@ -69,6 +97,10 @@ std::string content(const ailo_item &item, size_t &total) {
         throw failure(
             AILO_UNSUPPORTED,
             "This template adapter cannot represent embedded NUL text");
+      if (std::string_view(bytes, part.size).find(prefix) !=
+          std::string_view::npos)
+        throw failure(AILO_INVALID_ARGUMENT,
+                      "Text collides with a reserved media marker");
       result.append(bytes, part.size);
       total += part.size;
     }
@@ -103,6 +135,16 @@ conversation prepare_conversation(const ailo_request &request,
     throw failure(AILO_INVALID_ARGUMENT,
                   "Request needs between 1 and 4096 items");
   conversation output;
+  unsigned char nonce[16];
+  if (RAND_bytes(nonce, sizeof(nonce)) != 1)
+    throw failure(AILO_INTERNAL_ERROR,
+                  "Cannot create typed media marker identity");
+  std::string media_prefix = "<|ailo_media_";
+  for (auto ch : nonce) {
+    media_prefix += "0123456789abcdef"[ch >> 4];
+    media_prefix += "0123456789abcdef"[ch & 15];
+  }
+  media_prefix += '_';
   size_t total = 0, group_size = 0;
   bool results_started = false;
   std::string reasoning;
@@ -138,7 +180,7 @@ conversation prepare_conversation(const ailo_request &request,
       chat_message message;
       message.role = role_name(item.role);
       message.name = name(item.name);
-      message.content = content(item, total);
+      message.content = content(item, total, output, media_prefix);
       message.reasoning = std::move(reasoning);
       message.has_reasoning = pending_reasoning;
       pending_reasoning = false;
@@ -196,7 +238,7 @@ conversation prepare_conversation(const ailo_request &request,
           (item.role != AILO_ROLE_USER && item.role != AILO_ROLE_ASSISTANT))
         throw failure(AILO_INVALID_ARGUMENT,
                       "Invalid or interrupted reasoning history item");
-      reasoning = content(item, total);
+      reasoning = content(item, total, output, media_prefix);
       pending_reasoning = true;
       output.rich = true;
       continue;
@@ -221,7 +263,7 @@ conversation prepare_conversation(const ailo_request &request,
       message.role = "tool";
       message.name = found->second.name;
       message.call_id = call_id;
-      message.content = content(item, total);
+      message.content = content(item, total, output, media_prefix);
       output.messages.push_back(std::move(message));
       found->second.answered = true;
       pending.erase(call_id);

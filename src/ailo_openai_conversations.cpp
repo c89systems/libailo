@@ -1,4 +1,5 @@
 #include "ailo_cache_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include "ailo_openai_internal.hpp"
 #include <algorithm>
 #include <cstring>
@@ -26,8 +27,8 @@ byte_sink collect(std::string &out, size_t limit) {
 void add(transcript &out, const ailo_item &item) {
   if (out.items.size() == 4096)
     throw failure(AILO_OUT_OF_RANGE, "Conversation context exceeds 4096 items");
-  out.items.push_back(std::make_shared<owned_item>(item, out.bytes,
-                                                   4 * 1024 * 1024, out.parts));
+  out.items.push_back(std::make_shared<owned_item>(
+      item, out.bytes, 64 * 1024 * 1024, out.parts));
 }
 void incoming(openai_request &request, conversation_snapshot &snapshot) {
   std::set<std::string> ids;
@@ -137,7 +138,8 @@ api_load_conversation(openai_state &owner, const char *id, bool allow_deleted) {
   auto s = std::make_unique<conversation_snapshot>();
   s->id = id;
   std::string header;
-  read_conversation_snapshot(owner, id, collect(s->state_json, 8 * 1024 * 1024),
+  read_conversation_snapshot(owner, id,
+                             collect(s->state_json, 64 * 1024 * 1024),
                              collect(header, 65536));
   openai_request state(openai_protocol::responses, s->state_json.data(),
                        s->state_json.size(), "", "__header__");
@@ -203,6 +205,11 @@ api_attach_conversation(state &self, openai_request &request) {
   auto s = api_load_conversation(*self.openai, request.conversation_id.c_str());
   openai_request posted(openai_protocol::responses, request.raw_json,
                         request.raw_size, self.id, nullptr, true);
+  // Keep the original wire view, but never resolve the same reference twice.
+  posted.input = request.input;
+  posted.items = posted.input.views();
+  posted.generation.items = posted.items.data();
+  posted.generation.item_count = posted.items.size();
   incoming(posted, *s);
   openai_request prior(openai_protocol::responses, s->state_json.data(),
                        s->state_json.size(), self.id, "input");
@@ -226,7 +233,7 @@ api_attach_conversation(state &self, openai_request &request) {
                                   0,
                                   1};
     query_conversation(*self.openai, query, [&](const void *p, size_t n) {
-      if (n > 8 * 1024 * 1024 - bytes.size() - 1)
+      if (n > 64 * 1024 * 1024 - bytes.size() - 1)
         throw failure(
             AILO_OUT_OF_RANGE,
             "Conversation history exceeds its context reconstruction budget");
@@ -283,6 +290,8 @@ void manage(state &self, ailo_conversation_action action, const char *id,
                                    : openai_protocol::conversation_update,
                          json ? json : "{\"metadata\":null}", json ? size : 17,
                          self.id, nullptr, additions);
+  if (additions)
+    resolve_media(self, request);
   if (action == AILO_CONVERSATION_UPDATE || action == AILO_CONVERSATION_CREATE)
     s->metadata = request.metadata;
   if (additions) {

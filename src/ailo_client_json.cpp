@@ -1,5 +1,6 @@
 #include "ailo_bounded_json_internal.hpp"
 #include "ailo_client_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include "ailo_model_internal.hpp"
 #include "ailo_openai_internal.hpp"
 #include "src/llama-ext.h"
@@ -111,7 +112,7 @@ void placement(json &out, const state &self) {
   out.end_object();
 }
 
-void feature_fields(json &out) {
+void feature_fields(json &out, const state &self) {
   out.key("text");
   out.boolean(true);
   out.key("streaming");
@@ -205,7 +206,27 @@ void feature_fields(json &out) {
   out.boolean(true);
   out.key("media");
   out.array();
+  if (self.media && self.media->context) {
+    if (mtmd_support_vision(self.media->context.get()))
+      out.string("image");
+    if (mtmd_support_audio(self.media->context.get()))
+      out.string("audio");
+  }
   out.end_array();
+  out.key("media_configured");
+  out.boolean(bool(self.media));
+  out.key("media_loaded");
+  out.boolean(self.media && self.media->context);
+  out.key("media_template_validated");
+  out.boolean(self.media && self.media->template_validated);
+  out.key("audio_task");
+  if (self.media && self.media->context &&
+      mtmd_support_audio(self.media->context.get()))
+    out.string(self.media->asr_output ? "transcription" : "model_defined");
+  else
+    out.null();
+  out.key("media_output");
+  out.string("text");
 }
 
 } // namespace
@@ -215,7 +236,7 @@ std::string capabilities(state &self) {
   out.object();
   out.key("scope");
   out.string("receiver_implementation");
-  feature_fields(out);
+  feature_fields(out, self);
   out.key("chat_completions");
   out.boolean(true);
   out.key("responses");
@@ -457,7 +478,7 @@ std::string model_card(state &self) {
   out.end_object();
   out.key("capabilities");
   out.object();
-  feature_fields(out);
+  feature_fields(out, self);
   out.end_object();
   out.key("files");
   out.array();
@@ -566,6 +587,82 @@ std::string model_card(state &self) {
   out.end_object();
   out.key("placement");
   placement(out, self);
+  out.key("multimodal");
+  if (!self.media)
+    out.null();
+  else {
+    auto &media = *self.media;
+    if (!media.publisher_requested) {
+      media.publisher = load_publisher_metadata(media.source.value, media.path);
+      media.publisher_requested = true;
+    }
+    gguf_init_params params{true, nullptr};
+    std::unique_ptr<gguf_context, decltype(&gguf_free)> projector(
+        gguf_init_from_file(media.path.c_str(), params), gguf_free);
+    auto fact = [&](const char *key) -> std::string {
+      const auto index = projector ? gguf_find_key(projector.get(), key) : -1;
+      return index >= 0 && gguf_get_kv_type(projector.get(), index) ==
+                               GGUF_TYPE_STRING
+                 ? gguf_get_val_str(projector.get(), index)
+                 : "";
+    };
+    out.object();
+    out.key("sha256");
+    out.string(media.digest);
+    out.key("source");
+    out.object();
+    out.key("repository");
+    out.nullable(media.source.repo);
+    out.key("revision");
+    out.nullable(media.source.revision);
+    out.key("filename");
+    out.nullable(media.source.filename);
+    out.end_object();
+    out.key("name");
+    out.nullable(fact("general.name"));
+    out.key("license");
+    const auto license = fact("general.license");
+    out.nullable(license.empty() ? media.publisher.claims.license_id : license);
+    out.key("license_origin");
+    out.string(!license.empty()                             ? "gguf"
+               : !media.publisher.claims.license_id.empty() ? "huggingface"
+                                                            : "unknown");
+    out.key("encoder_device_id");
+    out.string(media.actual_device);
+    out.key("requested_backend");
+    out.string(media.config.backend == AILO_BACKEND_CPU      ? "cpu"
+               : media.config.backend == AILO_BACKEND_VULKAN ? "vulkan"
+                                                             : "auto");
+    out.key("requested_device_id");
+    out.nullable(media.device);
+    out.key("encoder_allocation_bytes");
+    out.null();
+    out.key("encoder_split");
+    out.string("single_device");
+    out.key("preprocessing");
+    out.string("rgb-area512-f32mono");
+    out.key("audio_sample_rate");
+    const int rate = mtmd_get_audio_sample_rate(media.context.get());
+    if (rate > 0)
+      out.number(static_cast<uint64_t>(rate));
+    else
+      out.null();
+    out.key("limits");
+    out.object();
+#define LIMIT(field)                                                           \
+  out.key(#field);                                                             \
+  out.number(media.config.field)
+    LIMIT(max_parts);
+    LIMIT(max_part_bytes);
+    LIMIT(max_total_bytes);
+    LIMIT(max_image_pixels);
+    LIMIT(max_decoded_bytes);
+    LIMIT(max_audio_seconds);
+    LIMIT(resolver_timeout_ms);
+#undef LIMIT
+    out.end_object();
+    out.end_object();
+  }
   out.end_object();
   return out.finish();
 }

@@ -67,6 +67,11 @@ format-check:
 finalize-slice: format test format-check
 inference-smoke-vulkan: build
 	scripts/test_model_vulkan.sh "$(PRESET)"
+.PHONY: inference-smoke-media
+MEDIA_BACKEND ?= cpu
+MEDIA_ACQUIRE ?= offline
+inference-smoke-media: build
+	bash scripts/test_media_inference.sh "$(PRESET)" "$(MEDIA_BACKEND)" "$(MEDIA_ACQUIRE)"
 .PHONY: test-openai-agent
 test-openai-agent: build
 	bash scripts/test_openai_agent.sh "$(PRESET)"

@@ -20,8 +20,8 @@ request JSON through lonejson into owned receiver input. It maps text histories,
 function calls/results, function definitions/choices, structured-output schemas
 and supported sampling controls, and preserves storage, continuation and
 compaction controls separately. The JSON body is capped at 8 MiB, with 64 levels
-and 32768 object members; expanded owned input uses the continuation's 4 MiB and
-4096-item/part bounds. Schema fragments are explicitly materialized within
+and 32768 object members; expanded owned input uses the continuation's 64 MiB and
+4096-item/part bounds, with a separate 4 MiB text/arguments limit. Schema fragments are explicitly materialized within
 64 KiB through lonejson's writer. Counts require integer literals; invalid,
 conflicting, duplicate and unavailable semantics fail instead of being ignored.
 This is request materialization, not generated-output buffering. Public Chat
@@ -131,8 +131,8 @@ byte/time limits; the inference engine does not fetch arbitrary user URLs.
 Media, custom tools and other item types require actual model/template/adapter
 capabilities. Preserve extensibility without treating an unknown item as text.
 The [multimodal receiver design](multimodal.md) records candidate model/projector
-pairs, execution, wire mappings, replay/storage implications and the remaining
-scope/admission decisions before high-level media implementation.
+pairs, execution, wire mappings, replay/storage, admission defaults and the
+implemented image/audio-input scope with streamed text output.
 
 Generation events include run/item/content start, text/refusal/reasoning deltas,
 function identity and argument deltas, item completion, compaction, usage and

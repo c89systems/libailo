@@ -2,6 +2,7 @@
 #define AILO_CLIENT_H
 
 #include "ailo/cache.h"
+#include "ailo/media.h"
 #include "ailo/model.h"
 #include <stddef.h>
 
@@ -54,6 +55,8 @@ typedef struct ailo_content {
   ailo_content_kind kind;
   const void *data;
   size_t size;
+  /** Image/audio only; NULL detects format and uses automatic detail. */
+  const ailo_media_metadata *media;
 } ailo_content;
 
 /** Ordered conversation item. Function calls require call_id/name/arguments;
@@ -99,6 +102,25 @@ typedef struct ailo_gpu_config {
   ailo_gpu_split split;
 } ailo_gpu_config;
 
+/** Optional matched encoder/projector. Zero limits select the documented
+ * defaults. Strings/source options are copied; resolver user state remains
+ * borrowed until client destruction. Encoder placement is independent of
+ * language-model layer splitting. */
+typedef struct ailo_multimodal_config {
+  ailo_model_source projector;
+  ailo_backend_policy backend;
+  const char *device;
+  size_t max_parts;
+  size_t max_part_bytes;
+  size_t max_total_bytes;
+  size_t max_image_pixels;
+  size_t max_decoded_bytes;
+  unsigned int max_audio_seconds;
+  long resolver_timeout_ms;
+  ailo_media_resolver resolver;
+  void *user_data;
+} ailo_multimodal_config;
+
 /** Constructor copies source strings/checksums and model_id/template strings.
  * Source callback user state stays borrowed until destroy. Zero selects eager
  * loading and automatic backend selection. Source itself is always explicit. */
@@ -133,6 +155,7 @@ typedef struct ailo_client_config {
    * construction. Name/license/source-lineage claims supplement missing GGUF
    * facts; conflicts are recorded, never used to replace loaded facts. */
   const char *model_metadata;
+  const ailo_multimodal_config *multimodal;
 } ailo_client_config;
 
 typedef struct ailo_logit_bias {

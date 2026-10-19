@@ -54,6 +54,7 @@ typedef struct client {
   int active_index;
   int busy;
   int progress_failed;
+  int media_failed;
   int repository_failed;
   int cleanup_failed;
   unsigned handlers;
@@ -66,7 +67,9 @@ typedef struct handler {
 typedef struct work {
   ailo_item *items;
   ailo_content *content;
+  ailo_media_metadata *media;
   const char **strings;
+  const char **projector_strings;
   ailo_logit_bias *biases;
   ailo_function_tool *tools;
   const char **allowed;
@@ -306,7 +309,9 @@ static int cache_prune(lua_State *L) { return cache_operation(L, 2); }
 static void release_work(work *value) {
   free(value->items);
   free(value->content);
+  free(value->media);
   free(value->strings);
+  free(value->projector_strings);
   free(value->biases);
   free(value->tools);
   free(value->allowed);
@@ -315,7 +320,9 @@ static void release_work(work *value) {
   ailo_string_free(value->json);
   value->items = NULL;
   value->content = NULL;
+  value->media = NULL;
   value->strings = NULL;
+  value->projector_strings = NULL;
   value->biases = NULL;
   value->tools = NULL;
   value->allowed = NULL;
@@ -436,7 +443,7 @@ static int client_gc(lua_State *L) {
   }
   {
     int slot = 4;
-    for (; slot <= 10; ++slot) {
+    for (; slot <= 13; ++slot) {
       lua_pushnil(L);
       lua_setiuservalue(L, 1, slot);
     }
@@ -458,6 +465,7 @@ static void begin(lua_State *L, client *value, int index) {
   value->active = L;
   value->active_index = index;
   value->progress_failed = 0;
+  value->media_failed = 0;
   value->repository_failed = value->cleanup_failed = 0;
   lua_pushnil(L);
   lua_setiuservalue(L, index, 3);
@@ -473,7 +481,7 @@ static void end(client *value) {
 }
 static int progress_thunk(lua_State *L) {
   const ailo_u64 *counts;
-  lua_getiuservalue(L, 1, 1);
+  lua_getiuservalue(L, 1, (int)lua_tointeger(L, 3));
   /* The native callback passes a stack-owned record valid through pcall. */
   counts = lua_touserdata(L, 2);
   lua_createtable(L, 0, 4);
@@ -486,13 +494,13 @@ static int progress_thunk(lua_State *L) {
   lua_call(L, 1, 1);
   return 1;
 }
-static int progress(void *data, unsigned int shard, unsigned int shards,
-                    ailo_u64 received, ailo_u64 total) {
+static int progress_for(void *data, unsigned int shard, unsigned int shards,
+                        ailo_u64 received, ailo_u64 total, int slot) {
   client *value = data;
   lua_State *L = value->active;
   ailo_u64 counts[3];
   int result;
-  if (!L || !lua_checkstack(L, 5)) {
+  if (!L || !lua_checkstack(L, 6)) {
     value->progress_failed = 1;
     return 0;
   }
@@ -504,7 +512,8 @@ static int progress(void *data, unsigned int shard, unsigned int shards,
   lua_pushcfunction(L, progress_thunk);
   lua_pushvalue(L, value->active_index);
   lua_pushlightuserdata(L, counts);
-  if (lua_pcall(L, 2, 1, 0) != LUA_OK) {
+  lua_pushinteger(L, slot);
+  if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
     value->progress_failed = 1;
     lua_setiuservalue(L, value->active_index, 3);
     return 0;
@@ -512,6 +521,14 @@ static int progress(void *data, unsigned int shard, unsigned int shards,
   result = !(lua_isboolean(L, -1) && !lua_toboolean(L, -1));
   lua_pop(L, 1);
   return result;
+}
+static int progress(void *p, unsigned int n, unsigned int count, ailo_u64 got,
+                    ailo_u64 total) {
+  return progress_for(p, n, count, got, total, 1);
+}
+static int projector_progress(void *p, unsigned int n, unsigned int count,
+                              ailo_u64 got, ailo_u64 total) {
+  return progress_for(p, n, count, got, total, 11);
 }
 static void cause(lua_State *L, int index, int slot) {
   lua_getiuservalue(L, index, slot);
@@ -1063,6 +1080,130 @@ static ailo_status repository_erase(void *u, const char *ns,
     memcpy(&(out), &raw, sizeof(out));                                         \
   } while (0)
 static void read_compaction_policy(lua_State *, int, ailo_compaction_policy *);
+static void read_model_source(lua_State *L, int index,
+                              ailo_model_source *source,
+                              const char ***hash_storage) {
+  size_t count, i;
+  luaL_checktype(L, index, LUA_TTABLE);
+  source->local_path = string(L, index, "local_path");
+  source->repo = string(L, index, "repo");
+  source->revision = string(L, index, "revision");
+  source->filename = string(L, index, "filename");
+  source->cache_root = string(L, index, "cache_root");
+  source->bearer_token = string(L, index, "bearer_token");
+  source->allow_download = boolean(L, index, "allow_download");
+  source->split_shards = boolean(L, index, "split_shards");
+  source->max_attempts = (unsigned int)integer(L, index, "max_attempts");
+  source->connect_timeout_ms = (long)integer(L, index, "connect_timeout_ms");
+  source->transfer_timeout_ms = (long)integer(L, index, "transfer_timeout_ms");
+  lua_getfield(L, index, "max_bytes");
+  source->max_bytes = unsigned_value(L, -1);
+  lua_pop(L, 1);
+  lua_getfield(L, index, "sha256");
+  count = lua_rawlen(L, -1);
+  if (count) {
+    *hash_storage = allocate(L, count, sizeof(char *));
+    for (i = 0; i < count; ++i) {
+      lua_geti(L, -1, (lua_Integer)i + 1);
+      (*hash_storage)[i] =
+          lua_isboolean(L, -1) ? NULL : luaL_checkstring(L, -1);
+      lua_pop(L, 1);
+    }
+    source->sha256 = *hash_storage;
+    source->sha256_count = count;
+  }
+  lua_pop(L, 1);
+}
+typedef struct media_emitter {
+  ailo_media_sink sink;
+  void *user;
+  client *owner;
+  int active, rejected;
+} media_emitter;
+typedef struct media_resolution {
+  ailo_media_reference kind;
+  const char *reference;
+  size_t maximum;
+  long timeout;
+  ailo_media_sink sink;
+  void *user;
+  media_emitter *emitter;
+} media_resolution;
+static int media_emit(lua_State *L) {
+  media_emitter *emit = lua_touserdata(L, lua_upvalueindex(1));
+  size_t size;
+  const char *p;
+  if (!emit->active || emit->owner->active != L)
+    return luaL_error(L, "media emitter is inactive or on another Lua thread");
+  p = luaL_checklstring(L, 1, &size);
+  if (!emit->rejected)
+    emit->rejected = emit->sink(emit->user, p, size) <= 0;
+  lua_pushboolean(L, !emit->rejected);
+  return 1;
+}
+static int media_resolution_thunk(lua_State *L) {
+  media_resolution *call = lua_touserdata(L, 2);
+  media_emitter *emit;
+  lua_getiuservalue(L, 1, 12);
+  lua_createtable(L, 0, 4);
+  set_string(L, "kind", call->kind == AILO_MEDIA_URL ? "url" : "file_id");
+  set_string(L, "value", call->reference);
+  set_integer(L, "max_bytes", (lua_Integer)call->maximum);
+  set_integer(L, "timeout_ms", (lua_Integer)call->timeout);
+  emit = lua_newuserdatauv(L, sizeof(*emit), 1);
+  memset(emit, 0, sizeof(*emit));
+  emit->sink = call->sink;
+  emit->user = call->user;
+  emit->owner = lua_touserdata(L, 1);
+  emit->active = 1;
+  lua_pushvalue(L, 1);
+  lua_setiuservalue(L, -2, 1);
+  lua_pushvalue(L, -1);
+  lua_setiuservalue(L, 1, 13);
+  call->emitter = emit;
+  lua_pushcclosure(L, media_emit, 1);
+  lua_call(L, 2, 2);
+  if (!lua_isnil(L, -1) || !(lua_isboolean(L, -2) && lua_toboolean(L, -2)))
+    return luaL_error(
+        L, "media resolver must return true after emitting its bytes");
+  return 0;
+}
+static ailo_status media_resolve(void *p, ailo_media_reference kind,
+                                 const char *reference, size_t maximum,
+                                 long timeout, ailo_media_sink sink, void *user,
+                                 ailo_error *error) {
+  client *owner = p;
+  lua_State *L = owner->active;
+  media_resolution call;
+  int failed;
+  memset(&call, 0, sizeof(call));
+  if (!L || !lua_checkstack(L, 5))
+    return AILO_SINK_FAILED;
+  call.kind = kind;
+  call.reference = reference;
+  call.maximum = maximum;
+  call.timeout = timeout;
+  call.sink = sink;
+  call.user = user;
+  lua_pushcfunction(L, media_resolution_thunk);
+  lua_pushvalue(L, owner->active_index);
+  lua_pushlightuserdata(L, &call);
+  failed = lua_pcall(L, 2, 0, 0) != LUA_OK;
+  if (call.emitter)
+    call.emitter->active = 0;
+  if (failed) {
+    owner->progress_failed = 1;
+    owner->media_failed = 1;
+    lua_setiuservalue(L, owner->active_index, 3);
+    if (error) {
+      error->status = AILO_SINK_FAILED;
+      strcpy(error->message, "media resolver callback failed");
+    }
+  }
+  lua_pushnil(L);
+  lua_setiuservalue(L, owner->active_index, 13);
+  return failed ? AILO_SINK_FAILED : AILO_OK;
+}
 static int new_client(lua_State *L) {
   check_logger_fn check;
   ref_logger_fn retain;
@@ -1073,11 +1214,10 @@ static int new_client(lua_State *L) {
   work *storage;
   ailo_client_config config;
   ailo_gpu_config gpu = {0};
+  ailo_multimodal_config media = {0};
   ailo_openai_config api;
   ailo_compaction_policy api_compaction;
   int s;
-  int hashes;
-  size_t count;
   ailo_error error = {0};
   ailo_status status;
   luaL_checktype(L, 1, LUA_TTABLE);
@@ -1104,7 +1244,7 @@ static int new_client(lua_State *L) {
             "logger must be a live pslog logger with a qualified native sink");
     }
   }
-  value = lua_newuserdatauv(L, sizeof(*value), 10);
+  value = lua_newuserdatauv(L, sizeof(*value), 13);
   memset(value, 0, sizeof(*value));
   client_index = lua_gettop(L);
   luaL_setmetatable(L, CLIENT);
@@ -1129,6 +1269,41 @@ static int new_client(lua_State *L) {
   config.threads = (int)integer(L, 1, "threads");
   config.context_tokens = (ailo_u32)integer(L, 1, "context_tokens");
   config.batch_tokens = (ailo_u32)integer(L, 1, "batch_tokens");
+  lua_getfield(L, 1, "multimodal");
+  if (!lua_isnil(L, -1)) {
+    int m = lua_gettop(L);
+    media.backend = (ailo_backend_policy)integer(L, m, "backend");
+    media.device = string(L, m, "device");
+    media.max_parts = (size_t)integer(L, m, "max_parts");
+    media.max_part_bytes = (size_t)integer(L, m, "max_part_bytes");
+    media.max_total_bytes = (size_t)integer(L, m, "max_total_bytes");
+    media.max_image_pixels = (size_t)integer(L, m, "max_image_pixels");
+    media.max_decoded_bytes = (size_t)integer(L, m, "max_decoded_bytes");
+    media.max_audio_seconds = (unsigned int)integer(L, m, "max_audio_seconds");
+    media.resolver_timeout_ms = (long)integer(L, m, "resolver_timeout_ms");
+    lua_getfield(L, m, "resolver");
+    if (!lua_isnil(L, -1)) {
+      luaL_checktype(L, -1, LUA_TFUNCTION);
+      lua_setiuservalue(L, client_index, 12);
+      media.resolver = media_resolve;
+      media.user_data = value;
+    } else
+      lua_pop(L, 1);
+    lua_getfield(L, m, "projector");
+    read_model_source(L, lua_gettop(L), &media.projector,
+                      &storage->projector_strings);
+    lua_getfield(L, -1, "progress");
+    if (!lua_isnil(L, -1)) {
+      luaL_checktype(L, -1, LUA_TFUNCTION);
+      lua_setiuservalue(L, client_index, 11);
+      media.projector.progress = projector_progress;
+      media.projector.user_data = value;
+    } else
+      lua_pop(L, 1);
+    lua_pop(L, 1);
+    config.multimodal = &media;
+  }
+  lua_pop(L, 1);
 
   lua_getfield(L, 1, "gpu");
   if (!lua_isnil(L, -1)) {
@@ -1252,46 +1427,7 @@ static int new_client(lua_State *L) {
     lua_getfield(L, 1, "source");
     s = lua_gettop(L);
     luaL_checktype(L, s, LUA_TTABLE);
-    config.source.local_path = string(L, s, "local_path");
-    config.source.repo = string(L, s, "repo");
-    config.source.revision = string(L, s, "revision");
-    config.source.filename = string(L, s, "filename");
-    config.source.cache_root = string(L, s, "cache_root");
-    config.source.bearer_token = string(L, s, "bearer_token");
-    config.source.allow_download = boolean(L, s, "allow_download");
-    config.source.split_shards = boolean(L, s, "split_shards");
-    config.source.max_attempts = (unsigned int)integer(L, s, "max_attempts");
-    config.source.connect_timeout_ms =
-        (long)integer(L, s, "connect_timeout_ms");
-    config.source.transfer_timeout_ms =
-        (long)integer(L, s, "transfer_timeout_ms");
-    lua_getfield(L, s, "max_bytes");
-    if (lua_istable(L, -1)) {
-      config.source.max_bytes.hi = (ailo_u32)integer(L, lua_gettop(L), "hi");
-      config.source.max_bytes.lo = (ailo_u32)integer(L, lua_gettop(L), "lo");
-    } else {
-      uint64_t n = (uint64_t)luaL_checkinteger(L, -1);
-      config.source.max_bytes.hi = n >> 32;
-      config.source.max_bytes.lo = (ailo_u32)n;
-    }
-    lua_pop(L, 1);
-    lua_getfield(L, s, "sha256");
-    hashes = lua_gettop(L);
-    count = lua_rawlen(L, hashes);
-    if (count) {
-      storage->strings = allocate(L, count, sizeof(char *));
-      {
-        size_t i = 0;
-        for (; i < count; ++i) {
-          lua_geti(L, hashes, (lua_Integer)i + 1);
-          storage->strings[i] =
-              lua_isboolean(L, -1) ? NULL : luaL_checkstring(L, -1);
-          lua_pop(L, 1);
-        }
-      }
-      config.source.sha256 = storage->strings;
-      config.source.sha256_count = count;
-    }
+    read_model_source(L, s, &config.source, &storage->strings);
     lua_getfield(L, s, "progress");
     if (!lua_isnil(L, -1)) {
       luaL_checktype(L, -1, LUA_TFUNCTION);
@@ -1309,7 +1445,9 @@ static int new_client(lua_State *L) {
     if (status != AILO_OK) {
       if (value->progress_failed) {
         status = AILO_SINK_FAILED;
-        strcpy(error.message, "model progress callback failed");
+        strcpy(error.message, value->media_failed
+                                  ? "media resolver callback failed"
+                                  : "model/projector progress callback failed");
       }
       failure(L, status, error.message);
       cause(L, client_index, 3);
@@ -1467,6 +1605,7 @@ static void read_items(lua_State *L, work *storage, int request_index,
     }
   }
   storage->content = allocate(L, parts, sizeof(ailo_content));
+  storage->media = allocate(L, parts, sizeof(ailo_media_metadata));
   offset = 0;
   {
     size_t i = 0;
@@ -1498,10 +1637,22 @@ static void read_items(lua_State *L, work *storage, int request_index,
           ailo_content *out;
           lua_geti(L, content, (lua_Integer)j + 1);
           part = lua_gettop(L);
-          out = &storage->content[offset++];
+          out = &storage->content[offset];
           out->kind = (ailo_content_kind)integer(L, part, "kind");
+          if (out->kind == AILO_CONTENT_IMAGE ||
+              out->kind == AILO_CONTENT_AUDIO) {
+            ailo_media_metadata *meta = &storage->media[offset];
+            meta->format = string(L, part, "format");
+            meta->detail = (ailo_media_detail)integer(L, part, "detail");
+            meta->reference =
+                (ailo_media_reference)integer(L, part, "reference");
+            meta->value = string(L, part, "value");
+            out->media = meta;
+          }
+          ++offset;
           lua_getfield(L, part, "data");
-          out->data = luaL_checklstring(L, -1, &out->size);
+          out->data =
+              lua_isnil(L, -1) ? NULL : luaL_checklstring(L, -1, &out->size);
           lua_pop(L, 2);
         }
       }
@@ -1554,7 +1705,9 @@ static int new_continuation(lua_State *L) {
   if (status != AILO_OK) {
     if (value->progress_failed) {
       status = AILO_SINK_FAILED;
-      strcpy(error.message, "model progress callback failed");
+      strcpy(error.message, value->media_failed
+                                ? "media resolver callback failed"
+                                : "model/projector progress callback failed");
     }
     failure(L, status, error.message);
     if (value->progress_failed)
@@ -1633,9 +1786,24 @@ static void push_item(lua_State *L, const ailo_item *item) {
     size_t i = 0;
     for (; i < item->content_count; ++i) {
       lua_createtable(L, 0, 2);
-      set_string(L, "kind", "text");
+      set_string(L, "kind",
+                 item->content[i].kind == AILO_CONTENT_IMAGE   ? "image"
+                 : item->content[i].kind == AILO_CONTENT_AUDIO ? "audio"
+                                                               : "text");
       lua_pushlstring(L, item->content[i].data, item->content[i].size);
       lua_setfield(L, -2, "data");
+      if (item->content[i].media) {
+        const ailo_media_metadata *meta = item->content[i].media;
+        set_string(L, "format", meta->format);
+        set_string(L, "detail",
+                   meta->detail == AILO_MEDIA_DETAIL_LOW        ? "low"
+                   : meta->detail == AILO_MEDIA_DETAIL_HIGH     ? "high"
+                   : meta->detail == AILO_MEDIA_DETAIL_ORIGINAL ? "original"
+                                                                : "auto");
+        if (meta->reference != AILO_MEDIA_INLINE)
+          set_string(L, meta->reference == AILO_MEDIA_URL ? "url" : "file_id",
+                     meta->value);
+      }
       lua_seti(L, -2, (lua_Integer)i + 1);
     }
   }
@@ -1889,7 +2057,9 @@ static int generate_or_compact(lua_State *L, int compacting) {
   if (status != AILO_OK) {
     if (value->progress_failed) {
       status = AILO_SINK_FAILED;
-      strcpy(error.message, "model progress callback failed");
+      strcpy(error.message, value->media_failed
+                                ? "media resolver callback failed"
+                                : "model/projector progress callback failed");
     }
     failure(L, status, error.message);
     if (compacting)
@@ -2313,7 +2483,9 @@ static int api_operation(lua_State *L, int operation) {
   if (status != AILO_OK) {
     if (value->progress_failed) {
       status = AILO_SINK_FAILED;
-      strcpy(error.message, "model progress callback failed");
+      strcpy(error.message, value->media_failed
+                                ? "media resolver callback failed"
+                                : "model/projector progress callback failed");
     }
     failure(L, status, error.message);
     api_info(L, &out);
@@ -2388,7 +2560,9 @@ static int metadata(lua_State *L, int kind) {
     release_work(storage);
     if (value->progress_failed) {
       status = AILO_SINK_FAILED;
-      strcpy(error.message, "model progress callback failed");
+      strcpy(error.message, value->media_failed
+                                ? "media resolver callback failed"
+                                : "model/projector progress callback failed");
     }
     failure(L, status, error.message);
     if (value->progress_failed)
@@ -2448,7 +2622,9 @@ static int client_snapshot(lua_State *L, int importing) {
   if (status != AILO_OK) {
     if (value->progress_failed) {
       status = AILO_SINK_FAILED;
-      strcpy(error.message, "model progress callback failed");
+      strcpy(error.message, value->media_failed
+                                ? "media resolver callback failed"
+                                : "model/projector progress callback failed");
     }
     failure(L, status, error.message);
     if (value->progress_failed)

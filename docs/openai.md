@@ -10,6 +10,11 @@ fail explicitly. The transport-neutral dispatcher routes the implemented model,
 Chat, Responses and conversation operations, including stored queries and
 metadata updates. An embedding server supplies the HTTP transport.
 
+Matched multimodal receivers accept Chat user `image_url` and `input_audio`
+parts, and Responses `input_image` parts, while generating ordinary text deltas.
+The [image/audio contract](multimodal.md) specifies formats, bounded decoding,
+application-owned URL/file-ID resolution and encrypted retained-media replay.
+
 The strict C89 [serving handler](serving.md) wraps this dispatcher with typed
 response headers, OpenAI-shaped preflight errors, immediate byte forwarding and
 explicit finish/abort callbacks. It adds no listener or inference path.

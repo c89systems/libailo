@@ -233,8 +233,10 @@ static and shared model tests with all leak kinds fatal. The broader
 `make valgrind` includes it. A separate Vulkan-enabled process check exposed
 loader/driver retained allocations; CPU-only memory evidence does not claim
 Vulkan driver leak freedom. Callback/receiver and trained text inference evidence
-is recorded in the linked contracts; comprehensive GPU lifetime, multimodal and
-hardware acceptance remain separate gates.
+is recorded in the linked contracts. [Image/audio input](docs/multimodal.md) now
+uses matched model/projector pairs, bounded decoders, streamed text and durable
+media replay. Its explicit trained-model suite remains separate from fast offline
+regressions; comprehensive GPU lifetime and hardware acceptance remain separate gates.
 
 ## Model acquisition
 

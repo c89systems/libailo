@@ -11,6 +11,7 @@ static void usage(void) {
       "   or: ailo_infer_example --repo OWNER/REPO --revision REV --file FILE\n"
       "Options: --prompt TEXT --tokens N --backend auto|cpu|vulkan --card\n"
       "         --cache ABSOLUTE-DIRECTORY --sha256 HEX --download\n"
+      "         --projector LOCAL-GGUF --image FILE (or --audio FILE)\n"
       "Output is one incrementally written JSON string, or a model card.\n"
       "Downloads require --download; missing files otherwise fail offline.");
 }
@@ -36,7 +37,8 @@ static int event(void *user, const ailo_event *value) {
 int main(int argc, char **argv) {
   ailo_client_config config = ailo_client_default_config();
   ailo_request request = ailo_request_default();
-  ailo_content text;
+  ailo_content parts[2];
+  ailo_multimodal_config media;
   ailo_item item;
   ailo_run_info info;
   ailo_error error;
@@ -45,10 +47,16 @@ int main(int argc, char **argv) {
   lonejson_writer writer;
   const char *checksum[1], *prompt = "What is two plus two?";
   char *card = NULL;
+  const char *media_file = NULL;
+  void *media_bytes = NULL;
+  size_t media_size = 0;
+  ailo_content_kind media_kind = AILO_CONTENT_IMAGE;
   int i, card_only = 0, result = 1;
   ailo_status status;
   memset(&writer, 0, sizeof(writer));
   memset(&item, 0, sizeof(item));
+  memset(parts, 0, sizeof(parts));
+  memset(&media, 0, sizeof(media));
   request.max_tokens = 64;
   request.temperature = 0;
   config.context_tokens = 2048;
@@ -87,7 +95,17 @@ int main(int argc, char **argv) {
       config.source.sha256_count = 1;
     } else if (strcmp(flag, "--prompt") == 0)
       prompt = argv[i];
-    else if (strcmp(flag, "--tokens") == 0) {
+    else if (strcmp(flag, "--projector") == 0)
+      media.projector.local_path = argv[i];
+    else if (strcmp(flag, "--image") == 0 || strcmp(flag, "--audio") == 0) {
+      if (media_file) {
+        fputs("Choose one --image or --audio input\n", stderr);
+        return 2;
+      }
+      media_file = argv[i];
+      media_kind = strcmp(flag, "--image") == 0 ? AILO_CONTENT_IMAGE
+                                                : AILO_CONTENT_AUDIO;
+    } else if (strcmp(flag, "--tokens") == 0) {
       char *end;
       unsigned long count;
       errno = 0;
@@ -113,6 +131,36 @@ int main(int argc, char **argv) {
       return 2;
     }
   }
+  if (media.projector.local_path) {
+    media.backend = config.backend;
+    config.multimodal = &media;
+  }
+  if (media_file && !config.multimodal) {
+    fputs("Media input requires --projector with its matched local GGUF\n",
+          stderr);
+    return 2;
+  }
+  if (media_file) {
+    FILE *input = fopen(media_file, "rb");
+    long size;
+    if (!input || fseek(input, 0, SEEK_END) || (size = ftell(input)) <= 0 ||
+        size > 16L * 1024L * 1024L || fseek(input, 0, SEEK_SET)) {
+      if (input)
+        fclose(input);
+      fputs("Media file must be readable, finite and at most 16 MiB\n", stderr);
+      return 2;
+    }
+    media_size = (size_t)size;
+    media_bytes = malloc(media_size);
+    if (!media_bytes ||
+        fread(media_bytes, 1, media_size, input) != media_size) {
+      free(media_bytes);
+      fclose(input);
+      fputs("Cannot read media file\n", stderr);
+      return 2;
+    }
+    fclose(input);
+  }
   status = ailo_client_new(&config, &client, &error);
   if (status != AILO_OK)
     goto failed;
@@ -129,13 +177,19 @@ int main(int argc, char **argv) {
           LONEJSON_STATUS_OK ||
       writer.string_begin(&writer, NULL) != LONEJSON_STATUS_OK)
     goto cleanup;
-  text.kind = AILO_CONTENT_TEXT;
-  text.data = prompt;
-  text.size = strlen(prompt);
+  parts[0].kind = AILO_CONTENT_TEXT;
+  parts[0].data = prompt;
+  parts[0].size = strlen(prompt);
+  if (media_file) {
+    parts[1] = parts[0];
+    parts[0].kind = media_kind;
+    parts[0].data = media_bytes;
+    parts[0].size = media_size;
+  }
   item.kind = AILO_ITEM_MESSAGE;
   item.role = AILO_ROLE_USER;
-  item.content = &text;
-  item.content_count = 1;
+  item.content = parts;
+  item.content_count = media_file ? 2 : 1;
   request.items = &item;
   request.item_count = 1;
   status = client->generate(client, &request, event, &writer, &info, &error);
@@ -154,5 +208,6 @@ cleanup:
   lonejson_free(json);
   ailo_string_free(card);
   ailo_client_destroy(client);
+  free(media_bytes);
   return result;
 }

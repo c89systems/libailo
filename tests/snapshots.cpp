@@ -72,13 +72,14 @@ static void storage_memory(ailo_cache_config config) {
   // validity.
   constexpr size_t payload = 16 * 1024 * 1024;
   config.namespace_id = "snapshot-memory";
-  config.max_snapshot_bytes = payload + 4 * sizeof(llama_token);
+  config.max_snapshot_bytes = payload + 4 * sizeof(llama_token) + 80;
   config.max_disk_bytes = 2 * config.max_snapshot_bytes + 512;
   cache_state owner(config);
   cache_entry entry;
   entry.identity = "resource-fixture";
   entry.partition = "memory";
   entry.tokens = {1, 2, 3, 4};
+  entry.positions = entry.evaluated_tokens = entry.tokens.size();
   entry.bytes.assign(payload, 42);
   const auto name =
       ".ailo-kv-s-" + ailo::model::digest_hex("memory", 6) + ".bin";
@@ -134,7 +135,7 @@ int main(int argc, char **argv) {
     client_config.chat_template =
         "{% for m in messages %}{{ m.content }}{% endfor %}";
     auto client = new_client(client_config, cache.get());
-    ailo_content content{AILO_CONTENT_TEXT, "abcdefghijk", 11};
+    ailo_content content{AILO_CONTENT_TEXT, "abcdefghijk", 11, nullptr};
     ailo_item item{};
     item.content = &content;
     item.content_count = 1;

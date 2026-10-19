@@ -87,8 +87,10 @@ indices. Run info owns its run ID. Candidate item IDs are distinct, and each run
 uses a fresh random identity. Payload pointers remain borrowed for the callback.
 Each delta goes to the sink before the next native token evaluation. There is
 no retained complete answer, output spool or whole-answer JSON conversion.
-Only an incomplete UTF-8 character and a possible stop-string prefix can delay
-text. Four stop strings of up to 4096 bytes each are supported; matched stops
+An incomplete UTF-8 character and a possible stop-string prefix can delay
+ordinary text. Qualified ASR output also removes its bounded model control header;
+see the [multimodal contract](multimodal.md). Four stop strings of up to 4096 bytes
+each are supported; matched stops
 and subsequent bytes are excluded from output. The token-piece safety limit
 is 1 MiB. A consumer can forward each delta directly to lonejson's incremental
 string writer, as demonstrated in [examples/infer.c](../examples/infer.c).
@@ -372,10 +374,11 @@ peak-memory guarantees.
 `ailo_continuation_new(client, config, &history, error)` creates a separate
 receiver for explicit canonical input history; include
 [`ailo/continuation.h`](../include/ailo/continuation.h). NULL config selects
-4096 items and 4 MiB of charged canonical storage. Explicit limits must be
+4096 items and 64 MiB of charged canonical storage. Explicit limits must be
 nonzero, at most 4096 items/64 MiB; all content parts together are capped at
 4096. The existing 4 MiB combined text/arguments and supported-item validation
-also apply. Unsupported media still fails. Reasoning history
+also apply. Encoded media follows the separate [multimodal limits](multimodal.md).
+Reasoning history
 requires a compatible template as described below.
 
 Construction binds the owner to actual model/shard content and the effective
@@ -924,10 +927,9 @@ process-global native setters remain available as an explicit fallback. Native
 defaults are silent when no logger is supplied; errors still return through the
 ordinary status/error surfaces. Raw facade logging setters retain their native
 semantics. Shared device diagnostics without an active scope cannot be attributed
-to a receiver. High-level media inference is still unavailable.
-The proposed input pipeline and qualification models are recorded in the
-[multimodal receiver design](multimodal.md); its open scope and admission choices
-must be settled before implementation.
+to a receiver. High-level image/audio input uses the same logger scope; see the
+[multimodal receiver contract](multimodal.md) for C89/Lua configuration, decoding,
+actual placement, retention/replay and qualification evidence.
 
 The pinned llama/GGML, built-in Mesa RADV/ANV drivers, libdrm and Vulkan loader
 route host diagnostics through the native logging hook rather than stdout or

@@ -54,6 +54,7 @@ int main(int argc, char **argv) {
   ailo_string_free(path);
   memset(&item, 0, sizeof(item));
   content.kind = AILO_CONTENT_TEXT;
+  content.media = NULL;
   content.data = "hello";
   content.size = 5;
   item.content = &content;

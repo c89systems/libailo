@@ -628,7 +628,7 @@ function M.record_operations(ailo,path,memory)
     local old=r.records[key('R','chat',one.id)];local stored=old.parts.output;old.parts.output='{"id":"broken"'
     fails('io_failed',function()return c:chat_update(one.id,'{"metadata":{}}',function()error('uncommitted output')end)end);old.parts.output=stored
     assert(not next(r.active)and not next(r.reading))
-    local missing=ok(c:responses('{"input":"Not stored","store":false,"max_output_tokens":2}',sink));text()
+    local missing=ok(c:responses('{"input":"Not stored","store":false,"max_output_tokens":2,"temperature":0}',sink));text()
     fails('not_found',function()return c:response_input_items_list(missing.id,function()end)end)
     local expired=r.records[key('R','chat',two.id)];expired.expires=1
     ok(c:chat_list(sink));local visible=text();assert(visible:find(one.id,1,true)and not visible:find(two.id,1,true));expired.expires=expired.identity.expires_at

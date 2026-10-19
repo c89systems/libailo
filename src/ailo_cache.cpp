@@ -46,8 +46,8 @@ std::string cache_partition(const char *source) {
 }
 size_t cache_entry::charge() const {
   return sizeof(*this) + 2 * sizeof(void *) + identity.capacity() +
-         partition.capacity() + tokens.capacity() * sizeof(llama_token) +
-         bytes.capacity();
+         partition.capacity() + media_key.capacity() +
+         tokens.capacity() * sizeof(llama_token) + bytes.capacity();
 }
 cache_entry::~cache_entry() {
   if (!bytes.empty())
@@ -154,12 +154,16 @@ restore_checkpoint(state &client, const cache_entry &entry, size_t count,
   std::unique_ptr<llama_context, decltype(&llama_free)> empty(nullptr,
                                                               llama_free);
   if (!count || count > entry.tokens.size() ||
-      entry.tokens.size() >= llama_n_ctx(client.context.get()))
+      entry.positions >= llama_n_ctx(client.context.get()))
     return empty;
   const auto vocab = llama_model_get_vocab(client.model.get());
   for (auto token : entry.tokens)
     if (token < 0 || token >= llama_vocab_n_tokens(vocab))
       return empty;
+  const bool media = !entry.media_key.empty();
+  if (media && count != entry.tokens.size())
+    return empty;
+  const size_t positions = media ? entry.positions : count;
   auto candidate = client.new_context();
   if (!candidate) {
     if (allocation_failed)
@@ -174,8 +178,9 @@ restore_checkpoint(state &client, const cache_entry &entry, size_t count,
                                 static_cast<llama_pos>(count), -1);
   if (valid)
     valid = llama_memory_seq_pos_max(llama_get_memory(candidate.get()), 0) ==
-            static_cast<llama_pos>(count - 1);
-  const bool trim = !llama_model_is_recurrent(client.model.get()) &&
+            static_cast<llama_pos>(positions - 1);
+  const bool trim = client.active_media_key.empty() &&
+                    !llama_model_is_recurrent(client.model.get()) &&
                     !llama_model_is_hybrid(client.model.get()) &&
                     llama_model_n_swa(client.model.get()) == 0;
   if (valid && trim)
@@ -198,13 +203,16 @@ size_t cache_state::restore(state &client,
     return 0;
   }
   prune_locked();
-  const bool trim = !llama_model_is_recurrent(client.model.get()) &&
+  const bool trim = client.active_media_key.empty() &&
+                    !llama_model_is_recurrent(client.model.get()) &&
                     !llama_model_is_hybrid(client.model.get()) &&
                     llama_model_n_swa(client.model.get()) == 0;
   auto best = entries.end();
   size_t count = 0;
   for (auto it = entries.begin(); it != entries.end(); ++it) {
-    if (it->identity != client.cache_identity || it->partition != partition)
+    if (it->identity != client.cache_identity || it->partition != partition ||
+        it->media_key != client.active_media_key ||
+        (!it->media_key.empty() && it->tokens.size() != tokens.size() - 1))
       continue;
     const size_t prefix = matching_prefix(*it, tokens, trim);
     if (prefix > count) {
@@ -220,7 +228,9 @@ size_t cache_state::restore(state &client,
       if (reused) {
         (void)admit(loaded);
         hits.fetch_add(1);
-        cached_tokens.fetch_add(reused);
+        cached_tokens.fetch_add(client.active_media_key.empty()
+                                    ? reused
+                                    : client.active_media_tokens - 1);
         return reused;
       }
     } catch (const failure &error) {
@@ -258,7 +268,8 @@ size_t cache_state::restore(state &client,
   best->used = std::chrono::steady_clock::now();
   entries.splice(entries.begin(), entries, best);
   hits.fetch_add(1);
-  cached_tokens.fetch_add(count);
+  cached_tokens.fetch_add(best->media_key.empty() ? count
+                                                  : best->evaluated_tokens);
   return count;
 }
 
@@ -277,6 +288,7 @@ std::string cache_state::capture(state &client,
   for (auto it = entries.begin(); it != entries.end(); ++it)
     if (it->identity == client.cache_identity && it->partition == partition &&
         it->tokens.size() == count &&
+        it->media_key == client.active_media_key &&
         std::equal(it->tokens.begin(), it->tokens.end(), tokens.begin())) {
       it->used = std::chrono::steady_clock::now();
       entries.splice(entries.begin(), entries, it);
@@ -302,6 +314,7 @@ std::string cache_state::capture(state &client,
   // Bound the complete native state BEFORE allocating it. Evict first, so a
   // new cache buffer cannot temporarily double the configured resident bound.
   const size_t overhead = sizeof(cache_entry) + 2 * sizeof(void *) +
+                          client.active_media_key.capacity() +
                           std::max(size_t(64), client.cache_identity.size()) +
                           std::max(size_t(256), partition.size());
   const bool fits =
@@ -311,8 +324,9 @@ std::string cache_state::capture(state &client,
         size >
             config.max_memory_bytes - overhead - count * sizeof(llama_token));
   const bool fits_disk =
-      disk && count <= config.max_snapshot_bytes / sizeof(llama_token) &&
-      size <= config.max_snapshot_bytes - count * sizeof(llama_token);
+      disk && config.max_snapshot_bytes >= 80 &&
+      count <= (config.max_snapshot_bytes - 80) / sizeof(llama_token) &&
+      size <= config.max_snapshot_bytes - 80 - count * sizeof(llama_token);
   if (!fits && !fits_disk) {
     oversized.fetch_add(1);
     return {};
@@ -326,6 +340,11 @@ std::string cache_state::capture(state &client,
   auto &entry = *owned;
   entry.identity = client.cache_identity;
   entry.partition = partition;
+  entry.media_key = client.active_media_key;
+  entry.positions =
+      entry.media_key.empty() ? count : client.active_media_positions - 1;
+  entry.evaluated_tokens =
+      entry.media_key.empty() ? count : client.active_media_tokens - 1;
   entry.tokens.assign(tokens.begin(),
                       tokens.begin() + static_cast<ptrdiff_t>(count));
   entry.bytes.resize(size);
@@ -360,6 +379,7 @@ bool cache_state::admit(std::unique_ptr<cache_entry> &entry) {
     auto current = it++;
     if (current->identity == entry->identity &&
         current->partition == entry->partition &&
+        current->media_key == entry->media_key &&
         current->tokens == entry->tokens)
       erase(current);
   }

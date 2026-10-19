@@ -1,4 +1,5 @@
 #include "ailo_bounded_json_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include "ailo_openai_request_internal.hpp"
 #include "ailo_sampling_internal.hpp"
 #include "ailo_schema_internal.hpp"
@@ -81,6 +82,8 @@ size_t characters(const std::string &value) {
 struct part {
   std::string type, text;
   bool has_text = false, output_metadata = false;
+  std::string url{}, file_id{}, format{}, detail{}, bytes{};
+  bool has_url = false, has_file = false, has_audio = false, has_detail = false;
 };
 struct call {
   std::string type, id, name, arguments;
@@ -119,6 +122,62 @@ class decoder {
   std::string *capture_target = nullptr;
   size_t capture_depth = 0;
   std::exception_ptr error;
+  int media_scalar = 0;
+  bool streamed_scalar = false;
+  std::string media_header;
+  std::unique_ptr<media_base64_decoder> media_decoder;
+  bool media_value_path(const path &p) const {
+    return p.size() >= 5 && p[2] == "content" &&
+           (selected_items
+                ? p[0] == selected_items
+                : p[0] == "messages" || p[0] == "input" || p[0] == "items");
+  }
+  void start_media(const path &p) {
+    media_scalar = 0;
+    media_decoder.reset();
+    media_header.clear();
+    if (!media_value_path(p))
+      return;
+    if ((p.size() == 5 && p[4] == "image_url") ||
+        (p.size() == 6 && p[4] == "image_url" && p[5] == "url"))
+      media_scalar = 1;
+    else if (p.size() == 6 && p[4] == "input_audio" && p[5] == "data") {
+      media_scalar = 2;
+      media_decoder = std::make_unique<media_base64_decoder>(256 * 1024 * 1024);
+    }
+    if (media_scalar && item_capture)
+      item_capture->string_begin();
+  }
+  void media_chunk(const char *data, size_t size) {
+    if (item_capture)
+      item_capture->string_chunk(data, size);
+    size_t at = 0;
+    if (media_scalar == 1 && !media_decoder) {
+      while (at < size) {
+        scalar += data[at++];
+        if (scalar.size() > 16384)
+          invalid("Media URL exceeds 16 KiB");
+        if (scalar.size() >= 5 && scalar.compare(0, 5, "data:") != 0) {
+          scalar.append(data + at, size - at);
+          if (scalar.size() > 16384)
+            invalid("Media URL exceeds 16 KiB");
+          return;
+        }
+        if (scalar.size() >= 5 && scalar.back() == ',') {
+          media_header = scalar;
+          if (media_header != "data:image/png;base64," &&
+              media_header != "data:image/jpeg;base64,")
+            unsupported();
+          scalar.clear();
+          media_decoder =
+              std::make_unique<media_base64_decoder>(256 * 1024 * 1024);
+          break;
+        }
+      }
+    }
+    if (media_decoder)
+      media_decoder->push(data + at, size - at);
+  }
 
   template <typename Work> lonejson_status safe(Work work) noexcept {
     try {
@@ -142,9 +201,11 @@ class decoder {
     return self.safe([&] {
       if (K == kind::object)
         self.object_keys.emplace_back();
-      if (K == kind::string || K == kind::number)
+      if (K == kind::string || K == kind::number) {
         self.scalar.clear();
-      else
+        if (K == kind::string)
+          self.start_media(location(p));
+      } else
         self.value(location(p), K, {});
     });
   }
@@ -153,7 +214,26 @@ class decoder {
                              lonejson_error *) {
     auto &self = *static_cast<decoder *>(u);
     return self.safe([&] {
-      if (K == kind::string || K == kind::number)
+      if (K == kind::string && self.media_scalar) {
+        if (self.media_decoder) {
+          const auto path = location(p);
+          auto &part = self.input.at(index(path[1], 4096))
+                           .parts.at(index(path[3], 4096));
+          part.bytes = self.media_decoder->finish();
+          if (!self.media_header.empty())
+            part.format =
+                self.media_header.find("image/png") != std::string::npos
+                    ? "png"
+                    : "jpeg";
+        }
+        if (self.item_capture)
+          self.item_capture->string_end();
+        self.streamed_scalar = true;
+        self.value(location(p), K, self.scalar);
+        self.streamed_scalar = false;
+        self.media_scalar = 0;
+        self.media_decoder.reset();
+      } else if (K == kind::string || K == kind::number)
         self.value(location(p), K, self.scalar);
       else if (self.capture) {
         if (K == kind::object)
@@ -187,7 +267,12 @@ class decoder {
                                const char *data, size_t size,
                                lonejson_error *) {
     auto &self = *static_cast<decoder *>(u);
-    return self.safe([&] { self.scalar.append(data, size); });
+    return self.safe([&] {
+      if (self.media_scalar)
+        self.media_chunk(data, size);
+      else
+        self.scalar.append(data, size);
+    });
   }
   static lonejson_status boolean(void *u, const lonejson_value_path *p, int v,
                                  lonejson_error *) {
@@ -470,6 +555,48 @@ class decoder {
           part.text = v;
           part.has_text = true;
         }
+      } else if (p.size() == 5 && p[4] == "image_url") {
+        auto &part = m.parts.at(j);
+        if (chat)
+          expect(k, kind::object);
+        else {
+          expect(k, kind::string);
+          part.url = v;
+          part.has_url = true;
+        }
+      } else if (chat && p.size() == 6 && p[4] == "image_url" &&
+                 one_of(p[5], {"url", "detail"})) {
+        expect(k, kind::string);
+        auto &part = m.parts.at(j);
+        if (p[5] == "url") {
+          part.url = v;
+          part.has_url = true;
+        } else {
+          part.detail = v;
+          part.has_detail = true;
+        }
+      } else if (!chat && p.size() == 5 &&
+                 one_of(p[4], {"file_id", "detail"})) {
+        auto &part = m.parts.at(j);
+        if (k != kind::null) {
+          expect(k, kind::string);
+          if (p[4] == "file_id") {
+            part.file_id = v;
+            part.has_file = true;
+          } else {
+            part.detail = v;
+            part.has_detail = true;
+          }
+        }
+      } else if ((chat || selected_items) && p.size() == 5 &&
+                 p[4] == "input_audio") {
+        expect(k, kind::object);
+        m.parts.at(j).has_audio = true;
+      } else if ((chat || selected_items) && p.size() == 6 &&
+                 p[4] == "input_audio" && one_of(p[5], {"data", "format"})) {
+        expect(k, kind::string);
+        if (p[5] == "format")
+          m.parts.at(j).format = v;
       } else if (!chat && p.size() == 5 &&
                  one_of(p[4], {"annotations", "logprobs"})) {
         expect(k, kind::array);
@@ -694,7 +821,8 @@ class decoder {
         item_capture->array();
         break;
       case kind::string:
-        item_capture->string(v);
+        if (!streamed_scalar)
+          item_capture->string(v);
         break;
       case kind::number:
         item_capture->number_text(v);
@@ -994,12 +1122,12 @@ class decoder {
     if (out.input.items.size() == 4096)
       invalid("Expanded API input exceeds 4096 items");
     out.input.items.push_back(std::make_shared<owned_item>(
-        value, out.input.bytes, 4 * 1024 * 1024, out.input.parts));
+        value, out.input.bytes, 64 * 1024 * 1024, out.input.parts));
   }
   void finish_input() {
     if (!out.instructions.empty()) {
       ailo_content text{AILO_CONTENT_TEXT, out.instructions.data(),
-                        out.instructions.size()};
+                        out.instructions.size(), nullptr};
       ailo_item value{};
       value.role = AILO_ROLE_DEVELOPER;
       value.content = &text;
@@ -1058,7 +1186,55 @@ class decoder {
         if (!m.name.empty())
           value.name = m.name.c_str();
         std::vector<ailo_content> parts;
+        std::vector<ailo_media_metadata> media(m.parts.size());
+        size_t media_index = 0;
         for (const auto &part : m.parts) {
+          if (part.type == (chat ? "image_url" : "input_image") ||
+              ((chat || selected_items) && part.type == "input_audio")) {
+            if (m.role != "user" || part.has_text || part.output_metadata)
+              invalid("Media parts require a user message without text fields");
+            auto &meta = media[media_index++];
+            const bool image = part.type != "input_audio";
+            if (image) {
+              if (part.has_audio || part.has_url == part.has_file)
+                invalid("Image needs exactly one URL/data URL or file ID");
+              if (part.has_detail &&
+                  !one_of(part.detail, {"auto", "low", "high", "original"}))
+                unsupported();
+              meta.detail = part.detail == "low"    ? AILO_MEDIA_DETAIL_LOW
+                            : part.detail == "high" ? AILO_MEDIA_DETAIL_HIGH
+                            : part.detail == "original"
+                                ? AILO_MEDIA_DETAIL_ORIGINAL
+                                : AILO_MEDIA_DETAIL_AUTO;
+              if (part.bytes.empty()) {
+                const auto &reference = part.has_file ? part.file_id : part.url;
+                text_limit(reference, 16384, true);
+                if (part.has_url && reference.rfind("https://", 0) != 0 &&
+                    reference.rfind("http://", 0) != 0)
+                  invalid("Image URL requires HTTP(S) or an encoded data URL");
+                meta.reference =
+                    part.has_file ? AILO_MEDIA_FILE_ID : AILO_MEDIA_URL;
+                meta.value = reference.c_str();
+              }
+            } else if (!part.has_audio || part.has_url || part.has_file ||
+                       part.has_detail || part.bytes.empty() ||
+                       !one_of(part.format,
+                               selected_items
+                                   ? std::initializer_list<const char *>{"wav",
+                                                                         "mp3",
+                                                                         "flac"}
+                                   : std::initializer_list<const char *>{
+                                         "wav", "mp3"}))
+              invalid("Audio requires encoded data and a supported format");
+            meta.format = part.format.empty() ? nullptr : part.format.c_str();
+            parts.push_back({image ? AILO_CONTENT_IMAGE : AILO_CONTENT_AUDIO,
+                             part.bytes.empty() ? nullptr : part.bytes.data(),
+                             part.bytes.size(), &meta});
+            continue;
+          }
+          if (part.has_audio || part.has_url || part.has_file ||
+              part.has_detail || !part.bytes.empty())
+            invalid("Media fields cannot accompany a text part");
           if (!part.has_text ||
               !(chat ? part.type == "text"
                      : one_of(part.type, {"input_text", "output_text"})))
@@ -1069,7 +1245,7 @@ class decoder {
           if (!chat && part.type == "output_text" && m.role != "assistant")
             invalid("output_text requires an assistant message");
           parts.push_back(
-              {AILO_CONTENT_TEXT, part.text.data(), part.text.size()});
+              {AILO_CONTENT_TEXT, part.text.data(), part.text.size(), nullptr});
         }
         if (!m.has_content && m.calls.empty())
           invalid("Message content is required");
@@ -1114,7 +1290,7 @@ class decoder {
           if (!part.has_text || part.type != "input_text")
             unsupported();
           parts.push_back(
-              {AILO_CONTENT_TEXT, part.text.data(), part.text.size()});
+              {AILO_CONTENT_TEXT, part.text.data(), part.text.size(), nullptr});
         }
         value.kind = AILO_ITEM_FUNCTION_RESULT;
         value.call_id = m.call_id.c_str();
@@ -1134,7 +1310,7 @@ class decoder {
               part.output_metadata)
             unsupported();
           parts.push_back(
-              {AILO_CONTENT_TEXT, part.text.data(), part.text.size()});
+              {AILO_CONTENT_TEXT, part.text.data(), part.text.size(), nullptr});
         }
         value.kind = AILO_ITEM_REASONING;
         value.role = AILO_ROLE_ASSISTANT;
@@ -1166,13 +1342,14 @@ public:
       request.descending = false;
   }
   void parse(const void *data, size_t size, const std::string &served_model) {
-    if ((!data && size) || !size || size > 8 * 1024 * 1024)
+    const size_t maximum = selected_items ? 64 * 1024 * 1024 : 8 * 1024 * 1024;
+    if ((!data && size) || !size || size > maximum)
       invalid("API request must contain between one byte and 8 MiB of JSON");
     auto config = lonejson_default_config();
     config.max_alloc_bytes = 4 * 1024 * 1024;
     config.max_depth = config.json_value_max_depth = 64;
     config.json_value_max_total_bytes = config.json_value_max_string_bytes =
-        8 * 1024 * 1024;
+        maximum;
     config.json_value_max_key_bytes = config.json_value_max_number_bytes = 1024;
     std::unique_ptr<lonejson, decltype(&lonejson_free)> runtime(
         lonejson_new(&config, nullptr), lonejson_free);

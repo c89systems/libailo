@@ -61,8 +61,8 @@ int main() {
     config.namespace_id = "tenant-a";
     config.current_key = {"one", key.data(), key.size()};
     compaction_state owner(config);
-    ailo_content before{AILO_CONTENT_TEXT, "keep exactly", 12},
-        after{AILO_CONTENT_TEXT, "recent", 6};
+    ailo_content before{AILO_CONTENT_TEXT, "keep exactly", 12, nullptr},
+        after{AILO_CONTENT_TEXT, "recent", 6, nullptr};
     ailo_item items[4]{};
     items[0].role = AILO_ROLE_SYSTEM;
     items[0].id = "instructions";

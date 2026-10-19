@@ -21,6 +21,8 @@ public:
 };
 struct cache_entry {
   std::string identity, partition;
+  std::string media_key;
+  size_t positions = 0, evaluated_tokens = 0;
   std::vector<llama_token> tokens;
   std::vector<unsigned char> bytes;
   std::chrono::steady_clock::time_point used;
@@ -68,6 +70,7 @@ restore_checkpoint(state &, const cache_entry &, size_t count,
 std::shared_ptr<cache_state> retain_cache(ailo_cache *cache);
 std::string cache_partition(const char *source);
 void identify_cache(state &client, bool required = false);
+std::string loaded_file_digest(state &, const std::string &);
 uint64_t elapsed_us(std::chrono::steady_clock::time_point since);
 } // namespace client
 } // namespace ailo

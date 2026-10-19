@@ -1,5 +1,6 @@
 #include "ailo-cache-build.h"
 #include "ailo_cache_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include "ailo_model_internal.hpp"
 #include "src/llama-model.h"
 #include <array>
@@ -29,7 +30,7 @@ std::string file_digest(state &self, const std::string &path) {
   std::array<unsigned char, 65536> block;
   off_t offset = 0;
   while (offset < before.st_size) {
-    if (self.cancelled.load())
+    if (self.is_cancelled())
       throw failure(AILO_CANCELLED, "Model hashing cancelled");
     ssize_t size;
     do {
@@ -63,6 +64,10 @@ std::string file_digest(state &self, const std::string &path) {
   return result;
 }
 } // namespace
+
+std::string loaded_file_digest(state &self, const std::string &path) {
+  return file_digest(self, path);
+}
 
 void identify_cache(state &self, bool required) {
   if (!self.cache_identity.empty() ||
@@ -109,6 +114,11 @@ void identify_cache(state &self, bool required) {
             ? self.config.chat_template
             : llama_model_chat_template(self.model.get(), nullptr);
     add_semantic(tmpl ? tmpl : "");
+    if (self.media) {
+      add_semantic(self.media->digest);
+      add_semantic("ailo-media-preprocessing:rgb-area512-f32mono");
+      add(self.media->actual_device);
+    }
     self.conversation_identity =
         model::digest_hex(canonical.data(), canonical.size());
     add(std::to_string(llama_n_ctx(self.context.get())));

@@ -85,8 +85,8 @@ int main(int argc, char **argv) {
     auto root = history(first.get());
     const std::string identity = info(root.get()).identity;
     ailo_content instruction{AILO_CONTENT_TEXT, "Keep original instructions.",
-                             27},
-        recent{AILO_CONTENT_TEXT, "continue", 8};
+                             27, nullptr},
+        recent{AILO_CONTENT_TEXT, "continue", 8, nullptr};
     ailo_item items[4]{};
     items[0].role = AILO_ROLE_SYSTEM;
     items[0].id = "instruction";

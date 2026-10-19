@@ -3,7 +3,7 @@ set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 action=${1:-test}
 preset=${2:-cpu}
-[[ $# -le 2 && "$action" =~ ^(build|test|valgrind)$ && "$preset" =~ ^(cpu|debug|x86_64-linux-gnu-release)$ ]] || { printf 'Usage: lua.sh [build|test|valgrind] [cpu|debug|x86_64-linux-gnu-release]\n' >&2; exit 2; }
+[[ $# -le 2 && "$action" =~ ^(build|test|valgrind|media)$ && "$preset" =~ ^(cpu|debug|x86_64-linux-gnu-release)$ ]] || { printf 'Usage: lua.sh [build|test|valgrind|media] [cpu|debug|x86_64-linux-gnu-release]\n' >&2; exit 2; }
 [[ "$action" != valgrind || "$preset" == cpu ]] || { printf 'lua: the inference Valgrind suite requires the cpu preset\n' >&2; exit 2; }
 cd "$root"
 scripts/build.sh --preset "$preset"
@@ -43,4 +43,8 @@ cmake --install "$work/build"
 case "$action" in
   test) ctest --test-dir "$work/build" --output-on-failure --stop-on-failure --no-tests=error -j1 -LE '^inference-memory$' ;;
   valgrind) ctest --test-dir "$work/build" --output-on-failure --stop-on-failure --no-tests=error -j1 -L '^inference-memory$' ;;
+  media) "$loader" --library-path "${runtime//;/:}" "$work/build/ailo_lua_runner" \
+    "$root/lua/tests/media_inference.lua" "$work/install/share/lua/5.5/?.lua;$work/install/share/lua/5.5/?/init.lua" \
+    "$work/install/lib/lua/5.5/?.so" "$root/build/media-model-cache" \
+    "$binary/media-fixtures/red.jpg" "$root/build/media-fixtures/jfk.wav" cpu ;;
 esac

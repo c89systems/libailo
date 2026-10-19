@@ -292,7 +292,7 @@ void run(const char *path) {
   ailo_client *raw = nullptr;
   CHECK(ailo_client_new(&config, &raw, &error) == AILO_OK);
   std::unique_ptr<ailo_client, client_deleter> client(raw);
-  ailo_content text{AILO_CONTENT_TEXT, "hello", 5};
+  ailo_content text{AILO_CONTENT_TEXT, "hello", 5, nullptr};
   ailo_item item{};
   item.kind = AILO_ITEM_MESSAGE;
   item.content = &text;

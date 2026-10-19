@@ -219,6 +219,7 @@ static int run(const char *path) {
   memset(&item, 0, sizeof(item));
   memset(&error, 0, sizeof(error));
   content.kind = AILO_CONTENT_TEXT;
+  content.media = NULL;
   content.data = "hello";
   content.size = 5;
   item.kind = AILO_ITEM_MESSAGE;

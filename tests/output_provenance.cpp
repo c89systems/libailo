@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
     CHECK(rejected);
     const std::string base = argv[1];
     auto receiver = client(base, plain);
-    ailo_content part{AILO_CONTENT_TEXT, "hello", 5};
+    ailo_content part{AILO_CONTENT_TEXT, "hello", 5, nullptr};
     ailo_item item{};
     item.content = &part;
     item.content_count = 1;
@@ -243,7 +243,8 @@ int main(int argc, char **argv) {
     ailo_item items[10]{};
     ailo_content parts[10]{};
     for (size_t i = 0; i < 10; ++i) {
-      parts[i] = {AILO_CONTENT_TEXT, bodies[i].data(), bodies[i].size()};
+      parts[i] = {AILO_CONTENT_TEXT, bodies[i].data(), bodies[i].size(),
+                  nullptr};
       items[i].content = &parts[i];
       items[i].content_count = 1;
       items[i].role = i % 2 ? AILO_ROLE_USER : AILO_ROLE_ASSISTANT;

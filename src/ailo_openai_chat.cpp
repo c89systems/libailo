@@ -1,4 +1,5 @@
 #include "ailo_logging_internal.hpp"
+#include "ailo_media_internal.hpp"
 #include "ailo_openai_internal.hpp"
 #include "src/unicode.h"
 #include <algorithm>
@@ -275,7 +276,27 @@ class chat_writer {
         else
           out.null();
         out.key("content_parts");
-        out.null();
+        bool media = false;
+        for (size_t i = 0; i < item.content_count; ++i)
+          media |= item.content[i].kind == AILO_CONTENT_IMAGE ||
+                   item.content[i].kind == AILO_CONTENT_AUDIO;
+        if (media) {
+          out.array();
+          for (size_t i = 0; i < item.content_count; ++i) {
+            if (item.content[i].kind != AILO_CONTENT_TEXT)
+              write_media_part(out, item.content[i], true, true);
+            else {
+              out.object();
+              out.key("type");
+              out.string("text");
+              out.key("text");
+              out.string(item.content[i].data, item.content[i].size);
+              out.end_object();
+            }
+          }
+          out.end_array();
+        } else
+          out.null();
       }
       out.key("role");
       if (item.kind == AILO_ITEM_FUNCTION_CALL) {
@@ -320,7 +341,13 @@ class chat_writer {
           out.array();
         for (size_t i = 0; i < item.content_count; ++i) {
           if (page) {
-            out.string_chunk(item.content[i].data, item.content[i].size);
+            if (item.content[i].kind == AILO_CONTENT_TEXT)
+              out.string_chunk(item.content[i].data, item.content[i].size);
+            continue;
+          }
+          if (item.content[i].kind == AILO_CONTENT_IMAGE ||
+              item.content[i].kind == AILO_CONTENT_AUDIO) {
+            write_media_part(out, item.content[i], true);
             continue;
           }
           out.object();
@@ -579,6 +606,7 @@ AILO_PUBLIC ailo_status ailo_client_chat_completions(
   auto status = boundary(error, [&] {
     operation call(client);
     openai_request request(openai_protocol::chat, json, size, call.self.id);
+    resolve_media(call.self, request);
     const auto now = api_now();
     auto plan = resolve_retention(request, call.self.openai->policy, now);
     info->content_type =

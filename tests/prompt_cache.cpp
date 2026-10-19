@@ -54,7 +54,8 @@ int main(int argc, char **argv) {
     config.cache = cache.get();
     auto client = make_client(config);
     const std::string original = "abcdefghijk", changed = "abcdefghXX";
-    ailo_content content{AILO_CONTENT_TEXT, original.data(), original.size()};
+    ailo_content content{AILO_CONTENT_TEXT, original.data(), original.size(),
+                         nullptr};
     ailo_item item{};
     item.content = &content;
     item.content_count = 1;

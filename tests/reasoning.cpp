@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
     llama_token_data_array candidates{choices, 2, -1, false};
     llama_sampler_apply(sampler.get(), &candidates);
     CHECK(std::isfinite(choices[0].logit) && !std::isfinite(choices[1].logit));
-    ailo_content content{AILO_CONTENT_TEXT, "question", 8};
+    ailo_content content{AILO_CONTENT_TEXT, "question", 8, nullptr};
     ailo_item item{};
     item.content = &content;
     item.content_count = 1;
@@ -232,8 +232,8 @@ int main(int argc, char **argv) {
     out = {};
     CHECK(generate(out) == AILO_INVALID_ARGUMENT && !out.events);
     request.reasoning = AILO_REASONING_AUTO;
-    ailo_content trace{AILO_CONTENT_TEXT, "old reasoning", 13},
-        answer{AILO_CONTENT_TEXT, "old answer", 10};
+    ailo_content trace{AILO_CONTENT_TEXT, "old reasoning", 13, nullptr},
+        answer{AILO_CONTENT_TEXT, "old answer", 10, nullptr};
     ailo_item history[4]{};
     history[0] = item;
     history[1].kind = AILO_ITEM_REASONING;

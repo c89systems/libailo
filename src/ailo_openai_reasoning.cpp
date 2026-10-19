@@ -52,7 +52,7 @@ void api_prepare_reasoning(state &self, const openai_request &request,
 }
 std::string api_seal_reasoning(state &self, const std::string &id,
                                const std::string &text) {
-  ailo_content content{AILO_CONTENT_TEXT, text.data(), text.size()};
+  ailo_content content{AILO_CONTENT_TEXT, text.data(), text.size(), nullptr};
   ailo_item item{};
   item.kind = AILO_ITEM_REASONING;
   item.role = AILO_ROLE_ASSISTANT;

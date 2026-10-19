@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
     ailo_content parts[7]{};
     ailo_item items[7]{};
     for (size_t i = 0; i < 7; ++i) {
-      parts[i] = {AILO_CONTENT_TEXT, text[i].data(), text[i].size()};
+      parts[i] = {AILO_CONTENT_TEXT, text[i].data(), text[i].size(), nullptr};
       items[i].content = &parts[i];
       items[i].content_count = 1;
       items[i].role = i % 2 ? AILO_ROLE_USER : AILO_ROLE_ASSISTANT;
