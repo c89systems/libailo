@@ -58,6 +58,14 @@ briefly rather than held through model generation. A second process opening
 the same root is rejected by Pouch's exclusive ownership policy. Use separate
 roots or an application-owned repository when another process topology is needed.
 
+Chat completions are stored only on explicit `store=true` by default, and expire
+30 days from creation. `openai.chat_retention_seconds=0` selects 30 days;
+nonzero values select a finite TTL. Reads and metadata updates do not extend it.
+The optional trusted `chat_store_by_default` setting enables default storage
+with the same expiry policy. Omitted Chat storage creates neither Pouch files
+nor an encryption key. TTL changes apply to newly created records; existing
+records retain their original deadlines.
+
 Durable sync is enabled. Startup and a maintenance worker remove expired
 response records and unreferenced storage objects; the worker runs every minute.
 Open snapshots and admitted transactions protect their referenced chunks.

@@ -131,6 +131,7 @@ struct repository {
   struct record {
     std::string ns, id, parts[7];
     ailo_u64 expires{};
+    ailo_u64 created{};
     ailo_record_protocol protocol = AILO_RECORD_CHAT;
   };
   static std::string key(const char *ns, ailo_record_protocol protocol,
@@ -150,7 +151,8 @@ struct repository {
                      ailo_error *) {
       auto &s = *static_cast<repository *>(u);
       ++s.reserves;
-      auto p = new record{m->namespace_id, m->id, {}, m->expires_at};
+      auto p =
+          new record{m->namespace_id, m->id, {}, m->expires_at, m->created_at};
       p->protocol = m->protocol;
       *tx = p;
       return s.fail == 1 ? AILO_OUT_OF_RANGE : AILO_OK;
@@ -424,6 +426,22 @@ int main(int argc, char **argv) {
     api.repository = &repo.api;
     api.namespace_id = "tenant-A";
     auto retained = create(argv[1], &api);
+    // Omitted/null/false store does not reserve or publish a Chat record.
+    // Assert it through the public streaming method with a configured provider.
+    auto default_chat = ordinary;
+    default_chat.erase(default_chat.find("\"store\":false,"),
+                       std::strlen("\"store\":false,"));
+    for (const auto &store : {std::string(), std::string("\"store\":null,"),
+                              std::string("\"store\":false,")}) {
+      const auto request = "{" + store + default_chat.substr(1);
+      seen = {};
+      seen.info = &info;
+      CHECK(retained->chat_completions(retained.get(), request.data(),
+                                       request.size(), output::send, &seen,
+                                       &info, &error) == AILO_OK &&
+            !info.stored && repo.reserves == 0 && repo.records.empty());
+      valid_sse(seen.bytes, false);
+    }
     char *advertised = nullptr;
     CHECK(retained->capabilities(retained.get(), &advertised, &error) ==
           AILO_OK);
@@ -443,6 +461,10 @@ int main(int argc, char **argv) {
                                      &error) == AILO_OK);
     CHECK(seen.first && info.stored && repo.commits == 1 &&
           repo.records.size() == 1);
+    CHECK(repo.records.begin()->second.expires.hi == 0 &&
+          repo.records.begin()->second.created.hi == 0 &&
+          repo.records.begin()->second.expires.lo ==
+              repo.records.begin()->second.created.lo + 2592000);
     valid_json(repo.records.begin()->second.parts[AILO_RECORD_METADATA]);
     CHECK(repo.records.begin()->second.parts[AILO_RECORD_METADATA].find(
               "T-1") != std::string::npos);

@@ -1369,7 +1369,8 @@ static int new_client(lua_State *L) {
       api.state_directory = string(L, api_index, "state_directory");
       api.encryption_key_file = string(L, api_index, "encryption_key_file");
       api.zero_data_retention = boolean(L, api_index, "zero_data_retention");
-      api.chat_store_opt_in = boolean(L, api_index, "chat_store_opt_in");
+      api.chat_store_by_default =
+          boolean(L, api_index, "chat_store_by_default");
       api.max_output_memory_bytes =
           (size_t)integer(L, api_index, "max_output_memory_bytes");
       api.max_record_bytes = (size_t)integer(L, api_index, "max_record_bytes");

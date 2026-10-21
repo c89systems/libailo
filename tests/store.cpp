@@ -40,11 +40,11 @@ struct repository {
   explicit repository(
       const ailo_openai_config &c = ailo_openai_default_config())
       : owner(default_repository(c, api)) {}
-  void *reserve(const char *id, const char *ns = "tenant",
-                uint64_t expiry = 0) {
+  void *reserve(const char *id, const char *ns = "tenant", uint64_t expiry = 0,
+                ailo_record_protocol protocol = AILO_RECORD_RESPONSE) {
     ailo_record_metadata m{ns,
                            id,
-                           AILO_RECORD_RESPONSE,
+                           protocol,
                            ailo_u64_from_ulong(1),
                            ailo::detail::from_unsigned(expiry),
                            2 * 1024 * 1024};
@@ -265,6 +265,10 @@ int main(int argc, char **argv) {
       first.write(t, AILO_RECORD_OUTPUT, "{}");
       first.commit(t);
       CHECK(first.missing("expired"));
+      t = first.reserve("expired-chat", "tenant", 1, AILO_RECORD_CHAT);
+      first.write(t, AILO_RECORD_OUTPUT, "{}");
+      first.commit(t);
+      CHECK(first.missing("expired-chat", AILO_RECORD_CHAT));
       t = first.conversation("conversation");
       first.state(t, 1);
       first.write(t, AILO_RECORD_OUTPUT,
@@ -330,7 +334,8 @@ int main(int argc, char **argv) {
     {
       repository r;
       CHECK(r.missing("response-two") && r.missing("aborted") &&
-            r.missing("expired"));
+            r.missing("expired") &&
+            r.missing("expired-chat", AILO_RECORD_CHAT));
       auto old = r.open("conversation", AILO_RECORD_CONVERSATION);
       CHECK(r.read(old, AILO_RECORD_INPUT).find("\"ailo_revision\":1") !=
             std::string::npos);
@@ -457,6 +462,21 @@ int main(int argc, char **argv) {
       };
       CHECK(ailo_client_new(&c, &client, &error) == AILO_OK);
       CHECK(!fs::exists(root));
+      const std::string chat =
+          "{\"model\":\"local-model\",\"messages\":[{\"role\":\"user\","
+          "\"content\":\"Hi\"}],\"stream\":true,\"max_completion_tokens\":1,"
+          "\"temperature\":0}";
+      CHECK(client->chat_completions(client, chat.data(), chat.size(), sink,
+                                     &output, &info, &error) == AILO_OK &&
+            !info.stored && !fs::exists(root) && !fs::exists(secret));
+      output.clear();
+      const std::string stored_chat = "{\"store\":true," + chat.substr(1);
+      CHECK(client->chat_completions(client, stored_chat.data(),
+                                     stored_chat.size(), sink, &output, &info,
+                                     &error) == AILO_OK &&
+            info.stored);
+      const std::string chat_id = info.id;
+      output.clear();
       const std::string request = "{\"input\":\"Hi\",\"stream\":true,\"max_"
                                   "output_tokens\":1,\"temperature\":0}";
       CHECK(client->responses(client, request.data(), request.size(), sink,
@@ -467,6 +487,10 @@ int main(int argc, char **argv) {
       ailo_client_destroy(client);
       output.clear();
       CHECK(ailo_client_new(&c, &client, &error) == AILO_OK);
+      CHECK(client->chat_retrieve(client, chat_id.c_str(), 0, sink, &output,
+                                  &info, &error) == AILO_OK &&
+            output.find(chat_id) != std::string::npos);
+      output.clear();
       CHECK(client->response_retrieve(client, id.c_str(), sink, &output, &info,
                                       &error) == AILO_OK &&
             output.find(id) != std::string::npos);

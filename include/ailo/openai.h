@@ -170,12 +170,13 @@ typedef struct ailo_openai_config {
   const char *namespace_id;
   const ailo_record_repository *repository;
   ailo_bool zero_data_retention;
-  /** Select the historical opt-in Chat storage default. Responses defaults
-   * to stored. Explicit request store overrides defaults, except under ZDR. */
-  ailo_bool chat_store_opt_in;
+  /** Chat requires explicit store=true by default. Nonzero enables default
+   * storage. Explicit request store overrides defaults, except under ZDR. */
+  ailo_bool chat_store_by_default;
   /** Zero selects 30 days; smaller nonzero values are invalid. */
   ailo_u64 response_retention_seconds;
-  /** Zero means until deletion; no provider Chat TTL is assumed. */
+  /** Zero selects 30 days from creation. Nonzero selects a finite local TTL;
+   * reads and metadata updates do not extend the deadline. */
   ailo_u64 chat_retention_seconds;
   /** Zero selects 32 MiB. Charged output/probability memory, not model/KV RAM.
    * Unstored Chat streaming retains only bounded pending token metadata. */

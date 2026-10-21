@@ -11,13 +11,13 @@ constexpr uint64_t openai_response_retention_seconds = 30 * 24 * 60 * 60;
 // required after resolving this plan and BEFORE calling the inference receiver.
 struct openai_retention_policy {
   bool zero_data_retention = false;
-  bool chat_store_by_default = true;
+  bool chat_store_by_default = false;
   bool repository_readable = false, repository_writable = false;
   bool conversation_readable = false, conversation_writable = false;
   std::string namespace_id;
   uint64_t response_retention_seconds = openai_response_retention_seconds;
-  // No published Chat record TTL: zero means retain until explicit deletion.
-  uint64_t chat_retention_seconds = 0;
+  // Local storage policy; this is not a claimed OpenAI Chat expiry deadline.
+  uint64_t chat_retention_seconds = openai_response_retention_seconds;
 };
 struct openai_retention_plan {
   bool store_response = false;

@@ -245,11 +245,24 @@ int main(int argc, char **argv) {
           attached.response_expires_at == 0);
     policy.zero_data_retention = false;
     auto chat_default = resolve_retention(h, policy, 100);
-    CHECK(chat_default.store_response && chat_default.response_expires_at == 0);
-    policy.chat_store_by_default = false;
+    CHECK(!chat_default.store_response &&
+          !chat_default.reserve_record_storage &&
+          chat_default.response_expires_at == 0);
+    h.store = 1;
+    auto stored_chat = resolve_retention(h, policy, 100);
+    CHECK(stored_chat.store_response && stored_chat.reserve_record_storage &&
+          stored_chat.response_expires_at == 100 + 30 * 24 * 60 * 60);
+    policy.chat_store_by_default = true;
+    h.store = -1;
+    CHECK(resolve_retention(h, policy, 100).response_expires_at ==
+          stored_chat.response_expires_at);
+    h.store = 0;
     CHECK(!resolve_retention(h, policy, 100).store_response);
     h.store = 1;
-    CHECK(resolve_retention(h, policy, 100).store_response);
+    policy.chat_retention_seconds = 60;
+    CHECK(resolve_retention(h, policy, 100).response_expires_at == 160);
+    policy.chat_retention_seconds = std::numeric_limits<uint64_t>::max();
+    policy_fails(h, AILO_OUT_OF_RANGE);
     policy.namespace_id.clear();
     policy_fails(
         h, AILO_INVALID_ARGUMENT); // user/safety metadata cannot authorize

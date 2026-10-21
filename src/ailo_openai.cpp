@@ -80,7 +80,7 @@ openai_state::openai_state(const ailo_openai_config *input) {
   if (!input)
     input = &defaults;
   policy.zero_data_retention = input->zero_data_retention != 0;
-  policy.chat_store_by_default = !input->chat_store_opt_in;
+  policy.chat_store_by_default = input->chat_store_by_default != 0;
   if (input->namespace_id) {
     const size_t size = strnlen(input->namespace_id, 257);
     if (size > 256)
@@ -97,8 +97,9 @@ openai_state::openai_state(const ailo_openai_config *input) {
       detail::to_native(input->response_retention_seconds);
   if (response_ttl)
     policy.response_retention_seconds = response_ttl;
-  policy.chat_retention_seconds =
-      detail::to_native(input->chat_retention_seconds);
+  const auto chat_ttl = detail::to_native(input->chat_retention_seconds);
+  if (chat_ttl)
+    policy.chat_retention_seconds = chat_ttl;
   if (policy.response_retention_seconds < openai_response_retention_seconds)
     throw failure(AILO_INVALID_ARGUMENT,
                   "Stored Responses require at least 30 days");

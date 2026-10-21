@@ -159,12 +159,18 @@ selects the built-in encrypted Pouch store and defaults the trusted namespace to
 `default`. Its paths, key ownership and concurrency are documented in
 [persistence](persistence.md).
 
-Chat defaults to storage for the current new-account profile; use
-`chat_store_opt_in` for an existing deployment's historical default. An explicit
-`store` selects storage except when trusted ZDR policy forces false. The default
-repository opens lazily when a storage-dependent operation first needs it.
-Use explicit `store=false` for stateless operation. Chat's default local record
-policy is retention until deletion; an explicit application TTL is available.
+Chat storage is opt-in: omitted/null `store` defaults to false, and explicit
+`store=true` retains the completion. The trusted `chat_store_by_default` option
+can enable default storage; explicit request `store` overrides that setting,
+except when trusted ZDR policy forces false. The default repository opens lazily
+when a storage-dependent operation first needs it. Ordinary Chat requests send
+their conversation history each turn and need no retained completion.
+
+Stored Chat completions expire 30 days after creation by default, including
+explicit `store=true` requests. `chat_retention_seconds=0` selects that default;
+a nonzero value selects a finite local TTL. Reads, continuation activity and
+metadata edits do not renew the original deadline. Expired records return 404
+and are excluded from lists; Pouch removes expired records in maintenance.
 Responses' configured TTL is validated to at least 30 days and applied to each
 stored response. The [retention contract](inference-backend.md) records the
 official source and the distinction from conversation-item lifetime.
@@ -588,7 +594,7 @@ same info/error shape. Configure its policy under `openai.compaction` using the
 ordinary native compaction policy fields.
 
 Configure the same trusted profile through `ailo.new{..., openai={...}}`:
-`namespace_id`, `repository`, `zero_data_retention`, `chat_store_opt_in`,
+`namespace_id`, `repository`, `zero_data_retention`, `chat_store_by_default`,
 `response_retention_seconds`, `chat_retention_seconds`,
 `max_output_memory_bytes`, `max_record_bytes` and `compaction`. Defaults match C.
 Unsigned

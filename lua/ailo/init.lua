@@ -84,12 +84,12 @@ end
 local compaction_policy
 local function openai(input)
   if input==nil then return nil end
-  object(input,keys("namespace_id repository zero_data_retention chat_store_opt_in response_retention_seconds chat_retention_seconds max_output_memory_bytes max_record_bytes compaction state_directory encryption_key_file"),"openai")
+  object(input,keys("namespace_id repository zero_data_retention chat_store_by_default response_retention_seconds chat_retention_seconds max_output_memory_bytes max_record_bytes compaction state_directory encryption_key_file"),"openai")
   local out={namespace_id=str(input.namespace_id,"openai.namespace_id",true),
     state_directory=str(input.state_directory,"openai.state_directory",true),
     encryption_key_file=str(input.encryption_key_file,"openai.encryption_key_file",true),
     zero_data_retention=boolean(input.zero_data_retention,"zero_data_retention"),
-    chat_store_opt_in=boolean(input.chat_store_opt_in,"chat_store_opt_in"),
+    chat_store_by_default=boolean(input.chat_store_by_default,"chat_store_by_default"),
     response_retention_seconds=u64(input.response_retention_seconds,"response_retention_seconds"),
     chat_retention_seconds=u64(input.chat_retention_seconds,"chat_retention_seconds"),
     max_output_memory_bytes=number(input.max_output_memory_bytes,"max_output_memory_bytes",0,true,0,math.maxinteger),

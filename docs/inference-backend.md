@@ -182,12 +182,14 @@ separate item archive, including store=false. Neither
 request `user` nor `safety_identifier` grants access.
 
 Current [OpenAI migration guidance](https://developers.openai.com/api/docs/guides/migrate-to-responses)
-also documents default Chat storage for new accounts. The planner defaults to
-that behavior and allows the trusted application to select the earlier opt-in
-default for an existing deployment. OpenAI does not publish a Chat record TTL
-on the inspected create/retrieve reference; the local default retains stored
-Chat records until deletion, with an explicit application TTL if needed. This
-is a local repository policy, not a claim of an undocumented provider deadline.
+also documents default Chat storage for new accounts. Libailo deliberately
+defaults Chat storage off: clients own the history sent on each turn. Explicit
+`store=true` enables retained completions; trusted `chat_store_by_default` can
+enable default storage. Stored Chat records have a local 30-day TTL from
+creation, with a configurable finite application TTL. Zero selects 30 days;
+there is no indefinite Chat TTL setting. Reads and metadata edits preserve the
+original deadline. This is a local repository policy, not a claim of an
+undocumented OpenAI expiry deadline.
 
 Under the documented [data controls](https://developers.openai.com/api/docs/guides/your-data),
 ZDR forces response `store=false` in both APIs, including an explicit true.

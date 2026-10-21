@@ -76,7 +76,12 @@ function M.exercise(ailo,path,memory)
     return ok(ailo.new{source={local_path=path},backend="cpu",threads=1,context_tokens=128,lazy=true,openai=api})
   end
   local c=client()
-  local json='{"model":"local-model","messages":[{"role":"user","content":"Hi"}],"stream":true,"max_completion_tokens":2,"temperature":0,"metadata":{"ticket":"T-1"},"stream_options":{"include_obfuscation":false}}'
+  local json='{"model":"local-model","messages":[{"role":"user","content":"Hi"}],"store":true,"stream":true,"max_completion_tokens":2,"temperature":0,"metadata":{"ticket":"T-1"},"stream_options":{"include_obfuscation":false}}'
+  local unstored_json=json:gsub(',"store":true','',1)
+  for _,request in ipairs{unstored_json,(json:gsub('"store":true','"store":false',1)),(json:gsub('"store":true','"store":null',1))}do
+    local result=ok(c:chat_completions(request,function()end))
+    assert(not result.stored and r.reserved==0 and not next(r.records))
+  end
   local chunks={}
   r.hook=function()fails("busy",function()return c:close()end)end
   local run=ok(c:chat_completions(json,function(bytes)chunks[#chunks+1]=bytes end));r.hook=nil
@@ -129,7 +134,14 @@ function M.exercise(ailo,path,memory)
     r.fault=nil;r.expires=1;fails("not_found",function()return c:chat_retrieve(id,function()end)end);r.expires=nil
     local zdr=client("A",{zero_data_retention=true});local before=r.reserved
     local stateless=ok(zdr:chat_completions(json,function()end));assert(not stateless.stored and r.reserved==before);zdr:close()
-    local opt=client("A",{chat_store_opt_in=true});stateless=ok(opt:chat_completions(json,function()end));assert(not stateless.stored);opt:close()
+    local opt=client("A",{chat_store_by_default=true,chat_retention_seconds=0})
+    local stored=ok(opt:chat_completions(unstored_json,function()end))
+    assert(stored.stored and r.last_metadata.expires_at==r.last_metadata.created_at+2592000)
+    before=r.reserved;stateless=ok(opt:chat_completions(json:gsub('"store":true','"store":false',1),function()end))
+    assert(not stateless.stored and r.reserved==before);opt:close()
+    local default_ttl=client("A",{chat_retention_seconds=0})
+    stored=ok(default_ttl:chat_completions(json,function()end))
+    assert(stored.stored and r.last_metadata.expires_at==r.last_metadata.created_at+2592000);default_ttl:close()
     fails("invalid_argument",function()return ailo.new{source={local_path=path},openai={repository={}}}end)
     fails("invalid_argument",function()return ailo.new{source={local_path=path},openai={response_retention_seconds=1}}end)
     local huge=client("A",{chat_retention_seconds={hi=0xffffffff,lo=0xffffffff}})
@@ -559,7 +571,7 @@ function M.record_operations(ailo,path,memory)
   end
   local c=client();local chunks={};local function sink(s)chunks[#chunks+1]=s end
   local function text()local s=table.concat(chunks);chunks={};return s end
-  local body='{"model":"local-model","messages":[{"role":"system","content":"Be helpful"},{"role":"user","content":"Hi"}],"max_completion_tokens":2,"temperature":0,"stream":true,"metadata":{"team":"alpha","ticket":"one"},"stream_options":{"include_obfuscation":false}}'
+  local body='{"model":"local-model","messages":[{"role":"system","content":"Be helpful"},{"role":"user","content":"Hi"}],"store":true,"max_completion_tokens":2,"temperature":0,"stream":true,"metadata":{"team":"alpha","ticket":"one"},"stream_options":{"include_obfuscation":false}}'
   local one=ok(c:chat_completions(body,sink));text()
   local original=r.records[key('R','chat',one.id)];local expiry=original.expires
   ok(c:chat_messages_list(one.id,sink,'{"limit":1}'));local page=text()
@@ -663,7 +675,7 @@ function M.routes(ailo,path)
     local info=ok(c:handle(method,target,body,function(s)chunks[#chunks+1]=s end))
     return info,table.concat(chunks)
   end
-  local json='{"model":"local-model","messages":[{"role":"user","content":"Hi"}],"stream":true,"max_completion_tokens":2,"temperature":0,"metadata":{"ticket":"one"},"stream_options":{"include_obfuscation":false}}'
+  local json='{"model":"local-model","messages":[{"role":"user","content":"Hi"}],"store":true,"stream":true,"max_completion_tokens":2,"temperature":0,"metadata":{"ticket":"one"},"stream_options":{"include_obfuscation":false}}'
   local created=call('POST','/v1/chat/completions',json)
   assert(created.stored and r.last_metadata.expires_at==r.last_metadata.created_at+60)
   local _,text=call('GET','/v1/chat/completions/'..created.id)
