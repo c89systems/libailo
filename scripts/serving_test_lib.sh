@@ -2,17 +2,28 @@
 # Shared acceptance-fixture ownership, not a production HTTP runtime.
 set -euo pipefail
 fixture_pid=
+fixture_native_pid=
 codex_pid=
 curl_pid=
 serving_cleanup() {
   local result=$?
   trap - EXIT
-  for owned in "$codex_pid" "$curl_pid" "$fixture_pid"; do
+  for owned in "$codex_pid" "$curl_pid"; do
     if [[ -n "$owned" ]]; then
       kill "$owned" 2>/dev/null || true
       wait "$owned" 2>/dev/null || true
     fi
   done
+  if [[ -n "$fixture_pid" ]]; then serving_stop || result=1; fi
+  if [[ "$result" == 0 && "${AILO_TEST_TRACE:-0}" == 1 ]]; then
+    local trace
+    for trace in "$work"/native-*.trace; do
+      if [[ $(rg -c 'execve\(' "$trace") != 1 ]] || rg -q 'execveat\(|\.so([.0-9]|"|/)' "$trace"; then
+        printf 'Static fixture loaded a shared object or executed a helper: %s\n' "$trace" >&2
+        result=1
+      fi
+    done
+  fi
   printf 'Serving acceptance evidence: %s\n' "$work"
   if [[ $result -ne 0 ]]; then
     tail -15 "$work/fixture.log" >&2 || true
@@ -33,18 +44,27 @@ serving_start() {
   if [[ -n "${receipts_in-}" ]]; then exec {receipts_in}>&-; fi
   exec {ready_in}<>"$work/ready"
   exec {receipts_in}<>"$work/receipts"
-  "$fixture" "$model" "$work" >> "$work/fixture.stdout" 2>> "$work/fixture.log" &
+  local launch=()
+  if [[ "${AILO_TEST_TRACE:-0}" == 1 ]]; then
+    command -v strace >/dev/null || { printf 'Static serving acceptance requires strace\n' >&2; return 2; }
+    launch=(strace --kill-on-exit -f -e "trace=file,process" -o "$(mktemp "$work/native-XXXXXX.trace")")
+  fi
+  "${launch[@]}" "$fixture" "$model" "$work" >> "$work/fixture.stdout" 2>> "$work/fixture.log" &
   fixture_pid=$!
   IFS= read -r -t 15 -u "$ready_in" port || { printf 'Fixture did not become ready\n' >&2; return 1; }
   [[ "$port" =~ ^[0-9]+$ ]]
+  read -r fixture_native_pid < "$work/pid"
   url="http://127.0.0.1:$port/v1"
   http_count=0
   if [[ -f "$work/sequence" ]]; then read -r http_count < "$work/sequence"; fi
 }
 serving_stop() {
-  kill "$fixture_pid"
-  wait "$fixture_pid"
+  local result=0
+  kill "${fixture_native_pid:-$fixture_pid}" || result=1
+  wait "$fixture_pid" || result=1
   fixture_pid=
+  fixture_native_pid=
+  return "$result"
 }
 serving_await() {
   local expected=$1 received

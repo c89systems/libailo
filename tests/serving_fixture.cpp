@@ -60,6 +60,13 @@ struct transport {
     while ((end = frame.find("\n\n")) != std::string::npos) {
       delta = frame.substr(0, end).find(
                   "event: response.output_text.delta\n") != std::string::npos;
+      if (!delta && frame.compare(0, 6, "data: ") == 0 &&
+          frame.substr(6, end - 6) != "[DONE]") {
+        const auto chunk = json::parse(frame.substr(6, end - 6));
+        if (chunk.contains("choices"))
+          for (const auto &choice : chunk.at("choices"))
+            delta = delta || !choice.at("delta").value("content", "").empty();
+      }
       frame.erase(0, end + 2);
       if (delta)
         break;
@@ -283,6 +290,7 @@ void request(int fd, const char *model, unsigned number) {
   receipt["completion_tokens"] =
       serving_test::integer(info.api.run.usage.completion_tokens);
   receipt["compaction_passes"] = info.api.run.usage.compaction_passes;
+  observe_model(raw, receipt);
   serving_test::save(directory + "/receipt-" + std::to_string(number) + ".json",
                      receipt);
   serving_test::save(directory + "/latest.json", receipt);
@@ -320,6 +328,7 @@ int main(int argc, char **argv) {
       std::ofstream ready(directory + "/port");
       ready << ntohs(address.sin_port) << '\n';
     }
+    std::ofstream(directory + "/pid") << getpid() << '\n';
     notify("ready", ntohs(address.sin_port));
     unsigned count = 0;
     std::ifstream(directory + "/sequence") >> count;

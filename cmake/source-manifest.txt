@@ -331,3 +331,4 @@ tests/test_serving_inference.sh
 tests/test_serving_agent_inference.sh
 scripts/codex_test_lib.sh
 scripts/test_openai_inference.sh
+tests/test_serving_media.sh

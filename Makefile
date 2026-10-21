@@ -114,6 +114,7 @@ package-lua:
 	scripts/package_lua.sh
 .PHONY: test-openai-inference
 INFERENCE_ACQUIRE ?= offline
+INFERENCE_BACKEND ?= cpu
 test-openai-inference: PRESET = x86_64-linux-gnu-release
 test-openai-inference: build
-	bash scripts/test_openai_inference.sh "$(PRESET)" "$(INFERENCE_ACQUIRE)"
+	bash scripts/test_openai_inference.sh "$(PRESET)" "$(INFERENCE_ACQUIRE)" "$(INFERENCE_BACKEND)"

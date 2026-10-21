@@ -12,5 +12,6 @@ extern std::string directory;
 void require(bool, const char *);
 void configure_model(ailo_client_config &);
 void inspect_model_input(ailo_client *, const std::string &);
+void observe_model(ailo_client *, json &);
 } // namespace serving_test
 #endif

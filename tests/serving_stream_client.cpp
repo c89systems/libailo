@@ -8,9 +8,11 @@
 #include <cstring>
 #include <fcntl.h>
 #include <fstream>
+#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 namespace {
 void require(bool ok, const char *message) {
@@ -59,8 +61,8 @@ void send_all(int fd, const std::string &text) {
 } // namespace
 int main(int argc, char **argv) {
   try {
-    require(argc == 5,
-            "Usage: stream-client PORT WORK REQUEST continue|disconnect");
+    require(argc == 5 || argc == 6, "Usage: stream-client PORT WORK REQUEST "
+                                    "continue|disconnect [REQUEST-JSON]");
     const std::string mode = argv[4], work = argv[2];
     require(mode == "continue" || mode == "disconnect", "Invalid test mode");
     socket_owner connection{socket(AF_INET, SOCK_STREAM, 0)};
@@ -75,12 +77,21 @@ int main(int argc, char **argv) {
     require(connect(connection.fd, reinterpret_cast<sockaddr *>(&address),
                     sizeof(address)) == 0,
             "Connect failed");
-    const std::string body =
+    std::string body =
         R"({"input":"Count from one to twenty, writing every number.","stream":true,"temperature":0,"max_output_tokens":80})";
-    send_all(connection.fd,
-             "POST /v1/responses HTTP/1.1\r\nHost: localhost\r\nContent-Type: "
-             "application/json\r\nContent-Length: " +
-                 std::to_string(body.size()) + "\r\n\r\n" + body);
+    if (argc == 6) {
+      std::ifstream input(argv[5]);
+      require(bool(input), "Cannot read client request fixture");
+      body.assign(std::istreambuf_iterator<char>(input),
+                  std::istreambuf_iterator<char>());
+    }
+    const bool chat = nlohmann::json::parse(body).contains("messages");
+    send_all(connection.fd, std::string("POST /v1/") +
+                                (chat ? "chat/completions" : "responses") +
+                                " HTTP/1.1\r\nHost: localhost\r\nContent-Type: "
+                                "application/json\r\nContent-Length: " +
+                                std::to_string(body.size()) + "\r\n\r\n" +
+                                body);
     require(line(connection.fd).find("HTTP/1.1 200 ") == 0,
             "Expected HTTP 200");
     while (!line(connection.fd).empty()) {
@@ -105,14 +116,29 @@ int main(int argc, char **argv) {
         pending.erase(0, end + 2);
         const auto data = frame.find("data: ");
         require(data != std::string::npos, "Missing SSE data");
-        const auto event = nlohmann::json::parse(frame.substr(data + 6));
-        const auto type = event.at("type").get<std::string>();
+        const auto payload = frame.substr(data + 6);
+        if (chat && payload == "[DONE]") {
+          ++completed;
+          continue;
+        }
+        const auto event = nlohmann::json::parse(payload);
+        const auto type =
+            chat ? std::string("chat") : event.at("type").get<std::string>();
+        require(!event.contains("error"), "Stream contains an error");
+        if (chat)
+          id = event.at("id");
         if (type == "response.created")
           id = event.at("response").at("id");
         if (type == "response.completed")
           ++completed;
         require(type != "response.failed" && type != "error", "Stream failed");
-        if (type != "response.output_text.delta")
+        const bool text = chat ? !event.at("choices")
+                                      .at(0)
+                                      .at("delta")
+                                      .value("content", "")
+                                      .empty()
+                               : type == "response.output_text.delta";
+        if (!text)
           continue;
         if (++deltas != 1)
           continue;
@@ -138,7 +164,7 @@ int main(int argc, char **argv) {
                 "Cannot release backpressure");
       }
     }
-    require(deltas > 1 && completed == 1 && pending.empty(),
+    require(deltas > 0 && completed == 1 && pending.empty(),
             "Incomplete resumed stream");
     std::puts("First native text delta consumed before completion; "
               "backpressure released; stream completed");

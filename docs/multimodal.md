@@ -382,3 +382,10 @@ peak RSS, which is not an attributed model/encoder allocation measurement.
 AMD, AArch64 GPU and multi-GPU hardware execution remain unqualified here;
 neither these reference pairs nor these checks qualify general audio reasoning,
 every mtmd architecture, or every model's semantic compaction quality.
+
+The [trained serving suite](serving.md#trained-model-serving-acceptance) also
+qualifies real JPEG/Chat WAV input over HTTP, live text consumption and Pouch
+restart/replay. Both media cases passed on GNU CPU, GNU Intel Vulkan, fully
+static musl CPU and fully static musl Intel Vulkan. Vulkan cases assert native
+decoder/context and encoder placement. Musl cases additionally reject dynamic
+ELF dependencies, shared-object access and native helper execution.

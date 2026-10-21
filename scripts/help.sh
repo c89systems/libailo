@@ -38,7 +38,9 @@ valgrind-acquisition              Check C89 model cache and TLS transport owners
 inference-smoke-vulkan            Require GGUF decode on a real Vulkan device.
 test-openai-agent [PRESET=name]    Verify Codex turns/tools, remote compaction and opaque replay.
 test-openai-inference [PRESET=x86_64-linux-gnu-release] [INFERENCE_ACQUIRE=offline|download]
-                                 Run separate trained CPU serving/Codex CTest acceptance.
+                      [INFERENCE_BACKEND=cpu|vulkan]
+                                 Run trained text/media serving and Codex CTest acceptance.
+                                 Native musl also checks static ELF and runtime file/process traces.
 test-scalar-matrix                 Run scalar/bridge checks on four Linux targets.
                                   Cross execution requires qemu-arm/aarch64.
 example-smoke-local                Build and exercise local C89 examples.

@@ -275,3 +275,6 @@ void generate(state &self, const ailo_request &request, ailo_event_sink sink,
 namespace serving_test {
 void inspect_model_input(ailo_client *, const std::string &) {}
 } // namespace serving_test
+namespace serving_test {
+void observe_model(ailo_client *, json &) {}
+} // namespace serving_test

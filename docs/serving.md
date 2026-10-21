@@ -142,17 +142,38 @@ this deterministic profile.
 ## Trained-model serving acceptance
 
 `make test-openai-inference` defaults to `x86_64-linux-gnu-release` and runs an
-independent four-case CTest suite under `build/serving-inference-PRESET/`.
+independent six-case CTest suite under `build/serving-inference-PRESET-BACKEND/`.
 Ordinary `make test` remains offline and deterministic. The trained suite also
 defaults to offline acquisition; use `INFERENCE_ACQUIRE=download` explicitly
 once. Acquisition uses the public libailo model-cache facility, not a separate
-downloader. Weights stay in the owned `build/inference-models/` cache.
+downloader. Text weights stay in `build/inference-models/`; media pairs reuse
+`build/media-model-cache/` and the verified speech sample in
+`build/media-fixtures/`. All are owned build caches.
+
+The default backend is CPU. `INFERENCE_BACKEND=vulkan` requires a Vulkan-enabled
+native preset and real hardware. Each native model-card observation must report
+the requested backend; Vulkan additionally requires every repeating layer and
+the output layer on selected devices, a native GPU context allocation, and the
+selected media encoder on a GPU. The suite disables external ICD discovery and
+Mesa's disk shader cache. It cannot pass through silent CPU fallback.
+
+```sh
+make test-openai-inference INFERENCE_BACKEND=vulkan
+make test-openai-inference PRESET=x86_64-linux-musl-release INFERENCE_BACKEND=vulkan
+```
+
+The musl preset links the trained listener and consuming socket executable fully
+statically. Before execution the driver rejects an ELF interpreter or `NEEDED`
+dependency. Every listener lifetime, including Pouch restart, runs under host
+`strace` with file/process tracing. A passing case requires exactly its initial
+executable invocation, no helper execution and no shared-object path access.
+Host curl, Codex and assertion tools are outside that native process tree.
 
 The fixed model is `bartowski/Qwen2.5-0.5B-Instruct-GGUF`, revision
 `c6f6d6134e86f8c53897f3d892b3a3da0143e8bc`, file
 `Qwen2.5-0.5B-Instruct-Q4_K_M.gguf`, SHA-256
 `6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653`.
-The fixture checks that hash and runs CPU inference with two threads, greedy
+The fixture checks that hash and runs inference with two CPU threads, greedy
 sampling and a 32,768-token context. The simulated and trained executables share
 the same HTTP transport. Only the simulated executable defines a replacement
 generator; the trained one links production sampling, tool parsing and summaries.
@@ -197,23 +218,38 @@ The cases require observable trained behavior:
   The note contains repetitive routine history so reduction is necessary and
   the compaction target leaves room for protected instructions and tool schemas.
   A successful no-op checkpoint cannot satisfy this check.
+- The pinned SmolVLM pair receives a real JPEG through Responses and Chat and
+  streams a semantic color answer. Responses replays the retained image using
+  only a new question plus `previous_response_id` after a Pouch listener restart.
+- The pinned Qwen3-ASR pair receives the verified JFK WAV through Chat and
+  streams a transcript. After restart, the test retrieves stored `content_parts`,
+  resubmits the retained audio and requires the same transcript. Both media cases
+  reject malformed input, then prove successful recovery and consume a real text
+  delta while the producer is held before completion. Responses audio remains
+  explicitly unsupported under the declared wire profile and must return 400.
+
+Media model/projector revisions and hashes match the
+[multimodal reference pairs](multimodal.md). Their context is 4096 positions;
+they use the stock model templates. ASR is tested as transcription, not general
+audio conversation.
 
 Readiness, request completion and backpressure use FIFO notifications, not
 polling sleeps. Timeouts are failure deadlines, never minimum test durations.
 Trained inference is intentionally more expensive than the default unit suite.
-Run an individual case with `ctest --test-dir build/serving-inference-PRESET
+Run an individual case with `ctest --test-dir build/serving-inference-PRESET-BACKEND
 --output-on-failure -R '^trained-serving-compaction$'`, for example.
 
 Evidence stays in `build/PRESET/openai-serving.*`: requests, wire responses,
-native usage receipts, authenticated replay observations and Codex events.
+native usage/placement receipts, authenticated replay observations, Codex events
+and, for musl, native file/process traces.
 The native generator is silent without a logger; transport diagnostics belong
-to the test fixture. These cases qualify the pinned model/configuration on CPU,
+to the test fixture. These cases qualify the pinned model/configuration,
 not general model intelligence or instruction-following. In particular, the
 0.5B model can ignore answer-style instructions even when those instructions
 are retained exactly. A two-file experiment with different identifiers also
 confused the first and latest values after compaction; its failing trace is
-`build/x86_64-linux-gnu-release/openai-serving.bpFMzG/`. GPU/multi-GPU serving
-acceptance and production network server integration remain separate work.
+`build/x86_64-linux-gnu-release/openai-serving.bpFMzG/`. AMD/multi-GPU hardware
+qualification and production network server integration remain separate work.
 
 Trained Codex qualification on 2026-10-21 passed with CLI
 **0.162.0-alpha.20**, two real tool executions, one native summary pass and
@@ -228,6 +264,39 @@ existing simulated Codex acceptance also passed. Logs:
 `build/serving-standard-final.log`, `build/serving-lua-final.log`,
 `build/serving-simulated-final.log`. The build's strict C89 public-header probes,
 format check, Bash syntax and shell lint also passed.
+
+### Intel Vulkan and static serving qualification, 2026-10-21
+
+All six trained serving cases passed on Intel RPL-U with the built-in ANV
+provider in both GNU and fully static musl executables. Native placement receipts
+confirmed all 24 Qwen decoder layers plus its output layer on Vulkan, allocated
+GPU context buffers, and GPU selection for both media encoders. No external ICD
+was available through the suite's configured discovery paths.
+
+| Configuration | Passed cases | Logs |
+| --- | --- | --- |
+| GNU / Vulkan | Protocol, compaction, transport, Codex, vision, audio | `build/serving-vulkan-direct.log`, `build/serving-codex-vulkan.log`, `build/serving-media-vulkan.log` |
+| Static musl / Vulkan | All six, with native file/process tracing | `build/serving-musl-vulkan.log` |
+| Static musl / CPU | Protocol, compaction, transport, vision, audio, with tracing | `build/serving-musl-cpu.log` |
+| GNU / CPU media | Vision and audio; text/Codex evidence is recorded above | `build/serving-media-cpu.log` (vision), `build/serving-audio-cpu.log` (repaired audio case) |
+
+Static musl's six Vulkan cases took 410.79 seconds, including actual inference,
+model/encoder loading, Pouch reopening and tracing; its five CPU cases took
+222.16 seconds. Neither suite adds minimum-duration waits. GNU's Vulkan Codex
+case took 78.11 seconds. The musl executable and consuming client had neither
+`PT_INTERP` nor dynamic dependencies, and every native trace passed the no-helper,
+no-shared-object checks. Representative musl artifacts are
+`build/x86_64-linux-musl-release/openai-serving.sPuD4W/` (Codex),
+`openai-serving.gFgdGV/` (vision) and `openai-serving.jvUQ6R/` (audio).
+
+The standard GNU suite passed 77/77, including package and installed-consumer
+checks; installed Lua passed 5/5. The simulated Codex gate also passed with the
+shared transport/ownership changes. Logs: `build/serving-gpu-standard.log`,
+`build/serving-gpu-lua.log` and `build/serving-gpu-simulated.log`.
+
+AMD, mixed/multi-GPU and AArch64 GPU execution remain unqualified. These checks
+exercise the test-only loopback transport; a production Vectis/Kore listener
+remains a separate integration.
 
 ## Earlier deterministic qualification
 
