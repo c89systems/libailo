@@ -1,17 +1,14 @@
-// Test-only loopback transport. Production adapters serialize every event.
-// The generate definition below replaces only the static archive's inference
-// translation unit in THIS executable; it introduces no product test hook.
+// Test-only loopback transport shared by simulated and trained fixtures.
+#include "ailo/compaction.h"
 #include "ailo/handler.h"
-#include "ailo_auto_compaction_internal.hpp"
-#include "ailo_client_internal.hpp"
-#include "ailo_reasoning_internal.hpp"
-#include "ailo_tools_internal.hpp"
+#include "serving_fixture_internal.hpp"
 #include "serving_repository.hpp"
 #include <arpa/inet.h>
 #include <charconv>
 #include <csignal>
 #include <cstdio>
 #include <cstring>
+#include <fcntl.h>
 #include <fstream>
 #include <map>
 #include <netinet/tcp.h>
@@ -19,25 +16,76 @@
 #include <sstream>
 #include <string>
 #include <sys/socket.h>
-#include <thread>
+#include <sys/stat.h>
 #include <unistd.h>
 
-namespace {
+namespace serving_test {
 volatile std::sig_atomic_t stopping = 0;
 unsigned generations = 0, tool_calls = 0, tool_results = 0, answers = 0;
 unsigned summaries = 0, current_request = 0;
 std::string directory;
-using serving_test::json;
 void stop(int) { stopping = 1; }
 void require(bool condition, const char *message) {
   if (!condition)
     throw std::runtime_error(message);
+}
+void notify(const char *name, unsigned value) {
+  const auto path = directory + "/" + name;
+  struct stat metadata{};
+  if (stat(path.c_str(), &metadata) == 0 && S_ISFIFO(metadata.st_mode)) {
+    std::ofstream pipe(path);
+    pipe << value << '\n';
+    require(bool(pipe), "Fixture notification failed");
+  }
 }
 struct socket_owner {
   int fd;
   ~socket_owner() {
     if (fd >= 0)
       close(fd);
+  }
+};
+struct transport {
+  int fd;
+  bool gate = false, held = false;
+  std::string frame;
+  int observe(const void *p, size_t n) {
+    if (!gate || held)
+      return 1;
+    // A bounded test observation AFTER forwarding bytes, never an output spool.
+    require(n <= 65536 - frame.size(), "SSE observation exceeds 64 KiB");
+    frame.append(static_cast<const char *>(p), n);
+    bool delta = false;
+    size_t end;
+    while ((end = frame.find("\n\n")) != std::string::npos) {
+      delta = frame.substr(0, end).find(
+                  "event: response.output_text.delta\n") != std::string::npos;
+      frame.erase(0, end + 2);
+      if (delta)
+        break;
+    }
+    if (!delta)
+      return 1;
+    held = true;
+    socket_owner release{open((directory + "/release").c_str(),
+                              O_RDONLY | O_NONBLOCK | O_CLOEXEC)};
+    require(release.fd >= 0, "Missing transport release FIFO");
+    pollfd pending[] = {{release.fd, POLLIN, 0}, {fd, POLLIN, 0}};
+    int ready;
+    do {
+      ready = poll(pending, 2, 30000);
+    } while (ready < 0 && errno == EINTR && !stopping);
+    require(ready > 0 && !stopping,
+            "Transport release/disconnect deadline exceeded");
+    if (pending[1].revents) {
+      char byte;
+      if (recv(fd, &byte, 1, MSG_PEEK | MSG_DONTWAIT) <= 0)
+        return 0;
+    }
+    char command;
+    require(read(release.fd, &command, 1) == 1 && command == 'c',
+            "Invalid transport release");
+    return 1;
   }
 };
 int send_all(int fd, const void *bytes, size_t size) {
@@ -54,7 +102,7 @@ int send_all(int fd, const void *bytes, size_t size) {
   return 1;
 }
 int begin(void *u, const ailo_http_response *headers) {
-  const int fd = *static_cast<int *>(u);
+  const int fd = static_cast<transport *>(u)->fd;
   std::ostringstream out;
   out << "HTTP/1.1 " << headers->status
       << " Result\r\nContent-Type: " << headers->content_type
@@ -70,14 +118,25 @@ int begin(void *u, const ailo_http_response *headers) {
   return send_all(fd, bytes.data(), bytes.size());
 }
 int write(void *u, const void *bytes, size_t size) {
-  const int fd = *static_cast<int *>(u);
-  char length[32];
-  const auto n = std::snprintf(length, sizeof(length), "%zx\r\n", size);
-  return send_all(fd, length, static_cast<size_t>(n)) &&
-         send_all(fd, bytes, size) && send_all(fd, "\r\n", 2);
+  try {
+    auto &connection = *static_cast<transport *>(u);
+    const int fd = connection.fd;
+    char length[32];
+    const auto n = std::snprintf(length, sizeof(length), "%zx\r\n", size);
+    return send_all(fd, length, static_cast<size_t>(n)) &&
+           send_all(fd, bytes, size) && send_all(fd, "\r\n", 2) &&
+           connection.observe(bytes, size);
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "transport observer: %s\n", e.what());
+    return -1;
+  }
 }
-int finish(void *u) { return send_all(*static_cast<int *>(u), "0\r\n\r\n", 5); }
-void abort_response(void *u) { shutdown(*static_cast<int *>(u), SHUT_RDWR); }
+int finish(void *u) {
+  return send_all(static_cast<transport *>(u)->fd, "0\r\n\r\n", 5);
+}
+void abort_response(void *u) {
+  shutdown(static_cast<transport *>(u)->fd, SHUT_RDWR);
+}
 std::string lower(std::string value) {
   for (auto &c : value)
     if (c >= 'A' && c <= 'Z')
@@ -93,6 +152,7 @@ std::string receive(int fd, size_t maximum) {
 }
 void request(int fd, const char *model, unsigned number) {
   current_request = number;
+  std::ofstream(directory + "/sequence") << number << '\n';
   constexpr size_t limit = 8 * 1024 * 1024;
   std::string input;
   while (input.find("\r\n\r\n") == std::string::npos) {
@@ -159,9 +219,9 @@ void request(int fd, const char *model, unsigned number) {
   } else
     api.repository = &repository.api;
   auto policy = ailo_compaction_default_policy();
-  policy.target_tokens = 9000;
-  policy.recent_turns = 0;
-  policy.summary_tokens = 512;
+  policy.target_tokens = control.value("target_tokens", 9000u);
+  policy.recent_turns = control.value("recent_turns", 0u);
+  policy.summary_tokens = control.value("summary_tokens", 512u);
   policy.summary_context_tokens = 32768;
   api.compaction = &policy;
   config.openai = &api;
@@ -176,14 +236,7 @@ void request(int fd, const char *model, unsigned number) {
   std::unique_ptr<ailo_compactor, decltype(&ailo_compactor_destroy)> compactor(
       owner, ailo_compactor_destroy);
   config.compactor = owner;
-  config.chat_template =
-      "{% if tools %}{{tools | tojson}}{% endif %}{% for m in messages "
-      "%}{{m.role}}:{{m.content}}{% if m.tool_calls is defined %}{% for c in "
-      "m.tool_calls %}<call>{\"name\":{{c.function.name | "
-      "tojson}},\"arguments\":{% if c.function.arguments is string "
-      "%}{{c.function.arguments}}{% else %}{{c.function.arguments | "
-      "tojson}}{% endif %}}</call>{% endfor %}{% endif %}|{% endfor %}{% if "
-      "add_generation_prompt %}assistant:{% endif %}";
+  configure_model(config);
   ailo_client *raw = nullptr;
   require(ailo_client_new(&config, &raw, &error) == AILO_OK, error.message);
   std::unique_ptr<ailo_client, decltype(&ailo_client_destroy)> client(
@@ -206,8 +259,13 @@ void request(int fd, const char *model, unsigned number) {
   incoming.content_encoding = headers.count("content-encoding")
                                   ? headers.at("content-encoding").c_str()
                                   : nullptr;
-  ailo_http_transport outgoing{&fd, begin, write, finish, abort_response};
+  transport connection{fd, control.value("hold_transport", false), false, {}};
+  ailo_http_transport outgoing{&connection, begin, write, finish,
+                               abort_response};
   ailo_handler_info info{};
+  if (method == "POST" && target == "/v1/responses" &&
+      control.value("inspect_compaction", false))
+    inspect_model_input(raw, std::string(input.data() + boundary, length));
   const auto status =
       serving->handle(serving, &incoming, &outgoing, &info, &error);
   auto receipt = repository.stats;
@@ -219,9 +277,16 @@ void request(int fd, const char *model, unsigned number) {
   receipt["id"] = info.api.id;
   receipt["generations"] = generations;
   receipt["summaries"] = summaries;
+  receipt["completed"] = bool(info.completed);
+  receipt["prompt_tokens"] =
+      serving_test::integer(info.api.run.usage.prompt_tokens);
+  receipt["completion_tokens"] =
+      serving_test::integer(info.api.run.usage.completion_tokens);
+  receipt["compaction_passes"] = info.api.run.usage.compaction_passes;
   serving_test::save(directory + "/receipt-" + std::to_string(number) + ".json",
                      receipt);
   serving_test::save(directory + "/latest.json", receipt);
+  notify("receipts", number);
   std::fprintf(stderr,
                "request=%u method=%s target=%s status=%d result=%s "
                "completed=%d bytes=%u diagnostic=%s\n",
@@ -229,262 +294,10 @@ void request(int fd, const char *model, unsigned number) {
                ailo_status_name(status), info.completed, info.bytes_written.lo,
                error.message);
 }
-} // namespace
-
-namespace ailo {
-namespace client {
-void generate(state &self, const ailo_request &request, ailo_event_sink sink,
-              void *user, ailo_run_info &info,
-              continuation_transaction *history, const compaction_task *task) {
-  const unsigned generation = ++generations;
-  require(generation <= 256, "Fixture exceeded its generation bound");
-  self.ensure_loaded();
-  std::unique_ptr<automatic_compaction> automatic;
-  std::unique_ptr<compaction_change> changed;
-  if (request.auto_compaction) {
-    require(history != nullptr, "Fixture automatic history is missing");
-    automatic = std::make_unique<automatic_compaction>(
-        self, *history, *request.auto_compaction, task);
-    auto tools = prepare_tools(request);
-    const auto rendered =
-        render_prompt(self, prepare_replay(self, request), tools, request);
-    if (prompt_token_count(self, rendered.prompt) >=
-        automatic->policy.trigger_tokens) {
-      changed = std::make_unique<compaction_change>(automatic->propose(0));
-      automatic->adopt(*changed);
-    }
-  }
-  const auto conversation = prepare_replay(self, request);
-  std::string effective, latest;
-  for (const auto &m : conversation.messages) {
-    effective += m.role + ":" + m.content + "\n";
-    for (const auto &c : m.calls)
-      effective += c.id + ":" + c.arguments + "\n";
-    if (m.role == "user")
-      latest = m.content;
-  }
-  serving_test::save(directory + "/generation-" + std::to_string(generation) +
-                         ".json",
-                     {{"request", current_request},
-                      {"effective", effective},
-                      {"latest", latest},
-                      {"automatic", bool(changed)},
-                      {"items", request.item_count}});
-  const auto marker = [](const std::string &s, const std::string &prefix) {
-    const auto at = s.rfind(prefix);
-    if (at == std::string::npos)
-      return std::string();
-    const auto begin = at + prefix.size();
-    return s.substr(
-        begin,
-        s.find_first_not_of(
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-",
-            begin) -
-            begin);
-  };
-  std::string name, text;
-  const bool summary =
-      request.json_schema && std::strstr(request.json_schema, "\"facts\"");
-  const auto memory = marker(effective, "AILO_REMEMBER:");
-  const auto expected = marker(latest, "AILO_EXPECT:");
-  const auto finding = marker(latest, "AILO_CHECK_TOOL:");
-  const auto command = marker(latest, "AILO_TOOL:");
-  bool received = false;
-  const auto call_id = "call_ailo_" + command;
-  if (!command.empty())
-    for (size_t n = 0; n < request.item_count; ++n) {
-      const auto &item = request.items[n];
-      if (item.kind == AILO_ITEM_FUNCTION_RESULT && item.call_id &&
-          call_id == item.call_id)
-        for (size_t c = 0; c < item.content_count; ++c)
-          received |=
-              std::string(static_cast<const char *>(item.content[c].data),
-                          item.content[c].size)
-                  .find("AILO_TOOL_OK_" + command) != std::string::npos;
-    }
-  if (summary) {
-    ++summaries;
-    const auto &part = request.items[request.item_count - 1].content[0];
-    const auto sources =
-        json::parse(static_cast<const char *>(part.data),
-                    static_cast<const char *>(part.data) + part.size);
-    auto facts = json::array();
-    for (const auto &source : sources) {
-      const auto remembered = marker(source.dump(), "AILO_REMEMBER:");
-      if (!remembered.empty())
-        facts.push_back({{"source", source.at("source")},
-                         {"category", "identifier"},
-                         {"text", "AILO_REMEMBER:" + remembered}});
-      if (source.at("kind") == "function_call") {
-        require(std::any_of(sources.begin(), sources.end(),
-                            [&](const json &row) {
-                              return row.at("kind") == "function_result" &&
-                                     row.at("call_id") == source.at("call_id");
-                            }),
-                "Compaction split a complete function call/result group");
-      }
-      if (source.at("kind") == "function_result") {
-        const auto result = marker(source.dump(), "AILO_TOOL_OK_");
-        if (!result.empty())
-          facts.push_back({{"source", source.at("source")},
-                           {"category", "finding"},
-                           {"text", "AILO_TOOL_OK_" + result}});
-      }
-    }
-    if (facts.empty())
-      facts.push_back({{"source", sources.at(0).at("source")},
-                       {"category", "other"},
-                       {"text", "Earlier task completed."}});
-    text = json{{"facts", facts}}.dump();
-  } else if ((!expected.empty() && memory != expected) ||
-             (!finding.empty() &&
-              effective.find("AILO_TOOL_OK_" + finding) == std::string::npos)) {
-    throw failure(AILO_MODEL_FAILED,
-                  "Fixture resolved history lost the expected memory");
-  } else if (!command.empty() && !received) {
-    for (size_t n = 0; n < request.tool_count; ++n) {
-      const auto &tool = request.tools[n];
-      if (!std::strcmp(tool.name, "exec_command")) {
-        name = tool.name;
-        text = json{{"cmd", "printf 'AILO_TOOL_OK_" + command + "\\n'"},
-                    {"max_output_tokens", 128},
-                    {"yield_time_ms", 1000}}
-                   .dump();
-        break;
-      }
-      if (!std::strcmp(tool.name, "shell_command")) {
-        name = tool.name;
-        text = json{{"command", "printf 'AILO_TOOL_OK_" + command + "\\n'"},
-                    {"timeout_ms", 1000}}
-                   .dump();
-        break;
-      }
-      if (!std::strcmp(tool.name, "shell")) {
-        name = tool.name;
-        text =
-            json{{"command",
-                  {"bash", "-c", "printf 'AILO_TOOL_OK_" + command + "\\n'"}},
-                 {"timeout_ms", 1000}}
-                .dump();
-        break;
-      }
-      if (!std::strcmp(tool.name, "fixture_echo")) {
-        name = tool.name;
-        text = json{{"value", command}}.dump();
-        break;
-      }
-    }
-    require(!name.empty(),
-            "Agent must advertise a supported function shell tool");
-    ++tool_calls;
-  } else {
-    if (received)
-      ++tool_results;
-    ++answers;
-    text = !command.empty()    ? "AILO_DONE:" + command
-           : !expected.empty() ? "AILO_RECALLED:" + memory
-                               : "AILO_ACK:" + memory;
-  }
-  const bool function = !name.empty();
-  info = {};
-  std::snprintf(info.id, sizeof(info.id), "00000000-0000-4000-8000-%012u",
-                generation);
-  info.actual_backend = AILO_BACKEND_CPU;
-  if (changed) {
-    info.usage.compaction_passes = changed->info.summary_passes;
-    info.usage.compaction_prompt_tokens = changed->info.summary_prompt_tokens;
-    info.usage.compaction_completion_tokens =
-        changed->info.summary_completion_tokens;
-  }
-  ailo_event event{};
-  event.model_id = self.id.c_str();
-  event.run_id = info.id;
-  event.item_kind = function ? AILO_ITEM_FUNCTION_CALL : AILO_ITEM_MESSAGE;
-  const auto item_id = std::string(function ? "fc_" : "msg_") + info.id;
-  event.item_id = item_id.c_str();
-  event.call_id = function ? call_id.c_str() : nullptr;
-  unsigned sequence = 0, tokens = 0;
-  const auto emit = [&](ailo_event_kind kind, const void *data = nullptr,
-                        size_t size = 0) {
-    if (self.is_cancelled())
-      throw failure(AILO_CANCELLED, "Fixture generation cancelled");
-    event.kind = kind;
-    event.data = data;
-    event.size = size;
-    event.usage = info.usage;
-    event.sequence = detail::from_unsigned(sequence++);
-    const int accepted = sink(user, &event);
-    if (accepted <= 0)
-      throw failure(accepted ? AILO_SINK_FAILED : AILO_CANCELLED,
-                    "Fixture event consumer stopped");
-  };
-  emit(AILO_EVENT_RUN_BEGIN);
-  if (changed) {
-    event.compaction = &changed->info;
-    event.compacted_items = changed->items.data();
-    event.compacted_item_count = changed->items.size();
-    emit(AILO_EVENT_COMPACTION);
-    event.compaction = nullptr;
-    event.compacted_items = nullptr;
-    event.compacted_item_count = 0;
-  }
-  emit(AILO_EVENT_CHOICE_BEGIN);
-  emit(AILO_EVENT_ITEM_BEGIN);
-  if (!function)
-    emit(AILO_EVENT_CONTENT_BEGIN);
-  const auto stream = [&](const std::string &bytes, ailo_event_kind kind) {
-    for (char c : bytes) {
-      ailo_token_info token{};
-      token.chosen.data = &c;
-      token.chosen.size = 1;
-      token.chosen.token_id = static_cast<unsigned char>(c);
-      token.index = detail::from_unsigned(tokens);
-      token.byte_offset = detail::from_unsigned(tokens);
-      event.raw_offset = detail::from_unsigned(tokens);
-      event.raw_offset_valid = 1;
-      info.usage.completion_tokens = detail::from_unsigned(++tokens);
-      event.token = &token;
-      if (request.logprobs)
-        emit(AILO_EVENT_TOKEN);
-      event.token = nullptr;
-      emit(kind, &c, 1);
-      if (!summary && tokens == 1 &&
-          std::ifstream(directory + "/hold-stream")) {
-        std::ofstream(directory + "/first-delta") << "ready\n";
-        unsigned waits = 0;
-        while (!std::ifstream(directory + "/release-stream") && ++waits < 500 &&
-               !stopping)
-          std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        require(waits < 500 && !stopping,
-                "HTTP consumer did not release first delta");
-      }
-      if (request.logprobs) {
-        event.raw_offset = detail::from_unsigned(tokens);
-        emit(AILO_EVENT_OUTPUT_PROGRESS);
-      }
-    }
-  };
-  if (function)
-    stream(name, AILO_EVENT_FUNCTION_NAME_DELTA);
-  stream(text, function ? AILO_EVENT_FUNCTION_ARGUMENTS_DELTA
-                        : AILO_EVENT_TEXT_DELTA);
-  event.finish_reason = function ? AILO_FINISH_TOOL_CALLS : AILO_FINISH_STOP;
-  if (!function)
-    emit(AILO_EVENT_CONTENT_END);
-  emit(AILO_EVENT_ITEM_END);
-  emit(AILO_EVENT_CHOICE_END);
-  info.finish_reason = event.finish_reason;
-  info.completed_candidates = 1;
-  emit(AILO_EVENT_USAGE);
-  emit(AILO_EVENT_RUN_END);
-  std::fprintf(
-      stderr, "fixture calls=%u results=%u answers=%u summaries=%u tokens=%u\n",
-      tool_calls, tool_results, answers, summaries, tokens);
-}
-} // namespace client
-} // namespace ailo
+} // namespace serving_test
 
 int main(int argc, char **argv) {
+  using namespace serving_test;
   try {
     require(argc == 3, "Usage: ailo_serving_fixture MODEL WORK_DIRECTORY");
     directory = argv[2];
@@ -507,7 +320,9 @@ int main(int argc, char **argv) {
       std::ofstream ready(directory + "/port");
       ready << ntohs(address.sin_port) << '\n';
     }
+    notify("ready", ntohs(address.sin_port));
     unsigned count = 0;
+    std::ifstream(directory + "/sequence") >> count;
     while (!stopping && count < 256) {
       pollfd pending{listener.fd, POLLIN, 0};
       if (poll(&pending, 1, 250) <= 0)

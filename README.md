@@ -41,6 +41,11 @@ round trips, remote compaction and opaque replay. Ordinary CTest also exercises
 every implemented route over HTTP, including stateful Responses and stateless
 Chat history. The deterministic producer emits token pieces through the production
 adapters; this gate tests agent interoperability separately from model quality.
+`make test-openai-inference` runs a separate trained CPU serving/Codex CTest
+suite, including tool results, durable continuation, semantic compaction and
+consumer cancellation. It uses a pinned cached model; explicitly select
+`INFERENCE_ACQUIRE=download` for its first acquisition. See
+[serving qualification](docs/serving.md#trained-model-serving-acceptance).
 The C89/Lua compactor key owner, authenticated envelopes and opaque-item replay
 through generation/continuations, standalone model-driven semantic compaction
 and explicit automatic preflight/in-flight compaction are implemented.

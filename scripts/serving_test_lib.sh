@@ -21,28 +21,43 @@ serving_cleanup() {
   exit "$result"
 }
 serving_start() {
-  local fixture=$1 model=$2 parent=$3
+  local fixture=$1 model=$2 parent=$3 existing=${4-}
   for tool in curl jq rg; do
     command -v "$tool" >/dev/null || { printf 'Serving acceptance requires host tool: %s\n' "$tool" >&2; return 2; }
   done
-  work=$(mktemp -d "$parent/openai-serving.XXXXXX")
+  work=${existing:-$(mktemp -d "$parent/openai-serving.XXXXXX")}
   trap serving_cleanup EXIT
-  "$fixture" "$model" "$work" > "$work/fixture.stdout" 2> "$work/fixture.log" &
+  [[ -p "$work/ready" ]] || mkfifo "$work/ready"
+  [[ -p "$work/receipts" ]] || mkfifo "$work/receipts"
+  if [[ -n "${ready_in-}" ]]; then exec {ready_in}>&-; fi
+  if [[ -n "${receipts_in-}" ]]; then exec {receipts_in}>&-; fi
+  exec {ready_in}<>"$work/ready"
+  exec {receipts_in}<>"$work/receipts"
+  "$fixture" "$model" "$work" >> "$work/fixture.stdout" 2>> "$work/fixture.log" &
   fixture_pid=$!
-  for ((attempt=0; attempt<100; ++attempt)); do
-    [[ ! -s "$work/port" ]] || break
-    sleep .05
-  done
-  [[ -s "$work/port" ]] || { printf 'Fixture did not become ready\n' >&2; return 1; }
-  read -r port < "$work/port"
+  IFS= read -r -t 15 -u "$ready_in" port || { printf 'Fixture did not become ready\n' >&2; return 1; }
   [[ "$port" =~ ^[0-9]+$ ]]
   url="http://127.0.0.1:$port/v1"
   http_count=0
+  if [[ -f "$work/sequence" ]]; then read -r http_count < "$work/sequence"; fi
+}
+serving_stop() {
+  kill "$fixture_pid"
+  wait "$fixture_pid"
+  fixture_pid=
+}
+serving_await() {
+  local expected=$1 received
+  while IFS= read -r -t 30 -u "$receipts_in" received; do
+    [[ "$received" != "$expected" ]] || return 0
+  done
+  printf 'Missing serving receipt %s\n' "$expected" >&2
+  return 1
 }
 http() {
   local expected=$1 method=$2 target=$3 body=${4-} status
   http_count=$((http_count+1))
-  local args=(--silent --show-error --no-buffer --globoff --max-time 20 -X "$method" -D "$work/headers-$http_count" -o "$work/body-$http_count" -w '%{http_code}')
+  local args=(--silent --show-error --no-buffer --globoff --max-time "${http_timeout:-20}" -X "$method" -D "$work/headers-$http_count" -o "$work/body-$http_count" -w '%{http_code}')
   if [[ $# -eq 4 ]]; then
     printf '%s' "$body" > "$work/input.json"
     args+=(-H 'Content-Type: application/json' --data-binary "@$work/input.json")
@@ -56,10 +71,7 @@ http() {
     return 1
   fi
   body_file="$work/body-$http_count"
-  for ((attempt=0; attempt<100; ++attempt)); do
-    [[ ! -s "$work/receipt-$http_count.json" ]] || break
-    sleep .01
-  done
+  serving_await "$http_count"
   [[ -s "$work/receipt-$http_count.json" ]]
   jq -e '.reserved==(.committed+.aborted) and .opened==.closed' "$work/receipt-$http_count.json" >/dev/null
   rg -qi '^X-Request-ID: ' "$work/headers-$http_count"

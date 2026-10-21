@@ -322,3 +322,12 @@ lua/tests/runtime.supp
 lua/tests/load_only.lua
 lua/examples/infer.lua
 lua/tests/rocks.sh
+tests/serving_fixture_internal.hpp
+tests/serving_simulation.cpp
+tests/serving_inference.cpp
+tests/serving_stream_client.cpp
+tests/serving-inference/CMakeLists.txt
+tests/test_serving_inference.sh
+tests/test_serving_agent_inference.sh
+scripts/codex_test_lib.sh
+scripts/test_openai_inference.sh
