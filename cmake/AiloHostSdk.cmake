@@ -1,0 +1,35 @@
+# LLVM's host generators use the same verified native SDK providers as libailo.
+# This hook runs after the translator's project() and before LLVM discovery.
+get_filename_component(ailo_root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+set(core "${ailo_root}/.cache/deps/x86_64-linux-gnu/cpkt/install")
+set(misc "${ailo_root}/.cache/deps/x86_64-linux-gnu/cpktmisc/install")
+list(PREPEND CMAKE_PREFIX_PATH "${core}" "${misc}")
+find_package(CpktCore 0.5.2 EXACT CONFIG REQUIRED)
+find_package(CpktMisc CONFIG REQUIRED)
+if(NOT CpktMisc_VERSION VERSION_EQUAL "0.2.1")
+  message(FATAL_ERROR "Host shader tools require cpktmisc 0.2.1; found ${CpktMisc_VERSION}")
+endif()
+if(NOT CpktCore_TARGET_ID STREQUAL "x86_64-linux-gnu")
+  message(FATAL_ERROR "Host shader tools require the native x86_64-linux-gnu SDKs")
+endif()
+set(ZLIB_INCLUDE_DIR "${core}/include" CACHE PATH "Pinned host zlib headers" FORCE)
+set(ZLIB_LIBRARY "${core}/lib/libz.a" CACHE FILEPATH "Pinned host zlib" FORCE)
+set(ZLIB_LIBRARY_RELEASE "${core}/lib/libz.a" CACHE FILEPATH "Pinned host zlib" FORCE)
+set(ZLIB_LIBRARY_DEBUG "${core}/lib/libz.a" CACHE FILEPATH "Pinned host zlib" FORCE)
+set(zstd_INCLUDE_DIR "${misc}/include" CACHE PATH "Pinned host Zstandard headers" FORCE)
+set(zstd_LIBRARY "${misc}/lib/libzstd.a" CACHE FILEPATH "Pinned host Zstandard" FORCE)
+set(zstd_STATIC_LIBRARY "${misc}/lib/libzstd.a" CACHE FILEPATH "Pinned host Zstandard" FORCE)
+set(LIBXML2_INCLUDE_DIR "${core}/include/libxml2" CACHE PATH "Pinned host XML headers" FORCE)
+set(LIBXML2_LIBRARY "${core}/lib/libxml2.a" CACHE FILEPATH "Pinned host XML" FORCE)
+set(LIBXML2_STATIC_LIBRARY "${core}/lib/libxml2.a" CACHE FILEPATH "Pinned host XML" FORCE)
+
+# Meson's llvm-config dependency also needs its system-library paths redirected.
+# Preserve the installed LLVM SDK; only the selected provider paths change.
+set(command "")
+foreach(argument "${ailo_root}/scripts/llvm-config-sdk.sh" "${AILO_HOST_LLVM_CONFIG}" "${core}" "${misc}")
+  string(REPLACE "\\" "\\\\" escaped "${argument}")
+  string(REPLACE "'" "\\'" escaped "${escaped}")
+  string(APPEND command "'${escaped}', ")
+endforeach()
+file(CONFIGURE OUTPUT "${ailo_root}/build/host-gpu-sdk.ini"
+  CONTENT "[binaries]\nllvm-config = [${command}]\n" @ONLY)

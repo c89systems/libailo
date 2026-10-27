@@ -7,7 +7,7 @@ set(glslang "${root}/.cache/deps/host/glslang/install/bin/glslangValidator")
 set(mesa "${root}/.cache/deps/host/mesa/install/bin")
 find_program(pkg_config NAMES pkg-config pkgconf REQUIRED)
 find_program(cxx NAMES c++ REQUIRED)
-find_program(llvm_config NAMES llvm-config-20 llvm-config REQUIRED)
+find_program(llvm_config NAMES llvm-config-23 llvm-config REQUIRED)
 execute_process(COMMAND "${llvm_config}" --bindir COMMAND_ERROR_IS_FATAL ANY
   OUTPUT_VARIABLE llvm_bin OUTPUT_STRIP_TRAILING_WHITESPACE)
 file(MAKE_DIRECTORY "${work}")
@@ -62,4 +62,23 @@ execute_process(COMMAND "${mesa}/vtn_bindgen2" "${work}/missing-input.spv" "${wo
 if(NOT result MATCHES "^[1-9][0-9]*$")
   message(FATAL_ERROR "Missing SPIR-V input did not fail normally: ${result}")
 endif()
-message(STATUS "Host shader, LLVM and Mesa generator chains and invalid-input failures passed")
+# LLVM's non-runtime libraries must come from the pinned SDKs, not the host.
+file(READ "${root}/.cache/deps-build/host/spirv-llvm-translator/build/CMakeCache.txt" cache)
+foreach(entry
+    "ZLIB_LIBRARY_RELEASE:FILEPATH=${root}/.cache/deps/x86_64-linux-gnu/cpkt/install/lib/libz.a"
+    "zstd_STATIC_LIBRARY:FILEPATH=${root}/.cache/deps/x86_64-linux-gnu/cpktmisc/install/lib/libzstd.a"
+    "LIBXML2_LIBRARY:FILEPATH=${root}/.cache/deps/x86_64-linux-gnu/cpkt/install/lib/libxml2.a")
+  string(FIND "${cache}" "${entry}\n" found)
+  if(found LESS 0)
+    message(FATAL_ERROR "Host LLVM dependency escaped its pinned SDK: ${entry}")
+  endif()
+endforeach()
+find_program(readelf NAMES readelf REQUIRED)
+foreach(program "${translator}" "${mesa}/mesa_clc" "${mesa}/vtn_bindgen2")
+  execute_process(COMMAND "${readelf}" -d "${program}"
+    COMMAND_ERROR_IS_FATAL ANY OUTPUT_VARIABLE metadata)
+  if(metadata MATCHES "NEEDED[^\n]*lib(zstd|z|xml2)\\.so")
+    message(FATAL_ERROR "Host generator requires a shared compression/XML provider: ${metadata}")
+  endif()
+endforeach()
+message(STATUS "Host shader, LLVM and Mesa generators, pinned SDK dependencies and invalid-input failures passed")

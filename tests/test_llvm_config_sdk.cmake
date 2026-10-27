@@ -1,0 +1,41 @@
+cmake_minimum_required(VERSION 3.24)
+get_filename_component(root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+set(work "${root}/build/tests/llvm-config-sdk")
+set(core "${work}/core with spaces")
+set(misc "${work}/misc with spaces")
+file(MAKE_DIRECTORY "${core}/lib" "${misc}/lib")
+foreach(archive "${core}/lib/libz.a" "${core}/lib/libxml2.a" "${misc}/lib/libzstd.a")
+  file(WRITE "${archive}" "provider selection fixture\n")
+endforeach()
+set(config "${work}/llvm-config")
+file(WRITE "${config}" "#!/usr/bin/env bash\ncase \" $* \" in\n*' --version '*) printf '23.1.4\\n'; exit ;;\n*' --libs '*) printf '%s\\n' '-lLLVMCore' '-L/llvm/lib' ;;\nesac\nprintf '%s\\n' \"$AILO_TEST_SYSTEM_LIBS\"\n")
+file(CHMOD "${config}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+set(adapter "${root}/scripts/llvm-config-sdk.sh")
+execute_process(COMMAND "${adapter}" "${config}" "${core}" "${misc}" --version
+  RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT result EQUAL 0 OR NOT output STREQUAL "23.1.4\n")
+  message(FATAL_ERROR "LLVM metadata query changed: ${output} ${error}")
+endif()
+foreach(zstd -lzstd /usr/lib/libzstd.a /usr/lib/libzstd.so.1)
+  execute_process(COMMAND "${CMAKE_COMMAND}" -E env "AILO_TEST_SYSTEM_LIBS=-lrt -ldl -lm -lz ${zstd} -lxml2"
+    "${adapter}" "${config}" "${core}" "${misc}" --libs --ldflags --link-static --system-libs core
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+  set(expected "-lLLVMCore\n-L/llvm/lib\n-lrt -ldl -lm \"${core}/lib/libz.a\" \"${misc}/lib/libzstd.a\" \"${core}/lib/libxml2.a\"\n")
+  if(NOT result EQUAL 0 OR NOT output STREQUAL expected)
+    message(FATAL_ERROR "LLVM provider selection failed for ${zstd}: ${output} ${error}")
+  endif()
+endforeach()
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "AILO_TEST_SYSTEM_LIBS=-lssl"
+  "${adapter}" "${config}" "${core}" "${misc}" --link-static --system-libs
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(NOT result EQUAL 2 OR NOT error MATCHES "unqualified LLVM dependency")
+  message(FATAL_ERROR "Unqualified dependency was accepted: ${error}")
+endif()
+file(REMOVE "${misc}/lib/libzstd.a")
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "AILO_TEST_SYSTEM_LIBS=-lzstd"
+  "${adapter}" "${config}" "${core}" "${misc}" --link-static --system-libs
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(NOT result EQUAL 2 OR NOT error MATCHES "missing pinned SDK archive")
+  message(FATAL_ERROR "Missing SDK archive fell back to a host provider: ${error}")
+endif()
+message(STATUS "LLVM queries preserve metadata and require pinned SDK providers")

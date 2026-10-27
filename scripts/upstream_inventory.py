@@ -45,7 +45,11 @@ def inventory(source, clang):
     excluded_cpp_wrappers = set()
 
     def canonical(type_):
-        return type_.replace(str(source) + '/', '')
+        type_ = type_.replace(str(source) + '/', '')
+        # Clang 23 omits the repeated tag in anonymous record type spellings.
+        # Preserve one inventory representation across compiler versions.
+        return re.sub(r'\b(struct|union) \(unnamed at ',
+                      r'\1 (unnamed \1 at ', type_)
 
     def field(f):
         result = {'name': f.get('name', ''), 'type': canonical(f.get('type', {}).get('qualType', ''))}

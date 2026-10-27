@@ -197,11 +197,18 @@ Host tooling may be installed on the workstation; target libraries may not be
 taken from its package database or library directories.
 
 `make gpu-tools` builds pinned host SPIR-V Tools 2026.4, LLVM/SPIR-V translator
-20.1.18, glslang 16.6.0 and Mesa 26.2.4 `mesa_clc`/`vtn_bindgen2`. These builds
-require installed LLVM 20.1.8 development tools, the matching Clang shared runtime,
-Meson >= 1.4, Ninja, Mako and PyYAML. Clang 20.1.8 development headers are generated
-and installed inside the repository using upstream's `clang-headers` target;
-the host compiler installation is not modified. Native sources/builds/installs
+23.1.0, glslang 16.6.0 and Mesa 26.2.4 `mesa_clc`/`vtn_bindgen2`. These builds
+require installed LLVM 23 development tools, matching Clang development headers
+and static LLVM/Clang libraries in the same SDK prefix, Meson >= 1.4, Ninja, Mako
+and PyYAML. The translator and Mesa host tools link LLVM statically.
+Zlib and libxml2 come from the pinned native cpkt v0.5.2 SDK; Zstandard comes
+from cpktmisc v0.2.1. CMake receives explicit static archive/header paths and
+Meson uses a scoped `llvm-config` adapter for those same provider paths. Unknown
+LLVM system-library dependencies fail rather than falling back to host packages.
+Both SDK manifests are validated before LLVM configuration. The installed LLVM
+SDK is left untouched, including any workstation paths in its original metadata.
+Clang headers must match the exact LLVM version reported by `llvm-config-23` or
+`llvm-config`; the host compiler installation is not modified. Native sources/builds/installs
 have separate per-component `host` roots.
 SPIR-V Tools and glslang share the headers revision selected by their upstream
 dependency declarations. `make test-gpu-tools` exercises actual GLSL/SPIR-V
@@ -420,6 +427,87 @@ Larger dense/MoE execution evidence and numerical reference comparisons are
 recorded below. The earlier host-driver receiver proof
 remains separate from this static-driver evidence. These are development
 checks, not a signed or tagged release.
+
+### Raphael qualification, 2026-10-27
+
+The LLVM host generator stack now supports LLVM/Clang 23, with translator
+23.1.0 and matching installed Clang development headers. This host uses LLVM
+23.1.4. The pinned SDKs are cpkt 0.5.2 and cpktmisc 0.2.1, including zlib,
+libxml2 and Zstandard for the host generators. No host compression/XML library
+is selected. The target RADV/ANV profile still builds without LLVM.
+
+The machine is a Ryzen 5 7600 running Ubuntu 26.10 and Linux
+`7.3.0-9-generic`. Its integrated Radeon is PCI `0000:0f:00.0`, vendor/product
+`1002:164e`, revision `c6`, with `amdgpu` and an accessible render node. Built-in
+Mesa 26.2.4 RADV reports `RAPHAEL_MENDOCINO`, UUID
+`000000000f0000000000000000000000`, UMA, subgroup size 32, FP16/dot2 and integer
+dot support, 64 KiB shared memory and no matrix cores. The 512 MiB firmware
+reservation is part of shared memory, not dedicated VRAM. Firmware identification
+records DMUB `0x05003500`, VCN ENC 1.33/DEC 4/revision 15 and SMU 84.79.226.
+The shader compiler is host shaderc/glslc 2026.3.
+
+The upgraded SDK foundation matrix passes eight static/shared libffi tests
+across x86-64 and AArch64, each with GNU and musl; AArch64 uses QEMU. The native
+GNU build passes 78 tests, including archive/install contracts, and installed
+Lua passes five. The LLVM kernel round trip and Mesa OpenCL/binding generators
+pass, including rejected invalid inputs and checks for SDK compression/XML
+providers. These are build/regression results, separate from GPU qualification.
+
+Synthetic GPU inference and the installed SmolLM2-135M receiver smoke test pass
+with actual model and KV offload. Trained serving is **not qualified**: CPU
+passes all six cases, while Vulkan passes protocol, transport, vision and audio
+but fails compaction and Codex tool execution. Both failures report
+`Native sampling logits are not finite`. Compaction returns HTTP 500; the Codex
+case fails during an already-started SSE response. Select `backend="cpu"` on
+this host while the numerical failure remains unresolved.
+
+`ailo_qualify_matrix` is a manual native GGML probe, excluded from ordinary
+builds and CTest like `ailo_qualify_logits`. It selects the first Vulkan device
+and returns 77 when none is available, 2 for invalid arguments and 1 for a
+numerical/compute failure. Each process runs eight repetitions of three matrix
+cases: K=256, M=16, N=128/121, with explicit FP32 accumulation for the large
+values, plus a small default-precision case. Inputs and expected results are
+exact powers of two; it checks every output for finiteness and absolute error
+less than 1. Storage can be F16 or F32. All allocated bytes start poisoned, then
+every input element is uploaded. The large expected result is exactly 262144.
+
+One final campaign used 100 fresh processes per configuration, the built-in
+loader, forbidden external ICD paths and disabled disk shader caching:
+
+| Stored left operand | Native FP16 computation | Passed processes | Failed processes |
+| --- | --- | ---: | ---: |
+| F16 | enabled | 33 | 67 |
+| F32 | enabled | 89 | 11 |
+| F16 | disabled | 80 | 20 |
+| F32 | disabled | 68 | 32 |
+
+Failures frequently affect the first matrix dispatch, with later graphs in the
+same process passing. For example, an output is 262209 instead of 262144 with
+F32 storage and FP16 computation disabled. Earlier short controls passed;
+the repeated failures rule out treating those passes, disabling FP16, or a
+single shader-optimizer experiment as qualification. The cause has not been
+isolated to GGML, the compiler, Mesa, kernel/firmware or hardware. No experimental
+arithmetic override or shader change is retained.
+
+Reproduce against the normal build, repeating each command in fresh processes:
+
+```sh
+cmake --build build/x86_64-linux-gnu-release --target ailo_qualify_matrix --parallel 2
+MESA_SHADER_CACHE_DISABLE=true build/x86_64-linux-gnu-release/ailo_qualify_matrix f16
+MESA_SHADER_CACHE_DISABLE=true GGML_VK_DISABLE_F16=1 build/x86_64-linux-gnu-release/ailo_qualify_matrix f32
+scripts/test_openai_inference.sh x86_64-linux-gnu-release offline cpu
+ctest --test-dir build/serving-inference-x86_64-linux-gnu-release-vulkan --output-on-failure -j1
+```
+
+The serving commands require the fixtures prepared by the documented explicit
+download step. Local evidence is under `build/llvm23-upgrade/`:
+`foundation-matrix.log`, `gpu-tools-sdk.log`, `gpu-tools-check.log`,
+`gnu-final-test.log`, `matrix-final-summary.txt`, `matrix-final-*.log`,
+`matrix-fp32-compute-*.log`, `cpu-serving-final.log` and `gpu-serving-final.log`.
+Larger dense/MoE numerical and performance acceptance, the new host's static
+musl hardware campaign, AArch64 GPU and multi-GPU execution remain pending.
+The next qualification step is to isolate this matrix/serving failure before
+collecting performance claims or accepting a device-specific workaround.
 
 ### Larger dense and MoE execution probes
 

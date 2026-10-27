@@ -298,6 +298,23 @@ AMD, mixed/multi-GPU and AArch64 GPU execution remain unqualified. These checks
 exercise the test-only loopback transport; a production Vectis/Kore listener
 remains a separate integration.
 
+### AMD Raphael serving qualification, 2026-10-27
+
+With cpkt 0.5.2, cpktmisc 0.2.1 and LLVM/Clang 23.1.4 host generators, the
+Ryzen 5 7600/RADV Raphael GNU build passes all six trained serving cases on CPU.
+Vulkan passes protocol, transport, vision and audio, but compaction and Codex
+tool execution fail with `Native sampling logits are not finite`. The latter
+fails after streaming begins. These are numerical failures, despite positive
+GPU placement and passing synthetic/receiver smoke tests.
+
+Select CPU explicitly on this host. The
+[matrix reproducer and hardware evidence](static-vulkan.md#raphael-qualification-2026-10-27)
+record repeated failures with both F16 and F32 storage; disabling FP16 does not
+qualify this GPU. No experimental GPU workaround is shipped. Logs are
+`build/llvm23-upgrade/cpu-serving-final.log` and
+`build/llvm23-upgrade/gpu-serving-final.log`. Static musl serving on the new
+host remains pending numerical acceptance.
+
 ## Earlier deterministic qualification
 
 Qualification on 2026-10-16 passed with Codex CLI **0.162.0-alpha.20**:

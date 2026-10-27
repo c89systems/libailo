@@ -7,7 +7,7 @@ contract is in [docs/architecture.md](docs/architecture.md).
 ## Implementation state
 
 The dependency/build foundation is present: pinned llama.cpp b11430, CPU and
-Vulkan backends, public multimodal libraries, cpkt v0.5.0 and cpktmisc v0.2.0, lonejson
+Vulkan backends, public multimodal libraries, cpkt v0.5.2 and cpktmisc v0.2.1, lonejson
 v0.45.0, libpslog v0.12.0, and pinned Vulkan/SPIR-V components. The static/shared
 project libraries
 provide the portable C89 scalar/error boundary and generated native bindings
@@ -65,6 +65,9 @@ contract is in [docs/static-vulkan.md](docs/static-vulkan.md). The built-in stat
 driver/loader integration and explicit placement controls are implemented. Focused
 static musl trained inference has passed on Intel RPL-U; AMD, AArch64 GPU and
 multi-GPU execution still require hardware qualification.
+The [Raphael checks](docs/static-vulkan.md#raphael-qualification-2026-10-27)
+found numerical failures on the Ryzen desktop GPU. Select `backend="cpu"` on
+that host until its numerical gate passes.
 
 [docs/upstream-api.json](docs/upstream-api.json) records the pinned public C API
 inventory. The generated coverage gate checks every declaration against the
@@ -87,8 +90,11 @@ libraries are host build tools and are not linked into libailo. The Vulkan
 headers and loader still come from our pinned sources. Set
 `Vulkan_GLSLC_EXECUTABLE` in CMake to select an explicit host executable.
 The static Mesa profile additionally requires Meson 1.4+, Mako, PyYAML,
-LLVM 20.1.8 development tools and the matching Clang shared runtime. Matching
-Mesa generators, SPIR-V tools and Clang headers are prepared inside the checkout;
+LLVM 23 development tools, matching Clang development headers and static LLVM/Clang
+libraries in the same SDK prefix. Zlib, Zstandard and libxml2 come from the pinned
+native cpkt/cpktmisc SDKs, including for these host generators; host copies are
+not selected.
+Matching Mesa generators and SPIR-V tools are prepared inside the checkout;
 they are host tools, not target libraries. See the exact prerequisites and
 commands in [docs/static-vulkan.md](docs/static-vulkan.md#dependency-and-build-profile).
 The CPU preset does not require shader tooling. CUDA is excluded from supported
@@ -314,14 +320,14 @@ install-tree verification does not constitute a release or completed SDK.
 
 For CMake, use `find_package(ailo CONFIG REQUIRED COMPONENTS static)` or
 `COMPONENTS shared`, then link `ailo::static` or `ailo::shared`. Static consumers
-supply a compatible cpkt core SDK (baseline v0.5.0) through `CMAKE_PREFIX_PATH` or
+supply a compatible cpkt core SDK (baseline v0.5.2) through `CMAKE_PREFIX_PATH` or
 `ailo_EXTERNAL_ROOT`. The metadata owns native and GNU runtime archive ordering,
 so C-only consumers do not need to enable C++ or write private library lists.
 `pkg-config --cflags --libs ailo` selects the shared library;
 `pkg-config --static --cflags --libs ailo-static` selects the facade/native/runtime
 archives explicitly. Provide cpkt, cpktmisc and lonejson `lib/pkgconfig` paths
 on `PKG_CONFIG_PATH`, or their SDK prefixes on `CMAKE_PREFIX_PATH`.
-Builds also prepare cpktmisc v0.2.0 in a separate prefix and verify its libffi
+Builds also prepare cpktmisc v0.2.1 in a separate prefix and verify its libffi
 3.8.0 closures. The installed facade links its callback adapters against the
 separate libffi library, which is a consumer dependency. cpktdb is not
 required. Toolchain and archive defaults use `~/.cache/cpkt`; the retired cache

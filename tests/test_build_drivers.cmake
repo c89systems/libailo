@@ -104,29 +104,44 @@ endforeach()
 
 # A wrong host compiler version must fail before any download/build action.
 file(COPY "${root}/scripts/build-gpu-tools.sh" DESTINATION "${work}/driver/scripts")
-file(WRITE "${work}/bin/llvm-config-20" "#!/usr/bin/env bash\nprintf '21.1.0\\n'\n")
-file(CHMOD "${work}/bin/llvm-config-20" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+file(WRITE "${work}/bin/llvm-config-23" "#!/usr/bin/env bash\nprintf '20.1.8\\n'\n")
+file(CHMOD "${work}/bin/llvm-config-23" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
 execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
   "${work}/driver/scripts/build-gpu-tools.sh" RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
-if(NOT result EQUAL 2 OR NOT error MATCHES "requires LLVM 20")
+if(NOT result EQUAL 2 OR NOT error MATCHES "requires LLVM 23")
   message(FATAL_ERROR "Mismatched host LLVM was not rejected before dependency preparation: ${error}")
 endif()
-file(WRITE "${work}/bin/llvm-config-20" "#!/usr/bin/env bash\nprintf '20.1.7\\n'\n")
+file(MAKE_DIRECTORY "${work}/llvm/lib" "${work}/llvm/include/clang/Basic")
+file(WRITE "${work}/bin/llvm-config-23"
+  "#!/usr/bin/env bash\ncase \"$1\" in --version) printf '23.1.4\\n' ;; --includedir) printf '%s\\n' '${work}/llvm/include' ;; *) printf '%s\\n' '${work}/llvm/lib' ;; esac\n")
 execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
   "${work}/driver/scripts/build-gpu-tools.sh" RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
-if(NOT result EQUAL 2 OR NOT error MATCHES "require LLVM/Clang 20.1.8")
+if(NOT result EQUAL 2 OR NOT error MATCHES "development headers missing")
+  message(FATAL_ERROR "Missing Clang host headers were accepted: ${error}")
+endif()
+file(WRITE "${work}/llvm/include/clang/Basic/Version.inc" "#define CLANG_VERSION_STRING \"23.1.3\"\n")
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
+  "${work}/driver/scripts/build-gpu-tools.sh"
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(NOT result EQUAL 2 OR NOT error MATCHES "headers must match LLVM 23.1.4")
   message(FATAL_ERROR "Mismatched Clang SDK patch version was accepted: ${error}")
 endif()
-file(MAKE_DIRECTORY "${work}/llvm/lib")
-file(WRITE "${work}/bin/llvm-config-20"
-  "#!/usr/bin/env bash\ncase \"$1\" in --version) printf '20.1.8\\n' ;; *) printf '%s\\n' '${work}/llvm/lib' ;; esac\n")
+file(WRITE "${work}/llvm/include/clang/Basic/Version.inc" "#define CLANG_VERSION_STRING \"23.1.4\"\n")
 execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
-  "${work}/driver/scripts/build-gpu-tools.sh" --component clang-headers
+  "${work}/driver/scripts/build-gpu-tools.sh"
   RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
-if(NOT result EQUAL 2 OR NOT error MATCHES "shared runtime missing")
-  message(FATAL_ERROR "Missing Clang host runtime was accepted: ${error}")
+if(NOT result EQUAL 2 OR NOT error MATCHES "static development libraries missing")
+  message(FATAL_ERROR "Missing Clang host libraries were accepted: ${error}")
 endif()
-file(WRITE "${work}/llvm/lib/libclang-cpp.so.20.1" "synthetic preflight marker only\n")
+file(WRITE "${work}/llvm/lib/libclangBasic.a" "synthetic preflight marker only\n")
+file(WRITE "${work}/driver/scripts/deps.sh" "#!/usr/bin/env bash\nexit 75\n")
+file(CHMOD "${work}/driver/scripts/deps.sh" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"
+  "${work}/driver/scripts/build-gpu-tools.sh"
+  RESULT_VARIABLE result OUTPUT_QUIET ERROR_VARIABLE error)
+if(NOT result EQUAL 75)
+  message(FATAL_ERROR "Matching LLVM/Clang 23 SDK did not reach source preparation: ${result}: ${error}")
+endif()
 file(WRITE "${work}/bin/meson" "#!/usr/bin/env bash\nexit 75\n")
 file(CHMOD "${work}/bin/meson" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
 execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PATH=${work}/bin:$ENV{PATH}"

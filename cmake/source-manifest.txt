@@ -121,6 +121,7 @@ cmake/ailo.pc.in
 cmake/ailoConfig.cmake.in
 cmake/dependencies.json
 cmake/source-manifest.txt
+cmake/AiloHostSdk.cmake
 cmake/version.h.in
 docs/architecture.md
 docs/c89-boundary.md
@@ -149,6 +150,7 @@ scripts/cpkt-toolchains.sh
 scripts/deps.sh
 scripts/build-gpu-deps.sh
 scripts/build-gpu-tools.sh
+scripts/llvm-config-sdk.sh
 scripts/discover_target_tools.sh
 scripts/format.sh
 scripts/generate_native.py
@@ -255,6 +257,8 @@ tests/archive_fixture.py
 tests/download_fixture.py
 tests/test_archive_cache.sh
 tests/test_build_drivers.cmake
+tests/test_llvm_config_sdk.cmake
+tests/qualify_matrix.cpp
 tests/test_drm_ids.c
 tests/test_gpu_deps.c
 tests/test_gpu_deps.cmake

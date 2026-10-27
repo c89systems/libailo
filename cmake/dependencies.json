@@ -52,54 +52,54 @@
     }
   },
   "cpkt": {
-    "version": "v0.5.0",
+    "version": "v0.5.2",
     "upstream": "https://github.com/c89systems/cpkt",
     "assets": {
       "aarch64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-aarch64-linux-gnu.tar.gz",
-        "sha256": "29aa58f4e68e8aa00ed5f652017018f003afdc10c8455be26030217bd3288d93"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-aarch64-linux-gnu.tar.gz",
+        "sha256": "0a1fd5a7226880bac6235585fe4111f67c0db521a9fd0cd0d4376201621b12e4"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-aarch64-linux-musl.tar.gz",
-        "sha256": "a9f7f021a7430a3dbc7290b6cebd667800bb26d546bd73c157b764aa73f17996"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-aarch64-linux-musl.tar.gz",
+        "sha256": "8f6b4d815d0e23cb4073ad2fad9354240e22aff27b241faf0854a6be89ee9898"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-arm64-apple-darwin.tar.gz",
-        "sha256": "46d20a8f471f48532134fa293d50003b63a5a20019f80486b6452b67cb611cdb"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-arm64-apple-darwin.tar.gz",
+        "sha256": "8775bddc17c7f61ebb37211a5a821ccbab628f3d6f3783b56ccb549cf67ed29d"
       },
       "x86_64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-x86_64-linux-gnu.tar.gz",
-        "sha256": "d58e7fff2fd4232c43687f466db4ec9a9dfdc94c0a7c016896de204d2e760846"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-x86_64-linux-gnu.tar.gz",
+        "sha256": "a8d9647afd745c158069253a958eea9935d4fd240fcb4d129e3e5a0b952a1af9"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.0/cpkt-0.5.0-x86_64-linux-musl.tar.gz",
-        "sha256": "c36a236039701fe5d6d89c572c7a8d906880fcb33787659c213fdfa3181a15c2"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-x86_64-linux-musl.tar.gz",
+        "sha256": "ea8684f6d0cbc6dfbda5f05113bd0397c5146c4d3f17bc3c5667261608f1a2f0"
       }
     }
   },
   "cpktmisc": {
-    "version": "v0.2.0",
+    "version": "v0.2.1",
     "upstream": "https://github.com/c89systems/cpktmisc",
     "assets": {
       "aarch64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-aarch64-linux-gnu.tar.gz",
-        "sha256": "179fcde812eedfb566797a09edadda9bf32e99f618aa2b97f3cfaf75fe065733"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-aarch64-linux-gnu.tar.gz",
+        "sha256": "603019bfb73c414a1328c7e30e7ed99b224ffc8382175226b1881eadcd4d794d"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-aarch64-linux-musl.tar.gz",
-        "sha256": "3e031026e1913fd0ec8c544445fbb6c4c9e71270750dd6e10d6bff0afb8be2cb"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-aarch64-linux-musl.tar.gz",
+        "sha256": "97fa813a25d04b1dad9767ff1c285ea4de741dc2a20896337fb202ecea7aec03"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-arm64-apple-darwin.tar.gz",
-        "sha256": "f4c4790a63af3cfb0315bb7c453ab6bb2b3841bbdc98b9db3a5900c6cd20bd19"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-arm64-apple-darwin.tar.gz",
+        "sha256": "7f00dd94c94aac315d16c3cb81287cf13d67b60c19802aa20843caef09f1a042"
       },
       "x86_64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-x86_64-linux-gnu.tar.gz",
-        "sha256": "abac4dff1f51d98c8403f078279a0fc290b1c1e37539c879e3365b9500786d50"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-x86_64-linux-gnu.tar.gz",
+        "sha256": "e97ec19778de31435b904ecff44a4292ca3bfcae6283252614af771697384859"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.0/cpktmisc-0.2.0-x86_64-linux-musl.tar.gz",
-        "sha256": "89f4d9e309f34a6cd903dedecfa57c94a1f5619d7765603ff08d7826879c580e"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-x86_64-linux-musl.tar.gz",
+        "sha256": "d2809d50b98c103adc937d6539488ad0dc0223c706bb9f9b4f486d866ed85e54"
       }
     }
   },
@@ -199,28 +199,16 @@
     "sha256": "a9bb9c48713245eacf97cc539b6f1d45405a92d8813f8b82e635f0a085ee9898"
   },
   "spirv-llvm-translator": {
-    "version": "v20.1.18",
+    "version": "v23.1.0",
     "upstream": "https://github.com/KhronosGroup/SPIRV-LLVM-Translator",
-    "url": "https://codeload.github.com/KhronosGroup/SPIRV-LLVM-Translator/tar.gz/refs/tags/v20.1.18",
-    "sha256": "6704bef05b20ca52afd0fb134876959a8f63ed7a70829a1cbc04e70ea719635b"
+    "url": "https://codeload.github.com/KhronosGroup/SPIRV-LLVM-Translator/tar.gz/refs/tags/v23.1.0",
+    "sha256": "188148437567a678965ef66254ac510dbc124d9818c332602f9d20cacc3e77ee"
   },
   "glslang": {
     "version": "16.6.0",
     "upstream": "https://github.com/KhronosGroup/glslang",
     "url": "https://codeload.github.com/KhronosGroup/glslang/tar.gz/refs/tags/16.6.0",
     "sha256": "9c09b901149c729df745057dafa815278aaa101b84d2b6e14f16a42de52f97f2"
-  },
-  "clang-headers": {
-    "version": "20.1.8",
-    "upstream": "https://github.com/llvm/llvm-project",
-    "url": "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/clang-20.1.8.src.tar.xz",
-    "sha256": "b7a1b7b0af7b9c7596af6bd46e36d11321926eaa66a7a7dc957ab0a1375ee4b0"
-  },
-  "llvm-cmake": {
-    "version": "20.1.8",
-    "upstream": "https://github.com/llvm/llvm-project",
-    "url": "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/cmake-20.1.8.src.tar.xz",
-    "sha256": "3319203cfd1172bbac50f06fa68e318af84dcb5d65353310c0586354069d6634"
   },
   "libdrm": {
     "version": "2.4.134",

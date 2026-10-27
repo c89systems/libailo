@@ -90,7 +90,7 @@ continuation logits against an uninterrupted context after both full-context
 and sequence state restoration.
 
 The former 83 gaps (30 callback typedefs, 25 fields and 28 functions) are covered
-by libffi 3.8.0 adapters from the pinned cpktmisc 0.2.0 SDK. Native `int64_t`
+by libffi 3.8.0 adapters from the pinned cpktmisc 0.2.1 SDK. Native `int64_t`
 arguments and booleans convert explicitly; optimizer and split-state aggregates
 retain the native return ABI. This also supports functions without a native
 user-data slot, custom sampler methods and nested callback arguments.
