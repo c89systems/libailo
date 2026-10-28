@@ -489,6 +489,20 @@ single shader-optimizer experiment as qualification. The cause has not been
 isolated to GGML, the compiler, Mesa, kernel/firmware or hardware. No experimental
 arithmetic override or shader change is retained.
 
+Follow-up isolation on 2026-10-28 reproduces incorrect outputs in a standalone
+Vulkan program running the extracted FP32 GGML matrix shader, without libailo,
+GGML's scheduler, model loading or liblockdc. The SPIR-V validates. A padded-input
+case fails 19/300 fresh processes; a two-wave case with required subgroup size
+32 fails 42/500. The inputs remain unchanged. Separate constant-write, copy and
+simple scalar-matrix controls each pass 100 processes. These controls narrow
+the investigation to the tiled kernel's compilation/execution on this stack;
+they do not identify the ultimate shader, driver or hardware cause. Disabling
+ACO scheduling passes an initial 150 runs but fails 3/1500 on repetition, so it
+is not a qualified workaround. These raw probes check exact results, a stricter
+criterion than the original matrix gate. Local handoff sources, shader bytes,
+counts and caveats are in `stash/raphael-vulkan/`, with full logs under
+`build/raphael-investigation/`. No GPU implementation change is accepted.
+
 Reproduce against the normal build, repeating each command in fresh processes:
 
 ```sh
