@@ -40,6 +40,11 @@ cmake -S lua -B "$work/build" -G Ninja \
   "-DCMAKE_C_FLAGS=-ffile-prefix-map=$root=libailo"
 cmake --build "$work/build" --parallel "${AILO_JOBS:-2}"
 cmake --install "$work/build"
+# Recreate owned test fixtures independently of earlier storage policies.
+if [[ "$action" == test || "$action" == valgrind ]]; then
+  cmake -E rm -rf "$work/state"
+  mkdir -p "$work/state"
+fi
 case "$action" in
   test) ctest --test-dir "$work/build" --output-on-failure --stop-on-failure --no-tests=error -j1 -LE '^inference-memory$' ;;
   valgrind) ctest --test-dir "$work/build" --output-on-failure --stop-on-failure --no-tests=error -j1 -L '^inference-memory$' ;;

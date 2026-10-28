@@ -128,6 +128,13 @@ extern "C" int __real_lc_client_open(const lc_client_config *, lc_client **,
                                      lc_error *);
 extern "C" int __wrap_lc_client_open(const lc_client_config *c, lc_client **out,
                                      lc_error *e) {
+  if (c->default_namespace &&
+      std::string(c->default_namespace) == "ailo-index" && c->pouch_settings &&
+      (c->pouch_settings->set_mask & LC_POUCH_SETTING_CRYPTO_KEY_FILE)) {
+    CHECK(c->pouch_settings->set_mask & LC_POUCH_SETTING_COMPRESSION);
+    CHECK(c->pouch_settings->compression &&
+          std::string(c->pouch_settings->compression) == "zlib");
+  }
   const auto rc = __real_lc_client_open(c, out, e);
   if (rc == LC_OK) {
     acquires[*out] = (*out)->acquire;
@@ -437,6 +444,89 @@ int main(int argc, char **argv) {
       r.commit(t);
       CHECK(fs::exists(work / "home/.local/state/ailo") &&
             fs::exists(work / "home/.config/ailo/pouch.key"));
+    }
+    // Pouch fixes compression at root creation. Enabling the new default must
+    // fail clearly on an uncompressed root without replacing its data or key.
+    {
+      const auto root = (work / "uncompressed").string();
+      const auto key_dir = (work / "uncompressed-key").string();
+      const auto secret = key_dir + "/pouch.key";
+      CHECK(::mkdir(root.c_str(), 0700) == 0);
+      CHECK(::mkdir(key_dir.c_str(), 0700) == 0);
+      lc_error error{};
+      char *endpoint = nullptr;
+      CHECK(lc_pouch_endpoint_build(root.c_str(), nullptr, 0, &endpoint,
+                                    &error) == LC_OK);
+      const char *endpoints[] = {endpoint};
+      lc_pouch_settings settings;
+      lc_pouch_settings_init(&settings);
+      settings.set_mask = LC_POUCH_SETTING_CRYPTO_KEY_FILE |
+                          LC_POUCH_SETTING_CRYPTO_GENERATE_KEY_FILE |
+                          LC_POUCH_SETTING_COMPRESSION;
+      settings.crypto_key_file = secret.c_str();
+      settings.crypto_generate_key_file = 1;
+      settings.compression = "none";
+      lc_client_config setup;
+      lc_client_config_init(&setup);
+      setup.endpoints = endpoints;
+      setup.endpoint_count = 1;
+      setup.default_namespace = "fixture";
+      setup.pouch_settings = &settings;
+      lc_client *client = nullptr;
+      CHECK(lc_client_open(&setup, &client, &error) == LC_OK);
+      lc_acquire_req request{};
+      request.ns = "fixture";
+      request.key = "original";
+      request.owner = "test";
+      request.ttl_seconds = 60;
+      lc_lease *lease = nullptr;
+      CHECK(client->acquire(client, &request, &lease, &error) == LC_OK);
+      const char payload[] = "{\"legacy\":\"retained\"}";
+      lc_source *source = nullptr;
+      CHECK(lc_source_from_memory(payload, sizeof(payload) - 1, &source,
+                                  &error) == LC_OK);
+      lc_update_opts update{};
+      update.content_type = "application/json";
+      CHECK(lease->update(lease, source, &update, &error) == LC_OK);
+      source->close(source);
+      CHECK(lease->release(lease, nullptr, &error) == LC_OK);
+      client->close(client);
+      lc_error_cleanup(&error);
+      const auto manifest = file(fs::path(root) / "manifest");
+      const auto original_key = file(secret);
+      CHECK(!manifest.empty() && !original_key.empty());
+      auto config = ailo_openai_default_config();
+      config.state_directory = root.c_str();
+      config.encryption_key_file = secret.c_str();
+      repository r(config);
+      ailo_record_metadata record{"tenant", "compressed", AILO_RECORD_RESPONSE,
+                                  {},       {},           1024};
+      void *transaction = nullptr;
+      ailo_error rejected{};
+      CHECK(r.api.reserve(r.api.user_data, &record, &transaction, &rejected) ==
+                AILO_IO_FAILED &&
+            !transaction);
+      CHECK(std::string(rejected.message).find("compression mode") !=
+            std::string::npos);
+      CHECK(file(fs::path(root) / "manifest") == manifest);
+      CHECK(file(secret) == original_key);
+      CHECK(lc_client_open(&setup, &client, &error) == LC_OK);
+      std::string retained;
+      lc_sink sink{};
+      sink.impl = &retained;
+      sink.write = [](lc_sink *s, const void *p, size_t n, lc_error *) {
+        static_cast<std::string *>(s->impl)->append(
+            static_cast<const char *>(p), n);
+        return 1;
+      };
+      lc_get_res result{};
+      CHECK(client->get_in_namespace(client, "fixture", "original", nullptr,
+                                     &sink, &result, &error) == LC_OK);
+      CHECK(retained == payload);
+      lc_get_res_cleanup(&result);
+      client->close(client);
+      lc_error_cleanup(&error);
+      lc_pouch_endpoint_free(endpoint);
     }
     // Actual model generation through the public receiver, using default Pouch.
     {

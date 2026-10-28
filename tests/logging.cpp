@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <limits>
@@ -213,6 +214,13 @@ void run(const char *model, const std::string &directory) {
   auto quiet_config = ailo_client_default_config();
   quiet_config.source.local_path = model;
   quiet_config.backend = AILO_BACKEND_CPU;
+  const auto pouch = directory + "/pouch";
+  std::filesystem::remove_all(pouch);
+  const auto state = pouch + "/state", key = pouch + "/config/pouch.key";
+  auto persistence = ailo_openai_default_config();
+  persistence.state_directory = state.c_str();
+  persistence.encryption_key_file = key.c_str();
+  quiet_config.openai = &persistence;
   ailo_error quiet_error{};
   ailo_client *quiet_raw = nullptr;
   CHECK(ailo_client_new(&quiet_config, &quiet_raw, &quiet_error) == AILO_OK);

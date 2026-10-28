@@ -24,13 +24,15 @@ namespace fs = std::filesystem;
   throw failure(status, s);
 }
 void checked(int rc, lc_error &error) {
-  if (rc == LC_OK) {
-    lc_error_cleanup(&error);
+  std::unique_ptr<lc_error, decltype(&lc_error_cleanup)> cleanup(
+      &error, lc_error_cleanup);
+  if (rc == LC_OK)
     return;
-  }
   const auto status = rc == LC_ERR_NOMEM ? AILO_NO_MEMORY : AILO_IO_FAILED;
-  lc_error_cleanup(&error);
-  fail("Pouch storage operation failed", status);
+  std::string message = "Pouch storage operation failed";
+  if (error.message && *error.message)
+    message += std::string(": ") + error.message;
+  throw failure(status, message);
 }
 std::string unique(const char *prefix) {
   ailo_api_info info{};
@@ -548,14 +550,15 @@ void store::initialize() {
   const char *endpoints[] = {endpoint.get()};
   lc_pouch_settings settings{};
   lc_pouch_settings_init(&settings);
-  settings.set_mask = LC_POUCH_SETTING_DURABLE_SYNC |
-                      LC_POUCH_SETTING_CRYPTO_KEY_FILE |
-                      LC_POUCH_SETTING_CRYPTO_GENERATE_KEY_FILE |
-                      LC_POUCH_SETTING_QUERY_INDEXING;
+  settings.set_mask =
+      LC_POUCH_SETTING_DURABLE_SYNC | LC_POUCH_SETTING_CRYPTO_KEY_FILE |
+      LC_POUCH_SETTING_CRYPTO_GENERATE_KEY_FILE |
+      LC_POUCH_SETTING_QUERY_INDEXING | LC_POUCH_SETTING_COMPRESSION;
   settings.durable_sync = 1;
   settings.crypto_key_file = key_file.c_str();
   settings.crypto_generate_key_file = 1;
   settings.query_indexing_enabled = 0;
+  settings.compression = "zlib";
   lc_client_config config{};
   lc_client_config_init(&config);
   config.endpoints = endpoints;

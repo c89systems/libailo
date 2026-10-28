@@ -1,7 +1,7 @@
 # Default persistent storage
 
 Without an application-supplied `openai.repository`, libailo uses liblockdc
-0.21.0's embedded Pouch engine. No lockd server or host library is required.
+0.23.0's embedded Pouch engine. No lockd server or host library is required.
 
 | Resource | Default | When the XDG variable is empty, relative or unset |
 | --- | --- | --- |
@@ -37,9 +37,10 @@ local client = assert(ailo.new({
 ## Publication and streaming
 
 Payload sections are written incrementally into immutable 32 KiB chunks,
-encrypted by Pouch. Chunk documents use base64 framing; complete responses,
-items and pages are never accumulated or spooled by this provider. Small record
-descriptors contain chunk references and query metadata. Pouch's KV projection
+compressed with streaming zlib and encrypted by Pouch. Chunk documents use
+base64 framing; complete responses, items and pages are never accumulated or
+spooled by this provider. Small record descriptors contain chunk references and
+query metadata. Pouch's KV projection
 indexes keys; libailo maintains resident metadata indexes for its API queries.
 The unrelated Pouch document/full-text indexer is disabled.
 
@@ -79,3 +80,20 @@ capacity before inference. External disk consumption can still cause subsequent
 I/O failure. API errors abort unpublished state. Inference KV caches and
 authenticated compaction/reasoning keys keep their existing separate policies;
 Pouch encryption does not configure the compactor's replay keys.
+
+Pouch fixes its compression mode when a root is initialized. The compressed
+default requires a fresh root if the existing root was created without
+compression. Opening that old root returns the native compression-mode error;
+the provider does not replace its data or key. Keep the old root and key for
+access with their original configuration, and select a new `state_directory`
+for compressed storage. No automatic rewrite or migration is performed.
+
+## Collection adoption
+
+The accepted collection policy is 90 days of conversation inactivity, renewed
+by a newly committed append. Reads do not renew it. This policy is not active
+in the current chunk-backed provider: conversation collections require an
+upstream public push-fed append writer and atomic parent-retention renewal.
+The existing commit-marker visibility mechanism can be retained; collection
+batches and XA participation are not required. Collection adoption will use a
+released liblockdc SDK, with attachments and opaque inference state kept separate.
