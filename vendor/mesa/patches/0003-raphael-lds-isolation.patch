@@ -1,0 +1,92 @@
+--- a/src/amd/compiler/aco_ir.h
++++ b/src/amd/compiler/aco_ir.h
+@@ -2340,6 +2340,7 @@
+    bool needs_exact = false; /* there exists an instruction with disable_wqm = true */
+    bool needs_wqm = false;   /* there exists a p_wqm instruction */
+    bool needs_fp_mode_insertion = false; /* insert_fp_mode should be run */
++   bool needs_explicit_lds_waits = false;
+    bool has_smem_buffer_or_global_loads = false;
+    bool has_pops_overlapped_waves_wait = false;
+    bool has_color_exports = false;
+--- a/src/amd/compiler/aco_ir.cpp
++++ b/src/amd/compiler/aco_ir.cpp
+@@ -71,6 +71,7 @@
+    program->config = config;
+    program->info = *info;
+    program->gfx_level = options->gfx_level;
++   program->needs_explicit_lds_waits = options->family == CHIP_RAPHAEL_MENDOCINO;
+    program->wave_size = info->wave_size;
+    program->lane_mask = program->wave_size == 32 ? s1 : s2;
+    program->preserve_s2 = info->vs.preserve_s2;
+--- a/src/amd/compiler/aco_insert_waitcnt.cpp
++++ b/src/amd/compiler/aco_insert_waitcnt.cpp
+@@ -454,7 +454,8 @@
+ void
+ setup_barrier(wait_ctx& ctx, wait_imm& imm, memory_sync_info sync, bool is_acquire)
+ {
+-   if (sync.scope <= scope_subgroup)
++   if (sync.scope <= scope_subgroup &&
++       !(ctx.program->needs_explicit_lds_waits && (sync.storage & storage_shared)))
+       return;
+ 
+    barrier_info& src = ctx.bar[is_acquire ? barrier_info_acquire_dep : barrier_info_release_dep];
+@@ -463,7 +464,8 @@
+    uint32_t dst_events = 0;
+    u_foreach_bit (i, sync.storage & src.storage) {
+       /* LDS is private to the workgroup, but sync.scope might be device scope. */
+-      if (src.events[i] == event_lds && ctx.program->workgroup_size <= ctx.program->wave_size)
++      if (src.events[i] == event_lds && ctx.program->workgroup_size <= ctx.program->wave_size &&
++          !ctx.program->needs_explicit_lds_waits)
+          continue;
+ 
+       dst_imm.combine(src.imm[i]);
+@@ -506,7 +508,7 @@
+       }
+ 
+       /* Similar for LDS. */
+-      if ((events & event_lds) &&
++      if (!ctx.program->needs_explicit_lds_waits && (events & event_lds) &&
+           (is_lds || (is_barrier && ctx.gfx_level >= GFX10 && !ctx.program->wgp_mode))) {
+          events &= ~event_lds;
+          vm_vsrc |= is_barrier;
+@@ -527,7 +529,8 @@
+       /* s_waitcnt are subgroup-wide and no waitcnts are necessary within a subgroup, so we can
+        * delay this until we reach a workgroup or larger scope atomic. */
+       uint16_t storage_release =
+-         is_atomic_or_control_instr(ctx.program, instr, sync, semantic_release, scope_subgroup);
++         is_atomic_or_control_instr(ctx.program, instr, sync, semantic_release,
++                                    ctx.program->needs_explicit_lds_waits ? scope_invocation : scope_subgroup);
+       u_foreach_bit (i, storage_release & ctx.bar[barrier_info_release].storage)
+          finish_barrier_internal(ctx, imm, depctr, instr, &ctx.bar[barrier_info_release], i);
+    }
+--- a/src/amd/vulkan/radv_device.c
++++ b/src/amd/vulkan/radv_device.c
+@@ -1245,8 +1245,10 @@
+             .force_nan_preserve_min_max = instance->drirc.debug.force_nan_preserve_min_max,
+             .nir_debug_info = !!(instance->debug_flags & RADV_DEBUG_NIR_DEBUG_INFO),
+             .force_aniso = device->force_aniso,
+-            /* Use CHIP_UNKNOWN for increased compatiblity between caches. */
+-            .family = pdev->use_llvm ? pdev->info.family : CHIP_UNKNOWN,
++            /* The Raphael LDS allocation workaround affects binary configuration,
++             * so retain its family in the cache key even with ACO.
++             */
++            .family = pdev->use_llvm || pdev->info.family == CHIP_RAPHAEL_MENDOCINO ? pdev->info.family : CHIP_UNKNOWN,
+ 
+             /* Wave/subgroup sizes */
+             .ge_wave_size = pdev->ge_wave_size,
+--- a/src/amd/vulkan/radv_shader.c
++++ b/src/amd/vulkan/radv_shader.c
+@@ -2261,6 +2261,13 @@
+ 
+    const struct radv_shader_info *info = &binary->info;
+    mesa_shader_stage stage = binary->info.stage;
++   /* Concurrent LDS allocations on Raphael can corrupt shared values. Reserve
++    * the complete per-CU region for compute shaders that use LDS. ACO also
++    * preserves explicit LDS barrier waits, including single-wave workgroups.
++    */
++   if (stage == MESA_SHADER_COMPUTE && config->lds_size &&
++       compiler_info->key.family == CHIP_RAPHAEL_MENDOCINO)
++      config->lds_size = compiler_info->ac->lds_size_per_workgroup;
+    bool scratch_enabled = config->scratch_bytes_per_wave > 0;
+    const bool trap_enabled = compiler_info->debug.trap_enabled;
+    /* On GFX12, TRAP_PRESENT doesn't exist for compute shaders and it's enabled by default. */

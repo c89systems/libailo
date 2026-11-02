@@ -4,11 +4,13 @@ set -euo pipefail
 root=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 source "$root/scripts/serving_test_lib.sh"
 serving_start "$1" "$2" "$3"
-control '{"pouch":true,"target_tokens":2450,"recent_turns":0,"summary_tokens":512}'
+# Leave room for the client's protected tool instructions plus a full summary.
+# The longer tool output still forces compaction before opaque replay.
+control '{"pouch":true,"target_tokens":3072,"recent_turns":0,"summary_tokens":512}'
 source "$root/scripts/codex_test_lib.sh"
 agent_timeout=240 event_timeout=90
 codex_start
-jq -nr '"ORCHID-742\n"+("Routine deployment checks passed unchanged. "*120)' > "$work/agent/deployment.txt"
+jq -nr '"ORCHID-742\n"+("Routine deployment checks passed unchanged. "*240)' > "$work/agent/deployment.txt"
 printf 'ORCHID-742\n' > "$work/agent/verification.txt"
 for id in 3 4; do
   if [[ "$id" == 3 ]]; then

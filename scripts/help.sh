@@ -36,6 +36,8 @@ valgrind                          Check native executables (requires Valgrind).
 valgrind-model                    Check static/shared GGUF inference in the native CPU build.
 valgrind-acquisition              Check C89 model cache and TLS transport ownership.
 inference-smoke-vulkan            Require GGUF decode on a real Vulkan device.
+test-vulkan-memory [GPU_MEMORY_RUNS=100]
+                                 Require exact shared-memory isolation on a real GPU.
 test-openai-agent [PRESET=name]    Verify Codex turns/tools, remote compaction and opaque replay.
 test-openai-inference [PRESET=x86_64-linux-gnu-release] [INFERENCE_ACQUIRE=offline|download]
                       [INFERENCE_BACKEND=cpu|vulkan]

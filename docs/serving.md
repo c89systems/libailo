@@ -300,6 +300,15 @@ remains a separate integration.
 
 ### AMD Raphael serving qualification, 2026-10-27
 
+The baseline below was repaired on 2026-11-02. The native GNU build now passes
+all six trained Vulkan serving cases, including compaction and real Codex
+tools/opaque replay, with FP16 enabled and actual GPU placement. The private
+Mesa workaround isolates LDS allocations and preserves barrier waits for the
+Raphael/Mendocino family. Repeated integer/matrix checks and F16 reference logits
+pass. See the [repair evidence and precision limits](static-vulkan.md#raphael-shared-memory-repair-2026-11-02):
+default quantized-model probability equivalence, throughput cost and static-musl
+hardware acceptance remain separate gates.
+
 With cpkt 0.5.2, cpktmisc 0.2.1 and LLVM/Clang 23.1.4 host generators, the
 Ryzen 5 7600/RADV Raphael GNU build passes all six trained serving cases on CPU.
 Vulkan passes protocol, transport, vision and audio, but compaction and Codex
@@ -307,10 +316,10 @@ tool execution fail with `Native sampling logits are not finite`. The latter
 fails after streaming begins. These are numerical failures, despite positive
 GPU placement and passing synthetic/receiver smoke tests.
 
-Select CPU explicitly on this host. The
+At that baseline, selecting CPU was necessary. The
 [matrix reproducer and hardware evidence](static-vulkan.md#raphael-qualification-2026-10-27)
 record repeated failures with both F16 and F32 storage; disabling FP16 does not
-qualify this GPU. No experimental GPU workaround is shipped. Logs are
+qualify this GPU. No experimental GPU workaround was shipped then. Logs are
 `build/llvm23-upgrade/cpu-serving-final.log` and
 `build/llvm23-upgrade/gpu-serving-final.log`. Static musl serving on the new
 host remains pending numerical acceptance.

@@ -39,6 +39,10 @@ src/ailo_store_internal.hpp
 src/ailo_store.cpp
 src/ailo_store_json.cpp
 tests/store.cpp
+tests/qualify_shared.cpp
+tests/shared_memory.comp
+cmake/AiloEmbedSpirv.cmake
+scripts/test_vulkan_memory.sh
 tests/lockdc_collections.cpp
 tests/test_pouch_http.sh
 docs/persistence.md
@@ -304,6 +308,7 @@ vendor/libdrm/patches/0002-logger-only-diagnostics.patch
 vendor/libdrm/patches/series
 vendor/mesa/patches/0001-static-headless-drivers.patch
 vendor/mesa/patches/0002-logger-only-diagnostics.patch
+vendor/mesa/patches/0003-raphael-lds-isolation.patch
 vendor/mesa/patches/series
 vendor/vulkan-loader/patches/0001-built-in-static-providers.patch
 vendor/vulkan-loader/patches/0002-logger-only-diagnostics.patch

@@ -4,7 +4,7 @@ Updated 2026-11-02. This is the implementation backlog, with observable completi
 conditions. GPU qualification is still open. Fix correctness before making
 performance or hardware-support claims. Run builds and tests serially.
 
-## P0: Resolve AMD numerical correctness
+## P0: Preserve the Raphael repair and qualify numerical precision
 
 - [x] **Recheck Raphael on built-in Mesa 26.2.4 and current Mesa 26.2.6.**
   The workstation has `mesa-vulkan-drivers 26.2.6~kisak1~s`, but our executable
@@ -27,19 +27,32 @@ performance or hardware-support claims. Run builds and tests serially.
   RDNA2–RDNA4; this is a candidate, not an identified cause of our failure.
   Inspect its applicability to the failing compiled shader. Source:
   [Mesa 26.2.6 release notes](https://docs.mesa3d.org/relnotes/26.2.6.html).
-- [ ] **Close the Raphael failure with repeated arithmetic and trained proof.**
-  Previous valid standalone cases failed 19/300 with padded inputs and 42/500
-  with required two-wave execution. Disabling ACO scheduling eventually failed
-  3/1500; neither that flag nor disabling FP16 is an accepted fix. If the stable
-  driver update still fails, reduce shared-memory load/read and synchronization
-  behavior, capture NIR/ISA and compare compiler stages; then vary kernel/firmware
-  under controlled conditions. Promote a validated, portable reproducer into
-  maintained qualification tooling. Require at least 1,500 fresh processes for
-  the formerly intermittent case, no wrong/non-finite results, reference-logit
-  checks, and the complete trained Vulkan serving suite including compaction
-  and Codex/tool turns. Record tolerances; the standalone exact comparison is
-  stricter than `ailo_qualify_matrix`'s absolute error below 1. Any unsupported
-  setup or absent device must be reported separately from arithmetic success.
+- [x] **Repair the reproduced Raphael shared-memory corruption.**
+  The private Mesa patch reserves the full LDS region for compute workgroups
+  using shared memory and retains explicit LDS barrier waits, including within
+  a single wave. Both measures are necessary. The family/cache-key scope is
+  `CHIP_RAPHAEL_MENDOCINO`; only Raphael hardware has been tested. The maintained
+  integer-only qualification passes 1,500 fresh processes / 12,000 dispatches;
+  the original FP32 tiled shader passes 1,500/1,500, and four GGML configurations
+  pass 100/100 each. CPU/GPU F16-model reference logits and all six trained
+  Vulkan serving tests pass with FP16 enabled. No kernel setting, external ICD,
+  CPU fallback or ACO debug override is required. Details and limitations:
+  [Raphael repair](docs/static-vulkan.md#raphael-shared-memory-repair-2026-11-02).
+- [ ] **Resolve quantized-model precision acceptance separately.**
+  Qwen's default integer-dot path quantizes activations and exceeds the existing
+  strict F16-reference tolerances (worst max/RMS/KL 0.469540/0.104982/0.00336607).
+  Disabling integer dot for a diagnostic control passes unchanged tolerances
+  (0.0722278/0.0115874/0.0000122658) while retaining FP16. The F16 CPU/GPU pair
+  also passes. Do not confuse this finite arithmetic-path difference with the
+  repaired intermittent corruption, or claim default Q4 probability equivalence.
+  Decide the supported precision/performance contract before changing selection
+  or tolerances; retain these comparisons as acceptance evidence.
+- [ ] **Upstream and measure the scoped LDS workaround.**
+  Prepare a minimal integer reproducer and ablation results for Mesa, without
+  claiming a proven silicon/kernel root cause. Measure the occupancy and barrier
+  cost, compare kernel/firmware under controlled conditions, and retire or narrow
+  the local workaround only after the same repeated gates pass. Re-prove it on
+  a fresh static-musl build and actual Mendocino before extending those claims.
 
 Existing evidence and reproduction commands are in
 [static-vulkan.md](docs/static-vulkan.md). Local investigation inputs and the

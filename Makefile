@@ -67,6 +67,10 @@ format-check:
 finalize-slice: format test format-check
 inference-smoke-vulkan: build
 	scripts/test_model_vulkan.sh "$(PRESET)"
+.PHONY: test-vulkan-memory
+GPU_MEMORY_RUNS ?= 100
+test-vulkan-memory: build
+	bash scripts/test_vulkan_memory.sh "$(PRESET)" "$(GPU_MEMORY_RUNS)"
 .PHONY: inference-smoke-media
 MEDIA_BACKEND ?= cpu
 MEDIA_ACQUIRE ?= offline

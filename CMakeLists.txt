@@ -698,6 +698,24 @@ if(AILO_BUILD_TESTS)
     target_compile_options(ailo_qualify_matrix PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_link_libraries(ailo_qualify_matrix PRIVATE llama ggml)
     ailo_local_executable(ailo_qualify_matrix)
+    set(shared_spirv "${CMAKE_CURRENT_BINARY_DIR}/generated/shared-memory.spv")
+    set(shared_header "${CMAKE_CURRENT_BINARY_DIR}/generated/shared-memory.h")
+    add_custom_command(OUTPUT "${shared_header}"
+      BYPRODUCTS "${shared_spirv}"
+      COMMAND "${Vulkan_GLSLC_EXECUTABLE}" -O --target-env=vulkan1.2
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/shared_memory.comp" -o "${shared_spirv}"
+      COMMAND "${CMAKE_COMMAND}" "-DINPUT=${shared_spirv}" "-DOUTPUT=${shared_header}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AiloEmbedSpirv.cmake"
+      DEPENDS tests/shared_memory.comp cmake/AiloEmbedSpirv.cmake VERBATIM)
+    add_executable(ailo_qualify_shared EXCLUDE_FROM_ALL tests/qualify_shared.cpp "${shared_header}")
+    target_include_directories(ailo_qualify_shared PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_compile_features(ailo_qualify_shared PRIVATE cxx_std_17)
+    target_compile_options(ailo_qualify_shared PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    target_link_libraries(ailo_qualify_shared PRIVATE Vulkan::Vulkan)
+    if(AILO_TARGET_ID MATCHES "-musl$")
+      target_link_options(ailo_qualify_shared PRIVATE -static)
+    endif()
+    ailo_local_executable(ailo_qualify_shared)
   endif()
   add_executable(ailo_c89_policy tests/c89_policy.c)
   file(GLOB public_headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/ailo/*.h")
