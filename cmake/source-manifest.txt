@@ -1,4 +1,5 @@
 # Explicit source artifact inputs; generated VERSION and SOURCE-MANIFEST.sha256 are added during staging.
+TODO.md
 docs/multimodal.md
 include/ailo/media.h
 src/ailo_media.cpp

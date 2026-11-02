@@ -523,6 +523,21 @@ musl hardware campaign, AArch64 GPU and multi-GPU execution remain pending.
 The next qualification step is to isolate this matrix/serving failure before
 collecting performance claims or accepting a device-specific workaround.
 
+A 2026-11-02 recheck compares the padded FP32, required-subgroup-32 two-wave
+standalone case across 500 fresh processes per stack. The built-in Mesa 26.2.4
+passes 402 and produces incorrect results in 98; the workstation's dynamic
+Mesa 26.2.6 (`26.2.6~kisak1~s`) passes 405 and fails 95. Neither stack reports
+setup errors or skips, and inputs remain unchanged. Both use memory type 3 and
+the same validated shader, SHA-256
+`9f875beba3c839333f3bcfdddf6c5d444e0c61f73a103f286146002bbb68d2f1`.
+The probe binaries are compiled separately; this compares userspace stacks,
+not individual driver commits. The kernel remains `7.3.0-9-generic`.
+Commands, binaries and logs are under `build/gpu-recheck-20261102/`.
+The host Mesa upgrade does not change libailo's privately linked Mesa pin,
+and the dynamic control does not establish static deployment acceptance.
+The arithmetic failure remains unresolved. [TODO.md](../TODO.md) tracks its
+isolation, relevant upstream candidates and separate Halo acceptance work.
+
 ### Larger dense and MoE execution probes
 
 `tests/qualify_models.lua` is a manual installed-Lua/C-ABI probe, separate from
