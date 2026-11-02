@@ -1,7 +1,8 @@
 # Default persistent storage
 
 Without an application-supplied `openai.repository`, libailo uses liblockdc
-0.23.0's embedded Pouch engine. No lockd server or host library is required.
+0.26.0's embedded Pouch engine (core ABI 9), with liblql 0.4.0. No lockd server
+or host library is required.
 
 | Resource | Default | When the XDG variable is empty, relative or unset |
 | --- | --- | --- |
@@ -81,19 +82,35 @@ I/O failure. API errors abort unpublished state. Inference KV caches and
 authenticated compaction/reasoning keys keep their existing separate policies;
 Pouch encryption does not configure the compactor's replay keys.
 
-Pouch fixes its compression mode when a root is initialized. The compressed
-default requires a fresh root if the existing root was created without
-compression. Opening that old root returns the native compression-mode error;
-the provider does not replace its data or key. Keep the old root and key for
-access with their original configuration, and select a new `state_directory`
-for compressed storage. No automatic rewrite or migration is performed.
+liblockdc 0.26 changes compression-on-open behavior. An explicit zlib setting
+now requests synchronous conversion of an existing uncompressed root, requiring
+temporary space for both source and replacement data. Encryption identity is
+preserved. Omitting compression instead inherits an existing root's setting.
+The previous SDK rejected a differing compression setting. libailo accepts the
+SDK's conversion on open and continues to request encrypted zlib storage.
+The extra disk requirement covers the whole retained root, not just the current
+segment: bounded chunk processing limits memory, while the original tree stays
+authoritative until the complete replacement is synchronized and published.
+Opening a root can therefore take time and fail for insufficient disk space.
+Conversion preserves stored payloads and the original encryption key; it does
+not change libailo's logical record layout or adopt conversation collections.
+See the [released conversion contract](https://github.com/sa6mwa/liblockdc/blob/v0.26.0/docs/pouch-compression.md).
 
 ## Collection adoption
 
 The accepted collection policy is 90 days of conversation inactivity, renewed
 by a newly committed append. Reads do not renew it. This policy is not active
-in the current chunk-backed provider: conversation collections require an
-upstream public push-fed append writer and atomic parent-retention renewal.
+in the current chunk-backed provider. The released SDK now provides public
+push-fed append writers and atomic parent-retention renewal, verified through
+both static and shared consumers. Its push writer stages encoded entries in
+up to 64 KiB of memory and spills larger encoded entries to an anonymous file;
+commit copies the staged entry. This is staged/spooled append, and does not
+satisfy libailo's end-to-end streaming requirement. Collection reads deliver
+bounded chunks directly. Resolve that write-path contract before adopting it
+for conversation payloads; the upgrade alone does not change their provider.
 The existing commit-marker visibility mechanism can be retained; collection
 batches and XA participation are not required. Collection adoption will use a
 released liblockdc SDK, with attachments and opaque inference state kept separate.
+See [the implementation backlog](../TODO.md) for adoption and verification gates,
+and the [upstream writer contract](https://github.com/sa6mwa/liblockdc/blob/v0.26.0/docs/collection-writer.md)
+for staging and retention semantics.

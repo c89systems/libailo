@@ -15,7 +15,7 @@ if(DEFINED AILO_SHARED_LIBRARY)
      NOT metadata MATCHES "NEEDED[^\r\n]*liblonejson\\.so" OR
      NOT metadata MATCHES "NEEDED[^\r\n]*libffi\\.so" OR
      NOT metadata MATCHES "NEEDED[^\r\n]*libpslog\\.so" OR
-     NOT metadata MATCHES "NEEDED[^\r\n]*liblockdc\\.so\\.6")
+     NOT metadata MATCHES "NEEDED[^\r\n]*liblockdc\\.so\\.9")
     message(FATAL_ERROR "Shared model dependencies must remain separate SDK libraries: ${metadata}${error}")
   endif()
 endif()

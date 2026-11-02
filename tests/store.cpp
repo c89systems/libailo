@@ -445,8 +445,8 @@ int main(int argc, char **argv) {
       CHECK(fs::exists(work / "home/.local/state/ailo") &&
             fs::exists(work / "home/.config/ailo/pouch.key"));
     }
-    // Pouch fixes compression at root creation. Enabling the new default must
-    // fail clearly on an uncompressed root without replacing its data or key.
+    // The released SDK converts an uncompressed root on open. Preserve the
+    // encryption key and original state bytes across conversion and reopen.
     {
       const auto root = (work / "uncompressed").string();
       const auto key_dir = (work / "uncompressed-key").string();
@@ -492,24 +492,27 @@ int main(int argc, char **argv) {
       CHECK(lease->release(lease, nullptr, &error) == LC_OK);
       client->close(client);
       lc_error_cleanup(&error);
-      const auto manifest = file(fs::path(root) / "manifest");
       const auto original_key = file(secret);
-      CHECK(!manifest.empty() && !original_key.empty());
+      CHECK(file(fs::path(root) / "manifest").find("compression=none") !=
+            std::string::npos);
+      CHECK(!original_key.empty());
       auto config = ailo_openai_default_config();
       config.state_directory = root.c_str();
       config.encryption_key_file = secret.c_str();
-      repository r(config);
-      ailo_record_metadata record{"tenant", "compressed", AILO_RECORD_RESPONSE,
-                                  {},       {},           1024};
-      void *transaction = nullptr;
-      ailo_error rejected{};
-      CHECK(r.api.reserve(r.api.user_data, &record, &transaction, &rejected) ==
-                AILO_IO_FAILED &&
-            !transaction);
-      CHECK(std::string(rejected.message).find("compression mode") !=
+      {
+        repository r(config);
+        auto transaction = r.reserve("compressed");
+        r.write(transaction, AILO_RECORD_OUTPUT, body);
+        r.commit(transaction);
+        auto stored = r.open("compressed");
+        CHECK(r.read(stored) == body);
+        r.close(stored);
+      }
+      CHECK(file(fs::path(root) / "manifest").find("compression=zlib") !=
             std::string::npos);
-      CHECK(file(fs::path(root) / "manifest") == manifest);
       CHECK(file(secret) == original_key);
+      // Omission inherits the converted mode rather than converting it back.
+      settings.set_mask &= ~LC_POUCH_SETTING_COMPRESSION;
       CHECK(lc_client_open(&setup, &client, &error) == LC_OK);
       std::string retained;
       lc_sink sink{};
@@ -527,6 +530,13 @@ int main(int argc, char **argv) {
       client->close(client);
       lc_error_cleanup(&error);
       lc_pouch_endpoint_free(endpoint);
+      {
+        repository r(config);
+        auto stored = r.open("compressed");
+        CHECK(r.read(stored) == body);
+        r.close(stored);
+      }
+      CHECK(file(secret) == original_key);
     }
     // Actual model generation through the public receiver, using default Pouch.
     {

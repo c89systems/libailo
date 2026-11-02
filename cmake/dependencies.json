@@ -1,53 +1,53 @@
 {
   "lockdc": {
-    "version": "v0.23.0",
+    "version": "v0.26.0",
     "upstream": "https://github.com/sa6mwa/liblockdc",
     "assets": {
       "x86_64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.23.0/liblockdc-0.23.0-x86_64-linux-gnu.tar.gz",
-        "sha256": "f57928ce318d0e08914d41603fadfe22209ae6b6a4b40ae2d5f7b5f4c06bacfa"
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "ce02f5fef55c9ef753e0aaf822bf5727ff46fe2207b04dcfc9dd4b109ef2e0e7"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.23.0/liblockdc-0.23.0-x86_64-linux-musl.tar.gz",
-        "sha256": "b3c41e9e3ff97834541051c7c86bf455c8afb02bd054cf9cceaa3d39c84a2f59"
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-x86_64-linux-musl.tar.gz",
+        "sha256": "6c9ff936e1bd0332e2f540cf195525bc90b34360b6dc898068f8ff1d54c4ad32"
       },
       "aarch64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.23.0/liblockdc-0.23.0-aarch64-linux-gnu.tar.gz",
-        "sha256": "39b0f524fcd3b30dbbd2006cfdd595e080e085d3e7a064da77bc6f6f28ae5f21"
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "577c9041ce33452d911e362a4551309b83ede6a6a83de3d8f150f42aad556e60"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.23.0/liblockdc-0.23.0-aarch64-linux-musl.tar.gz",
-        "sha256": "252b52cc306048846d062e34d66e60773f49f9e4d33f14d2747adf6bc5ee2746"
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-aarch64-linux-musl.tar.gz",
+        "sha256": "c7284eb26fb2c9e45dce24cd14f6a18547314a9fbb51517c5ed5871fd5201790"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.23.0/liblockdc-0.23.0-arm64-apple-darwin.tar.gz",
-        "sha256": "5704c457f6dfb6b99cab308b365ac9339d637bda3d0056a85564a8583a506bd7"
+        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-arm64-apple-darwin.tar.gz",
+        "sha256": "ecdcf696841f1b223e1c04e98057b593fc45d925ad17e4132982d5e03599cd0e"
       }
     }
   },
   "liblql": {
-    "version": "v0.3.0",
+    "version": "v0.4.0",
     "upstream": "https://github.com/sa6mwa/liblql",
     "assets": {
       "x86_64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-x86_64-linux-gnu.tar.gz",
-        "sha256": "fafb04f9af5d9610f77380ac1f848d1edd3d60dcf7ce6a098f6a04e30dd2b47a"
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "a64ec9860305e48739e35d4609bd03796de7262ab9ca011755c696c85f8f65d3"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-x86_64-linux-musl.tar.gz",
-        "sha256": "e33a57e5d97337304c8541efaf8ab33bff9060cae600d1fe744a6734dca74ad4"
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-x86_64-linux-musl.tar.gz",
+        "sha256": "e2ffbcbb67090046a76d1b3f5a4c151d3c2dbe86ab4bdef472c92f0fd2b46d9d"
       },
       "aarch64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-aarch64-linux-gnu.tar.gz",
-        "sha256": "becc67d67c9e50291d1cc0c7bfc124c7945576b773013b37f65e969bb32af4a8"
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "c092e0dc6aad961f787e9388899e508736946271e94560baf676d5f1bc46c769"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-aarch64-linux-musl.tar.gz",
-        "sha256": "8981ed9a6d938d1fdcb9da08ebc30df5d48d78bcad423bd1c64e858795d17ccf"
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-aarch64-linux-musl.tar.gz",
+        "sha256": "2cdc421ee7011c50236ba1219ae93c9afe141618a9599e51c823e7528c438143"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.3.0/liblql-0.3.0-arm64-apple-darwin.tar.gz",
-        "sha256": "24b60e9f73d4341451aeb43e331bb29569f112d0b940130dbf9eb401b054408c"
+        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-arm64-apple-darwin.tar.gz",
+        "sha256": "fd5f04631306d0cf6304bf061fa89fae5a5b05a3cd71dc6aefef074447f4c58d"
       }
     }
   },
