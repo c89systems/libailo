@@ -38,8 +38,8 @@ it does not defer the required local multi-GPU implementation.
 2. Private bridge implementation may use the C++ standard required by upstream.
    C++ exceptions must never cross a C boundary. Public structs, callbacks,
    enums, constants and prototypes must compile as strict C89 and as C++.
-3. Pin llama.cpp b11430, revision
-   `8345f333951c661d166b00e6f9362e553768f292`. All public C APIs means the public
+3. Pin llama.cpp v0.8.0, revision
+   `8642541b255bfb5dc39cd351a178be09013a55d6`. All public C APIs means the public
    llama library, GGML core/backend/allocator/optimizer/GGUF and public backend
    headers, plus public multimodal `mtmd` and `mtmd-helper` APIs. C++ common,
    server utilities, private backend interfaces and CLI programs are excluded

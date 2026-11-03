@@ -1,16 +1,6 @@
 --- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
 +++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
-@@ -15210,7 +15210,8 @@
-             *total += heap.size;
- 
-             if (membudget_supported && i < budgetprops.heapUsage.size()) {
--                *free += budgetprops.heapBudget[i] - budgetprops.heapUsage[i];
-+                *free += budgetprops.heapBudget[i] > budgetprops.heapUsage[i]
-+                    ? budgetprops.heapBudget[i] - budgetprops.heapUsage[i] : 0;
-             } else {
-                 *free += heap.size;
-             }
-@@ -16167,11 +16168,47 @@
+@@ -16348,11 +16348,47 @@
      return devices[device];
  }
  
@@ -61,7 +51,7 @@
  ggml_backend_reg_t ggml_backend_vk_reg() {
 --- a/src/llama-model.cpp
 +++ b/src/llama-model.cpp
-@@ -1584,6 +1584,9 @@
+@@ -1678,6 +1678,9 @@
          split_sum += splits[i];
          splits[i] = split_sum;
      }
@@ -69,5 +59,5 @@
 +        throw std::runtime_error("No usable GPU memory for layer distribution");
 +    }
      for (size_t i = 0; i < n_devices(); ++i) {
-         splits[i] /= split_sum;
+         splits[i] = split_sum != 0.0f ? splits[i] / split_sum : float(i + 1) / n_devices();
      }

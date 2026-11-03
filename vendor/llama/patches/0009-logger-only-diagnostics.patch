@@ -6,7 +6,7 @@
  #include "common.h"
  #include "trie.h"
  #include "unicode.h"
-@@ -977,7 +978,7 @@
+@@ -1009,7 +1010,7 @@
              throw std::invalid_argument("JSON schema conversion failed:\n" + string_join(_errors, "\n"));
          }
          if (!_warnings.empty()) {
@@ -106,7 +106,7 @@
  
          return;
      }
-@@ -2199,7 +2200,7 @@
+@@ -2208,7 +2209,7 @@
              // use the cpuset that numactl gave us
              rv = pthread_setaffinity_np(pthread_self(), setsize, &g_state.numa.cpuset);
              if (rv) {
@@ -115,7 +115,7 @@
              }
              return;
          default:
-@@ -2216,7 +2217,7 @@
+@@ -2225,7 +2226,7 @@
  
      rv = pthread_setaffinity_np(pthread_self(), setsize, cpus);
      if (rv) {
@@ -124,7 +124,7 @@
      }
  
      CPU_FREE(cpus);
-@@ -2237,7 +2238,7 @@
+@@ -2246,7 +2247,7 @@
  
      int rv = pthread_setaffinity_np(pthread_self(), setsize, cpus);
      if (rv) {
@@ -133,7 +133,7 @@
      }
  
      CPU_FREE(cpus);
-@@ -2506,11 +2507,11 @@
+@@ -2516,11 +2517,11 @@
              }
          default:
              {
@@ -148,7 +148,7 @@
                  }
                  GGML_ABORT("fatal error");
              }
-@@ -2549,7 +2550,7 @@
+@@ -2559,7 +2560,7 @@
  
      for (int32_t i = 64; i < GGML_MAX_N_THREADS; i++) {
          if (mask[i]) {
@@ -157,7 +157,7 @@
              break;
          }
      }
-@@ -2598,7 +2599,7 @@
+@@ -2608,7 +2609,7 @@
      }
  
      if (!SetThreadPriority(GetCurrentThread(), p)) {
@@ -166,7 +166,7 @@
          return false;
      }
  
-@@ -2634,7 +2635,7 @@
+@@ -2644,7 +2645,7 @@
  
      int32_t err = pthread_setschedparam(pthread_self(), policy, &p);
      if (err != 0) {
@@ -175,7 +175,7 @@
          return false;
      }
  
-@@ -2666,7 +2667,7 @@
+@@ -2676,7 +2677,7 @@
      err = pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
  #endif
      if (err != 0) {
@@ -184,7 +184,7 @@
          return false;
      }
  
-@@ -2691,7 +2692,7 @@
+@@ -2701,7 +2702,7 @@
  
      int32_t err = pthread_setschedparam(pthread_self(), policy, &p);
      if (err != 0) {
@@ -228,7 +228,7 @@
              ggml_type_name(dst->type), ggml_type_name(src0->type));
          GGML_ABORT("fatal error");
      }
---- a/ggml/src/ggml-library-log.h
+--- /dev/null
 +++ b/ggml/src/ggml-library-log.h
 @@ -0,0 +1,49 @@
 +#ifndef GGML_LIBRARY_LOG_H
@@ -340,10 +340,9 @@
              t_ibatch_h, t_ibatch_m, t_ibatch_s, t_eta_h, t_eta_m, t_eta_s);
      if (ibatch == ibatch_max) {
 -        fprintf(stderr, "\n");
--    }
--    fflush(stderr);
 +        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
-+    }
+     }
+-    fflush(stderr);
  
      GGML_UNUSED(dataset);
  }
@@ -567,9 +566,9 @@
  #include "ggml-vulkan-common.h"
 +#include "../ggml-library-log.h"
  
- ggml_backend_buffer_type_i ggml_backend_vk_buffer_type_interface = {
-     /* .get_name            = */ ggml_backend_vk_buffer_type_name,
-@@ -186,8 +187,8 @@
+ #include <cstdint>
+ #include <cstdlib>
+@@ -211,8 +212,8 @@
      try {
          return ggml_vk_create_buffer(device, size, {req_flags, fallback_flags});
      } catch (const vk::SystemError& e) {
@@ -580,7 +579,7 @@
          throw e;
      }
  }
-@@ -223,8 +224,8 @@
+@@ -248,8 +249,8 @@
              }
          }
      } catch (const vk::SystemError& e) {
@@ -591,25 +590,25 @@
          throw e;
      }
  
-@@ -250,7 +251,7 @@
-          vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent});
+@@ -312,7 +313,7 @@
+     }
  
-     if(!(buf->memory_property_flags & vk::MemoryPropertyFlagBits::eHostVisible)) {
--        fprintf(stderr, "WARNING: failed to allocate %.2f MB of pinned memory\n",
-+        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "WARNING: failed to allocate %.2f MB of pinned memory\n",
-             size/1024.0/1024.0);
-         device->device.freeMemory(buf->device_memory);
-         device->device.destroyBuffer(buf->buffer);
-@@ -282,7 +283,7 @@
+     if (!(buf->memory_property_flags & vk::MemoryPropertyFlagBits::eHostVisible)) {
+-        fprintf(stderr, "WARNING: failed to allocate %.2f MB of pinned memory\n", size / 1024.0 / 1024.0);
++        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "WARNING: failed to allocate %.2f MB of pinned memory\n", size / 1024.0 / 1024.0);
+         ggml_vk_destroy_buffer(buf);
+         return nullptr;
+     }
+@@ -338,7 +339,7 @@
+         std::unique_lock<std::shared_mutex> guard(vk_instance.host_allocations_mutex);
+         const size_t index = ggml_vk_host_allocation_find(ptr);
+         if (index == SIZE_MAX) {
+-            fprintf(stderr, "WARNING: failed to free pinned memory: memory not in map\n");
++            ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "WARNING: failed to free pinned memory: memory not in map\n");
+             return;
          }
-     }
-     if (buf == nullptr) {
--        fprintf(stderr, "WARNING: failed to free pinned memory: memory not in map\n");
-+        ggml_log_fprintf(GGML_LOG_LEVEL_WARN, stderr, "WARNING: failed to free pinned memory: memory not in map\n");
-         return;
-     }
- 
-@@ -331,7 +332,7 @@
+         entry = std::move(vk_instance.host_allocations[index]);
+@@ -409,7 +410,7 @@
      GGML_ASSERT(!ggml_is_contiguous(tensor));
      // Buffer is already mapped
      if(dst->memory_property_flags & vk::MemoryPropertyFlagBits::eHostVisible) {
@@ -625,17 +624,16 @@
  #include "ggml-vulkan-push-constants.h"
 +#include "../ggml-library-log.h"
  
- // shared globals
- extern ggml_backend_buffer_type_i ggml_backend_vk_buffer_type_interface;
-@@ -264,9 +265,9 @@
+ inline std::ostream & operator<<(std::ostream & os, vk::Buffer buffer) {
+     return os << static_cast<VkBuffer>(buffer);
+@@ -268,9 +269,9 @@
      const uint32_t wg2 = CEIL_DIV(elements[2], pipeline->wg_denoms[2]);
      VK_LOG_DEBUG("ggml_vk_dispatch_pipeline(" << pipeline->name << ", {";
      for (auto& buffer : descriptor_buffer_infos) {
 -        std::cerr << "(" << buffer.buffer << ", " << buffer.offset << ", " << buffer.range << "), ";
--    }
--    std::cerr << "}, (" << wg0 << "," << wg1 << "," << wg2 << "))");
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "(" << buffer.buffer << ", " << buffer.offset << ", " << buffer.range << "), ";
-+    }
+     }
+-    std::cerr << "}, (" << wg0 << "," << wg1 << "," << wg2 << "))");
 +    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "}, (" << wg0 << "," << wg1 << "," << wg2 << "))");
      GGML_ASSERT(wg0 <= ctx->device->properties.limits.maxComputeWorkGroupCount[0] &&
                  wg1 <= ctx->device->properties.limits.maxComputeWorkGroupCount[1] &&
@@ -656,10 +654,9 @@
 +    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "         ");
      for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
 -        fprintf(stderr, "%7d ", idx1);
--    }
--    fprintf(stderr, "\n");
 +        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%7d ", idx1);
-+    }
+     }
+-    fprintf(stderr, "\n");
 +    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
      for (int idx0 = i0 - 5; idx0 < i0 + 5; idx0++) {
 -        fprintf(stderr, "%7d: ", idx0);
@@ -675,17 +672,15 @@
 +                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "% 7.2f ", val);
              } else {
 -                fprintf(stderr, "        ");
--            }
--        }
--        fprintf(stderr, "\n");
 +                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "        ");
-+            }
-+        }
+             }
+         }
+-        fprintf(stderr, "\n");
 +        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
      }
  }
  
-@@ -253,29 +254,29 @@
+@@ -254,29 +255,29 @@
  
      double tflops = 2.0*m*n*k*batch*num_it / (time / 1000.0) / (1000.0*1000.0*1000.0*1000.0);
  
@@ -723,7 +718,7 @@
              ggml_vk_print_matrix_area(split_k_buf + 3 * d_ne, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
  
              free(split_k_buf);
-@@ -305,13 +306,13 @@
+@@ -306,13 +307,13 @@
      i1 = std::max(i1, 5);
      i2 = std::max(i2, 0);
      i3 = std::max(i3, 0);
@@ -731,10 +726,9 @@
 +    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "         ");
      for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
 -        fprintf(stderr, "%7d ", idx1);
--    }
--    fprintf(stderr, "\n");
 +        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%7d ", idx1);
-+    }
+     }
+-    fprintf(stderr, "\n");
 +    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
      for (int idx0 = i0 - 5; idx0 < i0 + 5; idx0++) {
 -        fprintf(stderr, "%7d: ", idx0);
@@ -742,7 +736,7 @@
          for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
              if (idx0 >= 0 && idx0 < tensor->ne[0] && idx1 >= 0 && idx1 < tensor->ne[1] && i2 >= 0 && i2 < tensor->ne[2] && i3 >= 0 && i3 < tensor->ne[3]) {
                  float val;
-@@ -322,12 +323,12 @@
+@@ -323,12 +324,12 @@
                  } else {
                      GGML_ABORT("fatal error");
                  }
@@ -750,17 +744,15 @@
 +                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "% 7.2f ", val);
              } else {
 -                fprintf(stderr, "        ");
--            }
--        }
--        fprintf(stderr, "\n");
 +                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "        ");
-+            }
-+        }
+             }
+         }
+-        fprintf(stderr, "\n");
 +        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
      }
  }
  
-@@ -407,19 +408,19 @@
+@@ -408,19 +409,19 @@
  
      avg_err /= ne;
  
@@ -774,22 +766,20 @@
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "Actual result: " << std::endl << std::endl;
          for (int i = std::max(0, first_err - 5); i < std::min((int)ne, first_err + 5); i++) {
 -            std::cerr << ggml_fp16_to_fp32(x_chk[i]) << ", ";
--        }
--        std::cerr << std::endl << "Expected result: " << std::endl << std::endl;
 +            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << ggml_fp16_to_fp32(x_chk[i]) << ", ";
-+        }
+         }
+-        std::cerr << std::endl << "Expected result: " << std::endl << std::endl;
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Expected result: " << std::endl << std::endl;
          for (int i = std::max(0, first_err - 5); i < std::min((int)ne, first_err + 5); i++) {
 -            std::cerr << x_ref[i] << ", ";
--        }
--        std::cerr << std::endl;
 +            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << x_ref[i] << ", ";
-+        }
+         }
+-        std::cerr << std::endl;
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
      }
  
      ggml_vk_destroy_buffer(x_buf);
-@@ -557,12 +558,12 @@
+@@ -558,12 +559,12 @@
          }
      }
      if (dq_it == ctx->device->pipeline_matmul.end() || dq_it->second.empty()) {
@@ -804,7 +794,7 @@
          return;
      }
  
-@@ -577,7 +578,7 @@
+@@ -578,7 +579,7 @@
      }
  
      if (p == nullptr) {
@@ -813,7 +803,7 @@
          return;
      }
  
-@@ -710,40 +711,40 @@
+@@ -713,40 +714,40 @@
  
      double tflops = 2.0*m*n*k*batch*num_it / (time_ms / 1000.0) / (1000.0*1000.0*1000.0*1000.0);
  
@@ -821,10 +811,9 @@
 +    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "TEST dequant matmul " << shname;
      if (mmq) {
 -        std::cerr << " mmq";
--    }
--    std::cerr << " m=" << m << " n=" << n << " k=" << k << " batch=" << batch << " split_k=" << split_k << " matmul " << time_ms / num_it << "ms " << tflops << " TFLOPS avg_err=" << avg_err << std::endl;
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " mmq";
-+    }
+     }
+-    std::cerr << " m=" << m << " n=" << n << " k=" << k << " batch=" << batch << " split_k=" << split_k << " matmul " << time_ms / num_it << "ms " << tflops << " TFLOPS avg_err=" << avg_err << std::endl;
 +    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " m=" << m << " n=" << n << " k=" << k << " batch=" << batch << " split_k=" << split_k << " matmul " << time_ms / num_it << "ms " << tflops << " TFLOPS avg_err=" << avg_err << std::endl;
  
      if (avg_err > 0.01 || std::isnan(avg_err)) {
@@ -869,20 +858,19 @@
              ggml_vk_print_matrix_area(split_k_buf + 3 * d_ne, GGML_TYPE_F32, m, n, first_err_m, first_err_n, first_err_b);
  
              free(split_k_buf);
-@@ -784,9 +785,9 @@
+@@ -787,9 +788,9 @@
          return;
      }
      for (int j = 0; j < level; j++) {
 -        std::cerr << " ";
--    }
--    std::cerr << ggml_op_name(tensor->op) << " gpu=" << (tensor->extra != nullptr) << std::endl;
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " ";
-+    }
+     }
+-    std::cerr << ggml_op_name(tensor->op) << " gpu=" << (tensor->extra != nullptr) << std::endl;
 +    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << ggml_op_name(tensor->op) << " gpu=" << (tensor->extra != nullptr) << std::endl;
  
      done.push_back(tensor);
  
-@@ -805,13 +806,13 @@
+@@ -808,13 +809,13 @@
      i1 = std::max(i1, 5);
      i2 = std::max(i2, 0);
      i3 = std::max(i3, 0);
@@ -890,10 +878,9 @@
 +    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "         ");
      for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
 -        fprintf(stderr, "%7d ", idx1);
--    }
--    fprintf(stderr, "\n");
 +        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "%7d ", idx1);
-+    }
+     }
+-    fprintf(stderr, "\n");
 +    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
      for (int idx0 = i0 - 5; idx0 < i0 + 5; idx0++) {
 -        fprintf(stderr, "%7d: ", idx0);
@@ -901,7 +888,7 @@
          for (int idx1 = i1 - 5; idx1 < i1 + 5; idx1++) {
              if (idx0 >= 0 && idx0 < tensor->ne[0] && idx1 >= 0 && idx1 < tensor->ne[1] && i2 >= 0 && i2 < tensor->ne[2] && i3 >= 0 && i3 < tensor->ne[3]) {
                  float val;
-@@ -824,12 +825,12 @@
+@@ -827,12 +828,12 @@
                  } else {
                      GGML_ABORT("fatal error");
                  }
@@ -909,17 +896,15 @@
 +                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "% 7.2f ", val);
              } else {
 -                fprintf(stderr, "        ");
--            }
--        }
--        fprintf(stderr, "\n");
 +                ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "        ");
-+            }
-+        }
+             }
+         }
+-        fprintf(stderr, "\n");
 +        ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, stderr, "\n");
      }
  }
  
-@@ -848,17 +849,17 @@
+@@ -851,17 +852,17 @@
          ggml_vk_buffer_read(buffer_gpu, vk_tensor_offset(tensor) + tensor->view_offs, tensor_data, tensor_size);
      }
  
@@ -933,10 +918,9 @@
      }
      if (tensor->src[1] != nullptr) {
 -        std::cerr << "tensor->src[1]=" << tensor->src[1] << " name=" << tensor->src[1]->name << " op=" << ggml_op_name(tensor->src[1]->op) << " type=" << ggml_type_name(tensor->src[1]->type) << " ne0=" << tensor->src[1]->ne[0] << " nb0=" << tensor->src[1]->nb[0] << " ne1=" << tensor->src[1]->ne[1] << " nb1=" << tensor->src[1]->nb[1] << " ne2=" << tensor->src[1]->ne[2] << " nb2=" << tensor->src[1]->nb[2] << " ne3=" << tensor->src[1]->ne[3] << " nb3=" << tensor->src[1]->nb[3] << std::endl;
--    }
--    std::cerr << std::endl << "Result:" << std::endl;
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "tensor->src[1]=" << tensor->src[1] << " name=" << tensor->src[1]->name << " op=" << ggml_op_name(tensor->src[1]->op) << " type=" << ggml_type_name(tensor->src[1]->type) << " ne0=" << tensor->src[1]->ne[0] << " nb0=" << tensor->src[1]->nb[0] << " ne1=" << tensor->src[1]->ne[1] << " nb1=" << tensor->src[1]->nb[1] << " ne2=" << tensor->src[1]->ne[2] << " nb2=" << tensor->src[1]->nb[2] << " ne3=" << tensor->src[1]->ne[3] << " nb3=" << tensor->src[1]->nb[3] << std::endl;
-+    }
+     }
+-    std::cerr << std::endl << "Result:" << std::endl;
 +    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Result:" << std::endl;
      ggml_vk_print_tensor_area(tensor, tensor_data, 5, 5, 0, 0);
 -    std::cerr << std::endl;
@@ -944,7 +928,7 @@
      std::vector<const ggml_tensor *> done;
      ggml_vk_print_graph_origin(tensor, done);
  
-@@ -1150,7 +1151,7 @@
+@@ -1153,7 +1154,7 @@
                  tensor_clone = ggml_sgn(ggml_ctx, src_clone[0]);
                  break;
              default:
@@ -953,7 +937,7 @@
                  GGML_ABORT("fatal error");
              }
          } else if (tensor->op == GGML_OP_GLU) {
-@@ -1344,7 +1345,7 @@
+@@ -1347,7 +1348,7 @@
              tensor_clone = ggml_roll(ggml_ctx, src_clone[0], s0, s1, s2, s3);
          }
          else {
@@ -962,7 +946,7 @@
              GGML_ABORT("fatal error");
          }
          cloned_tensors[tensor] = tensor_clone;
-@@ -1439,34 +1440,34 @@
+@@ -1442,34 +1443,34 @@
                              correct = *(int64_t *) ((char *) comp_result + i3*comp_nb[3] + i2*comp_nb[2] + i1*comp_nb[1] + i0*comp_nb[0]);
                              result  = *(int64_t *) ((char *) tensor_data + i3*tensor->nb[3] + i2*tensor->nb[2] + i1*tensor->nb[1] + i0*tensor->nb[0]);
                          } else {
@@ -1009,7 +993,7 @@
                          std::vector<const ggml_tensor *> done;
                          ggml_vk_print_graph_origin(tensor, done);
                          GGML_ABORT("fatal error");
-@@ -1495,56 +1496,56 @@
+@@ -1498,56 +1499,56 @@
      avg_err /= counter;
  
      if (vk_output_tensor > 0 && vk_output_tensor == check_counter) {
@@ -1031,11 +1015,10 @@
          }
          if (src3 != nullptr) {
 -            std::cerr << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
--        }
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
+         }
 -        std::cerr << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
 -        std::cerr << std::endl << "Result:" << std::endl;
-+            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
-+        }
 +        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Result:" << std::endl;
          ggml_vk_print_tensor_area(tensor, tensor_data, 5, 5, 0, 0);
@@ -1067,11 +1050,10 @@
          }
          if (src3 != nullptr) {
 -            std::cerr << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
--        }
++            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
+         }
 -        std::cerr << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
 -        std::cerr << std::endl << "Result:" << std::endl;
-+            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "src3=" << src3 << " op=" << ggml_op_name(src3->op) << " type=" << ggml_type_name(src3->type) << " ne0=" << src3->ne[0] << " nb0=" << src3->nb[0] << " ne1=" << src3->ne[1] << " nb1=" << src3->nb[1] << " ne2=" << src3->ne[2] << " nb2=" << src3->nb[2] << " ne3=" << src3->ne[3] << " nb3=" << src3->nb[3] << " offset=" << src3->view_offs << std::endl;
-+        }
 +        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "First error: result=" << first_error_result << " correct=" << first_error_correct  << " i3=" << first_error[3] << " i2=" << first_error[2] << " i1=" << first_error[1] << " i0=" << first_error[0] << std::endl;
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl << "Result:" << std::endl;
          ggml_vk_print_tensor_area(tensor, tensor_data, first_error[0], first_error[1], first_error[2], first_error[3]);
@@ -1099,7 +1081,7 @@
  
  #include <vulkan/vulkan_core.h>
  
-@@ -233,7 +234,7 @@
+@@ -212,7 +213,7 @@
      } while (0)
  
  #ifdef GGML_VULKAN_DEBUG
@@ -1108,7 +1090,7 @@
  #else
  #define VK_LOG_DEBUG(msg) ((void) 0)
  #endif // GGML_VULKAN_DEBUG
-@@ -1162,7 +1163,7 @@
+@@ -1141,7 +1142,7 @@
      std::vector<vk_context> contexts;
  };
  
@@ -1117,7 +1099,7 @@
  
  static std::string format_size(size_t size) {
      const size_t kib = 1024;
-@@ -1370,7 +1371,7 @@
+@@ -1364,7 +1365,7 @@
      uint32_t limit_occupancy_shmem;
  
      void print() const {
@@ -1132,9 +1114,9 @@
  #include "ggml-vulkan-common.h"
 +#include "../ggml-library-log.h"
  
- namespace {
- inline std::ostream & operator<<(std::ostream & os, vk::Buffer buffer) {
-@@ -692,7 +693,7 @@
+ static vk_device_architecture get_device_architecture(const vk::PhysicalDevice& device) {
+     vk::PhysicalDeviceProperties props = device.getProperties();
+@@ -687,7 +688,7 @@
      try {
          pipeline->shader_module = device->device.createShaderModule(shader_module_create_info);
      } catch (const vk::SystemError& e) {
@@ -1143,7 +1125,7 @@
          throw;
      }
  
-@@ -706,7 +707,7 @@
+@@ -701,7 +702,7 @@
      try {
          pipeline->layout = device->device.createPipelineLayout(pipeline_layout_create_info);
      } catch (const vk::SystemError& e) {
@@ -1152,7 +1134,7 @@
          throw;
      }
  
-@@ -776,7 +777,7 @@
+@@ -771,7 +772,7 @@
      try {
          pipeline->pipeline = device->device.createComputePipeline(VK_NULL_HANDLE, compute_pipeline_create_info).value;
      } catch (const vk::SystemError& e) {
@@ -1161,7 +1143,7 @@
          throw;
      }
  
-@@ -797,27 +798,27 @@
+@@ -792,27 +793,27 @@
          bool print_stats = !vk_pipeline_stats_filter.empty() &&
                             pipeline->name.find(vk_pipeline_stats_filter) != std::string::npos;
          if (print_stats) {
@@ -1196,7 +1178,7 @@
              }
              // "Register Count" is reported by NVIDIA drivers.
              if (strcmp(s.name, "Register Count") == 0) {
-@@ -1019,10 +1020,10 @@
+@@ -1014,10 +1015,10 @@
          return compute_index;
      }
  
@@ -1209,7 +1191,7 @@
      }
      abort();
  }
-@@ -1893,7 +1894,7 @@
+@@ -1883,7 +1884,7 @@
              // Check mmq warptiles as the largest configuration
              // Throw an error if not enough for any matrix multiplication is available
              if (!ggml_vk_matmul_shmem_support(device, s_warptile_mmq, false, t)) {
@@ -1218,7 +1200,7 @@
                  throw std::runtime_error("Shared memory size too small for matrix multiplication.");
              } else if (!ggml_vk_matmul_shmem_support(device, m_warptile_mmq, false, t)) {
                  device->mul_mat_m[i] = false;
-@@ -4004,7 +4005,7 @@
+@@ -4030,7 +4031,7 @@
          std::vector<vk::PhysicalDevice> physical_devices = vk_instance.instance.enumeratePhysicalDevices();
  
          if (dev_num >= physical_devices.size()) {
@@ -1227,7 +1209,7 @@
              throw std::runtime_error("Device not found");
          }
  
-@@ -4187,7 +4188,7 @@
+@@ -4209,7 +4210,7 @@
                                  getenv("GGML_VK_DISABLE_ASYNC") == nullptr;
  
          if (!device->support_async) {
@@ -1236,7 +1218,7 @@
          }
  
          const char* GGML_VK_FORCE_MAX_ALLOCATION_SIZE = getenv("GGML_VK_FORCE_MAX_ALLOCATION_SIZE");
-@@ -4640,7 +4641,7 @@
+@@ -4662,7 +4663,7 @@
          }
  
          if (!vk11_features.storageBuffer16BitAccess) {
@@ -1245,7 +1227,7 @@
              throw std::runtime_error("Unsupported device");
          }
  
-@@ -4750,7 +4751,7 @@
+@@ -4772,7 +4773,7 @@
  
              if (device->coopmat_m == 0 || !device->coopmat_acc_f32_support) {
                  // No suitable matmul mode found
@@ -1254,7 +1236,7 @@
                  device->coopmat_support = false;
              }
          }
-@@ -4937,7 +4938,7 @@
+@@ -4962,7 +4963,7 @@
      std::vector<vk::PhysicalDevice> devices = vk_instance.instance.enumeratePhysicalDevices();
  
      if (dev_num >= devices.size()) {
@@ -1263,7 +1245,7 @@
          throw std::runtime_error("Device not found");
      }
  
-@@ -5165,12 +5166,12 @@
+@@ -5190,12 +5191,12 @@
  #endif
  
      std::string device_name = props2.properties.deviceName.data();
@@ -1278,16 +1260,7 @@
      }
  }
  
-@@ -5192,7 +5193,7 @@
-     uint32_t api_version = vk::enumerateInstanceVersion();
- 
-     if (api_version < VK_API_VERSION_1_2) {
--        std::cerr << "ggml_vulkan: Error: Vulkan 1.2 required." << std::endl;
-+        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Error: Vulkan 1.2 required." << std::endl;
-         throw vk::SystemError(vk::Result::eErrorFeatureNotPresent, "Vulkan 1.2 required");
-     }
- 
-@@ -5283,7 +5284,7 @@
+@@ -5314,7 +5315,7 @@
          size_t tmp;
          while (ss >> tmp) {
              if(tmp >= num_available_devices) {
@@ -1296,16 +1269,16 @@
                  throw std::runtime_error("Invalid Vulkan device index");
              }
              vk_instance.device_indices.push_back(tmp);
-@@ -5410,7 +5411,7 @@
+@@ -5441,7 +5442,7 @@
              return;
          }
      }
 -    GGML_LOG_DEBUG("ggml_vulkan: Found %zu Vulkan devices:\n", vk_instance.device_indices.size());
 +    GGML_LOG_TRACE("ggml_vulkan: Found %zu Vulkan devices:\n", vk_instance.device_indices.size());
  
+     size_t host_buffer_import_count = 0;
      for (size_t i = 0; i < vk_instance.device_indices.size(); i++) {
-         vk::PhysicalDevice vkdev = devices[vk_instance.device_indices[i]];
-@@ -6167,13 +6168,13 @@
+@@ -6265,13 +6266,13 @@
          }
      }
  
@@ -1321,7 +1294,7 @@
  
      const uint32_t ne = ggml_nelements(tensor);
      std::array<uint32_t, 3> elements;
-@@ -6201,7 +6202,7 @@
+@@ -6299,7 +6300,7 @@
          const vk_subbuffer & in, const vk_subbuffer & out,
          uint32_t nb10, uint32_t nb11, uint32_t nb12, uint32_t nb13) {
      VK_LOG_DEBUG("ggml_vk_cpy_to_strided((" << tensor << ", type=" << tensor->type << ", ne0=" << tensor->ne[0] << ", ne1=" << tensor->ne[1] << ", ne2=" << tensor->ne[2] << ", ne3=" << tensor->ne[3] << ", nb0=" << tensor->nb[0] << ", nb1=" << tensor->nb[1] << ", nb2=" << tensor->nb[2] << ", nb3=" << tensor->nb[3] << "), ";
@@ -1330,7 +1303,7 @@
  
      const uint32_t ne = ggml_nelements(tensor);
      std::array<uint32_t, 3> elements;
-@@ -6229,7 +6230,7 @@
+@@ -6327,7 +6328,7 @@
          case GGML_TYPE_Q8_1:
              return ctx->device->pipeline_quantize_q8_1_x4;
          default:
@@ -1339,7 +1312,7 @@
              GGML_ABORT("fatal error");
      }
  }
-@@ -6269,9 +6270,9 @@
+@@ -6381,9 +6382,9 @@
  
  static void ggml_vk_mul_mat_q_f16(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst, bool disable_split_k) {
      VK_LOG_DEBUG("ggml_vk_mul_mat_q_f16((" << src0 << ", name=" << src0->name << ", type=" << ggml_type_name(src0->type) << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
@@ -1352,7 +1325,7 @@
      GGML_ASSERT(ggml_vk_dim01_contiguous(src0) || src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16 || src0->type == GGML_TYPE_BF16);  // NOLINT
      GGML_ASSERT(ggml_vk_dim01_contiguous(src1) || src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);  // NOLINT
  
-@@ -6641,9 +6642,9 @@
+@@ -6743,9 +6744,9 @@
      const ggml_tensor * src1 = dst->src[swap_inputs ? 0 : 1];
  
      VK_LOG_DEBUG("ggml_vk_mul_mat_vec_q_f16((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
@@ -1365,7 +1338,7 @@
      GGML_ASSERT(ggml_vk_dim01_contiguous(src0) || src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16 || src0->type == GGML_TYPE_BF16);  // NOLINT
      GGML_ASSERT(ggml_vk_dim01_contiguous(src1) || src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);  // NOLINT
  
-@@ -6883,9 +6884,9 @@
+@@ -6989,9 +6990,9 @@
      const ggml_tensor * src0 = dst->src[0];
      const ggml_tensor * src1 = dst->src[1];
      VK_LOG_DEBUG("ggml_vk_mul_mat_p021_f16_f32(" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
@@ -1378,7 +1351,7 @@
      GGML_ASSERT(ggml_is_permuted(src0) && ggml_is_permuted(src1));
      GGML_ASSERT(src0->nb[0] <= src0->nb[1] && src0->nb[2] <= src0->nb[3]);  // NOLINT
      GGML_ASSERT(src1->nb[0] <= src1->nb[1] && src1->nb[2] <= src1->nb[3]);  // NOLINT
-@@ -6975,9 +6976,9 @@
+@@ -7081,9 +7082,9 @@
      const ggml_tensor * src0 = dst->src[0];
      const ggml_tensor * src1 = dst->src[1];
      VK_LOG_DEBUG("ggml_vk_mul_mat_nc_f16_f32((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
@@ -1391,7 +1364,7 @@
      GGML_ASSERT(!ggml_is_transposed(src0));
      GGML_ASSERT(!ggml_is_transposed(src1));
      GGML_ASSERT(!ggml_is_permuted(src0));
-@@ -7303,9 +7304,9 @@
+@@ -7409,9 +7410,9 @@
  
  static void ggml_vk_mul_mat_id_q_f16(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, const ggml_tensor * src1, const ggml_tensor * ids, ggml_tensor * dst) {
      VK_LOG_DEBUG("ggml_vk_mul_mat_id_q_f16((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
@@ -1404,7 +1377,7 @@
      GGML_ASSERT(ggml_vk_dim01_contiguous(src1) || src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);  // NOLINT
      GGML_ASSERT(ids->type == GGML_TYPE_I32);
  
-@@ -7680,10 +7681,10 @@
+@@ -7766,10 +7767,10 @@
      ggml_tensor * src1 = dst->src[1];
      ggml_tensor * ids = dst->src[2];
      VK_LOG_DEBUG("ggml_vk_mul_mat_vec_id_q_f16((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
@@ -1419,7 +1392,7 @@
      GGML_ASSERT(ggml_vk_dim01_contiguous(src0) || src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16 || src0->type == GGML_TYPE_BF16);  // NOLINT
      GGML_ASSERT(ggml_vk_dim01_contiguous(src1) || src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);  // NOLINT
      GGML_ASSERT(ids->type == GGML_TYPE_I32);
-@@ -8032,13 +8033,13 @@
+@@ -8121,13 +8122,13 @@
  
  void ggml_vk_flash_attn(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * q, const ggml_tensor * k, const ggml_tensor * v, const ggml_tensor * mask, const ggml_tensor * sinks, ggml_tensor * dst) {
      VK_LOG_DEBUG("ggml_vk_flash_attn((" << q << ", name=" << q->name << ", type=" << q->type << ", ne0=" << q->ne[0] << ", ne1=" << q->ne[1] << ", ne2=" << q->ne[2] << ", ne3=" << q->ne[3] << ", nb0=" << q->nb[0] << ", nb1=" << q->nb[1] << ", nb2=" << q->nb[2] << ", nb3=" << q->nb[3];
@@ -1431,15 +1404,14 @@
 +    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
      if (sinks) {
 -        std::cerr << "), (" << sinks << ", name=" << sinks->name << ", type=" << sinks->type << ", ne0=" << sinks->ne[0] << ", ne1=" << sinks->ne[1] << ", ne2=" << sinks->ne[2] << ", ne3=" << sinks->ne[3] << ", nb0=" << sinks->nb[0] << ", nb1=" << sinks->nb[1] << ", nb2=" << sinks->nb[2] << ", nb3=" << sinks->nb[3];
--    }
--    std::cerr << "))");
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << sinks << ", name=" << sinks->name << ", type=" << sinks->type << ", ne0=" << sinks->ne[0] << ", ne1=" << sinks->ne[1] << ", ne2=" << sinks->ne[2] << ", ne3=" << sinks->ne[3] << ", nb0=" << sinks->nb[0] << ", nb1=" << sinks->nb[1] << ", nb2=" << sinks->nb[2] << ", nb3=" << sinks->nb[3];
-+    }
+     }
+-    std::cerr << "))");
 +    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "))");
  
      GGML_TENSOR_LOCALS(int64_t, neq, q,   ne)
      GGML_TENSOR_LOCALS(size_t,  nbq, q,   nb)
-@@ -9350,16 +9351,16 @@
+@@ -9516,16 +9517,16 @@
  static void ggml_vk_op_f32(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, const ggml_tensor * src1, const ggml_tensor * src2, const ggml_tensor * src3, ggml_tensor * dst, ggml_op op, PC&& pc, vk_pipeline pipeline_override = nullptr) {
      VK_LOG_DEBUG("ggml_vk_op_f32((" << src0 << ", name=" << src0->name << ", type=" << src0->type << ", ne0=" << src0->ne[0] << ", ne1=" << src0->ne[1] << ", ne2=" << src0->ne[2] << ", ne3=" << src0->ne[3] << ", nb0=" << src0->nb[0] << ", nb1=" << src0->nb[1] << ", nb2=" << src0->nb[2] << ", nb3=" << src0->nb[3];
      if (src1 != nullptr) {
@@ -1452,17 +1424,16 @@
      }
      if (src3 != nullptr) {
 -        std::cerr << "), (" << src3 << ", name=" << src3->name << ", type=" << src3->type << ", ne0=" << src3->ne[0] << ", ne1=" << src3->ne[1] << ", ne2=" << src3->ne[2] << ", ne3=" << src3->ne[3] << ", nb0=" << src3->nb[0] << ", nb1=" << src3->nb[1] << ", nb2=" << src3->nb[2] << ", nb3=" << src3->nb[3];
--    }
++        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src3 << ", name=" << src3->name << ", type=" << src3->type << ", ne0=" << src3->ne[0] << ", ne1=" << src3->ne[1] << ", ne2=" << src3->ne[2] << ", ne3=" << src3->ne[3] << ", nb0=" << src3->nb[0] << ", nb1=" << src3->nb[1] << ", nb2=" << src3->nb[2] << ", nb3=" << src3->nb[3];
+     }
 -    std::cerr << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
 -    std::cerr << "), " << ggml_op_name(op) << ")");
-+        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << src3 << ", name=" << src3->name << ", type=" << src3->type << ", ne0=" << src3->ne[0] << ", ne1=" << src3->ne[1] << ", ne2=" << src3->ne[2] << ", ne3=" << src3->ne[3] << ", nb0=" << src3->nb[0] << ", nb1=" << src3->nb[1] << ", nb2=" << src3->nb[2] << ", nb3=" << src3->nb[3];
-+    }
 +    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), (" << dst << ", name=" << dst->name << ", type=" << dst->type << ", ne0=" << dst->ne[0] << ", ne1=" << dst->ne[1] << ", ne2=" << dst->ne[2] << ", ne3=" << dst->ne[3] << ", nb0=" << dst->nb[0] << ", nb1=" << dst->nb[1] << ", nb2=" << dst->nb[2] << ", nb3=" << dst->nb[3];
 +    ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << "), " << ggml_op_name(op) << ")");
      GGML_ASSERT(op == GGML_OP_GET_ROWS || op == GGML_OP_CPY || op == GGML_OP_CONCAT || (!ggml_is_quantized(src0->type) && (src1 == nullptr || !ggml_is_quantized(src1->type))));  // NOLINT
      GGML_ASSERT(dst->buffer != nullptr);
      const uint64_t ne00 = src0->ne[0];
-@@ -9386,11 +9387,11 @@
+@@ -9552,11 +9553,11 @@
      }
  
      if (pipeline == nullptr) {
@@ -1470,15 +1441,14 @@
 +        ggml_log_stream{GGML_LOG_LEVEL_ERROR}.stream() << "ggml_vulkan: Error: Missing op: " << ggml_op_name(op) << " for " << ggml_type_name(src0->type);
          if (src1 != nullptr) {
 -            std::cerr << " and " << ggml_type_name(src1->type);
--        }
--        std::cerr << " to " << ggml_type_name(dst->type) << std::endl;
 +            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " and " << ggml_type_name(src1->type);
-+        }
+         }
+-        std::cerr << " to " << ggml_type_name(dst->type) << std::endl;
 +        ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " to " << ggml_type_name(dst->type) << std::endl;
          GGML_ABORT("fatal error");
      }
  
-@@ -9839,7 +9840,7 @@
+@@ -10008,7 +10009,7 @@
      vk_pipeline pipeline = ggml_vk_op_get_pipeline(ctx, tensors[0], tensors[1], nullptr, dst, dst->op);
  
      if (pipeline == nullptr) {
@@ -1487,7 +1457,7 @@
          GGML_ABORT("fatal error");
      }
  
-@@ -12088,44 +12089,44 @@
+@@ -12268,44 +12269,44 @@
          ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 0);
          ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 1);
          ggml_vk_test_matmul<ggml_fp16_t, float>(ctx, vals[i], vals[i + 1], vals[i + 2], 2, num_it, 1, 2);
@@ -1541,7 +1511,7 @@
          }
      }
  
-@@ -12275,7 +12276,7 @@
+@@ -12455,7 +12456,7 @@
  
          if (need_sync) {
              if (vk_enable_sync_logger) {
@@ -1550,7 +1520,7 @@
              }
              ctx->unsynced_nodes_written.clear();
              ctx->unsynced_nodes_read.clear();
-@@ -12305,15 +12306,15 @@
+@@ -12485,15 +12486,15 @@
      if (vk_enable_sync_logger) {
          for (int i = 0; i < ctx->num_additional_fused_ops + 1; ++i) {
              auto *n = cgraph->nodes[node_idx + i];
@@ -1563,15 +1533,14 @@
              if (n->op == GGML_OP_ROPE) {
                  const int mode = ((const int32_t *) n->op_params)[2];
 -                std::cerr << " rope mode: " << mode;
--            }
--            std::cerr << std::endl;
 +                ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << " rope mode: " << mode;
-+            }
+             }
+-            std::cerr << std::endl;
 +            ggml_log_stream{GGML_LOG_LEVEL_TRACE}.stream() << std::endl;
          }
      }
  
-@@ -16246,7 +16247,7 @@
+@@ -16426,7 +16427,7 @@
          }
      }
  
@@ -1580,7 +1549,7 @@
  #endif
      return false;
  }
-@@ -16259,7 +16260,7 @@
+@@ -16439,7 +16440,7 @@
              return true;
          }
      }
@@ -1589,7 +1558,7 @@
  #endif
      return false;
  
-@@ -16275,7 +16276,7 @@
+@@ -16455,7 +16456,7 @@
          }
      }
  
@@ -1598,7 +1567,7 @@
      return false;
  
      UNUSED(instance_extensions);
-@@ -16456,13 +16457,13 @@
+@@ -16644,13 +16645,13 @@
      }
      print_count = 0;
      uint64_t total_all_op_times = 0;
@@ -1614,7 +1583,7 @@
                    << " us = " << (total_op_times / 1000.0) << " us";
  
          // If we have as many flops entries as timing entries for the op, then compute and log the flops/S.
-@@ -16472,7 +16473,7 @@
+@@ -16660,7 +16661,7 @@
              for (const auto & elem : it->second) {
                  total_op_flops += elem;
              }
@@ -1623,7 +1592,7 @@
                        << (double(total_op_flops) / (1000.0 * 1000.0 * 1000.0)) /
                               (double(total_op_times) / (1000.0 * 1000.0 * 1000.0))
                        << " GFLOPS/s)";
-@@ -16480,11 +16481,11 @@
+@@ -16668,11 +16669,11 @@
  
          total_all_op_times += total_op_times;
  
@@ -1813,16 +1782,15 @@
 -#endif
 -        waitpid(child_pid, NULL, 0);
 -    }
--}
++    if (getenv("GGML_NO_BACKTRACE")) return;
++    unsigned count = 0;
++    _Unwind_Backtrace(ggml_log_frame, &count);
+ }
 -#else
 -void ggml_print_backtrace(void) {
 -    // platform not supported
 -}
 -#endif
-+    if (getenv("GGML_NO_BACKTRACE")) return;
-+    unsigned count = 0;
-+    _Unwind_Backtrace(ggml_log_frame, &count);
-+}
  
  static ggml_abort_callback_t g_abort_callback = NULL;
  
@@ -1895,7 +1863,7 @@
  }
  
  //
-@@ -7206,7 +7094,7 @@
+@@ -7292,7 +7180,7 @@
                      }
                  } break;
                  default: {
@@ -1904,7 +1872,7 @@
                          __func__, ggml_unary_op_name(ggml_get_unary_op(tensor)));
                      GGML_ABORT("fatal error");
                  } //break;
-@@ -7862,7 +7750,7 @@
+@@ -7948,7 +7836,7 @@
  static void ggml_graph_dump_dot_node_edge(FILE * fp, const struct ggml_cgraph * gb, struct ggml_tensor * node, struct ggml_tensor * parent, const char * label)  {
      struct ggml_tensor * gparent = ggml_graph_get_parent(gb, node);
      struct ggml_tensor * gparent0 = ggml_graph_get_parent(gb, parent);
@@ -1913,7 +1881,7 @@
              gparent0 ? (void *) gparent0 : (void *) parent,
              gparent ? (void *) gparent : (void *) node,
              gparent ? "empty" : "vee",
-@@ -7871,7 +7759,7 @@
+@@ -7957,7 +7845,7 @@
  }
  
  static void ggml_graph_dump_dot_leaf_edge(FILE * fp, struct ggml_tensor * node, struct ggml_tensor * parent, const char * label)  {
@@ -1922,7 +1890,7 @@
              (void *) parent,
              (void *) node,
              label);
-@@ -7883,9 +7771,9 @@
+@@ -7969,9 +7857,9 @@
      FILE * fp = ggml_fopen(filename, "w");
      GGML_ASSERT(fp);
  
@@ -1935,7 +1903,7 @@
  
      for (int i = 0; i < gb->n_nodes; i++) {
          struct ggml_tensor * node = gb->nodes[i];
-@@ -7907,27 +7795,27 @@
+@@ -7993,27 +7881,27 @@
              snprintf(color, sizeof(color), "white");
          }
  
@@ -1970,7 +1938,7 @@
          }
      }
  
-@@ -7936,20 +7824,20 @@
+@@ -8022,20 +7910,20 @@
  
          snprintf(color, sizeof(color), "pink");
  
@@ -1996,7 +1964,7 @@
              for (int j = 0; j < ggml_nelements(node); j++) {
                  // FIXME: use ggml-backend to obtain the tensor data
                  //if (node->type == GGML_TYPE_I8 || node->type == GGML_TYPE_I16 || node->type == GGML_TYPE_I32) {
-@@ -7962,15 +7850,15 @@
+@@ -8048,15 +7936,15 @@
                  //}
                  //else
                  {
@@ -2016,7 +1984,7 @@
      }
  
      for (int i = 0; i < gb->n_nodes; i++) {
-@@ -7997,7 +7885,7 @@
+@@ -8083,7 +7971,7 @@
          }
      }
  
@@ -2033,7 +2001,7 @@
  
  #include "llama-impl.h"
  #include "llama-vocab.h"
-@@ -235,10 +236,10 @@
+@@ -237,10 +238,10 @@
  
  static void print_grammar_char(FILE * file, uint32_t c) {
      if (0x20 <= c && c <= 0x7f) {
@@ -2046,7 +2014,7 @@
      }
  }
  
-@@ -256,46 +257,46 @@
+@@ -258,46 +259,46 @@
  static void print_rule_binary(FILE * file, const llama_grammar_rule & rule) {
      for (auto elem : rule) {
          switch (elem.type) {
@@ -2114,7 +2082,7 @@
  }
  
  static void print_rule(
-@@ -307,7 +308,7 @@
+@@ -309,7 +310,7 @@
          throw std::runtime_error(
              "malformed rule, does not end with LLAMA_GRETYPE_END: " + std::to_string(rule_id));
      }
@@ -2123,7 +2091,7 @@
      for (size_t i = 0, end = rule.size() - 1; i < end; i++) {
          llama_grammar_element elem = rule[i];
          switch (elem.type) {
-@@ -316,17 +317,17 @@
+@@ -318,17 +319,17 @@
                      "unexpected end of rule: " + std::to_string(rule_id) + "," +
                      std::to_string(i));
              case LLAMA_GRETYPE_ALT:
@@ -2145,7 +2113,7 @@
                  print_grammar_char(file, elem.value);
                  break;
              case LLAMA_GRETYPE_CHAR_RNG_UPPER:
-@@ -335,7 +336,7 @@
+@@ -337,7 +338,7 @@
                          "LLAMA_GRETYPE_CHAR_RNG_UPPER without preceding char: " +
                          std::to_string(rule_id) + "," + std::to_string(i));
                  }
@@ -2154,7 +2122,7 @@
                  print_grammar_char(file, elem.value);
                  break;
              case LLAMA_GRETYPE_CHAR_ALT:
-@@ -347,18 +348,18 @@
+@@ -349,18 +350,18 @@
                  print_grammar_char(file, elem.value);
                  break;
              case LLAMA_GRETYPE_CHAR_ANY:
@@ -2181,24 +2149,21 @@
                  break;
          }
          if (is_char_element(elem)) {
-@@ -368,11 +369,11 @@
+@@ -370,11 +371,11 @@
                  case LLAMA_GRETYPE_CHAR_ANY:
                      break;
                  default:
 -                    fprintf(file, "] ");
--            }
--        }
--    }
--    fprintf(file, "\n");
 +                    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "] ");
-+            }
-+        }
-+    }
+             }
+         }
+     }
+-    fprintf(file, "\n");
 +    ggml_log_fprintf(GGML_LOG_LEVEL_TRACE, file, "\n");
  }
  
  //
-@@ -717,7 +718,7 @@
+@@ -724,7 +725,7 @@
              }
          }
      } catch (const std::exception & err) {
@@ -2207,7 +2172,7 @@
          rules.clear();
          return false;
      }
-@@ -738,7 +739,7 @@
+@@ -745,7 +746,7 @@
              // fprintf(file, "\n");
          }
      } catch (const std::exception & err) {
@@ -2226,7 +2191,7 @@
  #include "gguf.h"
  #include "llama.h"
  
-@@ -89,8 +90,7 @@
+@@ -88,8 +89,7 @@
  void llama_log_callback_default(ggml_log_level level, const char * text, void * user_data) {
      (void) level;
      (void) user_data;
@@ -2244,7 +2209,7 @@
  #include "llama-model.h"
  #include "llama-model-loader.h"
  #include "llama-ext.h"
-@@ -1308,7 +1309,6 @@
+@@ -1347,7 +1348,6 @@
                  }
  
                  LLAMA_LOG_INFO("converting to %s .. ", ggml_type_name(new_type));
@@ -2260,7 +2225,7 @@
  #include "unicode-data.h"
  
  #include <algorithm>
-@@ -1382,8 +1383,8 @@
+@@ -1654,8 +1655,8 @@
                  bpe_offsets = unicode_regex_split_stl(wtext, wregex_expr, bpe_offsets);
              }
          } catch (std::regex_error & e) {
@@ -2273,15 +2238,15 @@
      }
 --- a/tools/mtmd/clip-impl.h
 +++ b/tools/mtmd/clip-impl.h
-@@ -1,6 +1,7 @@
- #pragma once
+@@ -2,6 +2,7 @@
  
  #include "ggml.h"
+ #include "ggml-cpp.h"
 +#include "../../ggml/src/ggml-library-log.h"
  #include "gguf.h"
  #include "clip.h"
  
-@@ -807,8 +808,7 @@
+@@ -934,8 +935,7 @@
  static void clip_log_callback_default(enum ggml_log_level level, const char * text, void * user_data) {
      (void) level;
      (void) user_data;
@@ -2291,7 +2256,7 @@
  }
  
  struct clip_logger_state {
-@@ -1021,14 +1021,14 @@
+@@ -1150,14 +1150,14 @@
  //
  
  static void print_tensor_shape(ggml_tensor * t) {
@@ -2302,17 +2267,15 @@
 +        ggml_log_printf(GGML_LOG_LEVEL_TRACE, "%" PRId64, t->ne[i]);
          if (i < ggml_n_dims(t) - 1) {
 -            printf(", ");
--        }
--    }
--    printf("]\n");
 +            ggml_log_printf(GGML_LOG_LEVEL_TRACE, ", ");
-+        }
-+    }
+         }
+     }
+-    printf("]\n");
 +    ggml_log_printf(GGML_LOG_LEVEL_TRACE, "]\n");
  }
  
  static void print_tensor_data(ggml_tensor * t, uint8_t * data, int64_t n) {
-@@ -1036,22 +1036,22 @@
+@@ -1165,22 +1165,22 @@
      int64_t * ne = t->ne;
      size_t * nb = t->nb;
      for (int64_t i3 = 0; i3 < ne[3]; i3++) {
@@ -2341,7 +2304,7 @@
                          i0 = ne[0] - n;
                      }
                      size_t i = i3 * nb[3] + i2 * nb[2] + i1 * nb[1] + i0 * nb[0];
-@@ -1069,14 +1069,14 @@
+@@ -1198,14 +1198,14 @@
                      } else {
                          GGML_ABORT("fatal error");
                      }
@@ -2354,10 +2317,9 @@
 +                ggml_log_printf(GGML_LOG_LEVEL_TRACE, "],\n");
              }
 -            printf("     ],\n");
--        }
--        printf("    ]\n");
 +            ggml_log_printf(GGML_LOG_LEVEL_TRACE, "     ],\n");
-+        }
+         }
+-        printf("    ]\n");
 +        ggml_log_printf(GGML_LOG_LEVEL_TRACE, "    ]\n");
      }
  }
@@ -2379,7 +2341,7 @@
              }
          }
      }
-@@ -594,7 +595,7 @@
+@@ -619,7 +620,7 @@
      // because the cgraph in clip.cpp only accepts 3000 frames each, we need to split the mel
      // we always expect the mel to have 3000 silent frames at the end
      if (DEBUG) {

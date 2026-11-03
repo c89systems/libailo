@@ -1866,6 +1866,17 @@ int main() {
       ++tested;
     }
     {
+      size_t value = 97;
+      size_t result = {};
+      CHECK(ailo_llama_context_params_moe_cache_size_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_llama_context_params_moe_cache_size_get(self, &result,
+                                                         &error) == AILO_OK);
+      CHECK(result == value);
+      CHECK(native->moe_cache_size == static_cast<size_t>(value));
+      ++tested;
+    }
+    {
       struct ailo_callback_38eb1918797a *value = nullptr;
       struct ailo_callback_38eb1918797a *result = nullptr;
       auto procedure =
@@ -2988,6 +2999,28 @@ int main() {
       CHECK(native->n_reused == static_cast<int32_t>(value));
       ++tested;
     }
+    {
+      ailo_i32 value = 97;
+      ailo_i32 result = {};
+      CHECK(ailo_llama_perf_context_data_n_reallocs_same_set(
+                self, value, &error) == AILO_OK);
+      CHECK(ailo_llama_perf_context_data_n_reallocs_same_get(
+                self, &result, &error) == AILO_OK);
+      CHECK(result == value);
+      CHECK(native->n_reallocs_same == static_cast<int32_t>(value));
+      ++tested;
+    }
+    {
+      ailo_i32 value = 97;
+      ailo_i32 result = {};
+      CHECK(ailo_llama_perf_context_data_n_reallocs_diff_set(
+                self, value, &error) == AILO_OK);
+      CHECK(ailo_llama_perf_context_data_n_reallocs_diff_get(
+                self, &result, &error) == AILO_OK);
+      CHECK(result == value);
+      CHECK(native->n_reallocs_diff == static_cast<int32_t>(value));
+      ++tested;
+    }
     struct ailo_llama_perf_context_data *element = nullptr;
     CHECK(ailo_llama_perf_context_data_array_at(self, 2, 1, &element, &error) ==
           AILO_OK);
@@ -3744,6 +3777,61 @@ int main() {
     CHECK(ailo_llama_token_data_array_array_free(nullptr, &error) == AILO_OK);
   }
   {
+    struct ailo_mtmd_audio_stream_params *self = nullptr;
+    CHECK(ailo_mtmd_audio_stream_params_array_new(2, &self, &error) ==
+              AILO_OK &&
+          self);
+    auto native = reinterpret_cast<struct mtmd_audio_stream_params *>(self);
+    (void)native;
+    {
+      ailo_i32 value = 97;
+      ailo_i32 result = {};
+      CHECK(ailo_mtmd_audio_stream_params_step_ms_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_audio_stream_params_step_ms_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->step_ms == static_cast<int32_t>(value));
+      ++tested;
+    }
+    {
+      const ailo_i32 *value = reinterpret_cast<const ailo_i32 *>(address);
+      const ailo_i32 *result = {};
+      CHECK(ailo_mtmd_audio_stream_params_prompt_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_audio_stream_params_prompt_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->prompt == static_cast<const int32_t *>(value));
+      ++tested;
+    }
+    {
+      size_t value = 97;
+      size_t result = {};
+      CHECK(ailo_mtmd_audio_stream_params_n_prompt_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_audio_stream_params_n_prompt_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->n_prompt == static_cast<size_t>(value));
+      ++tested;
+    }
+    struct ailo_mtmd_audio_stream_params *element = nullptr;
+    CHECK(ailo_mtmd_audio_stream_params_array_at(self, 2, 1, &element,
+                                                 &error) == AILO_OK);
+    CHECK(reinterpret_cast<struct mtmd_audio_stream_params *>(element) ==
+          native + 1);
+    CHECK(ailo_mtmd_audio_stream_params_array_at(self, 2, 2, &element,
+                                                 &error) == AILO_OUT_OF_RANGE &&
+          !element);
+    CHECK(ailo_mtmd_audio_stream_params_array_new(
+              std::numeric_limits<size_t>::max(), &element, &error) ==
+              AILO_OUT_OF_RANGE &&
+          !element);
+    CHECK(ailo_mtmd_audio_stream_params_array_free(self, &error) == AILO_OK);
+    CHECK(ailo_mtmd_audio_stream_params_array_free(nullptr, &error) == AILO_OK);
+  }
+  {
     struct ailo_mtmd_caps *self = nullptr;
     CHECK(ailo_mtmd_caps_array_new(2, &self, &error) == AILO_OK && self);
     auto native = reinterpret_cast<struct mtmd_caps *>(self);
@@ -3762,6 +3850,14 @@ int main() {
       CHECK(ailo_mtmd_caps_inp_audio_set(self, value, &error) == AILO_OK);
       CHECK(ailo_mtmd_caps_inp_audio_get(self, &result, &error) == AILO_OK);
       CHECK(result == 1 && native->inp_audio);
+      ++tested;
+    }
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_caps_gen_audio_set(self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_caps_gen_audio_get(self, &result, &error) == AILO_OK);
+      CHECK(result == 1 && native->gen_audio);
       ++tested;
     }
     struct ailo_mtmd_caps *element = nullptr;
@@ -4175,21 +4271,34 @@ int main() {
       ++tested;
     }
     {
-      ailo_u32 value = 97;
-      ailo_u32 result = {};
-      CHECK(ailo_mtmd_gen_inp_seed_set(self, value, &error) == AILO_OK);
-      CHECK(ailo_mtmd_gen_inp_seed_get(self, &result, &error) == AILO_OK);
-      CHECK(result == value);
-      CHECK(native->seed == static_cast<uint32_t>(value));
-      ++tested;
-    }
-    {
       float value = 0.25f;
       float result = {};
       CHECK(ailo_mtmd_gen_inp_temp_set(self, value, &error) == AILO_OK);
       CHECK(ailo_mtmd_gen_inp_temp_get(self, &result, &error) == AILO_OK);
       CHECK(result == value);
       CHECK(native->temp == static_cast<float>(value));
+      ++tested;
+    }
+    {
+      float value = 0.25f;
+      float result = {};
+      CHECK(ailo_mtmd_gen_inp_penalty_repeat_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_gen_inp_penalty_repeat_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->penalty_repeat == static_cast<float>(value));
+      ++tested;
+    }
+    {
+      ailo_i32 value = 97;
+      ailo_i32 result = {};
+      CHECK(ailo_mtmd_gen_inp_penalty_last_n_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_gen_inp_penalty_last_n_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->penalty_last_n == static_cast<int32_t>(value));
       ++tested;
     }
     {
@@ -4226,24 +4335,6 @@ int main() {
       CHECK(ailo_mtmd_gen_inp_n_feats_get(self, &result, &error) == AILO_OK);
       CHECK(result == value);
       CHECK(native->n_feats == static_cast<size_t>(value));
-      ++tested;
-    }
-    {
-      const char *value = reinterpret_cast<const char *>(address);
-      const char *result = {};
-      CHECK(ailo_mtmd_gen_inp_state_data_set(self, value, &error) == AILO_OK);
-      CHECK(ailo_mtmd_gen_inp_state_data_get(self, &result, &error) == AILO_OK);
-      CHECK(result == value);
-      CHECK(native->state_data == static_cast<const char *>(value));
-      ++tested;
-    }
-    {
-      size_t value = 97;
-      size_t result = {};
-      CHECK(ailo_mtmd_gen_inp_state_size_set(self, value, &error) == AILO_OK);
-      CHECK(ailo_mtmd_gen_inp_state_size_get(self, &result, &error) == AILO_OK);
-      CHECK(result == value);
-      CHECK(native->state_size == static_cast<size_t>(value));
       ++tested;
     }
     struct ailo_mtmd_gen_inp *element = nullptr;
@@ -4334,24 +4425,6 @@ int main() {
       CHECK(native->n_samples == static_cast<size_t>(value));
       ++tested;
     }
-    {
-      const char *value = reinterpret_cast<const char *>(address);
-      const char *result = {};
-      CHECK(ailo_mtmd_gen_out_state_data_set(self, value, &error) == AILO_OK);
-      CHECK(ailo_mtmd_gen_out_state_data_get(self, &result, &error) == AILO_OK);
-      CHECK(result == value);
-      CHECK(native->state_data == static_cast<const char *>(value));
-      ++tested;
-    }
-    {
-      size_t value = 97;
-      size_t result = {};
-      CHECK(ailo_mtmd_gen_out_state_size_set(self, value, &error) == AILO_OK);
-      CHECK(ailo_mtmd_gen_out_state_size_get(self, &result, &error) == AILO_OK);
-      CHECK(result == value);
-      CHECK(native->state_size == static_cast<size_t>(value));
-      ++tested;
-    }
     struct ailo_mtmd_gen_out *element = nullptr;
     CHECK(ailo_mtmd_gen_out_array_at(self, 2, 1, &element, &error) == AILO_OK);
     CHECK(reinterpret_cast<struct mtmd_gen_out *>(element) == native + 1);
@@ -4363,6 +4436,38 @@ int main() {
           !element);
     CHECK(ailo_mtmd_gen_out_array_free(self, &error) == AILO_OK);
     CHECK(ailo_mtmd_gen_out_array_free(nullptr, &error) == AILO_OK);
+  }
+  {
+    struct ailo_mtmd_gen_state_params *self = nullptr;
+    CHECK(ailo_mtmd_gen_state_params_array_new(2, &self, &error) == AILO_OK &&
+          self);
+    auto native = reinterpret_cast<struct mtmd_gen_state_params *>(self);
+    (void)native;
+    {
+      ailo_u32 value = 97;
+      ailo_u32 result = {};
+      CHECK(ailo_mtmd_gen_state_params_seed_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_gen_state_params_seed_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->seed == static_cast<uint32_t>(value));
+      ++tested;
+    }
+    struct ailo_mtmd_gen_state_params *element = nullptr;
+    CHECK(ailo_mtmd_gen_state_params_array_at(self, 2, 1, &element, &error) ==
+          AILO_OK);
+    CHECK(reinterpret_cast<struct mtmd_gen_state_params *>(element) ==
+          native + 1);
+    CHECK(ailo_mtmd_gen_state_params_array_at(self, 2, 2, &element, &error) ==
+              AILO_OUT_OF_RANGE &&
+          !element);
+    CHECK(ailo_mtmd_gen_state_params_array_new(
+              std::numeric_limits<size_t>::max(), &element, &error) ==
+              AILO_OUT_OF_RANGE &&
+          !element);
+    CHECK(ailo_mtmd_gen_state_params_array_free(self, &error) == AILO_OK);
+    CHECK(ailo_mtmd_gen_state_params_array_free(nullptr, &error) == AILO_OK);
   }
   {
     struct ailo_mtmd_helper_bitmap_wrapper *self = nullptr;
@@ -4411,6 +4516,95 @@ int main() {
     CHECK(ailo_mtmd_helper_bitmap_wrapper_array_free(self, &error) == AILO_OK);
     CHECK(ailo_mtmd_helper_bitmap_wrapper_array_free(nullptr, &error) ==
           AILO_OK);
+  }
+  {
+    struct ailo_mtmd_helper_cap *self = nullptr;
+    CHECK(ailo_mtmd_helper_cap_array_new(2, &self, &error) == AILO_OK && self);
+    auto native = reinterpret_cast<struct mtmd_helper_cap *>(self);
+    (void)native;
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_cap_chat_set(self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_helper_cap_chat_get(self, &result, &error) == AILO_OK);
+      CHECK(result == 1 && native->chat);
+      ++tested;
+    }
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_cap_vision_set(self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_helper_cap_vision_get(self, &result, &error) == AILO_OK);
+      CHECK(result == 1 && native->vision);
+      ++tested;
+    }
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_cap_audio_set(self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_helper_cap_audio_get(self, &result, &error) == AILO_OK);
+      CHECK(result == 1 && native->audio);
+      ++tested;
+    }
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_cap_video_set(self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_helper_cap_video_get(self, &result, &error) == AILO_OK);
+      CHECK(result == 1 && native->video);
+      ++tested;
+    }
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_cap_audio_stream_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_helper_cap_audio_stream_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == 1 && native->audio_stream);
+      ++tested;
+    }
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_cap_text_gen_set(self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_helper_cap_text_gen_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == 1 && native->text_gen);
+      ++tested;
+    }
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_cap_audio_gen_set(self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_helper_cap_audio_gen_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == 1 && native->audio_gen);
+      ++tested;
+    }
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_cap_audio_gen_spk_ref_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_helper_cap_audio_gen_spk_ref_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == 1 && native->audio_gen_spk_ref);
+      ++tested;
+    }
+    struct ailo_mtmd_helper_cap *element = nullptr;
+    CHECK(ailo_mtmd_helper_cap_array_at(self, 2, 1, &element, &error) ==
+          AILO_OK);
+    CHECK(reinterpret_cast<struct mtmd_helper_cap *>(element) == native + 1);
+    CHECK(ailo_mtmd_helper_cap_array_at(self, 2, 2, &element, &error) ==
+              AILO_OUT_OF_RANGE &&
+          !element);
+    CHECK(ailo_mtmd_helper_cap_array_new(std::numeric_limits<size_t>::max(),
+                                         &element,
+                                         &error) == AILO_OUT_OF_RANGE &&
+          !element);
+    CHECK(ailo_mtmd_helper_cap_array_free(self, &error) == AILO_OK);
+    CHECK(ailo_mtmd_helper_cap_array_free(nullptr, &error) == AILO_OK);
   }
   {
     struct ailo_mtmd_helper_embd_batch *self = nullptr;
@@ -4507,6 +4701,16 @@ int main() {
     auto native = reinterpret_cast<struct mtmd_helper_gen_audio_inp *>(self);
     (void)native;
     {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_gen_audio_inp_stream_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_helper_gen_audio_inp_stream_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == 1 && native->stream);
+      ++tested;
+    }
+    {
       ailo_i32 value = 97;
       ailo_i32 result = {};
       CHECK(ailo_mtmd_helper_gen_audio_inp_seq_id_set(self, value, &error) ==
@@ -4540,6 +4744,30 @@ int main() {
       ++tested;
     }
     {
+      ailo_i32 value = 97;
+      ailo_i32 result = {};
+      CHECK(ailo_mtmd_helper_gen_audio_inp_n_past_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_helper_gen_audio_inp_n_past_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->n_past == static_cast<int32_t>(value));
+      ++tested;
+    }
+    {
+      enum ailo_mtmd_helper_gen_audio_out_mode value =
+          AILO_MTMD_HELPER_GEN_AUDIO_OUT_AUTO;
+      enum ailo_mtmd_helper_gen_audio_out_mode result = {};
+      CHECK(ailo_mtmd_helper_gen_audio_inp_out_mode_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_helper_gen_audio_inp_out_mode_get(self, &result,
+                                                        &error) == AILO_OK);
+      CHECK(result == value);
+      CHECK(native->out_mode ==
+            static_cast<enum mtmd_helper_gen_audio_out_mode>(value));
+      ++tested;
+    }
+    {
       struct ailo_mtmd_bitmap *value =
           reinterpret_cast<struct ailo_mtmd_bitmap *>(address);
       struct ailo_mtmd_bitmap *result = {};
@@ -4561,6 +4789,17 @@ int main() {
             AILO_OK);
       CHECK(result == value);
       CHECK(native->lang == static_cast<const char *>(value));
+      ++tested;
+    }
+    {
+      const char *value = reinterpret_cast<const char *>(address);
+      const char *result = {};
+      CHECK(ailo_mtmd_helper_gen_audio_inp_voice_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_helper_gen_audio_inp_voice_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->voice == static_cast<const char *>(value));
       ++tested;
     }
     {
@@ -4773,6 +5012,16 @@ int main() {
       CHECK(native->timestamp_interval_ms == ailo::detail::to_native(value));
       ++tested;
     }
+    {
+      ailo_bool value = 17;
+      ailo_bool result = {};
+      CHECK(ailo_mtmd_helper_video_init_params_no_soundtrack_set(
+                self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_helper_video_init_params_no_soundtrack_get(
+                self, &result, &error) == AILO_OK);
+      CHECK(result == 1 && native->no_soundtrack);
+      ++tested;
+    }
     struct ailo_mtmd_helper_video_init_params *element = nullptr;
     CHECK(ailo_mtmd_helper_video_init_params_array_at(self, 2, 1, &element,
                                                       &error) == AILO_OK);
@@ -4947,7 +5196,78 @@ int main() {
     CHECK(ailo_mtmd_memory_usage_array_free(self, &error) == AILO_OK);
     CHECK(ailo_mtmd_memory_usage_array_free(nullptr, &error) == AILO_OK);
   }
-  CHECK(tested == 306);
+  {
+    struct ailo_mtmd_video_config *self = nullptr;
+    CHECK(ailo_mtmd_video_config_array_new(2, &self, &error) == AILO_OK &&
+          self);
+    auto native = reinterpret_cast<struct mtmd_video_config *>(self);
+    (void)native;
+    {
+      enum ailo_mtmd_video_template value = AILO_MTMD_VIDEO_TEMPLATE_DEFAULT;
+      enum ailo_mtmd_video_template result = {};
+      CHECK(ailo_mtmd_video_config_tmpl_set(self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_video_config_tmpl_get(self, &result, &error) == AILO_OK);
+      CHECK(result == value);
+      CHECK(native->tmpl == static_cast<enum mtmd_video_template>(value));
+      ++tested;
+    }
+    {
+      float value = 0.25f;
+      float result = {};
+      CHECK(ailo_mtmd_video_config_fps_set(self, value, &error) == AILO_OK);
+      CHECK(ailo_mtmd_video_config_fps_get(self, &result, &error) == AILO_OK);
+      CHECK(result == value);
+      CHECK(native->fps == static_cast<float>(value));
+      ++tested;
+    }
+    {
+      ailo_i32 value = 97;
+      ailo_i32 result = {};
+      CHECK(ailo_mtmd_video_config_n_frames_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_video_config_n_frames_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->n_frames == static_cast<int32_t>(value));
+      ++tested;
+    }
+    {
+      ailo_i32 value = 97;
+      ailo_i32 result = {};
+      CHECK(ailo_mtmd_video_config_frame_width_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_video_config_frame_width_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->frame_width == static_cast<int32_t>(value));
+      ++tested;
+    }
+    {
+      ailo_i32 value = 97;
+      ailo_i32 result = {};
+      CHECK(ailo_mtmd_video_config_frame_height_set(self, value, &error) ==
+            AILO_OK);
+      CHECK(ailo_mtmd_video_config_frame_height_get(self, &result, &error) ==
+            AILO_OK);
+      CHECK(result == value);
+      CHECK(native->frame_height == static_cast<int32_t>(value));
+      ++tested;
+    }
+    struct ailo_mtmd_video_config *element = nullptr;
+    CHECK(ailo_mtmd_video_config_array_at(self, 2, 1, &element, &error) ==
+          AILO_OK);
+    CHECK(reinterpret_cast<struct mtmd_video_config *>(element) == native + 1);
+    CHECK(ailo_mtmd_video_config_array_at(self, 2, 2, &element, &error) ==
+              AILO_OUT_OF_RANGE &&
+          !element);
+    CHECK(ailo_mtmd_video_config_array_new(std::numeric_limits<size_t>::max(),
+                                           &element,
+                                           &error) == AILO_OUT_OF_RANGE &&
+          !element);
+    CHECK(ailo_mtmd_video_config_array_free(self, &error) == AILO_OK);
+    CHECK(ailo_mtmd_video_config_array_free(nullptr, &error) == AILO_OK);
+  }
+  CHECK(tested == 329);
   std::printf("Native record fields verified: %zu\n", tested);
   return 0;
 }

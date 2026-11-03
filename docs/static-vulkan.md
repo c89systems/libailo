@@ -638,7 +638,8 @@ and diagnostic reporting. FP16 remains enabled. This is a precision policy:
 the alternative Q8_1 activation conversion changes probabilities. It is not a
 claim that the hardware's integer-dot instructions are defective. Other device
 IDs retain the existing selection, including the existing disable environment
-variable. The upstream source pin remains `b11430`.
+variable. This baseline used upstream `b11430`; the subsequent `v0.8.0` upgrade
+retains this policy and the full Mesa LDS reservation.
 
 Eight synthetic matvec/matrix cases cover Q4_K, Q6_K, Q5_0 and Q8_0 weights,
 one/128 RHS columns and controlled activation outliers. With integer dot enabled,
@@ -715,6 +716,71 @@ the actual workload; these measurements are not broader model/hardware or
 sustained-performance claims. Timing/reduction sources remain under ignored
 `stash/raphael-reduction/`; data, binary hashes and ablations are under
 `build/raphael-followup/`.
+
+### llama.cpp v0.8.0 qualification, 2026-11-03
+
+The dependency now pins stable `v0.8.0`, commit
+`8642541b255bfb5dc39cd351a178be09013a55d6`. The ten integration patches are
+retained, with four rebased; one additional patch adds attention tests only.
+The upstream memory-budget clamp supersedes our previous underflow guard.
+Raphael still uses floating activations, FP16, the full 64 KiB LDS reservation
+and explicit LDS barrier waits. The earlier throughput measurements above used
+`b11430` and have not been repeated for this pin.
+
+On the same Ryzen 5 7600/Raphael host:
+
+| Gate | GNU | Fully static musl |
+| --- | --- | --- |
+| Offline native suite | 81/81 | 78/78 |
+| Installed Lua suite | 5/5 | Not run on musl |
+| Qwen strict F16-reference logits | Pass | Pass |
+| Fresh matrix processes, four storage/precision configurations | 400/400 | 400/400 |
+| Selected upstream attention cases, including new scratch-path cases | 48/48 | 48/48 |
+| Trained text/compaction/transport/Codex/vision/audio serving | 6/6 | 6/6, with file/process traces |
+| Relocated static RADV/ANV and built-in loader isolation | Pass | Pass |
+
+Both trained-logit runs have worst max/RMS/KL errors
+`0.0704010414 / 0.0115375858 / 0.0000117941872`, zero differing argmax positions
+and zero tolerance violations. Model/reference hashes, identical-prefix protocol
+and tolerances are unchanged. The static-musl integer-only isolation campaign
+also passes 1,500 fresh processes / 12,000 dispatches. Shared-memory, matrix,
+logits, backend-operation, serving-fixture and stream-client executables all
+have no `PT_INTERP` or `DT_NEEDED`. Trained musl serving uses poisoned ICD paths
+and rejects shared-object loading or runtime helper execution.
+
+The pin includes AMD's `kv_raw_strided` attention scratch-copy implementation,
+gated to AMD except RDNA4. The original 24 selected upstream cases cover decode,
+prefill, F16 layouts and Q8_0/Q4_0 KV. They do not cross the new path's 256-token
+threshold. Patch 0011 adds 24 cases at batches 255/256/512, both precisions and
+contiguous/permuted layouts with and without padded cache views. The dense
+permuted cases at 256/512 enter the new path; the other cases test its bypasses.
+All compare actual Vulkan computation with CPU using upstream's unchanged
+`5e-4` normalized mean-square-error tolerance. Reproduce the new cases after
+preparing the selected build:
+
+```sh
+build=build/x86_64-linux-musl-release
+cmake --build "$build" --target ailo_qualify_backend_ops --parallel 2
+params='hsk=64,hsv=64,nh=4,nr23=\[1,1\],kv=512,nb=(255|256|512),mask=1,sinks=0,max_bias=0\.000000,logit_softcap=0\.000000,.*type_K=f16,type_V=f16'
+MESA_SHADER_CACHE_DISABLE=true timeout 300 "$build/ailo_qualify_backend_ops" \
+  test -b Vulkan0 -o FLASH_ATTN_EXT -p "$params"
+```
+
+Require `24/24 tests passed`; selecting zero cases is not a successful gate.
+This tool is excluded from normal builds and installation.
+
+The upgrade exposed stale project-owned template objects after archive
+replacement: upstream timestamps were older than the existing objects. Those
+objects now depend on the extraction contract. A regression replaces a header
+with an older timestamp and proves that changing the contract rebuilds the
+executable with the new layout. Fresh archive reconstruction plus the eleven
+zero-fuzz patches exactly matches both prepared source trees. The regenerated
+C89 facade covers 1,111 functions and 329 fields with zero gaps; native API
+cutovers are recorded in the [integration record](../vendor/llama/README.md).
+
+Logs and reconstruction inputs are under `build/llama-upgrade/`. These results
+qualify this development profile on Raphael. Actual Halo, Mendocino, RDNA4,
+non-AMD hardware, BF16 and long-context stress remain separate gates.
 
 ### Larger dense and MoE execution probes
 

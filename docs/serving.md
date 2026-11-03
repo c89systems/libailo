@@ -311,6 +311,13 @@ and all six trained serving cases in fully static musl. The scoped throughput
 measurements favor CPU for short interactive decode on this small APU. Broader
 models, contexts and hardware remain separate gates.
 
+The subsequent llama.cpp `v0.8.0` upgrade repeats all six trained Vulkan serving
+cases successfully on GNU and fully static musl, including Codex tool execution
+and compaction. Musl also passes file/process trace checks with poisoned external
+ICD paths. See the [upgrade qualification](static-vulkan.md#llamacpp-v080-qualification-2026-11-03)
+and `build/llama-upgrade/logs/` for scoped numerical, attention and static-closure
+evidence. The throughput figures above remain measurements of the earlier pin.
+
 With cpkt 0.5.2, cpktmisc 0.2.1 and LLVM/Clang 23.1.4 host generators, the
 Ryzen 5 7600/RADV Raphael GNU build passes all six trained serving cases on CPU.
 Vulkan passes protocol, transport, vision and audio, but compaction and Codex

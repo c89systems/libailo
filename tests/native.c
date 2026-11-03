@@ -19,6 +19,9 @@ int main(void) {
   struct ailo_ggml_tensor *a = NULL;
   struct ailo_ggml_tensor *b = NULL;
   struct ailo_ggml_tensor *sum = NULL;
+  struct ailo_ggml_tensor *product = NULL;
+  struct ailo_mtmd_audio_stream_params *audio_params = NULL;
+  struct ailo_mtmd_gen_state_params *generation_params = NULL;
   struct ailo_ggml_cgraph *graph = NULL;
   struct ailo_storage_int64_t *shape = NULL;
   ailo_error error;
@@ -28,9 +31,37 @@ int main(void) {
   ailo_i64 size;
   long key_number;
   int threads;
+  ailo_i32 step_ms;
+  ailo_u32 seed;
+  const ailo_i32 *prompt = NULL;
+  size_t prompt_count;
+  enum ailo_ggml_prec precision;
   float result;
   enum ailo_ggml_status native_status;
   ailo_bool truth;
+
+  CHECK(ailo_mtmd_audio_stream_params_default(NULL, &error) ==
+        AILO_INVALID_ARGUMENT);
+  CHECK(ailo_mtmd_audio_stream_params_default(&audio_params, &error) ==
+        AILO_OK);
+  CHECK(ailo_mtmd_audio_stream_params_step_ms_get(audio_params, &step_ms,
+                                                  &error) == AILO_OK &&
+        step_ms == 320);
+  CHECK(ailo_mtmd_audio_stream_params_prompt_get(audio_params, &prompt,
+                                                 &error) == AILO_OK &&
+        prompt == NULL);
+  CHECK(ailo_mtmd_audio_stream_params_n_prompt_get(audio_params, &prompt_count,
+                                                   &error) == AILO_OK &&
+        prompt_count == 0);
+  CHECK(ailo_mtmd_audio_stream_params_array_free(audio_params, &error) ==
+        AILO_OK);
+  CHECK(ailo_mtmd_gen_state_params_default(&generation_params, &error) ==
+        AILO_OK);
+  CHECK(ailo_mtmd_gen_state_params_seed_get(generation_params, &seed, &error) ==
+            AILO_OK &&
+        seed == 0xffffffffU);
+  CHECK(ailo_mtmd_gen_state_params_array_free(generation_params, &error) ==
+        AILO_OK);
 
   CHECK(ailo_gguf_init_empty(&gguf, &error) == AILO_OK && gguf);
   signed_value.hi = 0x80000000U;
@@ -76,14 +107,33 @@ int main(void) {
   CHECK(ailo_ggml_set_f32(a, 2.0f, &a, &error) == AILO_OK);
   CHECK(ailo_ggml_set_f32(b, 3.0f, &b, &error) == AILO_OK);
   CHECK(ailo_ggml_add(context, a, b, &sum, &error) == AILO_OK && sum);
+  CHECK(ailo_ggml_prec_get_acc(sum, &precision, &error) == AILO_OK &&
+        precision == AILO_GGML_PREC_UNDEFINED);
+  CHECK(ailo_ggml_mul_mat(context, a, b, &product, &error) == AILO_OK &&
+        product);
+  CHECK(ailo_ggml_prec_set_acc(product, AILO_GGML_PREC_F32, &truth, &error) ==
+            AILO_OK &&
+        truth);
+  CHECK(ailo_ggml_prec_set_src(product, AILO_GGML_PREC_F32, 1, &truth,
+                               &error) == AILO_OK &&
+        truth);
+  CHECK(ailo_ggml_prec_get_acc(product, &precision, &error) == AILO_OK &&
+        precision == AILO_GGML_PREC_F32);
+  CHECK(ailo_ggml_prec_get_src(product, 1, &precision, &error) == AILO_OK &&
+        precision == AILO_GGML_PREC_F32);
+  CHECK(ailo_ggml_prec_get_src(product, 0, &precision, &error) == AILO_OK &&
+        precision == AILO_GGML_PREC_UNDEFINED);
   CHECK(ailo_ggml_new_graph(context, &graph, &error) == AILO_OK && graph);
   CHECK(ailo_ggml_build_forward_expand(graph, sum, &error) == AILO_OK);
+  CHECK(ailo_ggml_build_forward_expand(graph, product, &error) == AILO_OK);
   CHECK(ailo_ggml_graph_compute_with_ctx(context, graph, 2, &native_status,
                                          &error) == AILO_OK);
   CHECK(native_status == AILO_GGML_STATUS_SUCCESS);
   index = ailo_i64_from_long(2);
   CHECK(ailo_ggml_get_f32_1d(sum, 2, &result, &error) == AILO_OK &&
         result == 5.0f);
+  CHECK(ailo_ggml_get_f32_1d(product, 0, &result, &error) == AILO_OK &&
+        result == 18.0f);
   CHECK(ailo_ggml_is_contiguous(sum, &truth, &error) == AILO_OK && truth);
   CHECK(ailo_storage_int64_t_get(shape, 1, 0, &s_result, &error) == AILO_OK);
   CHECK(s_result.hi == size.hi && s_result.lo == size.lo);

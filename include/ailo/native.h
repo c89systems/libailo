@@ -70,6 +70,8 @@ struct ailo_llama_sampler_seq_config;
 struct ailo_llama_token_data;
 struct ailo_llama_token_data_array;
 struct ailo_llama_vocab;
+struct ailo_mtmd_audio_stream;
+struct ailo_mtmd_audio_stream_params;
 struct ailo_mtmd_batch;
 struct ailo_mtmd_bitmap;
 struct ailo_mtmd_caps;
@@ -79,7 +81,10 @@ struct ailo_mtmd_decoder_pos;
 struct ailo_mtmd_gen_audio_info;
 struct ailo_mtmd_gen_inp;
 struct ailo_mtmd_gen_out;
+struct ailo_mtmd_gen_state;
+struct ailo_mtmd_gen_state_params;
 struct ailo_mtmd_helper_bitmap_wrapper;
+struct ailo_mtmd_helper_cap;
 struct ailo_mtmd_helper_embd_batch;
 struct ailo_mtmd_helper_gen_audio;
 struct ailo_mtmd_helper_gen_audio_inp;
@@ -93,6 +98,7 @@ struct ailo_mtmd_input_chunks;
 struct ailo_mtmd_input_part;
 struct ailo_mtmd_input_text;
 struct ailo_mtmd_memory_usage;
+struct ailo_mtmd_video_config;
 struct ailo_storage_int64_t;
 struct ailo_storage_uint64_t;
 struct ailo_storage_bool;
@@ -116,7 +122,9 @@ struct ailo_callback_34abb2fc8457;
 struct ailo_callback_3e7566bc4071;
 struct ailo_callback_7ace5c7c16b7;
 struct ailo_callback_3f82fde60665;
+struct ailo_callback_abba0213d6e6;
 struct ailo_callback_f8d1d962e687;
+struct ailo_callback_561b69b5e9c0;
 struct ailo_callback_483f122aa30e;
 struct ailo_callback_a5b73e2c7b21;
 struct ailo_callback_be60c48b0a98;
@@ -321,17 +329,18 @@ enum ailo_ggml_op {
   AILO_GGML_OP_DSV4_HC_COMB = 88,
   AILO_GGML_OP_DSV4_HC_PRE = 89,
   AILO_GGML_OP_DSV4_HC_POST = 90,
-  AILO_GGML_OP_UNARY = 91,
-  AILO_GGML_OP_MAP_CUSTOM1 = 92,
-  AILO_GGML_OP_MAP_CUSTOM2 = 93,
-  AILO_GGML_OP_MAP_CUSTOM3 = 94,
-  AILO_GGML_OP_CUSTOM = 95,
-  AILO_GGML_OP_CROSS_ENTROPY_LOSS = 96,
-  AILO_GGML_OP_CROSS_ENTROPY_LOSS_BACK = 97,
-  AILO_GGML_OP_OPT_STEP_ADAMW = 98,
-  AILO_GGML_OP_OPT_STEP_SGD = 99,
-  AILO_GGML_OP_GLU = 100,
-  AILO_GGML_OP_COUNT = 101
+  AILO_GGML_OP_TOP_K_MASK = 91,
+  AILO_GGML_OP_UNARY = 92,
+  AILO_GGML_OP_MAP_CUSTOM1 = 93,
+  AILO_GGML_OP_MAP_CUSTOM2 = 94,
+  AILO_GGML_OP_MAP_CUSTOM3 = 95,
+  AILO_GGML_OP_CUSTOM = 96,
+  AILO_GGML_OP_CROSS_ENTROPY_LOSS = 97,
+  AILO_GGML_OP_CROSS_ENTROPY_LOSS_BACK = 98,
+  AILO_GGML_OP_OPT_STEP_ADAMW = 99,
+  AILO_GGML_OP_OPT_STEP_SGD = 100,
+  AILO_GGML_OP_GLU = 101,
+  AILO_GGML_OP_COUNT = 102
 };
 enum ailo_ggml_op_hint {
   AILO_GGML_HINT_NONE = 0,
@@ -636,16 +645,25 @@ enum ailo_llama_vocab_type {
   AILO_LLAMA_VOCAB_TYPE_UGM = 4,
   AILO_LLAMA_VOCAB_TYPE_RWKV = 5,
   AILO_LLAMA_VOCAB_TYPE_PLAMO2 = 6,
-  AILO_LLAMA_VOCAB_TYPE_TEST = 7
+  AILO_LLAMA_VOCAB_TYPE_TEST = 7,
+  AILO_LLAMA_VOCAB_TYPE_PLAMO3 = 8
 };
 enum ailo_mtmd_gen_audio_type {
   AILO_MTMD_GEN_AUDIO_TYPE_NONE = 0,
   AILO_MTMD_GEN_AUDIO_TYPE_QWEN3TTS = 1,
-  AILO_MTMD_GEN_AUDIO_TYPE_POCKETTTS = 2
+  AILO_MTMD_GEN_AUDIO_TYPE_POCKETTTS = 2,
+  AILO_MTMD_GEN_AUDIO_TYPE_SOPRANO = 3,
+  AILO_MTMD_GEN_AUDIO_TYPE_LFM3A = 4
 };
 enum ailo_mtmd_gen_process_type {
   AILO_MTMD_GEN_PROCESS_TYPE_GEN_CODE = 0,
   AILO_MTMD_GEN_PROCESS_TYPE_GEN_WAV = 1
+};
+enum ailo_mtmd_helper_gen_audio_out_mode {
+  AILO_MTMD_HELPER_GEN_AUDIO_OUT_AUTO = 0,
+  AILO_MTMD_HELPER_GEN_AUDIO_OUT_TEXT = 1,
+  AILO_MTMD_HELPER_GEN_AUDIO_OUT_AUDIO = 2,
+  AILO_MTMD_HELPER_GEN_AUDIO_OUT_MIXED = 3
 };
 enum ailo_mtmd_helper_gen_audio_outtype {
   AILO_MTMD_HELPER_GEN_AUDIO_OUTTYPE_PCM = 0,
@@ -656,6 +674,11 @@ enum ailo_mtmd_input_chunk_type {
   AILO_MTMD_INPUT_CHUNK_TYPE_IMAGE = 1,
   AILO_MTMD_INPUT_CHUNK_TYPE_AUDIO = 2,
   AILO_MTMD_INPUT_CHUNK_TYPE_COUNT = 3
+};
+enum ailo_mtmd_video_template {
+  AILO_MTMD_VIDEO_TEMPLATE_DEFAULT = 0,
+  AILO_MTMD_VIDEO_TEMPLATE_LFM3 = 1,
+  AILO_MTMD_VIDEO_TEMPLATE_LFM3_OMNI = 2
 };
 typedef ailo_bool (*ailo_callback_38eb1918797a_fn)(void *,
                                                    void *bridge_user_data);
@@ -679,9 +702,17 @@ typedef struct ailo_ggml_backend_feature *(*ailo_callback_7ace5c7c16b7_fn)(
 typedef struct ailo_ggml_backend_meta_split_state *(
     *ailo_callback_3f82fde60665_fn)(const struct ailo_ggml_tensor *, void *,
                                     void *bridge_user_data);
+typedef ailo_bool (*ailo_callback_abba0213d6e6_fn)(
+    struct ailo_ggml_backend *, const struct ailo_ggml_tensor *,
+    struct ailo_ggml_tensor *, struct ailo_ggml_cgraph *, void *,
+    void *bridge_user_data);
 typedef ailo_bool (*ailo_callback_f8d1d962e687_fn)(struct ailo_ggml_tensor *,
                                                    ailo_bool, void *,
                                                    void *bridge_user_data);
+typedef void (*ailo_callback_561b69b5e9c0_fn)(struct ailo_ggml_backend_sched *,
+                                              struct ailo_ggml_cgraph *,
+                                              ailo_bool, ailo_bool, void *,
+                                              void *bridge_user_data);
 typedef void (*ailo_callback_483f122aa30e_fn)(
     struct ailo_ggml_backend *, struct ailo_callback_38eb1918797a *, void *,
     void *bridge_user_data);
@@ -1074,6 +1105,34 @@ ailo_status ailo_ggml_backend_meta_get_split_state_t_clear_error(
     struct ailo_callback_3f82fde60665 *self, ailo_error *error);
 ailo_status ailo_ggml_backend_meta_get_split_state_t_error(
     struct ailo_callback_3f82fde60665 *self, ailo_error *error);
+typedef ailo_callback_abba0213d6e6_fn ailo_ggml_backend_sched_copy_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_sched_copy_callback_new(
+    ailo_ggml_backend_sched_copy_callback_fn function, void *user_data,
+    struct ailo_callback_abba0213d6e6 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_sched_copy_callback_from_address(
+    void *address, struct ailo_callback_abba0213d6e6 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_backend_sched_copy_callback_free(
+    struct ailo_callback_abba0213d6e6 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_sched_copy_callback_call(
+    struct ailo_callback_abba0213d6e6 *self,
+    struct ailo_ggml_backend *argument_0,
+    const struct ailo_ggml_tensor *argument_1,
+    struct ailo_ggml_tensor *argument_2, struct ailo_ggml_cgraph *argument_3,
+    void *argument_4, ailo_bool *output, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_sched_copy_callback_clear_error(
+    struct ailo_callback_abba0213d6e6 *self, ailo_error *error);
+ailo_status ailo_ggml_backend_sched_copy_callback_error(
+    struct ailo_callback_abba0213d6e6 *self, ailo_error *error);
 typedef ailo_callback_f8d1d962e687_fn ailo_ggml_backend_sched_eval_callback_fn;
 /** Own an independent typed closure. Keep it and callback user state alive
  * until all native users stop. */
@@ -1158,6 +1217,34 @@ ailo_status ailo_mtmd_context_params_cb_eval_callback_clear_error(
     struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
 ailo_status ailo_mtmd_context_params_cb_eval_callback_error(
     struct ailo_callback_f8d1d962e687 *self, ailo_error *error);
+typedef ailo_callback_561b69b5e9c0_fn
+    ailo_ggml_backend_sched_realloc_callback_fn;
+/** Own an independent typed closure. Keep it and callback user state alive
+ * until all native users stop. */
+ailo_status ailo_ggml_backend_sched_realloc_callback_new(
+    ailo_ggml_backend_sched_realloc_callback_fn function, void *user_data,
+    struct ailo_callback_561b69b5e9c0 **output, ailo_error *error);
+/** Own a callable view of a native procedure address; the procedure owner stays
+ * borrowed. */
+ailo_status ailo_ggml_backend_sched_realloc_callback_from_address(
+    void *address, struct ailo_callback_561b69b5e9c0 **output,
+    ailo_error *error);
+/** Release an owned closure/view after native users stop; NULL is accepted.
+ * Never free a borrowed callback argument. */
+ailo_status ailo_ggml_backend_sched_realloc_callback_free(
+    struct ailo_callback_561b69b5e9c0 *self, ailo_error *error);
+/** Call a borrowed/native or owned callback using its native preconditions;
+ * by-value record copies are owned, native pointer ownership is unchanged. */
+ailo_status ailo_ggml_backend_sched_realloc_callback_call(
+    struct ailo_callback_561b69b5e9c0 *self,
+    struct ailo_ggml_backend_sched *argument_0,
+    struct ailo_ggml_cgraph *argument_1, ailo_bool argument_2,
+    ailo_bool argument_3, void *argument_4, ailo_error *error);
+/** Clear the sticky callback exception status after inspecting it. */
+ailo_status ailo_ggml_backend_sched_realloc_callback_clear_error(
+    struct ailo_callback_561b69b5e9c0 *self, ailo_error *error);
+ailo_status ailo_ggml_backend_sched_realloc_callback_error(
+    struct ailo_callback_561b69b5e9c0 *self, ailo_error *error);
 typedef ailo_callback_483f122aa30e_fn ailo_ggml_backend_set_abort_callback_t_fn;
 /** Own an independent typed closure. Keep it and callback user state alive
  * until all native users stop. */
@@ -2352,8 +2439,12 @@ typedef void *ailo_ggml_backend_graph_plan_t;
 typedef struct ailo_callback_3f82fde60665
     *ailo_ggml_backend_meta_get_split_state_t;
 typedef struct ailo_ggml_backend_reg *ailo_ggml_backend_reg_t;
+typedef struct ailo_callback_abba0213d6e6
+    *ailo_ggml_backend_sched_copy_callback;
 typedef struct ailo_callback_f8d1d962e687
     *ailo_ggml_backend_sched_eval_callback;
+typedef struct ailo_callback_561b69b5e9c0
+    *ailo_ggml_backend_sched_realloc_callback;
 typedef struct ailo_ggml_backend_sched *ailo_ggml_backend_sched_t;
 typedef struct ailo_callback_483f122aa30e
     *ailo_ggml_backend_set_abort_callback_t;
@@ -2398,10 +2489,13 @@ typedef ailo_u32 ailo_llama_state_seq_flags;
 typedef ailo_i32 ailo_llama_token;
 typedef struct ailo_llama_token_data ailo_llama_token_data;
 typedef struct ailo_llama_token_data_array ailo_llama_token_data_array;
+typedef struct ailo_mtmd_audio_stream ailo_mtmd_audio_stream;
 typedef struct ailo_mtmd_batch ailo_mtmd_batch;
 typedef struct ailo_mtmd_bitmap ailo_mtmd_bitmap;
 typedef struct ailo_callback_06fd6db0a9de *ailo_mtmd_bitmap_lazy_callback;
 typedef struct ailo_mtmd_context ailo_mtmd_context;
+typedef struct ailo_mtmd_gen_state ailo_mtmd_gen_state;
+typedef struct ailo_mtmd_helper_cap ailo_mtmd_helper_cap;
 typedef struct ailo_mtmd_helper_gen_audio ailo_mtmd_helper_gen_audio;
 typedef struct ailo_mtmd_helper_init_opt ailo_mtmd_helper_init_opt;
 typedef struct ailo_callback_afd0a9f8fed8
@@ -3737,6 +3831,14 @@ ailo_llama_context_params_type_v_set(struct ailo_llama_context_params *self,
                                      ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
+ailo_status ailo_llama_context_params_moe_cache_size_get(
+    const struct ailo_llama_context_params *self, size_t *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_llama_context_params_moe_cache_size_set(
+    struct ailo_llama_context_params *self, size_t value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
 ailo_status ailo_llama_context_params_abort_callback_get(
     const struct ailo_llama_context_params *self,
     struct ailo_callback_38eb1918797a **output, ailo_error *error);
@@ -4531,6 +4633,24 @@ ailo_status ailo_llama_perf_context_data_n_reused_get(
 ailo_status ailo_llama_perf_context_data_n_reused_set(
     struct ailo_llama_perf_context_data *self, ailo_i32 value,
     ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_llama_perf_context_data_n_reallocs_same_get(
+    const struct ailo_llama_perf_context_data *self, ailo_i32 *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_llama_perf_context_data_n_reallocs_same_set(
+    struct ailo_llama_perf_context_data *self, ailo_i32 value,
+    ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_llama_perf_context_data_n_reallocs_diff_get(
+    const struct ailo_llama_perf_context_data *self, ailo_i32 *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_llama_perf_context_data_n_reallocs_diff_set(
+    struct ailo_llama_perf_context_data *self, ailo_i32 value,
+    ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
 ailo_status ailo_llama_perf_sampler_data_array_new(
@@ -4936,6 +5056,47 @@ ailo_llama_token_data_array_sorted_set(struct ailo_llama_token_data_array *self,
                                        ailo_bool value, ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
+ailo_status ailo_mtmd_audio_stream_params_array_new(
+    size_t count, struct ailo_mtmd_audio_stream_params **output,
+    ailo_error *error);
+/** Release only a facade element allocation or by-value result; NULL is
+ * accepted. */
+ailo_status ailo_mtmd_audio_stream_params_array_free(
+    struct ailo_mtmd_audio_stream_params *self, ailo_error *error);
+/** Borrow an element using the actual caller-declared extent; never free the
+ * element. */
+ailo_status ailo_mtmd_audio_stream_params_array_at(
+    struct ailo_mtmd_audio_stream_params *self, size_t count, size_t index,
+    struct ailo_mtmd_audio_stream_params **output, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_audio_stream_params_step_ms_get(
+    const struct ailo_mtmd_audio_stream_params *self, ailo_i32 *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_audio_stream_params_step_ms_set(
+    struct ailo_mtmd_audio_stream_params *self, ailo_i32 value,
+    ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_audio_stream_params_prompt_get(
+    const struct ailo_mtmd_audio_stream_params *self, const ailo_i32 **output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_audio_stream_params_prompt_set(
+    struct ailo_mtmd_audio_stream_params *self, const ailo_i32 *value,
+    ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_audio_stream_params_n_prompt_get(
+    const struct ailo_mtmd_audio_stream_params *self, size_t *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_audio_stream_params_n_prompt_set(
+    struct ailo_mtmd_audio_stream_params *self, size_t value,
+    ailo_error *error);
+/** Allocate zero-initialized native-backed elements; caller owns the result and
+ * count. */
 ailo_status ailo_mtmd_caps_array_new(size_t count,
                                      struct ailo_mtmd_caps **output,
                                      ailo_error *error);
@@ -4962,6 +5123,13 @@ ailo_status ailo_mtmd_caps_inp_audio_get(const struct ailo_mtmd_caps *self,
                                          ailo_bool *output, ailo_error *error);
 /** Mutate the native field; referenced pointer owners must remain alive. */
 ailo_status ailo_mtmd_caps_inp_audio_set(struct ailo_mtmd_caps *self,
+                                         ailo_bool value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_caps_gen_audio_get(const struct ailo_mtmd_caps *self,
+                                         ailo_bool *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_caps_gen_audio_set(struct ailo_mtmd_caps *self,
                                          ailo_bool value, ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
@@ -5251,18 +5419,29 @@ ailo_status ailo_mtmd_gen_inp_top_p_set(struct ailo_mtmd_gen_inp *self,
                                         float value, ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
-ailo_status ailo_mtmd_gen_inp_seed_get(const struct ailo_mtmd_gen_inp *self,
-                                       ailo_u32 *output, ailo_error *error);
-/** Mutate the native field; referenced pointer owners must remain alive. */
-ailo_status ailo_mtmd_gen_inp_seed_set(struct ailo_mtmd_gen_inp *self,
-                                       ailo_u32 value, ailo_error *error);
-/** Read the native field with explicit conversion; record-value copies are
- * owned, pointer views borrowed. */
 ailo_status ailo_mtmd_gen_inp_temp_get(const struct ailo_mtmd_gen_inp *self,
                                        float *output, ailo_error *error);
 /** Mutate the native field; referenced pointer owners must remain alive. */
 ailo_status ailo_mtmd_gen_inp_temp_set(struct ailo_mtmd_gen_inp *self,
                                        float value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_gen_inp_penalty_repeat_get(const struct ailo_mtmd_gen_inp *self,
+                                     float *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_gen_inp_penalty_repeat_set(struct ailo_mtmd_gen_inp *self,
+                                                 float value,
+                                                 ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_gen_inp_penalty_last_n_get(const struct ailo_mtmd_gen_inp *self,
+                                     ailo_i32 *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_gen_inp_penalty_last_n_set(struct ailo_mtmd_gen_inp *self,
+                                                 ailo_i32 value,
+                                                 ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
 ailo_status ailo_mtmd_gen_inp_codes_get(const struct ailo_mtmd_gen_inp *self,
@@ -5292,23 +5471,6 @@ ailo_status ailo_mtmd_gen_inp_n_feats_get(const struct ailo_mtmd_gen_inp *self,
 /** Mutate the native field; referenced pointer owners must remain alive. */
 ailo_status ailo_mtmd_gen_inp_n_feats_set(struct ailo_mtmd_gen_inp *self,
                                           size_t value, ailo_error *error);
-/** Read the native field with explicit conversion; record-value copies are
- * owned, pointer views borrowed. */
-ailo_status
-ailo_mtmd_gen_inp_state_data_get(const struct ailo_mtmd_gen_inp *self,
-                                 const char **output, ailo_error *error);
-/** Mutate the native field; referenced pointer owners must remain alive. */
-ailo_status ailo_mtmd_gen_inp_state_data_set(struct ailo_mtmd_gen_inp *self,
-                                             const char *value,
-                                             ailo_error *error);
-/** Read the native field with explicit conversion; record-value copies are
- * owned, pointer views borrowed. */
-ailo_status
-ailo_mtmd_gen_inp_state_size_get(const struct ailo_mtmd_gen_inp *self,
-                                 size_t *output, ailo_error *error);
-/** Mutate the native field; referenced pointer owners must remain alive. */
-ailo_status ailo_mtmd_gen_inp_state_size_set(struct ailo_mtmd_gen_inp *self,
-                                             size_t value, ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
 ailo_status ailo_mtmd_gen_out_array_new(size_t count,
@@ -5385,23 +5547,31 @@ ailo_mtmd_gen_out_n_samples_get(const struct ailo_mtmd_gen_out *self,
 /** Mutate the native field; referenced pointer owners must remain alive. */
 ailo_status ailo_mtmd_gen_out_n_samples_set(struct ailo_mtmd_gen_out *self,
                                             size_t value, ailo_error *error);
+/** Allocate zero-initialized native-backed elements; caller owns the result and
+ * count. */
+ailo_status
+ailo_mtmd_gen_state_params_array_new(size_t count,
+                                     struct ailo_mtmd_gen_state_params **output,
+                                     ailo_error *error);
+/** Release only a facade element allocation or by-value result; NULL is
+ * accepted. */
+ailo_status
+ailo_mtmd_gen_state_params_array_free(struct ailo_mtmd_gen_state_params *self,
+                                      ailo_error *error);
+/** Borrow an element using the actual caller-declared extent; never free the
+ * element. */
+ailo_status ailo_mtmd_gen_state_params_array_at(
+    struct ailo_mtmd_gen_state_params *self, size_t count, size_t index,
+    struct ailo_mtmd_gen_state_params **output, ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
-ailo_status
-ailo_mtmd_gen_out_state_data_get(const struct ailo_mtmd_gen_out *self,
-                                 const char **output, ailo_error *error);
+ailo_status ailo_mtmd_gen_state_params_seed_get(
+    const struct ailo_mtmd_gen_state_params *self, ailo_u32 *output,
+    ailo_error *error);
 /** Mutate the native field; referenced pointer owners must remain alive. */
-ailo_status ailo_mtmd_gen_out_state_data_set(struct ailo_mtmd_gen_out *self,
-                                             const char *value,
-                                             ailo_error *error);
-/** Read the native field with explicit conversion; record-value copies are
- * owned, pointer views borrowed. */
 ailo_status
-ailo_mtmd_gen_out_state_size_get(const struct ailo_mtmd_gen_out *self,
-                                 size_t *output, ailo_error *error);
-/** Mutate the native field; referenced pointer owners must remain alive. */
-ailo_status ailo_mtmd_gen_out_state_size_set(struct ailo_mtmd_gen_out *self,
-                                             size_t value, ailo_error *error);
+ailo_mtmd_gen_state_params_seed_set(struct ailo_mtmd_gen_state_params *self,
+                                    ailo_u32 value, ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
 ailo_status ailo_mtmd_helper_bitmap_wrapper_array_new(
@@ -5434,6 +5604,89 @@ ailo_status ailo_mtmd_helper_bitmap_wrapper_video_ctx_get(
 ailo_status ailo_mtmd_helper_bitmap_wrapper_video_ctx_set(
     struct ailo_mtmd_helper_bitmap_wrapper *self,
     struct ailo_mtmd_helper_video *value, ailo_error *error);
+/** Allocate zero-initialized native-backed elements; caller owns the result and
+ * count. */
+ailo_status ailo_mtmd_helper_cap_array_new(size_t count,
+                                           struct ailo_mtmd_helper_cap **output,
+                                           ailo_error *error);
+/** Release only a facade element allocation or by-value result; NULL is
+ * accepted. */
+ailo_status ailo_mtmd_helper_cap_array_free(struct ailo_mtmd_helper_cap *self,
+                                            ailo_error *error);
+/** Borrow an element using the actual caller-declared extent; never free the
+ * element. */
+ailo_status ailo_mtmd_helper_cap_array_at(struct ailo_mtmd_helper_cap *self,
+                                          size_t count, size_t index,
+                                          struct ailo_mtmd_helper_cap **output,
+                                          ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_helper_cap_chat_get(const struct ailo_mtmd_helper_cap *self,
+                              ailo_bool *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_cap_chat_set(struct ailo_mtmd_helper_cap *self,
+                                          ailo_bool value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_helper_cap_vision_get(const struct ailo_mtmd_helper_cap *self,
+                                ailo_bool *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_cap_vision_set(struct ailo_mtmd_helper_cap *self,
+                                            ailo_bool value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_helper_cap_audio_get(const struct ailo_mtmd_helper_cap *self,
+                               ailo_bool *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_cap_audio_set(struct ailo_mtmd_helper_cap *self,
+                                           ailo_bool value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_helper_cap_video_get(const struct ailo_mtmd_helper_cap *self,
+                               ailo_bool *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_cap_video_set(struct ailo_mtmd_helper_cap *self,
+                                           ailo_bool value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_helper_cap_audio_stream_get(const struct ailo_mtmd_helper_cap *self,
+                                      ailo_bool *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_mtmd_helper_cap_audio_stream_set(struct ailo_mtmd_helper_cap *self,
+                                      ailo_bool value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_helper_cap_text_gen_get(const struct ailo_mtmd_helper_cap *self,
+                                  ailo_bool *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_cap_text_gen_set(struct ailo_mtmd_helper_cap *self,
+                                              ailo_bool value,
+                                              ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_helper_cap_audio_gen_get(const struct ailo_mtmd_helper_cap *self,
+                                   ailo_bool *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_mtmd_helper_cap_audio_gen_set(struct ailo_mtmd_helper_cap *self,
+                                   ailo_bool value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_helper_cap_audio_gen_spk_ref_get(
+    const struct ailo_mtmd_helper_cap *self, ailo_bool *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_mtmd_helper_cap_audio_gen_spk_ref_set(struct ailo_mtmd_helper_cap *self,
+                                           ailo_bool value, ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
 ailo_status ailo_mtmd_helper_embd_batch_array_new(
@@ -5519,6 +5772,15 @@ ailo_status ailo_mtmd_helper_gen_audio_inp_array_at(
     struct ailo_mtmd_helper_gen_audio_inp **output, ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_helper_gen_audio_inp_stream_get(
+    const struct ailo_mtmd_helper_gen_audio_inp *self, ailo_bool *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_gen_audio_inp_stream_set(
+    struct ailo_mtmd_helper_gen_audio_inp *self, ailo_bool value,
+    ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
 ailo_status ailo_mtmd_helper_gen_audio_inp_seq_id_get(
     const struct ailo_mtmd_helper_gen_audio_inp *self, ailo_i32 *output,
     ailo_error *error);
@@ -5546,6 +5808,24 @@ ailo_status ailo_mtmd_helper_gen_audio_inp_prompt_len_set(
     ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
  * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_helper_gen_audio_inp_n_past_get(
+    const struct ailo_mtmd_helper_gen_audio_inp *self, ailo_i32 *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_gen_audio_inp_n_past_set(
+    struct ailo_mtmd_helper_gen_audio_inp *self, ailo_i32 value,
+    ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_helper_gen_audio_inp_out_mode_get(
+    const struct ailo_mtmd_helper_gen_audio_inp *self,
+    enum ailo_mtmd_helper_gen_audio_out_mode *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_gen_audio_inp_out_mode_set(
+    struct ailo_mtmd_helper_gen_audio_inp *self,
+    enum ailo_mtmd_helper_gen_audio_out_mode value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
 ailo_status ailo_mtmd_helper_gen_audio_inp_speaker_ref_get(
     const struct ailo_mtmd_helper_gen_audio_inp *self,
     struct ailo_mtmd_bitmap **output, ailo_error *error);
@@ -5560,6 +5840,15 @@ ailo_status ailo_mtmd_helper_gen_audio_inp_lang_get(
     ailo_error *error);
 /** Mutate the native field; referenced pointer owners must remain alive. */
 ailo_status ailo_mtmd_helper_gen_audio_inp_lang_set(
+    struct ailo_mtmd_helper_gen_audio_inp *self, const char *value,
+    ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_helper_gen_audio_inp_voice_get(
+    const struct ailo_mtmd_helper_gen_audio_inp *self, const char **output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_gen_audio_inp_voice_set(
     struct ailo_mtmd_helper_gen_audio_inp *self, const char *value,
     ailo_error *error);
 /** Read the native field with explicit conversion; record-value copies are
@@ -5713,6 +6002,15 @@ ailo_status ailo_mtmd_helper_video_init_params_timestamp_interval_ms_get(
 ailo_status ailo_mtmd_helper_video_init_params_timestamp_interval_ms_set(
     struct ailo_mtmd_helper_video_init_params *self, ailo_i64 value,
     ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_helper_video_init_params_no_soundtrack_get(
+    const struct ailo_mtmd_helper_video_init_params *self, ailo_bool *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_helper_video_init_params_no_soundtrack_set(
+    struct ailo_mtmd_helper_video_init_params *self, ailo_bool value,
+    ailo_error *error);
 /** Allocate zero-initialized native-backed elements; caller owns the result and
  * count. */
 ailo_status ailo_mtmd_input_part_array_new(size_t count,
@@ -5839,6 +6137,65 @@ ailo_status ailo_mtmd_memory_usage_use_non_causal_get(
 ailo_status
 ailo_mtmd_memory_usage_use_non_causal_set(struct ailo_mtmd_memory_usage *self,
                                           ailo_bool value, ailo_error *error);
+/** Allocate zero-initialized native-backed elements; caller owns the result and
+ * count. */
+ailo_status ailo_mtmd_video_config_array_new(
+    size_t count, struct ailo_mtmd_video_config **output, ailo_error *error);
+/** Release only a facade element allocation or by-value result; NULL is
+ * accepted. */
+ailo_status
+ailo_mtmd_video_config_array_free(struct ailo_mtmd_video_config *self,
+                                  ailo_error *error);
+/** Borrow an element using the actual caller-declared extent; never free the
+ * element. */
+ailo_status ailo_mtmd_video_config_array_at(
+    struct ailo_mtmd_video_config *self, size_t count, size_t index,
+    struct ailo_mtmd_video_config **output, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_video_config_tmpl_get(const struct ailo_mtmd_video_config *self,
+                                enum ailo_mtmd_video_template *output,
+                                ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_video_config_tmpl_set(struct ailo_mtmd_video_config *self,
+                                            enum ailo_mtmd_video_template value,
+                                            ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_video_config_fps_get(const struct ailo_mtmd_video_config *self,
+                               float *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status ailo_mtmd_video_config_fps_set(struct ailo_mtmd_video_config *self,
+                                           float value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status
+ailo_mtmd_video_config_n_frames_get(const struct ailo_mtmd_video_config *self,
+                                    ailo_i32 *output, ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_mtmd_video_config_n_frames_set(struct ailo_mtmd_video_config *self,
+                                    ailo_i32 value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_video_config_frame_width_get(
+    const struct ailo_mtmd_video_config *self, ailo_i32 *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_mtmd_video_config_frame_width_set(struct ailo_mtmd_video_config *self,
+                                       ailo_i32 value, ailo_error *error);
+/** Read the native field with explicit conversion; record-value copies are
+ * owned, pointer views borrowed. */
+ailo_status ailo_mtmd_video_config_frame_height_get(
+    const struct ailo_mtmd_video_config *self, ailo_i32 *output,
+    ailo_error *error);
+/** Mutate the native field; referenced pointer owners must remain alive. */
+ailo_status
+ailo_mtmd_video_config_frame_height_set(struct ailo_mtmd_video_config *self,
+                                        ailo_i32 value, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_ggml_abs(struct ailo_ggml_context *argument_0,
@@ -6757,9 +7114,21 @@ ailo_ggml_backend_sched_reset(struct ailo_ggml_backend_sched *argument_0,
                               ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_ggml_backend_sched_set_copy_callback(
+    struct ailo_ggml_backend_sched *argument_0,
+    struct ailo_callback_abba0213d6e6 *argument_1, void *argument_2,
+    ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status ailo_ggml_backend_sched_set_eval_callback(
     struct ailo_ggml_backend_sched *argument_0,
     struct ailo_callback_f8d1d962e687 *argument_1, void *argument_2,
+    ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_backend_sched_set_realloc_callback(
+    struct ailo_ggml_backend_sched *argument_0,
+    struct ailo_callback_561b69b5e9c0 *argument_1, void *argument_2,
     ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
@@ -8752,6 +9121,16 @@ ailo_status ailo_ggml_pool_2d_back(
     ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_ggml_prec_get_acc(const struct ailo_ggml_tensor *argument_0,
+                                   enum ailo_ggml_prec *output,
+                                   ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_prec_get_src(const struct ailo_ggml_tensor *argument_0,
+                                   int argument_1, enum ailo_ggml_prec *output,
+                                   ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status ailo_ggml_prec_set_acc(struct ailo_ggml_tensor *argument_0,
                                    enum ailo_ggml_prec argument_1,
                                    ailo_bool *output, ailo_error *error);
@@ -9510,6 +9889,13 @@ ailo_status ailo_ggml_top_k(struct ailo_ggml_context *argument_0,
                             struct ailo_ggml_tensor *argument_1, int argument_2,
                             struct ailo_ggml_tensor **output,
                             ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_ggml_top_k_mask(
+    struct ailo_ggml_context *argument_0, struct ailo_ggml_tensor *argument_1,
+    struct ailo_ggml_tensor *argument_2, struct ailo_ggml_tensor *argument_3,
+    struct ailo_ggml_tensor *argument_4, struct ailo_ggml_tensor *argument_5,
+    struct ailo_ggml_tensor **output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_ggml_transpose(struct ailo_ggml_context *argument_0,
@@ -11265,6 +11651,59 @@ ailo_status ailo_llama_vocab_type(const struct ailo_llama_vocab *argument_0,
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
+ailo_mtmd_audio_stream_flush(struct ailo_mtmd_audio_stream *argument_0,
+                             ailo_bool argument_1, ailo_i32 *output,
+                             ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_mtmd_audio_stream_free(struct ailo_mtmd_audio_stream *argument_0,
+                            ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_audio_stream_get_n_rows(
+    const struct ailo_mtmd_audio_stream *argument_0, ailo_i64 *output,
+    ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_audio_stream_get_n_rows_flushed(
+    const struct ailo_mtmd_audio_stream *argument_0, ailo_i64 *output,
+    ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_audio_stream_get_output_embd(
+    const struct ailo_mtmd_audio_stream *argument_0, const float **output,
+    ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_audio_stream_init(
+    struct ailo_mtmd_context *argument_0,
+    const struct ailo_mtmd_audio_stream_params *argument_1,
+    struct ailo_mtmd_audio_stream **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_audio_stream_is_seq_start(
+    const struct ailo_mtmd_audio_stream *argument_0, ailo_bool *output,
+    ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_audio_stream_params_default(
+    struct ailo_mtmd_audio_stream_params **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_mtmd_audio_stream_push(struct ailo_mtmd_audio_stream *argument_0,
+                            const float *argument_1, size_t argument_2,
+                            ailo_i32 *output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_mtmd_audio_stream_step(struct ailo_mtmd_audio_stream *argument_0,
+                            ailo_i32 argument_1, ailo_i32 *output,
+                            ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
 ailo_mtmd_batch_add_chunk(struct ailo_mtmd_batch *argument_0,
                           const struct ailo_mtmd_input_chunk *argument_1,
                           ailo_i32 *output, ailo_error *error);
@@ -11342,6 +11781,11 @@ ailo_status ailo_mtmd_bitmap_set_id(struct ailo_mtmd_bitmap *argument_0,
                                     const char *argument_1, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_bitmap_set_is_video(struct ailo_mtmd_bitmap *argument_0,
+                                          ailo_bool argument_1,
+                                          ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
 ailo_status ailo_mtmd_bitmap_set_mergeable(struct ailo_mtmd_bitmap *argument_0,
                                            ailo_bool argument_1,
                                            ailo_error *error);
@@ -11389,14 +11833,35 @@ ailo_mtmd_gen_audio_get_info(const struct ailo_mtmd_context *argument_0,
  * are preserved separately from bridge status. */
 ailo_status
 ailo_mtmd_gen_audio_process(struct ailo_mtmd_context *argument_0,
-                            const struct ailo_mtmd_gen_inp *argument_1,
-                            struct ailo_mtmd_gen_out *argument_2,
+                            struct ailo_mtmd_gen_state *argument_1,
+                            const struct ailo_mtmd_gen_inp *argument_2,
+                            struct ailo_mtmd_gen_out *argument_3,
                             ailo_i32 *output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
 ailo_mtmd_gen_inp_default(const struct ailo_mtmd_context *argument_0,
                           struct ailo_mtmd_gen_inp **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_gen_state_free(struct ailo_mtmd_gen_state *argument_0,
+                                     ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_mtmd_gen_state_init(struct ailo_mtmd_context *argument_0,
+                         const struct ailo_mtmd_gen_state_params *argument_1,
+                         struct ailo_mtmd_gen_state **output,
+                         ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_mtmd_gen_state_params_default(struct ailo_mtmd_gen_state_params **output,
+                                   ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_gen_state_reset(struct ailo_mtmd_gen_state *argument_0,
+                                      ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
@@ -11420,6 +11885,19 @@ ailo_status ailo_mtmd_get_memory_usage(
  * are preserved separately from bridge status. */
 ailo_status ailo_mtmd_get_output_embd(struct ailo_mtmd_context *argument_0,
                                       float **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_get_video_config(
+    const struct ailo_mtmd_context *argument_0, ailo_i32 argument_1,
+    ailo_i32 argument_2, ailo_i32 argument_3, float argument_4,
+    struct ailo_mtmd_video_config **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_helper_audio_stream_get_logit_bias(
+    const struct ailo_mtmd_context *argument_0,
+    const struct ailo_llama_model *argument_1,
+    struct ailo_llama_logit_bias *argument_2, ailo_i32 argument_3,
+    ailo_i32 *output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_mtmd_helper_bitmap_init_from_buf(
@@ -11458,8 +11936,18 @@ ailo_status ailo_mtmd_helper_eval_chunks(
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
+ailo_mtmd_helper_gen_audio_flush(struct ailo_mtmd_helper_gen_audio *argument_0,
+                                 ailo_i32 *output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
 ailo_mtmd_helper_gen_audio_free(struct ailo_mtmd_helper_gen_audio *argument_0,
                                 ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_helper_gen_audio_get_logit_bias(
+    struct ailo_mtmd_helper_gen_audio *argument_0, size_t *argument_1,
+    const struct ailo_llama_logit_bias **output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_mtmd_helper_gen_audio_get_output(
@@ -11472,6 +11960,15 @@ ailo_status ailo_mtmd_helper_gen_audio_get_output(
 ailo_status ailo_mtmd_helper_gen_audio_init(
     struct ailo_llama_context *argument_0, struct ailo_mtmd_context *argument_1,
     struct ailo_mtmd_helper_gen_audio **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_helper_gen_audio_inp_default(
+    struct ailo_mtmd_helper_gen_audio_inp **output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status ailo_mtmd_helper_gen_audio_next_is_text(
+    struct ailo_mtmd_helper_gen_audio *argument_0, ailo_bool *output,
+    ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
@@ -11494,6 +11991,13 @@ ailo_status ailo_mtmd_helper_gen_audio_step_gen(
 ailo_status ailo_mtmd_helper_gen_audio_step_prompt(
     struct ailo_mtmd_helper_gen_audio *argument_0, ailo_i32 argument_1,
     ailo_i32 *output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_mtmd_helper_get_capabilities(const struct ailo_llama_model *argument_0,
+                                  const struct ailo_mtmd_context *argument_1,
+                                  struct ailo_mtmd_helper_cap **output,
+                                  ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status
@@ -11686,6 +12190,11 @@ ailo_status ailo_mtmd_log_set(struct ailo_callback_802b44cd03e0 *argument_0,
  * are preserved separately from bridge status. */
 ailo_status ailo_mtmd_support_audio(const struct ailo_mtmd_context *argument_0,
                                     ailo_bool *output, ailo_error *error);
+/** Invoke the native API with its preconditions; native results and ownership
+ * are preserved separately from bridge status. */
+ailo_status
+ailo_mtmd_support_audio_stream(const struct ailo_mtmd_context *argument_0,
+                               ailo_bool *output, ailo_error *error);
 /** Invoke the native API with its preconditions; native results and ownership
  * are preserved separately from bridge status. */
 ailo_status ailo_mtmd_support_vision(const struct ailo_mtmd_context *argument_0,
@@ -12101,6 +12610,7 @@ ailo_backend_memory_map_get(const struct ailo_backend_memory_map *self,
 #define AILO_GGUF_MAGIC "GGUF"
 #define AILO_GGUF_VERSION 3
 #define AILO_LLAMA_DEFAULT_SEED 0xFFFFFFFF
+#define AILO_LLAMA_DRY_MAX_SEQ_BREAKERS 64
 #define AILO_LLAMA_FILE_MAGIC_GGLA 0x67676c61u
 #define AILO_LLAMA_FILE_MAGIC_GGSN 0x6767736eu
 #define AILO_LLAMA_FILE_MAGIC_GGSQ 0x67677371u

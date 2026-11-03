@@ -24,7 +24,7 @@
 +#endif
 --- a/ggml/include/ggml.h
 +++ b/ggml/include/ggml.h
-@@ -656,6 +656,7 @@
+@@ -657,6 +657,7 @@
          GGML_LOG_LEVEL_WARN  = 3,
          GGML_LOG_LEVEL_ERROR = 4,
          GGML_LOG_LEVEL_CONT  = 5, // continue previous log
@@ -100,7 +100,7 @@
  #include "llama-mmap.h"
  
  #include "ggml-backend.h"
-@@ -59,17 +60,20 @@
+@@ -58,17 +59,20 @@
  }
  
  static void llama_log_internal_v(ggml_log_level level, const char * format, va_list args) {
@@ -149,7 +149,7 @@
      int ith;
  };
  
-@@ -3106,6 +3109,8 @@
+@@ -3116,6 +3119,8 @@
  static thread_ret_t ggml_graph_compute_thread(void * data) {
      struct ggml_compute_state * state = (struct ggml_compute_state *) data;
      struct ggml_threadpool    * tp    = state->threadpool;
@@ -158,7 +158,7 @@
  
      const struct ggml_cgraph * cgraph = tp->cgraph;
      const struct ggml_cplan  * cplan  = tp->cplan;
-@@ -3175,6 +3180,7 @@
+@@ -3185,6 +3190,7 @@
      ggml_backend_cpu_riscv64_spacemit_clear_numa_thread_affinity_threaded(state->ith);
  #endif
  
@@ -166,7 +166,7 @@
      return 0;
  }
  
-@@ -3247,6 +3253,8 @@
+@@ -3257,6 +3263,8 @@
  static thread_ret_t ggml_graph_compute_secondary_thread(void* data) {
      struct ggml_compute_state * state = (struct ggml_compute_state *) data;
      struct ggml_threadpool * threadpool = state->threadpool;
@@ -175,7 +175,7 @@
  
      ggml_thread_apply_priority(threadpool->prio);
      if (ggml_thread_cpumask_is_valid(state->cpumask)) {
-@@ -3278,6 +3286,7 @@
+@@ -3288,6 +3296,7 @@
          }
      }
  
@@ -183,7 +183,7 @@
      return (thread_ret_t) 0;
  }
  
-@@ -3324,6 +3333,7 @@
+@@ -3334,6 +3343,7 @@
      struct ggml_threadpool * threadpool =
          ggml_aligned_malloc(sizeof(struct ggml_threadpool));
      {
@@ -191,7 +191,7 @@
          threadpool->cgraph           = cgraph;
          threadpool->cplan            = cplan;
          threadpool->n_graph          = 0;
-@@ -3348,6 +3358,7 @@
+@@ -3358,6 +3368,7 @@
      for (int j = 0; j < tpp->n_threads; j++) {
          workers[j].threadpool = threadpool;
          workers[j].ith        = j;
@@ -199,7 +199,7 @@
      }
  
      threadpool->workers = workers;
-@@ -3414,6 +3425,7 @@
+@@ -3424,6 +3435,7 @@
      } else {
          // Reset some of the parameters that need resetting
          // No worker threads should be accessing the parameters below at this stage
@@ -215,8 +215,8 @@
  
  #include "ggml-alloc.h"
  #include "ggml.h"
-@@ -1647,7 +1648,8 @@
-             uint8_t * data = (uint8_t *) mapping->addr() + weight->offs;
+@@ -1722,7 +1723,8 @@
+             }
  
              if (check_tensors) {
 -                validation_result.emplace_back(std::async(std::launch::async, [cur, data, n_size] {
@@ -225,7 +225,7 @@
                      return std::make_pair(cur, ggml_validate_row_data(cur->type, data, n_size));
                  }));
              }
-@@ -1675,7 +1677,8 @@
+@@ -1750,7 +1752,8 @@
                  file->seek(weight->offs, SEEK_SET);
                  file->read_raw(cur->data, n_size);
                  if (check_tensors) {

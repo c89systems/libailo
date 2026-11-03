@@ -6,14 +6,14 @@ contract is in [docs/architecture.md](docs/architecture.md).
 
 ## Implementation state
 
-The dependency/build foundation is present: pinned llama.cpp b11430, CPU and
+The dependency/build foundation is present: pinned llama.cpp v0.8.0, CPU and
 Vulkan backends, public multimodal libraries, cpkt v0.5.2 and cpktmisc v0.2.1, lonejson
 v0.45.0, libpslog v0.12.0, and pinned Vulkan/SPIR-V components. The static/shared
 project libraries
 provide the portable C89 scalar/error boundary and generated native bindings
 described in [docs/c89-boundary.md](docs/c89-boundary.md) and
 [docs/facade-bindings.md](docs/facade-bindings.md). The current bridge implements
-1,083 upstream functions and 306 record fields, including native-backed arrays,
+1,111 upstream functions and 329 record fields, including native-backed arrays,
 the public mtmd memory map, variadic formatting and C89 macro adapters. It is
 complete for the pinned public C inventory, including independently owned
 callback adapters and callable native views; no gaps remain in

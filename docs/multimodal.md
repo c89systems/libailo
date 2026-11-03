@@ -12,11 +12,11 @@ one-layer GGUF is an untrained text execution fixture. SmolLM2-135M-Instruct,
 SmolLM2-1.7B-Instruct and Granite-3.1-1B-A400M-Instruct are text models. Adding an
 unrelated projector does not turn one of these artifacts into a vision model.
 
-The pinned llama.cpp b11430 includes SmolVLM and Qwen3-ASR in its supported model
+The pinned llama.cpp v0.8.0 includes SmolVLM and Qwen3-ASR in its supported model
 list. Implementation facts below are checked against that pin's
-[mtmd API](https://github.com/ggml-org/llama.cpp/blob/b11430/tools/mtmd/mtmd.h),
-[media helpers](https://github.com/ggml-org/llama.cpp/blob/b11430/tools/mtmd/mtmd-helper.h)
-and [build configuration](https://github.com/ggml-org/llama.cpp/blob/b11430/tools/mtmd/CMakeLists.txt).
+[mtmd API](https://github.com/ggml-org/llama.cpp/blob/v0.8.0/tools/mtmd/mtmd.h),
+[media helpers](https://github.com/ggml-org/llama.cpp/blob/v0.8.0/tools/mtmd/mtmd-helper.h)
+and [build configuration](https://github.com/ggml-org/llama.cpp/blob/v0.8.0/tools/mtmd/CMakeLists.txt).
 The small reference pairs are:
 
 | Reference pair | Input/output | Language GGUF | Encoder/projector GGUF | Combined download |

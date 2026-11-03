@@ -76,18 +76,17 @@ Halo assessment are under ignored `stash/`; they must remain uncommitted.
 
 ## P0: Fix and qualify Halo attention
 
-- [ ] **Backport the missing AMD strided FP16/BF16 KV scratch-copy path.**
-  The audited stable `v0.8.0` candidate already contains `kv_raw_strided`; a
-  qualified upgrade can satisfy this item. Verify its source before carrying
-  another copy of the fix.
-  Our llama.cpp b11430 lacks `kv_raw_strided`. Prefer the focused upstream
-  [PR #27703](https://github.com/ggml-org/llama.cpp/pull/27703), merged as
-  `733f57a9994f7a237176aa9f4cdc31bc466d056d`, after checking its interacting
-  scratch/pipeline code against our pin. Include the upstream backend-operation
-  tests. Cover eligible/ineligible layouts, quantized KV, small/large microbatches,
-  shallow/long context and scratch bounds; exercise BF16 only where supported.
-  Check AMD/RDNA4/non-AMD selection. Require numerical agreement and no reset or
-  timeout under normal kernel settings. The
+- [x] **Adopt the upstream AMD strided KV scratch-copy path.**
+  llama.cpp `v0.8.0` contains `kv_raw_strided`, gated to AMD except RDNA4.
+  No additional backport of
+  [PR #27703](https://github.com/ggml-org/llama.cpp/pull/27703) is needed.
+  The opt-in upstream backend-operation tool passes 48 flash-attention cases
+  on Raphael in both GNU and musl: contiguous/strided F16 KV, decode/prefill,
+  default/F32 precision and Q8_0/Q4_0 KV, plus added dense/padded/strided cases
+  at batches 255/256/512 to enter or bypass the new scratch path. Actual Halo,
+  BF16 on capable hardware,
+  RDNA4/non-AMD selection and long-context stress remain hardware acceptance
+  work below. The
   [gfx1151 report](https://github.com/ggml-org/llama.cpp/issues/30364)
   links this path to long-context performance collapse/timeouts; it does not
   establish the cause of Raphael's wrong FP32 matrix results.
@@ -160,7 +159,7 @@ never substitute workstation libraries for cpkt/cpktmisc.
 | liblockdc | 0.26.0, ABI 9 | Keep exact released SDKs; no adjacent-source build. Collection API verification is separate from provider adoption. |
 | liblql | 0.4.0, ABI 0 | Required by the new lockdc SDK; upgraded together. |
 | Mesa | 26.2.4 | Qualify 26.2.6 first; see P0 above. |
-| llama.cpp | b11430 | Stable v0.8.0: 530 commits ahead, includes the KV fix; six patches apply unchanged and four need rebase. See the [vendoring audit](vendor/llama/README.md). Rolling b12078 is prerelease. |
+| llama.cpp | v0.8.0 | Stable release adopted; ten integration patches retained, four rebased, plus one new test-only patch. Includes the AMD KV fix. See the [integration record](vendor/llama/README.md). Rolling b12078 is prerelease. |
 | cpkt | 0.5.2 | Upgrade to [0.6.1](https://github.com/c89systems/cpkt/releases/tag/v0.6.1); includes a libssh2 AES-GCM handshake leak repair. Static users must relink. |
 | cpktmisc | 0.2.1 | Upgrade with core to [0.3.0](https://github.com/c89systems/cpktmisc/releases/tag/v0.3.0); requires cpkt 0.6.1 and removes LZO. Audit codec/target and notice changes. |
 | SPIRV-LLVM-Translator | 23.1.0 | Assess [23.1.3](https://github.com/KhronosGroup/SPIRV-LLVM-Translator/compare/v23.1.0...v23.1.3); includes a leak repair and translation/rounding corrections. Keep LLVM/Clang 23 compatibility. |
@@ -175,19 +174,16 @@ never substitute workstation libraries for cpkt/cpktmisc.
   encrypted/compressed persistence, host LLVM/Mesa generators and relocatable
   consumers. Check transitive SDK compatibility rather than assuming latest
   versions compose.
-- [ ] **Assess a broader llama.cpp refresh separately.**
-  The 2026-11-03 scratch audit recommends stable `v0.8.0`, commit
-  `8642541b255bfb5dc39cd351a178be09013a55d6`. Source reconstruction proves the
-  current pin plus ten recorded patches exactly matches both prepared trees.
-  Six patches reapply unchanged; worker logging, physical identity, diagnostics
-  routing and the dependent Raphael policy need rebase. The API inventory guard
-  detects changes. Follow [the upgrade sequence](vendor/llama/README.md).
-  [v0.8.0](https://github.com/ggml-org/llama.cpp/releases/tag/v0.8.0) changes
-  mtmd audio APIs and other native surfaces. Inventory generated facade/API
-  coverage, public ABI effects, model/template behavior, shaders, cache identity
-  and media/serving regressions before selecting it. Include relevant upstream
-  Vulkan fixes by source comparison. Do not turn the Halo fix into an unreviewed
-  full-backend update.
+- [x] **Upgrade llama.cpp to stable v0.8.0.**
+  Pin commit `8642541b255bfb5dc39cd351a178be09013a55d6` and its verified archive.
+  Rebase the ordered patches, regenerate the C89 facade and reconcile the native
+  API changes with no legacy shims. All 1,111 functions and 329 fields are covered.
+  Project-owned objects now depend on the extraction contract, preventing stale
+  template objects when new archive members carry older timestamps. Follow
+  [the upgrade sequence](vendor/llama/README.md) for subsequent refreshes.
+  GNU passes 81 native and five installed Lua tests; musl passes 78 native tests.
+  Both pass strict logits, 400 matrix processes, 48 attention cases and all six
+  trained Vulkan serving cases. Static closure and source reconstruction pass.
 
 ## P1: Qualify memory limits and shipped artifacts
 

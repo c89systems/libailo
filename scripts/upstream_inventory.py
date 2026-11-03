@@ -110,7 +110,7 @@ def inventory(source, clang):
         match = re.match(r'#define ((?:LLAMA|GGML|GGUF|MTMD)_[A-Za-z0-9_]+)(\([^ ]*\))?\s*(.*)', line)
         if match:
             macros.append({'name': match[1], 'parameters': match[2], 'value': canonical(match[3])})
-    return {'revision': '8345f333951c661d166b00e6f9362e553768f292', 'headers': HEADERS,
+    return {'revision': '8642541b255bfb5dc39cd351a178be09013a55d6', 'headers': HEADERS,
             'excluded_headers': {'ggml/include/ggml-cpp.h': 'C++ utilities, excluded by product scope'},
             'excluded_cpp_wrappers': sorted(excluded_cpp_wrappers),
             'functions': sorted(functions.values(), key=lambda x: x['name']),

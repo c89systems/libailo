@@ -130,10 +130,10 @@
     }
   },
   "llama": {
-    "version": "b11430",
+    "version": "v0.8.0",
     "upstream": "https://github.com/ggml-org/llama.cpp",
-    "url": "https://codeload.github.com/ggml-org/llama.cpp/tar.gz/refs/tags/b11430",
-    "sha256": "4bb1e49b554de2b73babe209045fbe6ae55a1ce48ae9f80a2741138b55e4a25b"
+    "url": "https://codeload.github.com/ggml-org/llama.cpp/tar.gz/refs/tags/v0.8.0",
+    "sha256": "51b1e025d7b12e83fa55736e65bc254acd9d23e49f546be7531368fef82210ee"
   },
   "vulkan-headers": {
     "version": "vulkan-sdk-1.4.363.0",

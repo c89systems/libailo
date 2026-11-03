@@ -1,0 +1,24 @@
+--- a/tests/test-backend-ops.cpp
++++ b/tests/test-backend-ops.cpp
+@@ -12106,6 +12106,21 @@
++    // Exercise AMD's raw strided-KV scratch path at its prefill threshold.
++    // Only permuted, non-padded KV is dense enough for the scratch copy.
++    for (int nb : { 255, 256, 512 }) {
++        for (bool strided : { false, true }) {
++            const std::array<int32_t, 4> permute = strided
++                ? std::array<int32_t, 4>{0, 2, 1, 3}
++                : std::array<int32_t, 4>{0, 1, 2, 3};
++            for (bool kv_view : { false, true }) {
++                for (ggml_prec prec : { GGML_PREC_F32, GGML_PREC_DEFAULT }) {
++                    test_cases.emplace_back(new test_flash_attn_ext(64, 64, 4, {1, 1}, 512, nb, true, false, 0, 0, prec, GGML_TYPE_F16, GGML_TYPE_F16, permute, kv_view));
++                }
++            }
++        }
++    }
++
+     // prefill-shaped cases with long KV (nb >= 32, kv >= 1024): covers the
+     // XMX/GEMM-accelerated SYCL FA path which only activates for these shapes.
+     for (int kv : { 1024, 2048, }) {
+         for (int hs : { 64, 128, 256, }) {
+             for (int nb : { 32, 64, }) {
+                 for (ggml_type type_KV : { GGML_TYPE_F16, GGML_TYPE_Q8_0, GGML_TYPE_Q4_0, }) {

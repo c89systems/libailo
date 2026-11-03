@@ -6,6 +6,9 @@ The authoritative inputs are the `llama` recipe in
 upstream source archive by SHA-256. Sources and build outputs live under
 `.cache/deps-build/TARGET/llama/`; edit the recorded patches when changing the
 integration. A changed recipe replaces that owned extraction/build directory.
+Project-owned objects also depend on that extraction contract, including the
+selected upstream template sources. Archive timestamps cannot leave objects
+compiled against a previous upstream revision in the incremental build.
 
 `scripts/build.sh` applies the series in order. Forward application requires
 zero fuzz; line offsets are allowed when the context still matches exactly.
@@ -27,40 +30,57 @@ The application and upstream boundaries are separate:
   recipes and patch series. The Raphael LDS workaround belongs to Mesa; a
   llama.cpp upgrade alone does not retire it.
 
-## Audit on 2026-11-03
+## Upgrade on 2026-11-03
 
-The current pin is `b11430`. Reconstructing its verified archive and applying all
-ten recorded patches with zero fuzz exactly reproduces both the GNU and musl
-source inputs. Patch backup/reject artifacts were preserved separately in the
-audit directory.
-There are no unrecorded source changes in either prepared tree.
-
-GitHub's latest stable release is
+The current pin is
 [`v0.8.0`](https://github.com/ggml-org/llama.cpp/releases/tag/v0.8.0), commit
-`8642541b255bfb5dc39cd351a178be09013a55d6`, published 2026-10-28. It is 530
-commits ahead of our pin. The latest rolling release checked was
+`8642541b255bfb5dc39cd351a178be09013a55d6`, published 2026-10-28, 530 commits
+after the previous `b11430` pin. The latest rolling release checked was
 [`b12078`](https://github.com/ggml-org/llama.cpp/releases/tag/b12078), marked
-prerelease. Recommend the stable release as the next upgrade candidate.
+prerelease; the integration selects the stable release.
 
-The scratch stable archive has SHA-256
+The source archive has SHA-256
 `51b1e025d7b12e83fa55736e65bc254acd9d23e49f546be7531368fef82210ee`.
-The production pin has not changed.
 
-| Patches | Stable-release trial |
+| Patches | v0.8.0 integration |
 | --- | --- |
 | 0001–0005 and 0008 | Apply unchanged, with zero fuzz |
-| 0006: worker logging scope | Needs rebase |
-| 0007: Vulkan physical identity | Needs rebase |
-| 0009: diagnostics routing | Needs rebase; the largest patch, touching 21 files |
-| 0010: Raphael activation policy | Feature-selection hunks still match; insertion depends on rebasing 0009's logging include |
+| 0006: worker logging scope | Rebased onto the new worker implementation |
+| 0007: Vulkan physical identity | Rebased; removed the local memory-budget guard superseded by upstream's heap clamp and underflow protection |
+| 0009: diagnostics routing | Rebased while retaining upstream's multi-device pinned-memory implementation |
+| 0010: Raphael activation policy | Rebased; preserves floating activations for PCI 1002:164e and FP16 support |
+| 0011: strided KV prefill tests | New test-only cases at batches 255/256/512, both precisions and dense/padded/strided layouts |
 
-The existing API inventory guard rejects this candidate until its API changes
-are reconciled. In particular, `mtmd` adds experimental streaming-audio APIs.
-The stable source already contains the AMD `kv_raw_strided` attention path in
-our Halo backlog. Check and reuse that implementation during the upgrade.
+The regenerated C89 facade covers 1,111 upstream functions and 329 record
+fields with zero gaps. Upstream adds 28 functions, including experimental
+audio-stream and generation-state APIs. Two existing native signatures change:
+`mtmd_gen_audio_process` takes an explicit generation state and
+`mtmd_helper_support_video` takes a const context. Native video-init accessors
+are replaced with video-config accessors. This is a clean cutover; receiver
+features are not expanded by generating bindings. There is no prior released
+libailo artifact/tag to derive an ABI increment from, so the unreleased initial
+shared-library ABI remains 0.
 
-Audit inputs and logs: `build/raphael-followup/vendor-audit/`. This is a patch/API
-assessment; the stable candidate has not been built or qualified as libailo.
+The stable source includes AMD's `kv_raw_strided` attention scratch-copy path;
+there is no duplicate backport. The upstream backend-operation tool is available
+as the opt-in `ailo_qualify_backend_ops` target. Both GNU and musl pass 48 selected
+flash-attention cases on Raphael: 24 upstream decode/prefill/layout/quantized-KV
+cases and 24 added cases spanning the scratch path's 256-token threshold,
+dense/padded/strided KV and default/F32 precision. BF16, actual Halo,
+RDNA4 and non-AMD GPU behavior remain separate hardware qualification work.
+
+Fresh extraction of the verified archive plus all eleven patches with zero fuzz
+exactly reproduces both prepared source trees. Offset backup files are preserved
+separately; neither tree contains rejected patches or unrecorded source edits.
+GNU passes 81/81 native tests and 5/5 installed Lua tests; musl passes 78/78.
+Both pass strict trained logits, 400 fresh matrix processes and all six trained
+Vulkan serving cases. Static-musl integer isolation passes 1,500 processes.
+Relocated static Vulkan checks pass for both targets; all six musl qualification
+and serving executables lack an interpreter and dynamic library dependencies.
+
+Upgrade inputs, source reconstruction and qualification logs:
+`build/llama-upgrade/`. See [static Vulkan qualification](../../docs/static-vulkan.md)
+for the accepted driver and numerical policy.
 
 ## Upgrade sequence
 

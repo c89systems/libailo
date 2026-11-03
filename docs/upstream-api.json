@@ -1,5 +1,5 @@
 {
-  "revision": "8345f333951c661d166b00e6f9362e553768f292",
+  "revision": "8642541b255bfb5dc39cd351a178be09013a55d6",
   "headers": [
     "include/llama.h",
     "ggml/include/ggml.h",
@@ -26,9 +26,11 @@
     "ggml/include/ggml-cpp.h": "C++ utilities, excluded by product scope"
   },
   "excluded_cpp_wrappers": [
+    "mtmd::mtmd_audio_stream_deleter",
     "mtmd::mtmd_batch_deleter",
     "mtmd::mtmd_bitmap_deleter",
     "mtmd::mtmd_context_deleter",
+    "mtmd::mtmd_gen_state_deleter",
     "mtmd::mtmd_input_chunk_deleter",
     "mtmd::mtmd_input_chunks_deleter",
     "mtmd_helper::mtmd_helper_gen_audio_deleter",
@@ -2398,6 +2400,25 @@
       "variadic": false
     },
     {
+      "name": "ggml_backend_sched_set_copy_callback",
+      "type": "void (ggml_backend_sched_t, ggml_backend_sched_copy_callback, void *)",
+      "parameters": [
+        {
+          "name": "sched",
+          "type": "ggml_backend_sched_t"
+        },
+        {
+          "name": "callback",
+          "type": "ggml_backend_sched_copy_callback"
+        },
+        {
+          "name": "user_data",
+          "type": "void *"
+        }
+      ],
+      "variadic": false
+    },
+    {
       "name": "ggml_backend_sched_set_eval_callback",
       "type": "void (ggml_backend_sched_t, ggml_backend_sched_eval_callback, void *)",
       "parameters": [
@@ -2408,6 +2429,25 @@
         {
           "name": "callback",
           "type": "ggml_backend_sched_eval_callback"
+        },
+        {
+          "name": "user_data",
+          "type": "void *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "ggml_backend_sched_set_realloc_callback",
+      "type": "void (ggml_backend_sched_t, ggml_backend_sched_realloc_callback, void *)",
+      "parameters": [
+        {
+          "name": "sched",
+          "type": "ggml_backend_sched_t"
+        },
+        {
+          "name": "callback",
+          "type": "ggml_backend_sched_realloc_callback"
         },
         {
           "name": "user_data",
@@ -8706,6 +8746,32 @@
       "variadic": false
     },
     {
+      "name": "ggml_prec_get_acc",
+      "type": "enum ggml_prec (const struct ggml_tensor *)",
+      "parameters": [
+        {
+          "name": "a",
+          "type": "const struct ggml_tensor *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "ggml_prec_get_src",
+      "type": "enum ggml_prec (const struct ggml_tensor *, int)",
+      "parameters": [
+        {
+          "name": "a",
+          "type": "const struct ggml_tensor *"
+        },
+        {
+          "name": "idx",
+          "type": "int"
+        }
+      ],
+      "variadic": false
+    },
+    {
       "name": "ggml_prec_set_acc",
       "type": "bool (struct ggml_tensor *, enum ggml_prec)",
       "parameters": [
@@ -11289,6 +11355,37 @@
         {
           "name": "k",
           "type": "int"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "ggml_top_k_mask",
+      "type": "struct ggml_tensor *(struct ggml_context *, struct ggml_tensor *, struct ggml_tensor *, struct ggml_tensor *, struct ggml_tensor *, struct ggml_tensor *)",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "struct ggml_context *"
+        },
+        {
+          "name": "mask",
+          "type": "struct ggml_tensor *"
+        },
+        {
+          "name": "top_k",
+          "type": "struct ggml_tensor *"
+        },
+        {
+          "name": "score",
+          "type": "struct ggml_tensor *"
+        },
+        {
+          "name": "blocks",
+          "type": "struct ggml_tensor *"
+        },
+        {
+          "name": "extra",
+          "type": "struct ggml_tensor *"
         }
       ],
       "variadic": false
@@ -16531,6 +16628,131 @@
       "variadic": false
     },
     {
+      "name": "mtmd_audio_stream_flush",
+      "type": "int32_t (mtmd_audio_stream *, bool)",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "mtmd_audio_stream *"
+        },
+        {
+          "name": "end",
+          "type": "bool"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_audio_stream_free",
+      "type": "void (mtmd_audio_stream *)",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "mtmd_audio_stream *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_audio_stream_get_n_rows",
+      "type": "int64_t (const mtmd_audio_stream *)",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "const mtmd_audio_stream *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_audio_stream_get_n_rows_flushed",
+      "type": "int64_t (const mtmd_audio_stream *)",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "const mtmd_audio_stream *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_audio_stream_get_output_embd",
+      "type": "const float *(const mtmd_audio_stream *)",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "const mtmd_audio_stream *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_audio_stream_init",
+      "type": "mtmd_audio_stream *(mtmd_context *, struct mtmd_audio_stream_params)",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "mtmd_context *"
+        },
+        {
+          "name": "params",
+          "type": "struct mtmd_audio_stream_params"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_audio_stream_is_seq_start",
+      "type": "bool (const mtmd_audio_stream *)",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "const mtmd_audio_stream *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_audio_stream_params_default",
+      "type": "struct mtmd_audio_stream_params ()",
+      "parameters": [],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_audio_stream_push",
+      "type": "int32_t (mtmd_audio_stream *, const float *, size_t)",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "mtmd_audio_stream *"
+        },
+        {
+          "name": "samples",
+          "type": "const float *"
+        },
+        {
+          "name": "n_samples",
+          "type": "size_t"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_audio_stream_step",
+      "type": "int32_t (mtmd_audio_stream *, llama_token)",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "mtmd_audio_stream *"
+        },
+        {
+          "name": "last_token",
+          "type": "llama_token"
+        }
+      ],
+      "variadic": false
+    },
+    {
       "name": "mtmd_batch_add_chunk",
       "type": "int32_t (mtmd_batch *, const mtmd_input_chunk *)",
       "parameters": [
@@ -16743,6 +16965,21 @@
       "variadic": false
     },
     {
+      "name": "mtmd_bitmap_set_is_video",
+      "type": "void (mtmd_bitmap *, bool)",
+      "parameters": [
+        {
+          "name": "bitmap",
+          "type": "mtmd_bitmap *"
+        },
+        {
+          "name": "is_video",
+          "type": "bool"
+        }
+      ],
+      "variadic": false
+    },
+    {
       "name": "mtmd_bitmap_set_mergeable",
       "type": "void (mtmd_bitmap *, bool)",
       "parameters": [
@@ -16849,11 +17086,15 @@
     },
     {
       "name": "mtmd_gen_audio_process",
-      "type": "int32_t (mtmd_context *, const struct mtmd_gen_inp *, struct mtmd_gen_out *)",
+      "type": "int32_t (mtmd_context *, mtmd_gen_state *, const struct mtmd_gen_inp *, struct mtmd_gen_out *)",
       "parameters": [
         {
           "name": "ctx",
           "type": "mtmd_context *"
+        },
+        {
+          "name": "state",
+          "type": "mtmd_gen_state *"
         },
         {
           "name": "inp",
@@ -16873,6 +17114,49 @@
         {
           "name": "ctx",
           "type": "const mtmd_context *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_gen_state_free",
+      "type": "void (mtmd_gen_state *)",
+      "parameters": [
+        {
+          "name": "state",
+          "type": "mtmd_gen_state *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_gen_state_init",
+      "type": "mtmd_gen_state *(mtmd_context *, struct mtmd_gen_state_params)",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "mtmd_context *"
+        },
+        {
+          "name": "params",
+          "type": "struct mtmd_gen_state_params"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_gen_state_params_default",
+      "type": "struct mtmd_gen_state_params ()",
+      "parameters": [],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_gen_state_reset",
+      "type": "void (mtmd_gen_state *)",
+      "parameters": [
+        {
+          "name": "state",
+          "type": "mtmd_gen_state *"
         }
       ],
       "variadic": false
@@ -16932,6 +17216,56 @@
         {
           "name": "ctx",
           "type": "mtmd_context *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_get_video_config",
+      "type": "struct mtmd_video_config (const mtmd_context *, int32_t, int32_t, int32_t, float)",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "const mtmd_context *"
+        },
+        {
+          "name": "src_width",
+          "type": "int32_t"
+        },
+        {
+          "name": "src_height",
+          "type": "int32_t"
+        },
+        {
+          "name": "src_n_frames",
+          "type": "int32_t"
+        },
+        {
+          "name": "src_fps",
+          "type": "float"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_helper_audio_stream_get_logit_bias",
+      "type": "int32_t (const mtmd_context *, const struct llama_model *, llama_logit_bias *, int32_t)",
+      "parameters": [
+        {
+          "name": "mctx",
+          "type": "const mtmd_context *"
+        },
+        {
+          "name": "model",
+          "type": "const struct llama_model *"
+        },
+        {
+          "name": "out",
+          "type": "llama_logit_bias *"
+        },
+        {
+          "name": "n_max",
+          "type": "int32_t"
         }
       ],
       "variadic": false
@@ -17112,12 +17446,38 @@
       "variadic": false
     },
     {
+      "name": "mtmd_helper_gen_audio_flush",
+      "type": "int32_t (mtmd_helper_gen_audio *)",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "mtmd_helper_gen_audio *"
+        }
+      ],
+      "variadic": false
+    },
+    {
       "name": "mtmd_helper_gen_audio_free",
       "type": "void (mtmd_helper_gen_audio *)",
       "parameters": [
         {
           "name": "ctx",
           "type": "mtmd_helper_gen_audio *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_helper_gen_audio_get_logit_bias",
+      "type": "const llama_logit_bias *(mtmd_helper_gen_audio *, size_t *)",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "mtmd_helper_gen_audio *"
+        },
+        {
+          "name": "n_bias",
+          "type": "size_t *"
         }
       ],
       "variadic": false
@@ -17160,6 +17520,23 @@
         {
           "name": "mctx",
           "type": "struct mtmd_context *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_helper_gen_audio_inp_default",
+      "type": "struct mtmd_helper_gen_audio_inp ()",
+      "parameters": [],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_helper_gen_audio_next_is_text",
+      "type": "bool (mtmd_helper_gen_audio *)",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "mtmd_helper_gen_audio *"
         }
       ],
       "variadic": false
@@ -17228,6 +17605,21 @@
         {
           "name": "n_batch",
           "type": "int32_t"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_helper_get_capabilities",
+      "type": "struct mtmd_helper_cap (const struct llama_model *, const struct mtmd_context *)",
+      "parameters": [
+        {
+          "name": "model",
+          "type": "const struct llama_model *"
+        },
+        {
+          "name": "mctx",
+          "type": "const struct mtmd_context *"
         }
       ],
       "variadic": false
@@ -17311,11 +17703,11 @@
     },
     {
       "name": "mtmd_helper_support_video",
-      "type": "bool (const mtmd_context *)",
+      "type": "bool (const struct mtmd_context *)",
       "parameters": [
         {
           "name": "ctx",
-          "type": "const mtmd_context *"
+          "type": "const struct mtmd_context *"
         }
       ],
       "variadic": false
@@ -17703,6 +18095,17 @@
     },
     {
       "name": "mtmd_support_audio",
+      "type": "bool (const mtmd_context *)",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "const mtmd_context *"
+        }
+      ],
+      "variadic": false
+    },
+    {
+      "name": "mtmd_support_audio_stream",
       "type": "bool (const mtmd_context *)",
       "parameters": [
         {
@@ -18414,6 +18817,10 @@
           "type": "enum ggml_type"
         },
         {
+          "name": "moe_cache_size",
+          "type": "size_t"
+        },
+        {
           "name": "abort_callback",
           "type": "ggml_abort_callback"
         },
@@ -18527,7 +18934,7 @@
         },
         {
           "name": "",
-          "type": "llama_model_kv_override::(anonymous union at include/llama.h:306:9)"
+          "type": "llama_model_kv_override::(anonymous union at include/llama.h:307:9)"
         }
       ],
       "nested": [
@@ -18789,6 +19196,14 @@
         {
           "name": "n_reused",
           "type": "int32_t"
+        },
+        {
+          "name": "n_reallocs_same",
+          "type": "int32_t"
+        },
+        {
+          "name": "n_reallocs_diff",
+          "type": "int32_t"
         }
       ],
       "nested": []
@@ -18970,6 +19385,25 @@
       "nested": []
     },
     {
+      "name": "mtmd_audio_stream_params",
+      "tag": "struct",
+      "fields": [
+        {
+          "name": "step_ms",
+          "type": "int32_t"
+        },
+        {
+          "name": "prompt",
+          "type": "const llama_token *"
+        },
+        {
+          "name": "n_prompt",
+          "type": "size_t"
+        }
+      ],
+      "nested": []
+    },
+    {
       "name": "mtmd_caps",
       "tag": "struct",
       "fields": [
@@ -18979,6 +19413,10 @@
         },
         {
           "name": "inp_audio",
+          "type": "bool"
+        },
+        {
+          "name": "gen_audio",
           "type": "bool"
         }
       ],
@@ -19118,12 +19556,16 @@
           "type": "float"
         },
         {
-          "name": "seed",
-          "type": "uint32_t"
-        },
-        {
           "name": "temp",
           "type": "float"
+        },
+        {
+          "name": "penalty_repeat",
+          "type": "float"
+        },
+        {
+          "name": "penalty_last_n",
+          "type": "int32_t"
         },
         {
           "name": "codes",
@@ -19139,14 +19581,6 @@
         },
         {
           "name": "n_feats",
-          "type": "size_t"
-        },
-        {
-          "name": "state_data",
-          "type": "const char *"
-        },
-        {
-          "name": "state_size",
           "type": "size_t"
         }
       ],
@@ -19187,14 +19621,17 @@
         {
           "name": "n_samples",
           "type": "size_t"
-        },
+        }
+      ],
+      "nested": []
+    },
+    {
+      "name": "mtmd_gen_state_params",
+      "tag": "struct",
+      "fields": [
         {
-          "name": "state_data",
-          "type": "const char *"
-        },
-        {
-          "name": "state_size",
-          "type": "size_t"
+          "name": "seed",
+          "type": "uint32_t"
         }
       ],
       "nested": []
@@ -19210,6 +19647,45 @@
         {
           "name": "video_ctx",
           "type": "mtmd_helper_video *"
+        }
+      ],
+      "nested": []
+    },
+    {
+      "name": "mtmd_helper_cap",
+      "tag": "struct",
+      "fields": [
+        {
+          "name": "chat",
+          "type": "bool"
+        },
+        {
+          "name": "vision",
+          "type": "bool"
+        },
+        {
+          "name": "audio",
+          "type": "bool"
+        },
+        {
+          "name": "video",
+          "type": "bool"
+        },
+        {
+          "name": "audio_stream",
+          "type": "bool"
+        },
+        {
+          "name": "text_gen",
+          "type": "bool"
+        },
+        {
+          "name": "audio_gen",
+          "type": "bool"
+        },
+        {
+          "name": "audio_gen_spk_ref",
+          "type": "bool"
         }
       ],
       "nested": []
@@ -19250,6 +19726,10 @@
       "tag": "struct",
       "fields": [
         {
+          "name": "stream",
+          "type": "bool"
+        },
+        {
           "name": "seq_id",
           "type": "llama_seq_id"
         },
@@ -19262,11 +19742,23 @@
           "type": "size_t"
         },
         {
+          "name": "n_past",
+          "type": "int32_t"
+        },
+        {
+          "name": "out_mode",
+          "type": "enum mtmd_helper_gen_audio_out_mode"
+        },
+        {
           "name": "speaker_ref",
           "type": "mtmd_bitmap *"
         },
         {
           "name": "lang",
+          "type": "const char *"
+        },
+        {
+          "name": "voice",
           "type": "const char *"
         },
         {
@@ -19337,6 +19829,10 @@
         {
           "name": "timestamp_interval_ms",
           "type": "int64_t"
+        },
+        {
+          "name": "no_soundtrack",
+          "type": "bool"
         }
       ],
       "nested": []
@@ -19394,6 +19890,33 @@
         {
           "name": "use_non_causal",
           "type": "bool"
+        }
+      ],
+      "nested": []
+    },
+    {
+      "name": "mtmd_video_config",
+      "tag": "struct",
+      "fields": [
+        {
+          "name": "tmpl",
+          "type": "enum mtmd_video_template"
+        },
+        {
+          "name": "fps",
+          "type": "float"
+        },
+        {
+          "name": "n_frames",
+          "type": "int32_t"
+        },
+        {
+          "name": "frame_width",
+          "type": "int32_t"
+        },
+        {
+          "name": "frame_height",
+          "type": "int32_t"
         }
       ],
       "nested": []
@@ -19461,8 +19984,16 @@
       "type": "struct ggml_backend_reg *"
     },
     {
+      "name": "ggml_backend_sched_copy_callback",
+      "type": "bool (*)(ggml_backend_t, const struct ggml_tensor *, struct ggml_tensor *, struct ggml_cgraph *, void *)"
+    },
+    {
       "name": "ggml_backend_sched_eval_callback",
       "type": "bool (*)(struct ggml_tensor *, bool, void *)"
+    },
+    {
+      "name": "ggml_backend_sched_realloc_callback",
+      "type": "void (*)(ggml_backend_sched_t, struct ggml_cgraph *, bool, bool, void *)"
     },
     {
       "name": "ggml_backend_sched_t",
@@ -19629,6 +20160,10 @@
       "type": "struct llama_token_data_array"
     },
     {
+      "name": "mtmd_audio_stream",
+      "type": "struct mtmd_audio_stream"
+    },
+    {
       "name": "mtmd_batch",
       "type": "struct mtmd_batch"
     },
@@ -19643,6 +20178,14 @@
     {
       "name": "mtmd_context",
       "type": "struct mtmd_context"
+    },
+    {
+      "name": "mtmd_gen_state",
+      "type": "struct mtmd_gen_state"
+    },
+    {
+      "name": "mtmd_helper_cap",
+      "type": "struct mtmd_helper_cap"
     },
     {
       "name": "mtmd_helper_gen_audio",
@@ -20366,48 +20909,52 @@
           "value": 90
         },
         {
-          "name": "GGML_OP_UNARY",
+          "name": "GGML_OP_TOP_K_MASK",
           "value": 91
         },
         {
-          "name": "GGML_OP_MAP_CUSTOM1",
+          "name": "GGML_OP_UNARY",
           "value": 92
         },
         {
-          "name": "GGML_OP_MAP_CUSTOM2",
+          "name": "GGML_OP_MAP_CUSTOM1",
           "value": 93
         },
         {
-          "name": "GGML_OP_MAP_CUSTOM3",
+          "name": "GGML_OP_MAP_CUSTOM2",
           "value": 94
         },
         {
-          "name": "GGML_OP_CUSTOM",
+          "name": "GGML_OP_MAP_CUSTOM3",
           "value": 95
         },
         {
-          "name": "GGML_OP_CROSS_ENTROPY_LOSS",
+          "name": "GGML_OP_CUSTOM",
           "value": 96
         },
         {
-          "name": "GGML_OP_CROSS_ENTROPY_LOSS_BACK",
+          "name": "GGML_OP_CROSS_ENTROPY_LOSS",
           "value": 97
         },
         {
-          "name": "GGML_OP_OPT_STEP_ADAMW",
+          "name": "GGML_OP_CROSS_ENTROPY_LOSS_BACK",
           "value": 98
         },
         {
-          "name": "GGML_OP_OPT_STEP_SGD",
+          "name": "GGML_OP_OPT_STEP_ADAMW",
           "value": 99
         },
         {
-          "name": "GGML_OP_GLU",
+          "name": "GGML_OP_OPT_STEP_SGD",
           "value": 100
         },
         {
-          "name": "GGML_OP_COUNT",
+          "name": "GGML_OP_GLU",
           "value": 101
+        },
+        {
+          "name": "GGML_OP_COUNT",
+          "value": 102
         }
       ]
     },
@@ -21532,6 +22079,10 @@
         {
           "name": "LLAMA_VOCAB_TYPE_TEST",
           "value": 7
+        },
+        {
+          "name": "LLAMA_VOCAB_TYPE_PLAMO3",
+          "value": 8
         }
       ]
     },
@@ -21549,6 +22100,14 @@
         {
           "name": "MTMD_GEN_AUDIO_TYPE_POCKETTTS",
           "value": 2
+        },
+        {
+          "name": "MTMD_GEN_AUDIO_TYPE_SOPRANO",
+          "value": 3
+        },
+        {
+          "name": "MTMD_GEN_AUDIO_TYPE_LFM3A",
+          "value": 4
         }
       ]
     },
@@ -21562,6 +22121,27 @@
         {
           "name": "MTMD_GEN_PROCESS_TYPE_GEN_WAV",
           "value": 1
+        }
+      ]
+    },
+    {
+      "name": "mtmd_helper_gen_audio_out_mode",
+      "values": [
+        {
+          "name": "MTMD_HELPER_GEN_AUDIO_OUT_AUTO",
+          "value": 0
+        },
+        {
+          "name": "MTMD_HELPER_GEN_AUDIO_OUT_TEXT",
+          "value": 1
+        },
+        {
+          "name": "MTMD_HELPER_GEN_AUDIO_OUT_AUDIO",
+          "value": 2
+        },
+        {
+          "name": "MTMD_HELPER_GEN_AUDIO_OUT_MIXED",
+          "value": 3
         }
       ]
     },
@@ -21596,6 +22176,23 @@
         {
           "name": "MTMD_INPUT_CHUNK_TYPE_COUNT",
           "value": 3
+        }
+      ]
+    },
+    {
+      "name": "mtmd_video_template",
+      "values": [
+        {
+          "name": "MTMD_VIDEO_TEMPLATE_DEFAULT",
+          "value": 0
+        },
+        {
+          "name": "MTMD_VIDEO_TEMPLATE_LFM3",
+          "value": 1
+        },
+        {
+          "name": "MTMD_VIDEO_TEMPLATE_LFM3_OMNI",
+          "value": 2
         }
       ]
     }
@@ -21906,6 +22503,11 @@
       "name": "LLAMA_DEFAULT_SEED",
       "parameters": null,
       "value": "0xFFFFFFFF"
+    },
+    {
+      "name": "LLAMA_DRY_MAX_SEQ_BREAKERS",
+      "parameters": null,
+      "value": "64"
     },
     {
       "name": "LLAMA_FILE_MAGIC_GGLA",

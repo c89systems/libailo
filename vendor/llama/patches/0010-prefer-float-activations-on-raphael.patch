@@ -16,10 +16,10 @@
 +}
 +#endif
 +
- namespace {
- inline std::ostream & operator<<(std::ostream & os, vk::Buffer buffer) {
-     return os << static_cast<VkBuffer>(buffer);
-@@ -4077,7 +4089,7 @@
+ static vk_device_architecture get_device_architecture(const vk::PhysicalDevice& device) {
+     vk::PhysicalDeviceProperties props = device.getProperties();
+ 
+@@ -4103,7 +4115,7 @@
                  coopmat2_decode_vector_support = true;
  #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
              } else if (strcmp("VK_KHR_shader_integer_dot_product", properties.extensionName) == 0 &&
@@ -28,7 +28,7 @@
                  device->integer_dot_product = true;
  #endif
  #if defined(GGML_VULKAN_BFLOAT16_GLSLC_SUPPORT)
-@@ -4976,7 +4988,7 @@
+@@ -5001,7 +5013,7 @@
              coopmat2_decode_vector_support = true;
  #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
          } else if (strcmp("VK_KHR_shader_integer_dot_product", properties.extensionName) == 0 &&
