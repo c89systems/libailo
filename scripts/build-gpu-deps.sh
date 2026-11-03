@@ -63,6 +63,7 @@ if [[ "$component" == vulkan-loader ]]; then
   configure_dependency vulkan-loader -DSYSCONFDIR=/etc \
     -DVulkanHeaders_DIR="$root/.cache/deps/$target/vulkan-headers/install/share/cmake/VulkanHeaders" \
     -DBUILD_TESTS=OFF -DBUILD_WERROR=OFF \
+    -DCMAKE_EXE_LINKER_FLAGS=-static \
     -DBUILD_WSI_XCB_SUPPORT=OFF -DBUILD_WSI_XLIB_SUPPORT=OFF \
     -DBUILD_WSI_WAYLAND_SUPPORT=OFF -DBUILD_WSI_XLIB_XRANDR_SUPPORT=OFF
   cmake -E rm -f "$prefix"/lib/libvulkan.so*

@@ -69,6 +69,14 @@ cmake_host_system_information(RESULT host QUERY OS_PLATFORM)
 if(AILO_TARGET_ID MATCHES "^x86_64-" AND host STREQUAL "x86_64")
   execute_process(COMMAND "${program}" COMMAND_ERROR_IS_FATAL ANY)
   if(AILO_STATIC_LOADER)
+    # The build-time offset generator must run without a workstation musl
+    # interpreter. Its target ABI still comes from the pinned collection.
+    set(offset_generator "${AILO_SOURCE_ROOT}/.cache/deps-build/${AILO_TARGET_ID}/vulkan-loader/build/loader/asm_offset")
+    execute_process(COMMAND "${CMAKE_READELF}" -l -d "${offset_generator}"
+      COMMAND_ERROR_IS_FATAL ANY OUTPUT_VARIABLE generator_elf)
+    if(generator_elf MATCHES "INTERP|NEEDED")
+      message(FATAL_ERROR "Vulkan offset generator depends on a host interpreter/library")
+    endif()
     find_program(strace NAMES strace REQUIRED)
     execute_process(COMMAND "${CMAKE_COMMAND}" -E env
       "VK_DRIVER_FILES=${work}/forbidden/icd.json"
