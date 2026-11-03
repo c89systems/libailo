@@ -511,6 +511,8 @@ int main(int argc, char **argv) {
       CHECK(file(fs::path(root) / "manifest").find("compression=zlib") !=
             std::string::npos);
       CHECK(file(secret) == original_key);
+      CHECK(!fs::exists(fs::path(root) / ".compression-ready"));
+      CHECK(!fs::exists(fs::path(root) / ".compression-work"));
       // Omission inherits the converted mode rather than converting it back.
       settings.set_mask &= ~LC_POUCH_SETTING_COMPRESSION;
       CHECK(lc_client_open(&setup, &client, &error) == LC_OK);

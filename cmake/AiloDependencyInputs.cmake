@@ -1,6 +1,6 @@
 # Archive members retain upstream timestamps. A new extraction contract must
 # invalidate project-owned objects even when their replacement inputs are older.
-function(ailo_track_dependency_inputs contract)
+function(ailo_track_dependency_inputs)
   get_property(targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
   set(compiled_sources "")
   foreach(target IN LISTS targets)
@@ -13,7 +13,7 @@ function(ailo_track_dependency_inputs contract)
   list(REMOVE_DUPLICATES compiled_sources)
   foreach(source IN LISTS compiled_sources)
     if(NOT source MATCHES "\\$<" AND source MATCHES "\\.(c|cc|cpp|cxx|S)$")
-      set_property(SOURCE "${source}" APPEND PROPERTY OBJECT_DEPENDS "${contract}")
+      set_property(SOURCE "${source}" APPEND PROPERTY OBJECT_DEPENDS ${ARGN})
     endif()
   endforeach()
 endfunction()

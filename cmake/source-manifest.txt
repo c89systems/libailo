@@ -131,6 +131,7 @@ cmake/source-manifest.txt
 cmake/AiloHostSdk.cmake
 cmake/version.h.in
 docs/architecture.md
+docs/dependency-versions.md
 docs/c89-boundary.md
 docs/client.md
 docs/openai.md

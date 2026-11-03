@@ -389,7 +389,7 @@ Shared device diagnostics without a receiver scope can use an explicitly
 configured native global hook. Errors remain available through returned values.
 
 Build with CMake 3.24+, the installed libailo/pslog SDKs, Lua 5.5.1 SDK CMake
-config, and the public pslog_lua.h interop header from lua-pslog 0.12.0. Supply
+config, and the public pslog_lua.h interop header from lua-pslog 0.13.0. Supply
 these prefixes in CMAKE_PREFIX_PATH and PSLOG_LUA_INCLUDE_DIR; select your target
 toolchain explicitly. The rockspec exposes AILO_DIR, PSLOG_DIR, CPKTLUA_DIR and
 PSLOG_LUA_INCDIR for the same dependency selection. Configure the normal system

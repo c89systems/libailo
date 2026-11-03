@@ -20,13 +20,13 @@ performance or hardware-support claims. Run builds and tests serially.
   driver stack and uses separately compiled probe binaries; it is not a driver
   commit bisect. The host update does not close the failure. Logs and commands:
   `build/gpu-recheck-20261102/`.
-- [ ] **Upgrade and qualify the embedded Mesa stable branch.**
-  Assess 26.2.6 before 26.3 release candidates. Rebase the static headless patches,
-  preserve ACO and built-in RADV/ANV, and recheck the archive closure and embedded
-  identities. 26.2.6 includes an ACO branch-optimization correctness fix affecting
-  RDNA2–RDNA4; this is a candidate, not an identified cause of our failure.
-  Inspect its applicability to the failing compiled shader. Source:
-  [Mesa 26.2.6 release notes](https://docs.mesa3d.org/relnotes/26.2.6.html).
+- [x] **Upgrade and qualify the embedded Mesa stable branch.**
+  Upgraded to 26.2.6, preserving ACO, built-in RADV/ANV and the full Raphael
+  repair. Both native targets pass strict logits, 400 matrix processes, 48
+  attention cases, all six trained serving cases and relocated static closure.
+  Musl passes 1,500 shared-memory processes. Release candidates are excluded.
+  The upstream ACO branch fix does not establish the root cause of our LDS
+  failure. See the [release audit](docs/dependency-versions.md).
 - [x] **Repair the reproduced Raphael shared-memory corruption.**
   The private Mesa patch reserves the full LDS region for compute workgroups
   using shared memory and retains explicit LDS barrier waits, including within
@@ -50,6 +50,12 @@ performance or hardware-support claims. Run builds and tests serially.
   `1002:164e`, retaining FP16. Both GNU and fully static musl now pass the same
   strict trained-logit tolerances without an environment override. Other device
   IDs retain their existing selection. Broader model/context coverage remains.
+- [ ] **Recheck whether upstream can replace the activation override.**
+  The latest dependency campaign retains both Raphael fixes; it does not prove
+  either can be removed. In an isolated build, remove the activation override
+  while retaining the LDS repair, then repeat the unchanged strict F16-reference
+  logits and trained serving gates. Evaluate driver changes separately. The
+  approved default continues to prefer accuracy.
 - [x] **Measure the LDS workaround and check a smaller reservation.**
   On the fixed Qwen workload, the original unpatched control reaches about
   652 prefill / 29 decode tokens/s; the safe profile with floating activations
@@ -105,18 +111,18 @@ Halo assessment are under ignored `stash/`; they must remain uncommitted.
   0.26 converts an existing root when explicit compression differs; 0.23
   rejected it. Accepted the SDK's conversion on open. The integration test
   proves original payload/key preservation and new-record reopen; startup/space
-  effects are documented in `docs/persistence.md`. Disk headroom covers the
-  retained source plus the replacement root, not only one segment. Only
-  disposable test roots have been used.
+  effects are documented in `docs/persistence.md`. The subsequent 0.27 upgrade
+  limits temporary payload duplication to one segment or snapshot plus recovery
+  metadata and indexes. Only disposable test roots have been used.
 - [ ] **Resolve the push writer's staging contract before provider adoption.**
-  liblockdc 0.26.0 supplies push begin/write/commit/abort and atomic parent
+  liblockdc 0.27.0 supplies push begin/write/commit/abort and atomic parent
   renewal, but its writer stages the encoded entry in up to 64 KiB of memory,
   spills larger encoded entries to an anonymous file, and copies at commit.
   This is staged/spooled append, not our required end-to-end streaming. Reads
   deliver bounded chunks directly. Obtain a suitable upstream direct streaming
   contract, or an explicit product decision accepting staging; do not hide the
   spool, add a producer thread, or implement a private dependency bypass.
-  [Released writer contract](https://github.com/sa6mwa/liblockdc/blob/v0.26.0/docs/collection-writer.md).
+  [Released writer contract](https://github.com/c89systems/liblockdc/blob/v0.27.0/docs/collection-writer.md).
 - [ ] **Replace conversation payload chunks with collection entries.**
   Use one collection incarnation per conversation, exact immutable ID/position
   references, and the existing libailo commit marker for one conversation plus
@@ -149,31 +155,32 @@ Halo assessment are under ignored `stash/`; they must remain uncommitted.
 
 ## P1: Refresh dependencies deliberately
 
-Most upstream versions were checked 2026-11-02; llama.cpp was rechecked 2026-11-03.
-Versions below are verified candidates, not promises
-that an upgrade fixes Raphael. Keep SDK compression/XML dependencies private;
+All direct dependency releases were rechecked 2026-11-03; exact release sources
+and the upgrade record are in [dependency versions](docs/dependency-versions.md).
+Updating a pin does not establish that upstream fixes Raphael. Keep SDK compression/XML dependencies private;
 never substitute workstation libraries for cpkt/cpktmisc.
 
 | Dependency | Current pin after this upgrade | Candidate / action |
 | --- | --- | --- |
-| liblockdc | 0.26.0, ABI 9 | Keep exact released SDKs; no adjacent-source build. Collection API verification is separate from provider adoption. |
-| liblql | 0.4.0, ABI 0 | Required by the new lockdc SDK; upgraded together. |
-| Mesa | 26.2.4 | Qualify 26.2.6 first; see P0 above. |
+| liblockdc | 0.27.0, ABI 9 | Latest release; resumable conversion with one segment/snapshot duplicated at a time. Collection provider adoption remains separate. |
+| liblql | 0.4.1, ABI 0 | Latest released SDK; no adjacent-source build. |
+| Mesa | 26.2.6 | Latest stable; retains the Raphael repair. 26.3 release candidates are excluded. |
 | llama.cpp | v0.8.0 | Stable release adopted; ten integration patches retained, four rebased, plus one new test-only patch. Includes the AMD KV fix. See the [integration record](vendor/llama/README.md). Rolling b12078 is prerelease. |
-| cpkt | 0.5.2 | Upgrade to [0.6.1](https://github.com/c89systems/cpkt/releases/tag/v0.6.1); includes a libssh2 AES-GCM handshake leak repair. Static users must relink. |
-| cpktmisc | 0.2.1 | Upgrade with core to [0.3.0](https://github.com/c89systems/cpktmisc/releases/tag/v0.3.0); requires cpkt 0.6.1 and removes LZO. Audit codec/target and notice changes. |
-| SPIRV-LLVM-Translator | 23.1.0 | Assess [23.1.3](https://github.com/KhronosGroup/SPIRV-LLVM-Translator/compare/v23.1.0...v23.1.3); includes a leak repair and translation/rounding corrections. Keep LLVM/Clang 23 compatibility. |
+| cpkt | 0.6.1 | Latest release; includes the libssh2 AES-GCM handshake leak repair. Static users must relink. |
+| cpktmisc | 0.3.0 | Latest release; requires cpkt 0.6.1 and removes LZO. |
+| SPIRV-LLVM-Translator | 23.1.3 | Latest release; retains LLVM/Clang 23 compatibility. |
 | SPIRV-Tools / glslang | 2026.4 / 16.6.0 | Match the published [Tools](https://github.com/KhronosGroup/SPIRV-Tools/releases/tag/v2026.4) / [glslang](https://github.com/KhronosGroup/glslang/releases/tag/16.6.0) releases checked; no upgrade justified by age alone. |
-| lonejson / libpslog | 0.45.0 / 0.12.0 | Match the published [lonejson](https://github.com/sa6mwa/lonejson/releases/tag/v0.45.0) / [pslog](https://github.com/sa6mwa/libpslog/releases/tag/v0.12.0) releases checked. |
+| lonejson / libpslog | 0.45.0 / 0.13.0 | Latest stable releases, including the matching 0.13.0 Lua logging provider. Canonical owner is c89systems. |
 | libdrm | 2.4.134 | Matches the latest [archive](https://dri.freedesktop.org/libdrm/) checked; retain unless a relevant fix is identified. |
-| Vulkan headers/loader/SPIR-V headers | SDK 1.4.363.0 | Check a coherent SDK/tag set when changing shader or loader requirements; no newer release was established by this audit. |
+| Vulkan headers/loader | 1.4.367 | Latest published stable version tags; static-provider patch rebased to the new platform implementation. |
+| SPIR-V headers | SDK 1.4.363.0 | Latest SDK tag; the separate Tools header input follows the exact revision required by its released DEPS. |
 
-- [ ] **Upgrade cpkt/cpktmisc as a coordinated foundation change.**
-  Update exact asset hashes, package requirements, host-generator SDK checks and
-  notices. Re-prove static/shared libffi callbacks on all four Linux targets,
-  encrypted/compressed persistence, host LLVM/Mesa generators and relocatable
-  consumers. Check transitive SDK compatibility rather than assuming latest
-  versions compose.
+- [x] **Upgrade cpkt/cpktmisc as a coordinated foundation change.**
+  Adopt 0.6.1/0.3.0, released c89systems storage/logging SDKs and current stable
+  GPU components. Update all five target asset pins and package requirements.
+  The four Linux SDK configurations pass 16 static/shared libffi and collection
+  tests; native application, Lua, encrypted persistence, host generators and
+  relocated consumers pass. See the [release audit](docs/dependency-versions.md).
 - [x] **Upgrade llama.cpp to stable v0.8.0.**
   Pin commit `8642541b255bfb5dc39cd351a178be09013a55d6` and its verified archive.
   Rebase the ordered patches, regenerate the C89 facade and reconcile the native

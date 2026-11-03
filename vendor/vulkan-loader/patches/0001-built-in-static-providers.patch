@@ -1,6 +1,6 @@
 --- a/loader/CMakeLists.txt
 +++ b/loader/CMakeLists.txt
-@@ -431,7 +431,7 @@
+@@ -429,7 +429,7 @@
          message(WARNING "The APPLE_STATIC_LOADER option has been set. Note that this will only work on MacOS and is not supported "
                  "or tested as part of the loader. Use it at your own risk.")
      else()
@@ -9,7 +9,7 @@
      endif()
  
      target_sources(vulkan PRIVATE ${NORMAL_LOADER_SRCS})
-@@ -441,7 +441,8 @@
+@@ -439,7 +439,8 @@
          VERSION "${VULKAN_LOADER_VERSION}"
      )
  
@@ -19,7 +19,7 @@
  
      set_target_properties(vulkan PROPERTIES OUTPUT_NAME ${API_TYPE})
  
-@@ -524,7 +525,7 @@
+@@ -522,7 +523,7 @@
  endif()
  
  # common attributes of the vulkan library
@@ -30,7 +30,7 @@
  add_library(Vulkan::Loader ALIAS vulkan)
 --- a/loader/loader.c
 +++ b/loader/loader.c
-@@ -585,11 +585,10 @@
+@@ -591,11 +591,10 @@
  VkResult get_library_path_of_dl_handle(const struct loader_instance *inst, loader_platform_dl_handle lib_handle,
                                         PFN_vkGetInstanceProcAddr gipa, char **out_path) {
  #if COMMON_UNIX_PLATFORMS
@@ -45,7 +45,7 @@
      return VK_SUCCESS;
  
  #elif defined(WIN32)
-@@ -1667,15 +1666,7 @@
+@@ -1464,15 +1463,7 @@
          goto out;
      }
  
@@ -62,7 +62,7 @@
  
  out:
      return res;
-@@ -3879,55 +3870,11 @@
+@@ -3434,55 +3425,11 @@
  
  VkResult loader_get_data_files(const struct loader_instance *inst, enum loader_data_files_type manifest_type,
                                 const struct loader_string_list *path_overrides, struct loader_string_list *out_files) {
@@ -122,7 +122,7 @@
  }
  
  struct ICDManifestInfo {
-@@ -4096,141 +4043,30 @@
+@@ -3652,145 +3599,30 @@
  // (on result == VK_SUCCESS) a list of icds that were discovered
  VkResult loader_icd_scan(const struct loader_instance *inst, struct loader_icd_tramp_list *icd_tramp_list,
                           const VkInstanceCreateInfo *pCreateInfo, bool *skipped_portability_drivers) {
@@ -173,12 +173,14 @@
 -        goto out;
 -    }
 -
--    icd_details = loader_stack_alloc(sizeof(struct ICDManifestInfo) * manifest_files.count);
--    if (NULL == icd_details) {
--        res = VK_ERROR_OUT_OF_HOST_MEMORY;
--        goto out;
+-    if (manifest_files.count > 0) {
+-        icd_details = loader_instance_heap_calloc(inst, sizeof(struct ICDManifestInfo) * manifest_files.count,
+-                                                  VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
+-        if (NULL == icd_details) {
+-            res = VK_ERROR_OUT_OF_HOST_MEMORY;
+-            goto out;
+-        }
 -    }
--    memset(icd_details, 0, sizeof(struct ICDManifestInfo) * manifest_files.count);
 -
 -    for (uint32_t i = 0; i < manifest_files.count; i++) {
 -        VkResult icd_res = VK_SUCCESS;
@@ -231,15 +233,16 @@
 -            switch (lib_status) {
 -                case LOADER_LAYER_LIB_NOT_LOADED:
 -                case LOADER_LAYER_LIB_ERROR_FAILED_TO_LOAD:
+-                case LOADER_LAYER_LIB_ERROR_NEGOTIATE_INTERFACE_VERSION_FAILED:
+-                case LOADER_LAYER_LIB_ERROR_UNABLE_TO_FIND_VK_GET_INSTANCE_PROC_ADDR:
 -                    loader_log(inst, VULKAN_LOADER_ERROR_BIT | VULKAN_LOADER_DRIVER_BIT, 0,
 -                               "loader_icd_scan: Failed loading library associated with ICD JSON %s. Ignoring this JSON",
 -                               icd_details[i].full_library_path);
 -                    break;
--                case LOADER_LAYER_LIB_ERROR_WRONG_BIT_TYPE: {
+-                case LOADER_LAYER_LIB_ERROR_WRONG_BIT_TYPE:
 -                    loader_log(inst, VULKAN_LOADER_DRIVER_BIT, 0, "Requested ICD %s was wrong bit-type. Ignoring this JSON",
 -                               icd_details[i].full_library_path);
 -                    break;
--                }
 -                case LOADER_LAYER_LIB_SUCCESS_LOADED:
 -                case LOADER_LAYER_LIB_ERROR_OUT_OF_MEMORY:
 -                    // Shouldn't be able to reach this but if it is, best to report a debug
@@ -277,6 +280,7 @@
 +            loader_clear_scanned_icd_list(inst, icd_tramp_list);
 +            return res;
          }
+-        loader_instance_heap_free(inst, icd_details);
      }
 -    free_string_list(inst, &manifest_files);
 -    return res;
@@ -286,7 +290,7 @@
  // Gets the layer data files corresponding to manifest_type & path_override, then parses the resulting json objects
 --- a/loader/settings.c
 +++ b/loader/settings.c
-@@ -679,204 +679,10 @@
+@@ -691,211 +691,10 @@
  // Returns VK_SUCCESS if it was found & was successfully parsed. Otherwise, it returns VK_ERROR_INITIALIZATION_FAILED if it
  // wasn't found or failed to parse, and returns VK_ERROR_OUT_OF_HOST_MEMORY if it was unable to allocate enough memory.
  VkResult get_loader_settings(const struct loader_instance* inst, loader_settings* loader_settings) {
@@ -294,6 +298,7 @@
 -    cJSON* json = NULL;
 -    char* file_format_version_string = NULL;
 -    char* settings_file_path = NULL;
+-    char* current_process_path = NULL;
 -#if defined(WIN32)
 -    res = windows_get_loader_settings_file_path(inst, &settings_file_path);
 -    if (res != VK_SUCCESS) {
@@ -354,9 +359,13 @@
 -    // Corresponds to the settings object which has a matching app key
 -    cJSON* settings_to_use = NULL;
 -
--    char current_process_path[1024];
--    bool valid_exe_path = NULL != loader_platform_executable_path(current_process_path, 1024);
--
+-    bool oom = false;
+-    current_process_path = loader_platform_executable_path(inst, &oom);
+-    if (oom) {
+-        res = VK_ERROR_OUT_OF_HOST_MEMORY;
+-        goto out;
+-    }
+-    bool valid_exe_path = NULL != current_process_path;
 -    cJSON* settings_object_iter = NULL;
 -    cJSON_ArrayForEach(settings_object_iter, &settings_iter_parent) {
 -        if (settings_object_iter->type != cJSON_Object) {
@@ -487,6 +496,8 @@
 -    loader_instance_heap_free(inst, settings_file_path);
 -
 -    loader_instance_heap_free(inst, file_format_version_string);
+-
+-    loader_instance_heap_free(inst, current_process_path);
 -    return res;
 +    (void)inst;
 +    // The linked provider registry and absence of external layers are fixed.
@@ -495,19 +506,21 @@
  }
  
  TEST_FUNCTION_EXPORT VkResult update_global_loader_settings(void) {
---- a/loader/vk_loader_platform.h
-+++ b/loader/vk_loader_platform.h
-@@ -415,35 +415,26 @@
- }
- #else
- static inline loader_platform_dl_handle loader_platform_open_library(const char *libPath) {
+--- a/loader/vk_loader_platform.c
++++ b/loader/vk_loader_platform.c
+@@ -199,36 +199,27 @@
+ // NOLINTNEXTLINE(readability-non-const-parameter) - oom is only used on Windows but clang-tidy doesn't see that
+ loader_platform_dl_handle loader_platform_open_library(const struct loader_instance *inst, const char *libPath, bool *oom) {
+     (void)inst;
+-    (void)oom;
 -    return dlopen(libPath, LOADER_DLOPEN_MODE);
 +    (void)libPath;
++    if (oom) *oom = false;
 +    return NULL;
  }
  #endif
  
- static inline const char *loader_platform_open_library_error(const char *libPath) {
+ const char *loader_platform_open_library_error(const char *libPath) {
      (void)libPath;
 -#if defined(__Fuchsia__)
 -    return dlerror_fuchsia();
@@ -517,7 +530,7 @@
 -#endif
 +    return "External libraries are disabled in libailo's Vulkan profile";
  }
- static inline void loader_platform_close_library(loader_platform_dl_handle library) {
+ void loader_platform_close_library(loader_platform_dl_handle library) {
 -    if (!loader_disable_dynamic_library_unloading) {
 -        dlclose(library);
 -    } else {
@@ -525,7 +538,7 @@
 -    }
 +    (void)library;
  }
- static inline void *loader_platform_get_proc_address(loader_platform_dl_handle library, const char *name) {
+ void *loader_platform_get_proc_address(loader_platform_dl_handle library, const char *name) {
 -    assert(library);
 -    assert(name);
 -    return dlsym(library, name);
@@ -533,7 +546,7 @@
 +    (void)name;
 +    return NULL;
  }
- static inline const char *loader_platform_get_proc_address_error(const char *name) {
+ const char *loader_platform_get_proc_address_error(const char *name) {
      (void)name;
 -    // NOLINTNEXTLINE(concurrency-mt-unsafe) - dlerror has no reentrant variant; the message is used immediately, not retained
 -    return dlerror();
@@ -543,7 +556,7 @@
  // Thread mutex:
 --- a/loader/loader_environment.c
 +++ b/loader/loader_environment.c
-@@ -41,43 +41,13 @@
+@@ -40,43 +40,13 @@
  bool is_high_integrity(void) { return geteuid() != getuid() || getegid() != getgid(); }
  
  char *loader_getenv(const char *name, const struct loader_instance *inst) {
@@ -591,7 +604,7 @@
  void loader_free_getenv(const char *val, const struct loader_instance *inst) {
 --- a/loader/trampoline.c
 +++ b/loader/trampoline.c
-@@ -661,7 +661,7 @@
+@@ -676,7 +676,7 @@
      // Scan/discover all System and Environment Variable ICD libraries
      bool skipped_portability_drivers = false;
      res = loader_icd_scan(ptr_instance, &ptr_instance->icd_tramp_list, pCreateInfo, &skipped_portability_drivers);

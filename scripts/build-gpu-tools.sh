@@ -65,13 +65,13 @@ build_spirv_tools() {
 
 build_translator() {
   "$root/scripts/deps.sh" --target x86_64-linux-gnu --component cpkt --component cpktmisc
-  "$root/scripts/deps.sh" --target host --component spirv-tools-headers
+  "$root/scripts/deps.sh" --target host --component spirv-translator-headers
   PKG_CONFIG_PATH= PKG_CONFIG_LIBDIR="$root/.cache/deps/x86_64-linux-gnu/cpkt/install/lib/pkgconfig:$root/.cache/deps/x86_64-linux-gnu/cpktmisc/install/lib/pkgconfig" \
   native_dependency spirv-llvm-translator \
     -DCMAKE_PROJECT_LLVM_SPIRV_INCLUDE="$root/cmake/AiloHostSdk.cmake" \
     -DAILO_HOST_LLVM_CONFIG="$llvm_config" \
     -DLLVM_DIR="$llvm_dir" -DLLVM_SPIRV_INCLUDE_TESTS=OFF \
-    -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR="$root/.cache/deps-build/host/spirv-tools-headers/source" \
+    -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR="$root/.cache/deps-build/host/spirv-translator-headers/source" \
     -DFETCHCONTENT_FULLY_DISCONNECTED=ON \
     -DLLVM_SPIRV_ENABLE_LIBSPIRV_DIS=OFF -DLLVM_LINK_LLVM_DYLIB=OFF -DBUILD_SHARED_LIBS=OFF \
     -DCMAKE_DISABLE_FIND_PACKAGE_SPIRV-Tools=ON -DCMAKE_DISABLE_FIND_PACKAGE_SPIRV-Tools-tools=ON

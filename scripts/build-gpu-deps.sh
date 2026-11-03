@@ -55,7 +55,7 @@ if [[ "$component" == vulkan-loader ]]; then
     [[ -n "$name" && "$name" != \#* ]] || continue
     patch_file="$root/vendor/vulkan-loader/patches/$name"
     if ! patch --directory="$base/source" --dry-run --reverse --silent -p1 -i "$patch_file" >/dev/null 2>&1; then
-      patch --directory="$base/source" --batch --forward -p1 -i "$patch_file"
+      patch --directory="$base/source" --batch --forward --fuzz=0 -p1 -i "$patch_file"
     fi
   done < "$root/vendor/vulkan-loader/patches/series"
   configure_dependency vulkan-headers -DVULKAN_HEADERS_ENABLE_TESTS=OFF
@@ -74,7 +74,7 @@ if [[ "$component" == mesa ]]; then
     [[ -n "$name" && "$name" != \#* ]] || continue
     patch_file="$root/vendor/mesa/patches/$name"
     if ! patch --directory="$base/source" --dry-run --reverse --silent -p1 -i "$patch_file" >/dev/null 2>&1; then
-      patch --directory="$base/source" --batch --forward -p1 -i "$patch_file"
+      patch --directory="$base/source" --batch --forward --fuzz=0 -p1 -i "$patch_file"
     fi
   done < "$root/vendor/mesa/patches/series"
   mkdir -p "$base/source/ailo-static"
@@ -106,7 +106,7 @@ while IFS= read -r name; do
   [[ -n "$name" && "$name" != \#* ]] || continue
   patch_file="$root/vendor/libdrm/patches/$name"
   if ! patch --directory="$base/source" --dry-run --reverse --silent -p1 -i "$patch_file" >/dev/null 2>&1; then
-    patch --directory="$base/source" --batch --forward -p1 -i "$patch_file"
+    patch --directory="$base/source" --batch --forward --fuzz=0 -p1 -i "$patch_file"
   fi
 done < "$root/vendor/libdrm/patches/series"
 cmake -E copy_if_different "$root/cmake/AiloEmbedDrmIds.cmake" "$base/source/amdgpu/ailo_embed_ids.cmake"

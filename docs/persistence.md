@@ -1,7 +1,7 @@
 # Default persistent storage
 
 Without an application-supplied `openai.repository`, libailo uses liblockdc
-0.26.0's embedded Pouch engine (core ABI 9), with liblql 0.4.0. No lockd server
+0.27.0's embedded Pouch engine (core ABI 9), with liblql 0.4.1. No lockd server
 or host library is required.
 
 | Resource | Default | When the XDG variable is empty, relative or unset |
@@ -82,19 +82,24 @@ I/O failure. API errors abort unpublished state. Inference KV caches and
 authenticated compaction/reasoning keys keep their existing separate policies;
 Pouch encryption does not configure the compactor's replay keys.
 
-liblockdc 0.26 changes compression-on-open behavior. An explicit zlib setting
-now requests synchronous conversion of an existing uncompressed root, requiring
-temporary space for both source and replacement data. Encryption identity is
-preserved. Omitting compression instead inherits an existing root's setting.
-The previous SDK rejected a differing compression setting. libailo accepts the
-SDK's conversion on open and continues to request encrypted zlib storage.
-The extra disk requirement covers the whole retained root, not just the current
-segment: bounded chunk processing limits memory, while the original tree stays
-authoritative until the complete replacement is synchronized and published.
-Opening a root can therefore take time and fail for insufficient disk space.
-Conversion preserves stored payloads and the original encryption key; it does
-not change libailo's logical record layout or adopt conversation collections.
-See the [released conversion contract](https://github.com/sa6mwa/liblockdc/blob/v0.26.0/docs/pouch-compression.md).
+An explicit zlib setting requests synchronous conversion of an existing
+uncompressed root. Omitting compression inherits the stored mode. libailo
+accepts the SDK's conversion on open and continues to request encrypted zlib
+storage. Conversion preserves payloads, keys and logical record identities.
+
+liblockdc 0.27 replaces one canonical segment or snapshot at a time, using
+bounded chunk scratch. It does not duplicate the retained root. Allow temporary
+space for the largest converted file plus recovery metadata and rebuilt indexes;
+snapshots and oversized records can exceed the normal segment target.
+Decompression additionally needs the final root's unavoidable growth. This
+replaces the whole-root temporary-space requirement of 0.26.
+
+Opening a root can take time and fail for insufficient space or an I/O error.
+Conversion holds exclusive ownership and resumes after interruption before
+admitting clients, even if the next open omits compression. Correct the reported
+problem and reopen with this SDK; do not remove its intent or recovery files.
+This does not change libailo's logical record layout or adopt collections.
+See the [released conversion contract](https://github.com/c89systems/liblockdc/blob/v0.27.0/docs/pouch-compression.md).
 
 ## Collection adoption
 
@@ -112,5 +117,5 @@ The existing commit-marker visibility mechanism can be retained; collection
 batches and XA participation are not required. Collection adoption will use a
 released liblockdc SDK, with attachments and opaque inference state kept separate.
 See [the implementation backlog](../TODO.md) for adoption and verification gates,
-and the [upstream writer contract](https://github.com/sa6mwa/liblockdc/blob/v0.26.0/docs/collection-writer.md)
+and the [upstream writer contract](https://github.com/c89systems/liblockdc/blob/v0.27.0/docs/collection-writer.md)
 for staging and retention semantics.

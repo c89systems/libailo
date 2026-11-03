@@ -13,8 +13,8 @@ export LUAROCKS_CONFIG="$work/config.lua" LUAROCKS_CONFIG_5_5="$work/config.lua"
 # Host LuaRocks is tooling; all target compilation/runtime uses selected SDKs.
 [[ -x "$cc" ]] || { printf 'rocks-test: missing selected target compiler\n' >&2; exit 1; }
 cp -R "$provider" "$work/provider"
-(cd "$work/provider" && bash lua/scripts/render_release_rockspec.sh 0.12.0 "$work/provider/lua-pslog-0.12.0-1.rockspec")
-(cd "$work/provider" && luarocks --lua-version=5.5 --tree "$work/tree" make lua-pslog-0.12.0-1.rockspec --deps-mode=one CC="$cc" LD="$cc" LUA_INCDIR="$cpkt/include" LIBPSLOG_DIR="$pslog")
+(cd "$work/provider" && bash lua/scripts/render_release_rockspec.sh 0.13.0 "$work/provider/lua-pslog-0.13.0-1.rockspec")
+(cd "$work/provider" && luarocks --lua-version=5.5 --tree "$work/tree" make lua-pslog-0.13.0-1.rockspec --deps-mode=one CC="$cc" LD="$cc" LUA_INCDIR="$cpkt/include" LIBPSLOG_DIR="$pslog")
 mkdir "$work/ailo"
 while IFS= read -r file; do
   mkdir -p "$work/ailo/$(dirname "$file")"

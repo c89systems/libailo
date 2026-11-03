@@ -130,13 +130,13 @@ regression cover this failure; linker multiple-definition overrides are not used
 
 Relevant pinned loader code is in loader/loader.c: loader_add_direct_driver,
 loader_scan_for_direct_drivers, loader_scan_for_icds and layer discovery.
-See its [driver interface documentation](https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.363.0/docs/LoaderDriverInterface.md).
+See its [driver interface documentation](https://github.com/KhronosGroup/Vulkan-Loader/blob/v1.4.367/docs/LoaderDriverInterface.md).
 The registry and global discovery adaptation are project work, not behavior
 provided by an unmodified upstream static archive.
 
 ## Dependency and build profile
 
-Use Mesa 26.2.4 and libdrm 2.4.134 as the investigated integration baseline;
+Use Mesa 26.2.6 and libdrm 2.4.134 for the current integration;
 archive identities and license evidence are in
 [gpu-userspace-dependencies.md](gpu-userspace-dependencies.md). These
 inputs are now checksum-pinned in `cmake/dependencies.json` and use the existing
@@ -197,12 +197,12 @@ Host tooling may be installed on the workstation; target libraries may not be
 taken from its package database or library directories.
 
 `make gpu-tools` builds pinned host SPIR-V Tools 2026.4, LLVM/SPIR-V translator
-23.1.0, glslang 16.6.0 and Mesa 26.2.4 `mesa_clc`/`vtn_bindgen2`. These builds
+23.1.3, glslang 16.6.0 and Mesa 26.2.6 `mesa_clc`/`vtn_bindgen2`. These builds
 require installed LLVM 23 development tools, matching Clang development headers
 and static LLVM/Clang libraries in the same SDK prefix, Meson >= 1.4, Ninja, Mako
 and PyYAML. The translator and Mesa host tools link LLVM statically.
-Zlib and libxml2 come from the pinned native cpkt v0.5.2 SDK; Zstandard comes
-from cpktmisc v0.2.1. CMake receives explicit static archive/header paths and
+Zlib and libxml2 come from the pinned native cpkt v0.6.1 SDK; Zstandard comes
+from cpktmisc v0.3.0. CMake receives explicit static archive/header paths and
 Meson uses a scoped `llvm-config` adapter for those same provider paths. Unknown
 LLVM system-library dependencies fail rather than falling back to host packages.
 Both SDK manifests are validated before LLVM configuration. The installed LLVM

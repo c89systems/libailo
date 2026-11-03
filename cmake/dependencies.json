@@ -1,130 +1,130 @@
 {
   "lockdc": {
-    "version": "v0.26.0",
-    "upstream": "https://github.com/sa6mwa/liblockdc",
+    "version": "v0.27.0",
+    "upstream": "https://github.com/c89systems/liblockdc",
     "assets": {
       "x86_64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-x86_64-linux-gnu.tar.gz",
-        "sha256": "ce02f5fef55c9ef753e0aaf822bf5727ff46fe2207b04dcfc9dd4b109ef2e0e7"
+        "url": "https://github.com/c89systems/liblockdc/releases/download/v0.27.0/liblockdc-0.27.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "fb4806e36c2619ac789ca8c145f967c04ec440335e23d9bfeb8c3452e19297ea"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-x86_64-linux-musl.tar.gz",
-        "sha256": "6c9ff936e1bd0332e2f540cf195525bc90b34360b6dc898068f8ff1d54c4ad32"
+        "url": "https://github.com/c89systems/liblockdc/releases/download/v0.27.0/liblockdc-0.27.0-x86_64-linux-musl.tar.gz",
+        "sha256": "19c8880502f25a285d14115cbaeb5b7af4e93b51cc79e8f0402ba5838fe6efd7"
       },
       "aarch64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-aarch64-linux-gnu.tar.gz",
-        "sha256": "577c9041ce33452d911e362a4551309b83ede6a6a83de3d8f150f42aad556e60"
+        "url": "https://github.com/c89systems/liblockdc/releases/download/v0.27.0/liblockdc-0.27.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "114f7574863197c7ce638607c068d9f1282a32584f6b91d124263c328202407c"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-aarch64-linux-musl.tar.gz",
-        "sha256": "c7284eb26fb2c9e45dce24cd14f6a18547314a9fbb51517c5ed5871fd5201790"
+        "url": "https://github.com/c89systems/liblockdc/releases/download/v0.27.0/liblockdc-0.27.0-aarch64-linux-musl.tar.gz",
+        "sha256": "e4602b8461fdcf6b312882e08727e10596c54cdaf4e714929f2deb517761b6bf"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/sa6mwa/liblockdc/releases/download/v0.26.0/liblockdc-0.26.0-arm64-apple-darwin.tar.gz",
-        "sha256": "ecdcf696841f1b223e1c04e98057b593fc45d925ad17e4132982d5e03599cd0e"
+        "url": "https://github.com/c89systems/liblockdc/releases/download/v0.27.0/liblockdc-0.27.0-arm64-apple-darwin.tar.gz",
+        "sha256": "093f24cedb147d67019b7d22da8735007b9ec40caac5e0f09f614852712100a2"
       }
     }
   },
   "liblql": {
-    "version": "v0.4.0",
-    "upstream": "https://github.com/sa6mwa/liblql",
+    "version": "v0.4.1",
+    "upstream": "https://github.com/c89systems/liblql",
     "assets": {
       "x86_64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-x86_64-linux-gnu.tar.gz",
-        "sha256": "a64ec9860305e48739e35d4609bd03796de7262ab9ca011755c696c85f8f65d3"
+        "url": "https://github.com/c89systems/liblql/releases/download/v0.4.1/liblql-0.4.1-x86_64-linux-gnu.tar.gz",
+        "sha256": "d6b3d12afcf6ba2582cb9103cc6a6a97a7378870d969e0755d467d72b9f43030"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-x86_64-linux-musl.tar.gz",
-        "sha256": "e2ffbcbb67090046a76d1b3f5a4c151d3c2dbe86ab4bdef472c92f0fd2b46d9d"
+        "url": "https://github.com/c89systems/liblql/releases/download/v0.4.1/liblql-0.4.1-x86_64-linux-musl.tar.gz",
+        "sha256": "0379c745309924310155f0270d4199263ba8273ae138d7e5d45c956588aa608a"
       },
       "aarch64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-aarch64-linux-gnu.tar.gz",
-        "sha256": "c092e0dc6aad961f787e9388899e508736946271e94560baf676d5f1bc46c769"
+        "url": "https://github.com/c89systems/liblql/releases/download/v0.4.1/liblql-0.4.1-aarch64-linux-gnu.tar.gz",
+        "sha256": "664a9c52ca606caac3bc4421a5ff24c403cb49f4b21f3394f51af98e21998e14"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-aarch64-linux-musl.tar.gz",
-        "sha256": "2cdc421ee7011c50236ba1219ae93c9afe141618a9599e51c823e7528c438143"
+        "url": "https://github.com/c89systems/liblql/releases/download/v0.4.1/liblql-0.4.1-aarch64-linux-musl.tar.gz",
+        "sha256": "bac01b66e77e10fd5b7b4fcfbf4f05b2e3950b18af93cf5aa7e0e680323c66a6"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/sa6mwa/liblql/releases/download/v0.4.0/liblql-0.4.0-arm64-apple-darwin.tar.gz",
-        "sha256": "fd5f04631306d0cf6304bf061fa89fae5a5b05a3cd71dc6aefef074447f4c58d"
+        "url": "https://github.com/c89systems/liblql/releases/download/v0.4.1/liblql-0.4.1-arm64-apple-darwin.tar.gz",
+        "sha256": "2a387edea27c628ca575d8ee4ce77c6647708e0375498d12c5c86d86d0bcc70f"
       }
     }
   },
   "cpkt": {
-    "version": "v0.5.2",
+    "version": "v0.6.1",
     "upstream": "https://github.com/c89systems/cpkt",
     "assets": {
       "aarch64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-aarch64-linux-gnu.tar.gz",
-        "sha256": "0a1fd5a7226880bac6235585fe4111f67c0db521a9fd0cd0d4376201621b12e4"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.6.1/cpkt-0.6.1-aarch64-linux-gnu.tar.gz",
+        "sha256": "3c5f172a50b7df7e37e99dbf52014d3b09114cbc143339f1109c23715fa117a1"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-aarch64-linux-musl.tar.gz",
-        "sha256": "8f6b4d815d0e23cb4073ad2fad9354240e22aff27b241faf0854a6be89ee9898"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.6.1/cpkt-0.6.1-aarch64-linux-musl.tar.gz",
+        "sha256": "bf39981f557b1ed10940ee376bb81d0fa734d3d290e5d95cbc4f786ac466cb93"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-arm64-apple-darwin.tar.gz",
-        "sha256": "8775bddc17c7f61ebb37211a5a821ccbab628f3d6f3783b56ccb549cf67ed29d"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.6.1/cpkt-0.6.1-arm64-apple-darwin.tar.gz",
+        "sha256": "8f32fe4a9e477196d75a927af329dafcc91eda5e4b505012a7319edcf92e8579"
       },
       "x86_64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-x86_64-linux-gnu.tar.gz",
-        "sha256": "a8d9647afd745c158069253a958eea9935d4fd240fcb4d129e3e5a0b952a1af9"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.6.1/cpkt-0.6.1-x86_64-linux-gnu.tar.gz",
+        "sha256": "99625b7889f78b6e467d38e7dbec08d9d0ed6f599ff4571244060ce67c6ca62f"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/c89systems/cpkt/releases/download/v0.5.2/cpkt-0.5.2-x86_64-linux-musl.tar.gz",
-        "sha256": "ea8684f6d0cbc6dfbda5f05113bd0397c5146c4d3f17bc3c5667261608f1a2f0"
+        "url": "https://github.com/c89systems/cpkt/releases/download/v0.6.1/cpkt-0.6.1-x86_64-linux-musl.tar.gz",
+        "sha256": "f4b1b0b2b257d2347be7d2b437dbb84891c19e39067bba24464b415dd76eb67e"
       }
     }
   },
   "cpktmisc": {
-    "version": "v0.2.1",
+    "version": "v0.3.0",
     "upstream": "https://github.com/c89systems/cpktmisc",
     "assets": {
       "aarch64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-aarch64-linux-gnu.tar.gz",
-        "sha256": "603019bfb73c414a1328c7e30e7ed99b224ffc8382175226b1881eadcd4d794d"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.3.0/cpktmisc-0.3.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "d0604784e626f092bdaf20f0ce0ee6d20149eb42e0f3d0efddcc1443f7875991"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-aarch64-linux-musl.tar.gz",
-        "sha256": "97fa813a25d04b1dad9767ff1c285ea4de741dc2a20896337fb202ecea7aec03"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.3.0/cpktmisc-0.3.0-aarch64-linux-musl.tar.gz",
+        "sha256": "46553efa5c84f328bc53d3c06fe966e19447b49f88adad33d2c935d4b74d6707"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-arm64-apple-darwin.tar.gz",
-        "sha256": "7f00dd94c94aac315d16c3cb81287cf13d67b60c19802aa20843caef09f1a042"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.3.0/cpktmisc-0.3.0-arm64-apple-darwin.tar.gz",
+        "sha256": "a45577aba8df21d3c6a7a4fbe84a23438d752ee796ce21c62d54048d685ff8ab"
       },
       "x86_64-linux-gnu": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-x86_64-linux-gnu.tar.gz",
-        "sha256": "e97ec19778de31435b904ecff44a4292ca3bfcae6283252614af771697384859"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.3.0/cpktmisc-0.3.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "65f3e9f4bec8f20614592d67292e6d7b0d23aa7bd03c9c0331778cdc160fa53c"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.2.1/cpktmisc-0.2.1-x86_64-linux-musl.tar.gz",
-        "sha256": "d2809d50b98c103adc937d6539488ad0dc0223c706bb9f9b4f486d866ed85e54"
+        "url": "https://github.com/c89systems/cpktmisc/releases/download/v0.3.0/cpktmisc-0.3.0-x86_64-linux-musl.tar.gz",
+        "sha256": "9fff54696dfdcd80c82321a5d25e0e44be6c18a7f329751d53beab35ac894b09"
       }
     }
   },
   "lonejson": {
     "version": "v0.45.0",
-    "upstream": "https://github.com/sa6mwa/lonejson",
+    "upstream": "https://github.com/c89systems/lonejson",
     "assets": {
       "aarch64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-aarch64-linux-gnu.tar.gz",
+        "url": "https://github.com/c89systems/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-aarch64-linux-gnu.tar.gz",
         "sha256": "659cc67e2c26c9615f84fa6f1c26fae4a3a4b00980d8bbb02c04625b2facaf7e"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/sa6mwa/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-aarch64-linux-musl.tar.gz",
+        "url": "https://github.com/c89systems/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-aarch64-linux-musl.tar.gz",
         "sha256": "96e020ce3dab9de5dc13a64e83a278b7519cdf7fcc2d3c93fdfc740fe5fb0cd5"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/sa6mwa/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-arm64-apple-darwin.tar.gz",
+        "url": "https://github.com/c89systems/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-arm64-apple-darwin.tar.gz",
         "sha256": "9dc6b277241068a2ab1a737357cf18982c5612ec43280f161044ce719aed50dc"
       },
       "x86_64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-x86_64-linux-gnu.tar.gz",
+        "url": "https://github.com/c89systems/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-x86_64-linux-gnu.tar.gz",
         "sha256": "aef11c4511bb6aa8ed4e0646204e14b7934affd6e5cec5b8e8bff36e80217826"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/sa6mwa/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-x86_64-linux-musl.tar.gz",
+        "url": "https://github.com/c89systems/lonejson/releases/download/v0.45.0/liblonejson-0.45.0-x86_64-linux-musl.tar.gz",
         "sha256": "823efad9719011af0602cefacf0506ac603bfb54d5986883fcabed60db93544b"
       }
     }
@@ -136,16 +136,16 @@
     "sha256": "51b1e025d7b12e83fa55736e65bc254acd9d23e49f546be7531368fef82210ee"
   },
   "vulkan-headers": {
-    "version": "vulkan-sdk-1.4.363.0",
+    "version": "v1.4.367",
     "upstream": "https://github.com/KhronosGroup/Vulkan-Headers",
-    "url": "https://codeload.github.com/KhronosGroup/Vulkan-Headers/tar.gz/refs/tags/vulkan-sdk-1.4.363.0",
-    "sha256": "4a078be12bef21cfebc09d878b77a63cff9d68f899254a0b00d0e37ef73e7f7e"
+    "url": "https://codeload.github.com/KhronosGroup/Vulkan-Headers/tar.gz/refs/tags/v1.4.367",
+    "sha256": "0df7d58b5df617e0a6a17dec521af459206719f9c7cb12d05d09275597c16f70"
   },
   "vulkan-loader": {
-    "version": "vulkan-sdk-1.4.363.0",
+    "version": "v1.4.367",
     "upstream": "https://github.com/KhronosGroup/Vulkan-Loader",
-    "url": "https://codeload.github.com/KhronosGroup/Vulkan-Loader/tar.gz/refs/tags/vulkan-sdk-1.4.363.0",
-    "sha256": "941eff558fc74f248745fb7df367640cf89a8457f216dae498a74ae14b6ba6f7"
+    "url": "https://codeload.github.com/KhronosGroup/Vulkan-Loader/tar.gz/refs/tags/v1.4.367",
+    "sha256": "f70da1e3c63b55bae070dd44dfb9ca77523dba3781b6cb8aad3a1ceef4e902b7"
   },
   "spirv-headers": {
     "version": "vulkan-sdk-1.4.363.0",
@@ -154,36 +154,36 @@
     "sha256": "5b3a0d099f5c7649e29c0938476c462e71d66ad89a0bde42fa1ba3eb476956c9"
   },
   "pslog": {
-    "version": "v0.12.0",
-    "upstream": "https://github.com/sa6mwa/libpslog",
+    "version": "v0.13.0",
+    "upstream": "https://github.com/c89systems/libpslog",
     "assets": {
       "aarch64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-aarch64-linux-gnu.tar.gz",
-        "sha256": "304575fa07f14e5ff4d7614f7c450a3e88a586d5f353352bff8b678ee739da76"
+        "url": "https://github.com/c89systems/libpslog/releases/download/v0.13.0/libpslog-0.13.0-aarch64-linux-gnu.tar.gz",
+        "sha256": "d15b172c076324c05d7596cb7b01ba036c2d1aeb0eb7264bd4e77cc6c103c71f"
       },
       "aarch64-linux-musl": {
-        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-aarch64-linux-musl.tar.gz",
-        "sha256": "72a3b4e1f89c339cadb996137a79db8ee6e67be1f580f482269f6b0088cda115"
+        "url": "https://github.com/c89systems/libpslog/releases/download/v0.13.0/libpslog-0.13.0-aarch64-linux-musl.tar.gz",
+        "sha256": "44c295a5ade15ce30dcbca6ba7775b6ea521560941306312e33bbbfade2f8059"
       },
       "arm64-apple-darwin": {
-        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-arm64-apple-darwin.tar.gz",
-        "sha256": "a5945f2dc4ad16dd8a71572f40117ddfdfae371d185cb03dab5205cdf780c321"
+        "url": "https://github.com/c89systems/libpslog/releases/download/v0.13.0/libpslog-0.13.0-arm64-apple-darwin.tar.gz",
+        "sha256": "7f3b8e89f7f1a3ac27d47cb92aa68c4989ed4c8cdb51c80c81692412ba75cacb"
       },
       "x86_64-linux-gnu": {
-        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-x86_64-linux-gnu.tar.gz",
-        "sha256": "21239262bc06eecb504e45e0902f374ccd86751dcb32087dd84af4d2553ea0e2"
+        "url": "https://github.com/c89systems/libpslog/releases/download/v0.13.0/libpslog-0.13.0-x86_64-linux-gnu.tar.gz",
+        "sha256": "3fa68da666c70470f0f09041b05561f807cd241fae30421410033932d2b8c1c4"
       },
       "x86_64-linux-musl": {
-        "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/libpslog-0.12.0-x86_64-linux-musl.tar.gz",
-        "sha256": "3a43206260bbf1095a363ffc4ddb5514dac2a621aa030db0e7f9b4364a93bb4d"
+        "url": "https://github.com/c89systems/libpslog/releases/download/v0.13.0/libpslog-0.13.0-x86_64-linux-musl.tar.gz",
+        "sha256": "c195881181b1cbe08acb705ab91a8cd0e8cabe470c9fdb391b40820529836f80"
       }
     }
   },
   "mesa": {
-    "version": "26.2.4",
+    "version": "26.2.6",
     "upstream": "https://gitlab.freedesktop.org/mesa/mesa",
-    "url": "https://archive.mesa3d.org/mesa-26.2.4.tar.xz",
-    "sha256": "bce5f7fbebb934373b86c999a064d52fb5065878dc57f287f95346648ec832e9",
+    "url": "https://archive.mesa3d.org/mesa-26.2.6.tar.xz",
+    "sha256": "b9436b3e1a8be76fbd4823dc884f90596ab7c6ac5e1867a305e66ffccfb31a92",
     "build_system": "meson"
   },
   "spirv-tools": {
@@ -199,10 +199,16 @@
     "sha256": "a9bb9c48713245eacf97cc539b6f1d45405a92d8813f8b82e635f0a085ee9898"
   },
   "spirv-llvm-translator": {
-    "version": "v23.1.0",
+    "version": "v23.1.3",
     "upstream": "https://github.com/KhronosGroup/SPIRV-LLVM-Translator",
-    "url": "https://codeload.github.com/KhronosGroup/SPIRV-LLVM-Translator/tar.gz/refs/tags/v23.1.0",
-    "sha256": "188148437567a678965ef66254ac510dbc124d9818c332602f9d20cacc3e77ee"
+    "url": "https://codeload.github.com/KhronosGroup/SPIRV-LLVM-Translator/tar.gz/refs/tags/v23.1.3",
+    "sha256": "9ed57de3f31c575c836bef8f05ce5dfa98a8d80e64d948a02aac83c2e124f842"
+  },
+  "spirv-translator-headers": {
+    "version": "cb42dec3830d3ac67fa449ecdc0c0f73d5e74498",
+    "upstream": "https://github.com/KhronosGroup/SPIRV-Headers",
+    "url": "https://codeload.github.com/KhronosGroup/SPIRV-Headers/tar.gz/cb42dec3830d3ac67fa449ecdc0c0f73d5e74498",
+    "sha256": "117010e525fe36b1ce006e0e58a6e0a3b415aabc9179d912b92737f41f3f994f"
   },
   "glslang": {
     "version": "16.6.0",
@@ -218,9 +224,9 @@
     "build_system": "meson"
   },
   "lua-pslog": {
-    "version": "v0.12.0",
-    "upstream": "https://github.com/sa6mwa/libpslog",
-    "url": "https://github.com/sa6mwa/libpslog/releases/download/v0.12.0/lua-pslog-0.12.0.tar.gz",
-    "sha256": "35e46f594b2ce12b42bba95357109fd662ce1c2ab7a175702e9b9d141cb0ec2b"
+    "version": "v0.13.0",
+    "upstream": "https://github.com/c89systems/libpslog",
+    "url": "https://github.com/c89systems/libpslog/releases/download/v0.13.0/lua-pslog-0.13.0.tar.gz",
+    "sha256": "d492e71ccb5b9f979e4cfbfd73c0ba87fc143698825167a5473edddc74e7248f"
   }
 }

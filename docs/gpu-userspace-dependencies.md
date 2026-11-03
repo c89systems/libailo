@@ -32,6 +32,11 @@ discussed here, and no runtime substitution is required by this decision.
 
 ## Sources inspected
 
+This assessment used the historical 26.2.4 baseline below. The current pin is
+Mesa 26.2.6; see the [dependency refresh](dependency-versions.md) for release
+selection, patch changes and qualification. The headless static architecture
+and dependency ownership remain the same.
+
 - Mesa **26.2.4**, the latest stable archive available during this investigation:
   [release notes and published checksum](https://docs.mesa3d.org/relnotes/26.2.4.html),
   [source archive](https://archive.mesa3d.org/mesa-26.2.4.tar.xz).

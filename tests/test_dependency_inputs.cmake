@@ -3,10 +3,11 @@ get_filename_component(root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 string(RANDOM LENGTH 12 ALPHABET abcdef0123456789 random)
 set(work "${root}/build/tests/dependency-inputs-${random}")
 file(MAKE_DIRECTORY "${work}/source")
-file(WRITE "${work}/source/CMakeLists.txt" "cmake_minimum_required(VERSION 3.24)\nproject(fixture C)\ninclude(\"${root}/cmake/AiloDependencyInputs.cmake\")\nadd_executable(fixture main.c)\ntarget_link_options(fixture PRIVATE -static)\nailo_track_dependency_inputs(\"${work}/contract\")\n")
+file(WRITE "${work}/source/CMakeLists.txt" "cmake_minimum_required(VERSION 3.24)\nproject(fixture C)\ninclude(\"${root}/cmake/AiloDependencyInputs.cmake\")\nadd_executable(fixture main.c)\ntarget_link_options(fixture PRIVATE -static)\nailo_track_dependency_inputs(\"${work}/contract\" \"${work}/sdk-contract\")\n")
 file(WRITE "${work}/source/main.c" "#include <stdio.h>\n#include \"fixture.h\"\nint main(void) { printf(\"%u\\n\", (unsigned)sizeof(struct fixture)); return 0; }\n")
 file(WRITE "${work}/source/fixture.h" "struct fixture { char value[1]; };\n")
 file(WRITE "${work}/contract" "v1\n")
+file(WRITE "${work}/sdk-contract" "v1\n")
 execute_process(COMMAND "${CMAKE_COMMAND}" -S "${work}/source" -B "${work}/build" -G Ninja
   "-DCMAKE_C_COMPILER=${AILO_CC}" "-DCMAKE_SYSROOT=${AILO_SYSROOT}"
   COMMAND_ERROR_IS_FATAL ANY OUTPUT_QUIET)
@@ -25,3 +26,9 @@ execute_process(COMMAND touch -t 200001010000.00 "${work}/source/fixture.h" COMM
 check_size(1)
 file(WRITE "${work}/contract" "v2\n")
 check_size(8)
+# Changing a second SDK contract must invalidate the same consumer as well.
+file(WRITE "${work}/source/fixture.h" "struct fixture { char value[16]; };\n")
+execute_process(COMMAND touch -t 200001010000.00 "${work}/source/fixture.h" COMMAND_ERROR_IS_FATAL ANY)
+check_size(8)
+file(WRITE "${work}/sdk-contract" "v2\n")
+check_size(16)

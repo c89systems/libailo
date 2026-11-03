@@ -15,7 +15,7 @@ build-release                     Build native release configuration.
 test [PRESET=name]                 Run deterministic CTest checks.
 test-debug                        Run debug checks.
 test-install-tree                 Verify relocated CMake/pkg-config C/C++ consumers.
-test-foundation-matrix            Verify cpkt/core and misc libffi on four Linux targets.
+test-foundation-matrix            Verify static/shared libffi and collection SDKs on four Linux targets.
 clean                             Remove build/, dist/ and local .cache/; preserve global cache.
 print-release-version             Read exact lightweight tag/candidate/archive version.
 lua-build [PRESET=cpu|debug]       Build Lua receiver against installed shared ABI.
