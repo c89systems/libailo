@@ -1,6 +1,6 @@
 # Forward work
 
-Updated 2026-11-02. This is the implementation backlog, with observable completion
+Updated 2026-11-03. This is the implementation backlog, with observable completion
 conditions. GPU qualification is still open. Fix correctness before making
 performance or hardware-support claims. Run builds and tests serially.
 
@@ -38,21 +38,37 @@ performance or hardware-support claims. Run builds and tests serially.
   Vulkan serving tests pass with FP16 enabled. No kernel setting, external ICD,
   CPU fallback or ACO debug override is required. Details and limitations:
   [Raphael repair](docs/static-vulkan.md#raphael-shared-memory-repair-2026-11-02).
-- [ ] **Resolve quantized-model precision acceptance separately.**
-  Qwen's default integer-dot path quantizes activations and exceeds the existing
+- [x] **Resolve Raphael's quantized-model precision policy.**
+  Before this policy, Qwen's integer-dot path quantized activations and exceeded
+  the existing
   strict F16-reference tolerances (worst max/RMS/KL 0.469540/0.104982/0.00336607).
   Disabling integer dot for a diagnostic control passes unchanged tolerances
   (0.0722278/0.0115874/0.0000122658) while retaining FP16. The F16 CPU/GPU pair
   also passes. Do not confuse this finite arithmetic-path difference with the
   repaired intermittent corruption, or claim default Q4 probability equivalence.
-  Decide the supported precision/performance contract before changing selection
-  or tolerances; retain these comparisons as acceptance evidence.
-- [ ] **Upstream and measure the scoped LDS workaround.**
+  Accepted on 2026-11-03: select floating-point activation kernels for PCI
+  `1002:164e`, retaining FP16. Both GNU and fully static musl now pass the same
+  strict trained-logit tolerances without an environment override. Other device
+  IDs retain their existing selection. Broader model/context coverage remains.
+- [x] **Measure the LDS workaround and check a smaller reservation.**
+  On the fixed Qwen workload, the original unpatched control reaches about
+  652 prefill / 29 decode tokens/s; the safe profile with floating activations
+  reaches about 332 / 16.4. The unpatched driver is known to be incorrect.
+  A 32 KiB minimum plus explicit waits passes 1,500 integer-probe processes but
+  fails trained Codex compaction with non-finite logits. Restoring 64 KiB passes
+  that same case. Keep the full reservation. Measurements and limits:
+  [2026-11-03 validation](docs/static-vulkan.md#raphael-precision-and-static-musl-validation-2026-11-03).
+- [x] **Validate the safe Raphael profile in fully static musl.**
+  Five qualification/serving executables have no interpreter or shared-library
+  dependencies. The hardware campaign passes 1,500 shared-memory processes,
+  400 matrix processes, strict trained logits and all six serving cases with
+  file/process traces and poisoned external ICD settings.
+- [ ] **Upstream and narrow the scoped LDS workaround.**
   Prepare a minimal integer reproducer and ablation results for Mesa, without
   claiming a proven silicon/kernel root cause. Measure the occupancy and barrier
-  cost, compare kernel/firmware under controlled conditions, and retire or narrow
-  the local workaround only after the same repeated gates pass. Re-prove it on
-  a fresh static-musl build and actual Mendocino before extending those claims.
+  cost across further workloads, compare kernel/firmware under controlled
+  conditions, and retire or narrow the local workaround only after the same
+  repeated gates pass. Test actual Mendocino before extending hardware claims.
 
 Existing evidence and reproduction commands are in
 [static-vulkan.md](docs/static-vulkan.md). Local investigation inputs and the
@@ -61,6 +77,9 @@ Halo assessment are under ignored `stash/`; they must remain uncommitted.
 ## P0: Fix and qualify Halo attention
 
 - [ ] **Backport the missing AMD strided FP16/BF16 KV scratch-copy path.**
+  The audited stable `v0.8.0` candidate already contains `kv_raw_strided`; a
+  qualified upgrade can satisfy this item. Verify its source before carrying
+  another copy of the fix.
   Our llama.cpp b11430 lacks `kv_raw_strided`. Prefer the focused upstream
   [PR #27703](https://github.com/ggml-org/llama.cpp/pull/27703), merged as
   `733f57a9994f7a237176aa9f4cdc31bc466d056d`, after checking its interacting
@@ -131,7 +150,8 @@ Halo assessment are under ignored `stash/`; they must remain uncommitted.
 
 ## P1: Refresh dependencies deliberately
 
-Upstream checked 2026-11-02. Versions below are verified candidates, not promises
+Most upstream versions were checked 2026-11-02; llama.cpp was rechecked 2026-11-03.
+Versions below are verified candidates, not promises
 that an upgrade fixes Raphael. Keep SDK compression/XML dependencies private;
 never substitute workstation libraries for cpkt/cpktmisc.
 
@@ -140,7 +160,7 @@ never substitute workstation libraries for cpkt/cpktmisc.
 | liblockdc | 0.26.0, ABI 9 | Keep exact released SDKs; no adjacent-source build. Collection API verification is separate from provider adoption. |
 | liblql | 0.4.0, ABI 0 | Required by the new lockdc SDK; upgraded together. |
 | Mesa | 26.2.4 | Qualify 26.2.6 first; see P0 above. |
-| llama.cpp | b11430 | Focused KV fix first; assess released v0.8.0 separately before a broad rebase. |
+| llama.cpp | b11430 | Stable v0.8.0: 530 commits ahead, includes the KV fix; six patches apply unchanged and four need rebase. See the [vendoring audit](vendor/llama/README.md). Rolling b12078 is prerelease. |
 | cpkt | 0.5.2 | Upgrade to [0.6.1](https://github.com/c89systems/cpkt/releases/tag/v0.6.1); includes a libssh2 AES-GCM handshake leak repair. Static users must relink. |
 | cpktmisc | 0.2.1 | Upgrade with core to [0.3.0](https://github.com/c89systems/cpktmisc/releases/tag/v0.3.0); requires cpkt 0.6.1 and removes LZO. Audit codec/target and notice changes. |
 | SPIRV-LLVM-Translator | 23.1.0 | Assess [23.1.3](https://github.com/KhronosGroup/SPIRV-LLVM-Translator/compare/v23.1.0...v23.1.3); includes a leak repair and translation/rounding corrections. Keep LLVM/Clang 23 compatibility. |
@@ -156,6 +176,12 @@ never substitute workstation libraries for cpkt/cpktmisc.
   consumers. Check transitive SDK compatibility rather than assuming latest
   versions compose.
 - [ ] **Assess a broader llama.cpp refresh separately.**
+  The 2026-11-03 scratch audit recommends stable `v0.8.0`, commit
+  `8642541b255bfb5dc39cd351a178be09013a55d6`. Source reconstruction proves the
+  current pin plus ten recorded patches exactly matches both prepared trees.
+  Six patches reapply unchanged; worker logging, physical identity, diagnostics
+  routing and the dependent Raphael policy need rebase. The API inventory guard
+  detects changes. Follow [the upgrade sequence](vendor/llama/README.md).
   [v0.8.0](https://github.com/ggml-org/llama.cpp/releases/tag/v0.8.0) changes
   mtmd audio APIs and other native surfaces. Inventory generated facade/API
   coverage, public ABI effects, model/template behavior, shaders, cache identity

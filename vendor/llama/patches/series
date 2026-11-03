@@ -7,3 +7,4 @@
 0007-expose-vulkan-physical-identity.patch
 0008-track-shader-compiler-input.patch
 0009-logger-only-diagnostics.patch
+0010-prefer-float-activations-on-raphael.patch

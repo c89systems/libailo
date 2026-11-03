@@ -306,8 +306,10 @@ tools/opaque replay, with FP16 enabled and actual GPU placement. The private
 Mesa workaround isolates LDS allocations and preserves barrier waits for the
 Raphael/Mendocino family. Repeated integer/matrix checks and F16 reference logits
 pass. See the [repair evidence and precision limits](static-vulkan.md#raphael-shared-memory-repair-2026-11-02):
-default quantized-model probability equivalence, throughput cost and static-musl
-hardware acceptance remain separate gates.
+the 2026-11-03 profile also passes the strict quantized Qwen reference-logit gate
+and all six trained serving cases in fully static musl. The scoped throughput
+measurements favor CPU for short interactive decode on this small APU. Broader
+models, contexts and hardware remain separate gates.
 
 With cpkt 0.5.2, cpktmisc 0.2.1 and LLVM/Clang 23.1.4 host generators, the
 Ryzen 5 7600/RADV Raphael GNU build passes all six trained serving cases on CPU.
@@ -322,7 +324,7 @@ record repeated failures with both F16 and F32 storage; disabling FP16 does not
 qualify this GPU. No experimental GPU workaround was shipped then. Logs are
 `build/llvm23-upgrade/cpu-serving-final.log` and
 `build/llvm23-upgrade/gpu-serving-final.log`. Static musl serving on the new
-host remains pending numerical acceptance.
+host was still pending numerical acceptance at that baseline.
 
 ## Earlier deterministic qualification
 

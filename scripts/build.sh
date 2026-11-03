@@ -32,7 +32,7 @@ while IFS= read -r name; do
   [[ -n "$name" && "$name" != \#* ]] || continue
   patch_file="$root/vendor/llama/patches/$name"
   if ! patch --directory="$source_root" --dry-run --reverse --silent -p1 -i "$patch_file" >/dev/null 2>&1; then
-    patch --directory="$source_root" --batch --forward -p1 -i "$patch_file"
+    patch --directory="$source_root" --batch --forward --fuzz=0 -p1 -i "$patch_file"
   fi
 done < "$root/vendor/llama/patches/series"
 helper="$root/.cache/deps-build/$target/llama/build/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix"

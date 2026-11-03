@@ -593,14 +593,14 @@ The original Q4 file has SHA-256
 This is a representation of the quantized weights, not recovered training
 weights. All serving cases use the original pinned quantized fixtures.
 
-Default quantized Qwen probability equivalence remains **unqualified**. Against
+Default quantized Qwen probability equivalence was **unqualified at this baseline**. Against
 that F16 reference, the default Q4 Vulkan path has worst max/RMS/KL errors
 0.469540/0.104982/0.00336607 with finite outputs and no differing argmax. Its
 integer-dot kernels use quantized Q8_1 activations. The diagnostic
 `GGML_VK_DISABLE_INTEGER_DOT_PRODUCT=1` passes unchanged tolerances:
 0.0722278/0.0115874/0.0000122658. Disabling FP16 or dot2 alone does not pass.
-The diagnostic switch is not installed as a default. Selecting a different
-precision/performance contract is separate from the LDS repair; neither these
+The diagnostic switch was not installed as a default then. The 2026-11-03
+profile below adopts floating activations for Raphael. Neither these
 finite differences nor the passing F16 pair establish universal model accuracy.
 
 The installed Codex client here is `0.166.0-alpha.6`. The trained test now gives
@@ -628,6 +628,93 @@ fresh-process qualification. Logs and experimental ablations are under
 `build/raphael-reduction/`; local reduction sources are under ignored
 `stash/raphael-reduction/`. Static-musl hardware acceptance, Mendocino, Halo,
 other GPUs, sustained workloads and performance remain separate gates.
+
+### Raphael precision and static-musl validation, 2026-11-03
+
+The accepted Raphael policy now selects floating-point activation kernels for
+PCI `1002:164e`. `vendor/llama/patches/0010-prefer-float-activations-on-raphael.patch`
+disables this device's effective integer-dot capability in both device setup
+and diagnostic reporting. FP16 remains enabled. This is a precision policy:
+the alternative Q8_1 activation conversion changes probabilities. It is not a
+claim that the hardware's integer-dot instructions are defective. Other device
+IDs retain the existing selection, including the existing disable environment
+variable. The upstream source pin remains `b11430`.
+
+Eight synthetic matvec/matrix cases cover Q4_K, Q6_K, Q5_0 and Q8_0 weights,
+one/128 RHS columns and controlled activation outliers. With integer dot enabled,
+affected kernels match a CPU Q8_1 activation reference much more closely than
+the floating-activation reference. For Q8_0 matrix multiplication, normalized
+RMS errors are about 0.009 against floating activations and 0.00000013 against
+Q8_1. Selecting floating activations reverses that relationship. This supports
+activation quantization as the source of the finite logit difference; it is
+separate from the LDS corruption.
+
+The real Qwen2.5-0.5B Q4_K_M candidate now passes the unchanged F16 CPU-reference
+gate in both GNU and musl with no environment override: maximum normalized
+logprob error 0.0722278 nats, RMS 0.0115874 and KL 0.0000122658, with no differing
+argmax across 16 identical prefixes and the full vocabulary. The original and
+reference hashes are recorded in the preceding section. Both builds also pass
+all six trained Vulkan serving cases with the new default, retaining FP16.
+
+The musl campaign uses fully static shared-memory, matrix, logits, serving and
+stream-client executables: no `PT_INTERP` or `DT_NEEDED` entries. Its hardware
+checks pass 1,500 fresh shared-memory processes / 12,000 dispatches, plus 100
+fresh matrix processes for each F16/F32 storage and FP16 enabled/disabled
+combination (9,600 graphs). The six serving cases run with poisoned external
+ICD paths and file/process tracing. Their native traces contain one initial
+execution, no helper execution and no shared-object load.
+
+The fresh musl build exposed a build-time portability defect: Vulkan's native
+`asm_offset` generator requested a workstation `/lib/ld-musl-x86_64.so.1`.
+The loader build now statically links its executable helpers with the pinned
+collection. The static-loader integration check rejects a generator containing
+an interpreter or dynamic dependency. No host musl installation is required.
+The manual matrix and logits tools also link fully statically for musl.
+
+The final offline suites pass 80/80 native GNU tests, 77/77 musl tests and 5/5
+installed Lua tests. Formatting and shell syntax checks pass. Relocated static
+RADV/ANV and built-in-loader checks pass for both GNU and musl, including the
+offset-generator ELF assertion. GNU package/install/export and source-archive
+checks are included in the offline suite. This is development acceptance on
+Raphael; a fresh release build and the full multi-target SDK campaign remain
+separate work.
+
+A smaller reservation is still insufficient. A 32 KiB minimum with explicit
+LDS waits passes 1,500 integer-probe processes and the first three trained
+serving cases, then fails Codex remote compaction with non-finite logits.
+Restoring the complete 64 KiB reservation passes the same Codex case. The
+production LDS patch remains unchanged.
+
+#### Scoped performance measurements
+
+The native GNU benchmark fixes 256 prompt tokens and 32 subsequent tokens, a
+512-token context, a 256-token batch / 128-token microbatch and two CPU threads.
+Each process warms once, then performs five iterations with KV cleared each
+time. Explicit synchronization bounds the prefill/decode timers; logit-finiteness
+scans and loading are outside those timers. Inputs are fixed across profiles;
+the GPU logs confirm 25/25 layers offloaded. Power settings were unchanged.
+
+| Profile | Prefill tokens/s | Decode tokens/s | Warm samples |
+| --- | ---: | ---: | ---: |
+| Original Mesa, integer-dot activations; known incorrect driver | 651.7 | 29.1 | 5 |
+| Full LDS repair, integer-dot activations | 347.2 | 18.2 | 5 |
+| Full LDS repair, accepted floating activations | 332.0 | 16.4 | 15 across three processes |
+| CPU control, two threads | 216.2 | 69.5 | 5 |
+
+Rates use total tokens divided by accumulated time. The original driver is a
+diagnostic performance control, not a usable correctness baseline. With the
+LDS repair, floating activations reduce prefill throughput by about 4–5% on this
+fixture. Decode variation in the integer-dot control spans 16.2–20.1 tokens/s;
+the final profile spans 16.2–16.6. These samples do not establish a precise
+activation-policy decode penalty. The full LDS reservation has a substantial
+cost, and the smaller reservation failed acceptance.
+
+For this short interactive workload on the tiny Raphael GPU, the two-thread
+CPU control decodes much faster. GPU prefill is faster. Choose a backend using
+the actual workload; these measurements are not broader model/hardware or
+sustained-performance claims. Timing/reduction sources remain under ignored
+`stash/raphael-reduction/`; data, binary hashes and ablations are under
+`build/raphael-followup/`.
 
 ### Larger dense and MoE execution probes
 

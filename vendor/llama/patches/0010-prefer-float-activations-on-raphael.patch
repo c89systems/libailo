@@ -1,0 +1,39 @@
+--- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+@@ -1,6 +1,18 @@
+ #include "ggml-vulkan-common.h"
+ #include "../ggml-library-log.h"
+ 
++#if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
++static bool ggml_vk_disable_integer_dot_product(const vk::PhysicalDevice& physical_device) {
++    if (getenv("GGML_VK_DISABLE_INTEGER_DOT_PRODUCT")) {
++        return true;
++    }
++    // libailo's Raphael profile preserves floating-point activations. The Q8_1
++    // path changes trained logits beyond this profile's accepted error bounds.
++    const vk::PhysicalDeviceProperties props = physical_device.getProperties();
++    return props.vendorID == VK_VENDOR_ID_AMD && props.deviceID == 0x164e;
++}
++#endif
++
+ namespace {
+ inline std::ostream & operator<<(std::ostream & os, vk::Buffer buffer) {
+     return os << static_cast<VkBuffer>(buffer);
+@@ -4077,7 +4089,7 @@
+                 coopmat2_decode_vector_support = true;
+ #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
+             } else if (strcmp("VK_KHR_shader_integer_dot_product", properties.extensionName) == 0 &&
+-                       !getenv("GGML_VK_DISABLE_INTEGER_DOT_PRODUCT")) {
++                       !ggml_vk_disable_integer_dot_product(device->physical_device)) {
+                 device->integer_dot_product = true;
+ #endif
+ #if defined(GGML_VULKAN_BFLOAT16_GLSLC_SUPPORT)
+@@ -4976,7 +4988,7 @@
+             coopmat2_decode_vector_support = true;
+ #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
+         } else if (strcmp("VK_KHR_shader_integer_dot_product", properties.extensionName) == 0 &&
+-                    !getenv("GGML_VK_DISABLE_INTEGER_DOT_PRODUCT")) {
++                    !ggml_vk_disable_integer_dot_product(physical_device)) {
+             integer_dot_product = true;
+ #endif
+ #if defined(GGML_VULKAN_BFLOAT16_GLSLC_SUPPORT)

@@ -293,6 +293,7 @@ vendor/licenses/miniaudio.txt
 vendor/licenses/nlohmann-json.txt
 vendor/licenses/sources.json
 vendor/licenses/stb.txt
+vendor/llama/README.md
 vendor/llama/patches/0001-pinned-shader-toolchain.patch
 vendor/llama/patches/0002-own-vulkan-device-descriptors.patch
 vendor/llama/patches/0003-implement-threadpool-count.patch
@@ -302,6 +303,7 @@ vendor/llama/patches/0006-route-scoped-logging-through-workers.patch
 vendor/llama/patches/0007-expose-vulkan-physical-identity.patch
 vendor/llama/patches/0008-track-shader-compiler-input.patch
 vendor/llama/patches/0009-logger-only-diagnostics.patch
+vendor/llama/patches/0010-prefer-float-activations-on-raphael.patch
 vendor/llama/patches/series
 vendor/libdrm/patches/0001-embed-marketing-names.patch
 vendor/libdrm/patches/0002-logger-only-diagnostics.patch
