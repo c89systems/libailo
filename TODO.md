@@ -1,6 +1,6 @@
 # Forward work
 
-Updated 2026-11-03. This is the implementation backlog, with observable completion
+Updated 2026-11-04. This is the implementation backlog, with observable completion
 conditions. GPU qualification is still open. Fix correctness before making
 performance or hardware-support claims. Run builds and tests serially.
 
@@ -50,12 +50,14 @@ performance or hardware-support claims. Run builds and tests serially.
   `1002:164e`, retaining FP16. Both GNU and fully static musl now pass the same
   strict trained-logit tolerances without an environment override. Other device
   IDs retain their existing selection. Broader model/context coverage remains.
-- [ ] **Recheck whether upstream can replace the activation override.**
-  The latest dependency campaign retains both Raphael fixes; it does not prove
-  either can be removed. In an isolated build, remove the activation override
-  while retaining the LDS repair, then repeat the unchanged strict F16-reference
-  logits and trained serving gates. Evaluate driver changes separately. The
-  approved default continues to prefer accuracy.
+- [x] **Recheck whether upstream can replace the Raphael protections.**
+  Isolated v0.8.0 without the activation override fails all 16 strict-logit
+  positions (max/RMS/KL 0.476407/0.105655/0.00300542); disabling integer dot in
+  that same binary restores the exact passing control. Both serve all six
+  trained cases, demonstrating why serving success alone is insufficient.
+  Separately rebuilt Mesa 26.2.6 without the LDS repair corrupts 499/500
+  integer-only probe processes; the repaired control passes 500/500. Neither
+  protection can be retired. See [the controlled ablations](docs/static-vulkan.md#upstream-raphael-ablations-2026-11-04).
 - [x] **Measure the LDS workaround and check a smaller reservation.**
   On the fixed Qwen workload, the original unpatched control reaches about
   652 prefill / 29 decode tokens/s; the safe profile with floating activations
@@ -120,9 +122,18 @@ Halo assessment are under ignored `stash/`; they must remain uncommitted.
   spills larger encoded entries to an anonymous file, and copies at commit.
   This is staged/spooled append, not our required end-to-end streaming. Reads
   deliver bounded chunks directly. Obtain a suitable upstream direct streaming
-  contract, or an explicit product decision accepting staging; do not hide the
-  spool, add a producer thread, or implement a private dependency bypass.
+  contract; the 2026-11-04 product decision explicitly retains strict streaming.
+  Reuse ordinary append's pending record/encoder with public push control;
+  same-collection writer serialization is acceptable. Do not hide the spool,
+  add a producer thread, or implement a private dependency bypass. Atomic
+  parent-retention renewal already exists; no batch/XA API is requested.
   [Released writer contract](https://github.com/c89systems/liblockdc/blob/v0.27.0/docs/collection-writer.md).
+- [x] **Qualify the changed collection SDK surface before adoption.**
+  The 16-test four-Linux foundation matrix covers encrypted/zlib push appends,
+  lease takeover/fencing, private admission before bytes, release versus close,
+  atomic replacement/recovery metadata, stale heads, retry receipts and reopen
+  through static/shared consumers. QEMU explicitly invokes the pinned loader
+  rather than redirecting secure path traversal into the compiler sysroot.
 - [ ] **Replace conversation payload chunks with collection entries.**
   Use one collection incarnation per conversation, exact immutable ID/position
   references, and the existing libailo commit marker for one conversation plus
@@ -133,6 +144,10 @@ Halo assessment are under ignored `stash/`; they must remain uncommitted.
   for sparse committed positions; a completed-entry callback arrives too late
   to decide whether to expose that entry's bytes. Cut over cleanly and remove
   the replaced conversation storage path.
+  Preserve stable repository snapshots across repeated read calls, edits and
+  native collection expiry: an SDK read invocation pins a generation, whereas
+  a cursor/open receiver alone does not retain that view. Validate the least
+  invasive lifetime design before requesting additional upstream APIs.
 - [ ] **Enforce 90 days of conversation inactivity.**
   Configure the parent collection, not an age limit for individual entries.
   Renew by 7,776,000 seconds on newly committed activity; reads, duplicate

@@ -782,6 +782,68 @@ Logs and reconstruction inputs are under `build/llama-upgrade/`. These results
 qualify this development profile on Raphael. Actual Halo, Mendocino, RDNA4,
 non-AMD hardware, BF16 and long-context stress remain separate gates.
 
+### Upstream Raphael ablations, 2026-11-04
+
+The upgrade does **not** replace either local protection. These isolated GNU
+builds use llama.cpp v0.8.0 and Mesa 26.2.6 on the same Ryzen 5 7600, PCI
+`1002:164e` revision `c6`, gfx1036, two compute units, kernel `7.3.0-9`.
+Production sources, cached SDKs and the shipped precision policy are unchanged.
+
+For the activation comparison, copy the prepared GGML source, reverse only
+llama patch 0010, compile `ggml-vulkan.cpp` with its original compile-database
+arguments and replace that member in a copy of `libggml-vulkan.a`. Relink the
+maintained qualifiers and serving fixtures against the installed static SDK,
+replacing only that imported archive. Keep the repaired Mesa in every activation
+variant. No `GGML_VK_DISABLE_F16` override is used.
+
+| Activation variant | Worst max / RMS / KL error | Differing argmax / failing positions | Trained serving |
+| --- | --- | --- | --- |
+| Shipped floating activations | 0.0704010414 / 0.0115375858 / 0.0000117941872 | 0 / 0 | 6/6 |
+| Remove patch 0010 | 0.476406959 / 0.105654873 / 0.00300542071 | 1 / 16 | 6/6 |
+| Same experimental binary, disable integer dot by environment | Identical to shipped control | 0 / 0 | Not repeated |
+| F16 CPU model versus F16 GPU model, experimental binary | 0.0650553487 / 0.00927953292 / 0.0000127726757 | 0 / 0 | Not repeated |
+
+The unchanged strict limits are max `0.25`, RMS `0.025`, KL `0.001`, over the
+same 16 identical-prefix full-vocabulary positions. The Q4 candidate SHA-256 is
+`6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653`;
+the F16 reference is
+`f5f90b6b937fb032591a76e87d277566ada3d965510b58750ce80de78efe2e8e`.
+Successful generation is insufficient evidence of this accuracy policy.
+These results isolate the quantized-model activation path; they do not prove a
+hardware integer-dot defect or accuracy equivalence for other models.
+
+For LDS, extract a fresh Mesa 26.2.6 archive, verify SHA-256
+`b9436b3e1a8be76fbd4823dc884f90596ab7c6ac5e1867a305e66ffccfb31a92`,
+and apply only patches 0001 and 0002. Omit 0003 in full. Build/install with the
+same static headless cross/native files and Meson options as production, using
+two build jobs. Assign distinct driver build UUIDs to the trial so it cannot
+reuse production pipeline identities. Replace all matching imported Mesa
+archives in the installed-SDK fixture; keep the shipped GGML archive. Rebuild
+the maintained integer-only `ailo_qualify_shared` against each profile.
+
+| Mesa profile | Fresh processes | Correct | Corruption | Setup errors/timeouts |
+| --- | --- | --- | --- | --- |
+| Full shipped LDS repair | 500 | 500 | 0 | 0 |
+| Upstream LDS behavior, no patch 0003 | 500 | 1 | 499 | 0 |
+
+Each invocation has a 60-second timeout and disables the shader disk cache.
+The maintained shader covers eight workgroup/shared-size configurations; failed
+processes stop at their first mismatch. The first failing upstream run reports
+incorrect integer XOR results with 1 KiB shared memory and 64 lanes. This probe
+does not involve llama.cpp, floating-point arithmetic or model quantization.
+The control covers 4,000 correct dispatches. This experiment removes the whole
+repair, not its two components separately; the earlier component and 32 KiB
+reduction evidence remains applicable. Retain both protections. Neither a
+silicon/kernel root cause nor actual Mendocino/Halo acceptance is established.
+
+Local fixture sources, exact compilation command, driver/source inputs and
+named logs are under ignored `build/raphael-revalidation/`. The completed
+serving logs are `logs/serving-control-final.log` and
+`logs/serving-integer-dot-valid.log`; earlier harness runs with missing companion
+executables are not acceptance results. The shared-memory summaries and first
+upstream failure are in `logs/*shared-summary.txt` and
+`logs/upstream-lds-shared-first-failure.log`.
+
 ### Larger dense and MoE execution probes
 
 `tests/qualify_models.lua` is a manual installed-Lua/C-ABI probe, separate from

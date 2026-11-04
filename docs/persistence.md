@@ -113,6 +113,34 @@ commit copies the staged entry. This is staged/spooled append, and does not
 satisfy libailo's end-to-end streaming requirement. Collection reads deliver
 bounded chunks directly. Resolve that write-path contract before adopting it
 for conversation payloads; the upgrade alone does not change their provider.
+The production decision on 2026-11-04 retains strict streaming and rejects staged
+conversation writes. The remaining upstream requirement is a public push writer
+that reuses ordinary append's incremental encoder and eventual canonical pending
+record, with bounded scratch and no whole-entry replay. Serializing writers to
+the same collection is acceptable; independent collections and short root
+publication operations must progress while a producer is paused. API packaging
+belongs upstream. Atomic parent renewal is already available and is not a new
+request. libailo does not modify or build liblockdc here.
+
+Version 0.27 also supplies leases, conditional takeover/private reads, coherent
+head tokens, atomic range-cut/replacement edits, recovery descriptors and edit
+status. Static/shared SDK tests exercise fencing of a prepared writer, zero-byte
+private-read rejection, explicit release versus local close, fragmented edit
+replacement, stale-head rejection before bytes, identical retry and durable
+reopen on all four Linux targets (ARM through QEMU). These are SDK qualification
+tests, not adoption of these operations by the conversation provider.
+
+Collection-local edits cannot publish response and conversation descriptors
+together. A recovery descriptor must remain small and must not contain inference
+state. Private leases are not a substitute for selecting logically committed
+entry references before the first byte. A read captures its generation for that
+invocation; resuming a cursor captures a fresh view. Before cutover, prove that
+libailo's longer-lived snapshot pins and native parent expiry cannot invalidate
+a promised later read. Do not infer a retained snapshot from an open receiver.
+Native append renewal precedes libailo's commit marker: failed marker publication
+must not extend the logical inactivity deadline even if physical cleanup is
+delayed. Retained item archives after conversation deletion also need this
+lifetime distinction.
 The existing commit-marker visibility mechanism can be retained; collection
 batches and XA participation are not required. Collection adoption will use a
 released liblockdc SDK, with attachments and opaque inference state kept separate.
