@@ -8,7 +8,7 @@ target= cc= sysroot= nm= readelf= strip_tool= toolchain=
 while IFS='=' read -r key value; do
   case "$key" in target) target=$value ;; cc) cc=$value ;; sysroot) sysroot=$value ;; nm) nm=$value ;; readelf) readelf=$value ;; strip) strip_tool=$value ;; toolchain) toolchain=$value ;; esac
 done < "$binary/install/test-settings.txt"
-[[ "$target" == x86_64-linux-gnu ]] || { printf 'install-tree: execution currently requires the native GNU target\n' >&2; exit 2; }
+[[ "$target" =~ ^(x86_64|aarch64)-linux-(gnu|musl)$ ]] || { printf 'install-tree: unsupported target %s\n' "$target" >&2; exit 2; }
 mkdir -p "$root/build/install-tests"
 work=$(mktemp -d "$root/build/install-tests/$1.XXXXXXXX")
 trap 'cmake -E rm -rf "$work"' EXIT
@@ -25,8 +25,45 @@ mkdir "$work/extracted"
 prefix="$work/extracted/relocated sdk"
 "$root/scripts/verify_install_privacy.sh" "$prefix" "$readelf"
 dep="$root/.cache/deps/$target"
-ctest --test-dir "$binary" --output-on-failure -j1 -R '^model-fixture$'
+execution=()
+if [[ "$target" == aarch64-* ]]; then
+  command -v qemu-aarch64 >/dev/null
+  loaders=()
+  for file in "$sysroot"/lib/ld-linux*.so* "$sysroot"/lib/ld-musl*.so*; do
+    [[ ! -f "$file" ]] || loaders+=("$file")
+  done
+  [[ ${#loaders[@]} == 1 ]] || { printf 'install-tree: expected one pinned ELF loader\n' >&2; exit 1; }
+  runtime_path="$sysroot/lib:$sysroot/usr/lib:$sysroot/usr/lib64:$prefix/lib:$prefix/lib/ailo/native"
+  collection_root=$(realpath -- "$(dirname -- "$(dirname -- "$cc")")")
+  for library in libstdc++.so.6 libgcc_s.so.1; do
+    file=$("$cc" "-print-file-name=$library")
+    [[ -f "$file" ]] || { printf 'install-tree: missing compiler runtime %s\n' "$library" >&2; exit 1; }
+    file=$(realpath -- "$file")
+    [[ "$file" == "$collection_root/"* ]] || { printf 'install-tree: compiler runtime escaped its collection\n' >&2; exit 1; }
+    runtime_path+=":$(dirname -- "$file")"
+  done
+  for component in cpkt cpktmisc lonejson pslog lockdc liblql; do
+    runtime_path+=":$dep/$component/install/lib"
+  done
+fi
+execution_for() {
+  execution=()
+  if [[ "$target" == aarch64-* ]]; then
+    execution=(qemu-aarch64 -L /)
+    local headers
+    headers=$("$readelf" -l "$1")
+    if [[ "$headers" == *INTERP* ]]; then
+      # Loading explicitly avoids redirecting open("/") into the toolchain.
+      execution+=("${loaders[0]}" --library-path "$runtime_path")
+    fi
+  fi
+}
 fixture="$binary/model-fixtures/tiny-llama.gguf"
+execution_for "$binary/ailo_model_fixture"
+fixture_runner=$(IFS=';'; printf '%s' "${execution[*]}")
+cmake "-DAILO_FIXTURE_WRITER=$binary/ailo_model_fixture" \
+  "-DAILO_FIXTURE_RUNNER=$fixture_runner" "-DAILO_MODEL_FIXTURE=$fixture" \
+  -P "$root/tests/test_model_fixture.cmake"
 if rg -a -l -F -e "$root" -e "$HOME" "$prefix/lib/cmake" "$prefix/lib/pkgconfig" "$prefix/share/ailo/dependencies.json"; then
   printf 'install-tree: installed metadata contains a local path\n' >&2
   exit 1
@@ -54,13 +91,24 @@ for mode in static shared pkg-static pkg-shared; do
       "-DAILO_CONSUMER_KIND=$mode" "-DAILO_CONSUMER_CXX=$language" \
       "-DAILO_POLICY_ROOT=$root" "-DAILO_TEST_DEPENDENCY_ROOT=$dep" "-DAILO_TEST_PREFIX=$prefix"
     cmake --build "$consumer" --parallel 1
-    "$consumer/consumer" "$fixture"
-    "$consumer/model_consumer" "$fixture" >"$consumer/model.log" 2>&1 || { tail -25 "$consumer/model.log" >&2; exit 1; }
+    execution_for "$consumer/consumer"
+    "${execution[@]}" "$consumer/consumer" "$fixture"
+    execution_for "$consumer/model_consumer"
+    "${execution[@]}" "$consumer/model_consumer" "$fixture" >"$consumer/model.log" 2>&1 || { tail -25 "$consumer/model.log" >&2; exit 1; }
     rg -q 'C89 CPU GGUF inference.*passed' "$consumer/model.log"
     if [[ "$mode" == static || "$mode" == pkg-static ]]; then
       if "$readelf" -d "$consumer/consumer" | rg -q 'NEEDED.*(libailo|libstdc\+\+)'; then
         printf 'install-tree: static consumer used a shared facade/C++ runtime\n' >&2
         exit 1
+      fi
+      if [[ "$target" == *-musl ]]; then
+        for executable in consumer model_consumer; do
+          if "$readelf" -l "$consumer/$executable" | rg -q INTERP ||
+              "$readelf" -d "$consumer/$executable" | rg -q NEEDED; then
+            printf 'install-tree: static musl consumer requires a loader/shared library\n' >&2
+            exit 1
+          fi
+        done
       fi
     fi
   done

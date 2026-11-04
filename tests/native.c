@@ -39,6 +39,12 @@ int main(void) {
   float result;
   enum ailo_ggml_status native_status;
   ailo_bool truth;
+  const char *version = NULL;
+
+  CHECK(ailo_llama_version(&version, &error) == AILO_OK && version &&
+        strcmp(version, EXPECTED_LLAMA_VERSION) == 0);
+  CHECK(ailo_ggml_commit(&version, &error) == AILO_OK && version &&
+        strcmp(version, EXPECTED_LLAMA_REVISION) == 0);
 
   CHECK(ailo_mtmd_audio_stream_params_default(NULL, &error) ==
         AILO_INVALID_ARGUMENT);

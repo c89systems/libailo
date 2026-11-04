@@ -28,6 +28,10 @@ for target in x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux
   if [[ "$target" == x86_64-linux-gnu ]]; then
     ctest --test-dir "$root/build/$target-release" --output-on-failure -j1
     "$root/scripts/lua.sh" test "$target-release"
+  elif [[ "$target" == x86_64-linux-musl ]]; then
+    ctest --test-dir "$root/build/$target-release" --output-on-failure -j1
+  else
+    "$root/scripts/test_install_tree.sh" "$target-release"
   fi
   if "$development"; then
     "$root/scripts/package.sh" --preset "$target-release" --development --no-build --output-directory "$output"

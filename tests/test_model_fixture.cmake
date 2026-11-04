@@ -4,7 +4,7 @@ if(NOT DEFINED AILO_FIXTURE_WRITER OR NOT DEFINED AILO_MODEL_FIXTURE)
 endif()
 set(expected "e32806b9651b70b20c6109e4f4aab9e8ef0099108b69a1214e937f8ef1a77668")
 foreach(iteration RANGE 1 2)
-  execute_process(COMMAND "${AILO_FIXTURE_WRITER}" "${AILO_MODEL_FIXTURE}"
+  execute_process(COMMAND ${AILO_FIXTURE_RUNNER} "${AILO_FIXTURE_WRITER}" "${AILO_MODEL_FIXTURE}"
     RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
   if(NOT result EQUAL 0)
     message(FATAL_ERROR "Model fixture writer failed (${result}): ${output}${error}")

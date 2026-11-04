@@ -310,6 +310,14 @@ and C++ consumers through static/shared CMake targets and pkg-config metadata.
 It also checks isolated header inclusion, real model decode/state restoration,
 the exact installed dynamic export set, private-symbol link rejection, missing
 external SDK diagnostics, and relative installed runtime paths.
+The gate supports all four Linux release presets; AArch64 execution requires
+`qemu-aarch64` and explicitly uses the pinned compiler collection's loader.
+Consumers verify the reported upstream version/revision. Static musl consumers
+also require no ELF interpreter or shared libraries. For example:
+
+```sh
+make test-install-tree PRESET=aarch64-linux-musl-release
+```
 
 The install component `ailo` contains only project headers and libraries,
 separate native archives under `lib/ailo/native`, selected GNU runtime archives

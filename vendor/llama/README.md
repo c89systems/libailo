@@ -50,6 +50,7 @@ The source archive has SHA-256
 | 0009: diagnostics routing | Rebased while retaining upstream's multi-device pinned-memory implementation |
 | 0010: Raphael activation policy | Rebased; preserves floating activations for PCI 1002:164e and FP16 support |
 | 0011: strided KV prefill tests | New test-only cases at batches 255/256/512, both precisions and dense/padded/strided layouts |
+| 0012: embedded build identity, 2026-11-04 | Respect the parent-supplied GGML commit instead of probing the enclosing libailo Git repository |
 
 The regenerated C89 facade covers 1,111 upstream functions and 329 record
 fields with zero gaps. Upstream adds 28 functions, including experimental
@@ -69,8 +70,8 @@ cases and 24 added cases spanning the scratch path's 256-token threshold,
 dense/padded/strided KV and default/F32 precision. BF16, actual Halo,
 RDNA4 and non-AMD GPU behavior remain separate hardware qualification work.
 
-Fresh extraction of the verified archive plus all eleven patches with zero fuzz
-exactly reproduces both prepared source trees. Offset backup files are preserved
+At the upgrade, fresh extraction of the verified archive plus all eleven patches
+with zero fuzz exactly reproduced both prepared source trees. Offset backup files are preserved
 separately; neither tree contains rejected patches or unrecorded source edits.
 GNU passes 81/81 native tests and 5/5 installed Lua tests; musl passes 78/78.
 Both pass strict trained logits, 400 fresh matrix processes and all six trained
@@ -81,6 +82,21 @@ and serving executables lack an interpreter and dynamic library dependencies.
 Upgrade inputs, source reconstruction and qualification logs:
 `build/llama-upgrade/`. See [static Vulkan qualification](../../docs/static-vulkan.md)
 for the accepted driver and numerical policy.
+
+## Embedded runtime identity, 2026-11-04
+
+Archive builds previously reported `0.8.0-dev` and the enclosing libailo Git
+commit through the native version/commit API. The integration now selects the
+declared stable version and the revision already recorded in the public API
+inventory. Patch 0012 lets GGML honor the revision supplied by its parent, which
+upstream llama.cpp already passes to it. The reported commit identifies the
+upstream base; the ordered local patches remain separate declared inputs and
+participate in libailo's native-state compatibility identity.
+
+Static/shared native tests and relocated C/C++ CMake/pkg-config consumers assert
+the observed version and full upstream revision against those declared inputs.
+This requires no new facade API or ABI change, no source copy rewrite and no
+runtime dependence on the checkout's Git state.
 
 ## Upgrade sequence
 

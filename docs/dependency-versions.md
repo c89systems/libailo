@@ -90,3 +90,38 @@ regression proves two independent extraction contracts invalidate stale objects.
 GPU evidence is limited to Raphael. QEMU SDK execution does not qualify an
 AArch64 GPU, Halo, Intel or other hardware. Removing Raphael workarounds remains
 a separate experiment; this refresh retains them.
+
+## Follow-up qualification, 2026-11-04
+
+The complete development matrix now builds, packages and verifies all four Linux
+SDKs after the refresh. This is an untagged development campaign, not a release
+commitment or new hardware acceptance. Evidence is under
+`build/raphael-revalidation/`, principally `logs/linux-release-matrix-final.log`.
+
+| Gate | Result |
+| --- | --- |
+| Full GNU application / installed Lua | 81/81 and 5/5 |
+| Full native musl application | 79/79, including the newly enabled install-tree gate |
+| Relocated C/C++ consumers | 32 configurations across four targets: CMake/pkg-config, static/shared and C/C++; both API and inference/state executables run in each |
+| Static musl deployment consumers | All 16 executable instances across the two architectures lack `PT_INTERP` and `DT_NEEDED` |
+| SDK archives | Four checksummed, extracted/stripped payloads pass target architecture, header/privacy, exact-export and private-symbol negative-link checks |
+| Source/Lua artifacts | Exact source manifest, inner/outer checksums, version/privacy and separate Lua product verification pass |
+| Native source reconstruction | Verified v0.8.0 archive plus all twelve zero-fuzz patches exactly matches all four prepared trees; patch backups and Python bytecode excluded |
+| Collection SDK contract | All 16 foundation tests pass; both ARM suites also pass twice consecutively to prove cleanup/reopen after the QEMU runner repair |
+
+Archive builds had incorrectly reported `0.8.0-dev` and the enclosing libailo
+Git commit. The root integration now supplies the declared release and the
+upstream revision recorded in the API inventory. One-line vendor patch 0012
+makes GGML respect that supplied revision. Runtime assertions in native and
+installed consumers check `0.8.0` and the full
+`8642541b255bfb5dc39cd351a178be09013a55d6` revision. The preserved pre-fix SDK
+fails the new assertion with the expected identity diagnostic. The local patch
+queue remains a separate declared input; a base commit does not imply pristine
+upstream source. No public API or ABI changes are required.
+
+The current stable releases still need both Raphael protections. Controlled
+ablation results are in [static Vulkan qualification](static-vulkan.md#upstream-raphael-ablations-2026-11-04).
+The collection tests qualify leases, atomic edits and read admission, but do not
+adopt staged conversation writes. The production decision retains strict
+streaming; [persistence](persistence.md#collection-adoption) records the remaining
+minimal upstream writer requirement and snapshot/expiry integration checks.

@@ -217,8 +217,17 @@ never substitute workstation libraries for cpkt/cpktmisc.
   Prove advertised placement, actionable allocation failures and reclamation.
   Change heap policy only with evidence in the static profile; runtime XML,
   forced-limit overrides and universal kernel tuning are not established fixes.
-- [ ] **Re-prove the final static deployment after GPU/foundation changes.**
-  Build all four Linux SDKs and relocated C/C++/Lua consumers. On actual GPU
+- [x] **Re-prove all four complete SDK artifacts and relocated consumers.**
+  The 2026-11-04 development matrix builds/packages all four SDKs and passes
+  32 relocated C/C++ CMake/pkg-config static/shared configurations, each running
+  both API and inference/state consumers. GNU passes 81/81, musl 79/79 and native
+  installed Lua 5/5. Static musl consumers have no ELF interpreter or shared
+  dependencies. ARM CPU execution uses QEMU and the pinned loader without
+  sysroot path redirection. Runtime version/revision now identify the pinned
+  upstream base, independent of libailo's enclosing Git identity; the preserved
+  old SDK fails the new assertion. All twelve patches reconstruct all four
+  prepared source trees exactly. See [the evidence](docs/dependency-versions.md#follow-up-qualification-2026-11-04).
+- [ ] **Complete final deployment qualification on actual GPU hardware.** On actual GPU
   hosts inspect final musl ELF interpreter/dynamic entries, exact shared exports,
   archive order, notice completeness and private paths. Trace initialization,
   compilation, inference, failure and teardown with poisoned ICD/layer settings:

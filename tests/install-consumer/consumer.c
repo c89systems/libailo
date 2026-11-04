@@ -26,10 +26,19 @@ int main(int argc, char **argv) {
   ailo_content content;
   ailo_run_info info;
   unsigned int deltas = 0;
+  const char *native_version = NULL;
   if (argc != 2)
     return 2;
   if (strcmp(AILO_VERSION, EXPECTED_VERSION) != 0 || AILO_ABI_VERSION != 0)
     return 1;
+  if (ailo_llama_version(&native_version, &error) != AILO_OK ||
+      !native_version || strcmp(native_version, EXPECTED_LLAMA_VERSION) != 0 ||
+      ailo_ggml_commit(&native_version, &error) != AILO_OK || !native_version ||
+      strcmp(native_version, EXPECTED_LLAMA_REVISION) != 0) {
+    fputs("Installed native dependency identity differs from the pin\n",
+          stderr);
+    return 1;
+  }
   memset(&source, 0, sizeof(source));
   source.local_path = argv[1];
   if (ailo_model_acquire(&source, &path, &error) != AILO_OK) {
