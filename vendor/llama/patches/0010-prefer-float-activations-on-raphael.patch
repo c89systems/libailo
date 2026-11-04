@@ -1,9 +1,15 @@
 --- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
 +++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
-@@ -1,6 +1,18 @@
+@@ -1,6 +1,23 @@
  #include "ggml-vulkan-common.h"
  #include "../ggml-library-log.h"
  
++// Keep F16 weight/KV storage, but prefer F32 arithmetic on the qualified APU.
++static bool ggml_vk_prefers_f32(const vk::PhysicalDevice& physical_device) {
++    const vk::PhysicalDeviceProperties props = physical_device.getProperties();
++    return props.vendorID == VK_VENDOR_ID_AMD && props.deviceID == 0x164e;
++}
++
 +#if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
 +static bool ggml_vk_disable_integer_dot_product(const vk::PhysicalDevice& physical_device) {
 +    if (getenv("GGML_VK_DISABLE_INTEGER_DOT_PRODUCT")) {
@@ -11,15 +17,14 @@
 +    }
 +    // libailo's Raphael profile preserves floating-point activations. The Q8_1
 +    // path changes trained logits beyond this profile's accepted error bounds.
-+    const vk::PhysicalDeviceProperties props = physical_device.getProperties();
-+    return props.vendorID == VK_VENDOR_ID_AMD && props.deviceID == 0x164e;
++    return ggml_vk_prefers_f32(physical_device);
 +}
 +#endif
 +
  static vk_device_architecture get_device_architecture(const vk::PhysicalDevice& device) {
      vk::PhysicalDeviceProperties props = device.getProperties();
  
-@@ -4103,7 +4115,7 @@
+@@ -4103,7 +4120,7 @@
                  coopmat2_decode_vector_support = true;
  #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
              } else if (strcmp("VK_KHR_shader_integer_dot_product", properties.extensionName) == 0 &&
@@ -28,7 +33,17 @@
                  device->integer_dot_product = true;
  #endif
  #if defined(GGML_VULKAN_BFLOAT16_GLSLC_SUPPORT)
-@@ -5001,7 +5013,7 @@
+@@ -4292,7 +4309,8 @@
+             device->max_nodes_per_submit = std::max(max_nodes_per_submit, 1u);
+         }
+ 
+-        const bool force_disable_f16 = getenv("GGML_VK_DISABLE_F16") != nullptr;
++        const bool force_disable_f16 = getenv("GGML_VK_DISABLE_F16") != nullptr ||
++                                       ggml_vk_prefers_f32(device->physical_device);
+ 
+         device->fp16 = !force_disable_f16 && fp16_storage && fp16_compute;
+ 
+@@ -5001,7 +5019,7 @@
              coopmat2_decode_vector_support = true;
  #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
          } else if (strcmp("VK_KHR_shader_integer_dot_product", properties.extensionName) == 0 &&
@@ -37,3 +52,14 @@
              integer_dot_product = true;
  #endif
  #if defined(GGML_VULKAN_BFLOAT16_GLSLC_SUPPORT)
+@@ -5025,9 +5043,8 @@
+ 
+     const vk_device_architecture device_architecture = get_device_architecture(physical_device);
+ 
+-    const char* GGML_VK_DISABLE_F16 = getenv("GGML_VK_DISABLE_F16");
+-    bool force_disable_f16 = GGML_VK_DISABLE_F16 != nullptr;
++    bool force_disable_f16 = getenv("GGML_VK_DISABLE_F16") != nullptr || ggml_vk_prefers_f32(physical_device);
+ 
+     bool fp16 = !force_disable_f16 && fp16_storage && fp16_compute;
+ 
+     vk::PhysicalDeviceProperties2 props2;

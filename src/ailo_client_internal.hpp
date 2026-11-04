@@ -91,6 +91,10 @@ template <typename Work> ailo_status boundary(ailo_error *error, Work work) {
   } catch (const std::bad_alloc &) {
     return ailo_error_set(error, AILO_NO_MEMORY,
                           "Inference receiver allocation failed");
+  } catch (const std::exception &e) {
+    return ailo_error_set(
+        error, AILO_INTERNAL_ERROR,
+        e.what()[0] ? e.what() : "Inference receiver raised an exception");
   } catch (...) {
     return ailo_error_set(error, AILO_INTERNAL_ERROR,
                           "Inference receiver raised an exception");

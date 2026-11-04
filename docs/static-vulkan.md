@@ -1096,3 +1096,124 @@ under ignored `build/raphael-16gb/`. Final budget logs are
 `logs/combined-strict.*`, `logs/stream-default.*`,
 `logs/stream-fp32-batch8.*` and `logs/stream-trace-fp32-batch8.*`.
 The earlier host-only-limit probes and failed controls remain separately named.
+
+### Raphael MoE defaults and bounded submissions, 2026-11-04
+
+This follow-up supersedes the unresolved default-precision and batch-128
+observations above. The underlying Mesa LDS repair remains required. Raphael
+PCI `1002:164e` now selects FP32 arithmetic and floating-point activations by
+default, retaining FP16 weight and KV storage. Other PCI IDs retain their
+arithmetic selection. This implements the accepted accuracy-first policy.
+
+The 25-token OLMoE Chat prefill was isolated from individual expert kernels.
+Both Q4_K/F32 and Q6_K/F32 projection shapes pass the upstream backend-operation
+comparison, including batches 8, 9, 25 and 128. Before the repair, either
+`GGML_VK_MAX_NODES_PER_SUBMIT=1` or disabling fusion allows the failing full
+request to complete. These are diagnostic controls, not adopted defaults.
+
+The Vulkan scheduler had two submission-budget defects: the first graph's
+missing work estimate yielded zero, disabling the FLOP limit; the first three
+submissions could then double the limit without retaining the device cap.
+Patch 0013 uses the existing cap until a previous graph supplies an estimate,
+and clamps early growth to that cap. Raphael's existing two-CU cap is 4 GFLOP;
+no kernel timeout, fusion policy, batch size or node-count default changes.
+The cap limits accumulated estimated work between nodes; it cannot divide a
+single expensive kernel. This resolves the reproduced timeout without proving
+all larger workloads safe.
+
+With only the submission fix and explicit FP32 arithmetic, three fresh
+batch-128 processes complete the previously failing request. Folding the
+precision choice into patch 0010 then passes three more fresh installed-Lua
+runs with no precision/batching/fusion override: 25 prompt tokens, 52 generated
+tokens, first text at token 1, about 6.35–6.48 seconds to first text and
+11.06–11.28 decode tokens/s. A separate traced run handles 134 prompt tokens
+and streams 64 output tokens, first text at token 1, at about 21.07 inclusive
+prefill / 11.21 decode tokens/s. All 16 repeating layers, the output layer and
+all traced expert `MUL_MAT_ID` operations are on Vulkan. These timings include
+startup pipeline work and are short observations, not sustained benchmarks.
+
+Both default profiles pass the same 16 identical-prefix full-vocabulary
+OLMoE positions against the pinned F32 reference above: worst max/RMS/KL
+`0.00870603431 / 0.00260335092 / 6.13316045e-7` for GNU and
+`0.00876819228 / 0.00260335092 / 5.88252204e-7` for musl, zero differing
+argmax and zero violations. The unchanged limits are `0.25 / 0.025 / 0.001`.
+The Qwen F16-reference/Q4 and F16-reference/F16 Vulkan pairs also pass, with
+worst max/RMS/KL respectively `0.0728120567 / 0.0106818219 / 1.16679257e-5`
+and `0.0611722021 / 0.00978808224 / 8.84632828e-6`. Free-running CPU Q4 Chat
+outputs are not an F32 oracle; agreement of their text is not the strict gate.
+
+All final model runs retain the 10 GB host limit, zero test-group swap and
+6 GB GPU/headroom reservation described above. The cold F32 reference run
+reaches the kernel-rounded host cap of 9,999,998,976 bytes with reclaim,
+without OOM or swap; it takes about 71 seconds in GNU and 128 seconds in musl.
+The larger Chat run records
+about 4.29 GB of process-owned resident GTT/VRAM, falling to 2.69 MB after
+close. Its model card accounts for 4,153,780,224 model, 33,554,432 context and
+30,019,584 compute bytes on Vulkan; host buffers remain separately reported.
+
+The C receiver now copies `std::exception::what()` into its existing bounded
+error buffer, returning `AILO_INTERNAL_ERROR`; an empty/unknown exception
+retains the generic fallback. Typed failures and allocation failures retain
+their status mappings. Callback exceptions are sanitized at the event sink.
+The new boundary test proves owned diagnostics after exception destruction,
+truncation/NUL termination, guard integrity, status mappings, null error
+receivers and stale-error clearing. The existing callback integration test
+also proves that private callback text does not escape.
+
+Both native targets pass the remaining regression campaign:
+
+| Gate | GNU | Fully static musl |
+| --- | ---: | ---: |
+| Native CTest suite, including relocated install consumers | 82/82 | 80/80 |
+| Installed Lua suite (GNU host module) | 5/5 | — |
+| OLMoE F32-reference positions | 16/16 | 16/16 |
+| OLMoE expert projection cases | 8/8 | 8/8 |
+| Qwen strict reference pairs | 2/2 | 2/2 |
+| Flash Attention/layout/precision/quantized-KV cases | 48/48 | 48/48 |
+| Fresh matrix processes, F16/F32 storage with fusion enabled/disabled | 400/400 | 400/400 |
+| Trained text/protocol/compaction/Codex/vision/audio serving | 6/6 | 6/6 |
+
+All six musl qualification/serving executables have no ELF interpreter or
+`NEEDED` entries. Serving runs retain disabled shader disk caching and poisoned
+external ICD paths; musl additionally traces file/process access. Fresh
+extraction plus all 13 zero-fuzz patches exactly matches all four prepared
+source trees. ARM source reconstruction is not new ARM binary/GPU acceptance.
+Repeated normal builds pass the patch-queue check. The updated precision policy
+belongs wholly to patch 0010, avoiding a later patch that rewrites its helper.
+
+The unchanged `examples/infer.c`, linked with `-static` against the final
+installed musl SDK, also completes the OLMoE request at its default 2,048-token
+context and 512-token batch (128-token microbatch). Its output passes the JSON
+and expected-content checks, and its ELF has no interpreter or `NEEDED` entry.
+This is an installed-consumer check: the ordinary in-tree example links shared
+runtime libraries even when it uses the static libailo archive. Configuring a
+larger context does not prove accuracy at longer input prefixes.
+
+The complete profile change has a measurable cost. A fixed Qwen Q4 workload
+uses the same upstream base, Mesa repair, 512-token context, 128-token microbatch,
+256 prefill tokens and 32 teacher-forced decode tokens. Each SDK runs one warmup
+and five measured repetitions, with finite full-vocabulary logits throughout:
+
+| SDK profile | Mean warm prefill tokens/s | Mean decode tokens/s |
+| --- | ---: | ---: |
+| Preserved prior SDK: floating activations, FP16 arithmetic | 299.47 | 14.71 |
+| Current SDK: FP32 arithmetic and enforced submission cap | 218.15 | 14.81 |
+
+This is about 27.2% lower prefill throughput with no clear decode penalty.
+The comparison changes the complete profile, not just arithmetic, and is not a
+thermal/concurrency campaign. Recover throughput without weakening numerical
+acceptance or the LDS repair. Longer MoE contexts, more prompts/models,
+sustained load and other GPU hardware remain open.
+
+Exact controls, model hashes, per-process cards/DRM counters, cgroup/time
+records, source reconstruction and commands are under ignored
+`build/raphael-moe-fix/`; the large pinned fixtures remain under
+`build/raphael-16gb/`. The historical failed controls above remain evidence.
+To replay the added expert cases with the opt-in backend-operation tool:
+
+```sh
+params='n_mats=64,n_used=8,b=0,m=(1024,n=(8|9|25|128),k=2048|2048,n=(8|9|25|128),k=1024),'
+BUILD/ailo_qualify_backend_ops test -b Vulkan0 -o MUL_MAT_ID -p "$params"
+```
+
+Require `8/8 tests passed`; zero selected cases do not qualify the kernels.

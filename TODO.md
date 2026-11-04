@@ -50,6 +50,8 @@ performance or hardware-support claims. Run builds and tests serially.
   `1002:164e`, retaining FP16. Both GNU and fully static musl now pass the same
   strict trained-logit tolerances without an environment override. Other device
   IDs retain their existing selection. Broader model/context coverage remains.
+  The 2026-11-04 MoE follow-up below extends this accuracy policy to FP32
+  arithmetic on the same PCI ID; FP16 weight and KV storage remain supported.
 - [x] **Recheck whether upstream can replace the Raphael protections.**
   Isolated v0.8.0 without the activation override fails all 16 strict-logit
   positions (max/RMS/KL 0.476407/0.105655/0.00300542); disabling integer dot in
@@ -87,19 +89,27 @@ performance or hardware-support claims. Run builds and tests serially.
   serving and FP32 serving with batch 8 both stream 52 tokens; process-owned
   GPU allocations fall from about 4.25 GB to 2.68 MB after close. See the
   [qualification record](docs/static-vulkan.md#raphael-7b-moe-and-the-16-gb-budget-2026-11-04).
-- [ ] **Resolve MoE precision and larger FP32 prefill before changing defaults.**
-  The shipped FP16 path fails one OLMoE F32-reference position (RMS 0.03607
-  versus the unchanged 0.025 limit). Disabling FP16 passes the raw-prompt gate,
-  but batch-128 Chat prefill times out a compute ring and raises Vulkan
-  DeviceLostError. Batch 8 completes;
-  this is an explicit qualification workaround, not an adopted production
-  default. Reduce the failing 25-token prefill to a graph/kernel reproducer,
-  preserve the batch-8 control, and surface native device errors usefully at
-  the C boundary. Measure broader prompts/contexts before choosing a precision
-  or batching policy. Do not loosen tolerances or silently fall back to CPU.
-  Use an F32 oracle for this MoE: CPU F16 weights also round activations, and
-  that CPU path itself fails 11 positions against F32. The older F16-reference
-  discrepancies do not by themselves establish a GPU defect.
+- [x] **Resolve MoE precision and the reproduced FP32 prefill timeout.**
+  Raphael now prefers FP32 arithmetic with floating activations, retaining F16
+  storage. The existing submission work cap was bypassed on the first graph
+  and exceeded during early ramp-up; patch 0013 enforces it in both places.
+  With no precision, batching or fusion override, all 16 OLMoE F32-reference
+  positions pass unchanged tolerances. Three fresh batch-128 Chat runs stream
+  52 tokens; a 134-token prompt streams 64 tokens with expert operations on
+  Vulkan. Native exceptions now retain their bounded diagnostic at the C
+  boundary while callback exception text remains private. GNU passes 82 native
+  tests, installed Lua 5, musl 80; both pass 400 fresh matrix processes,
+  48 attention cases and six trained serving cases. See the
+  [follow-up evidence](docs/static-vulkan.md#raphael-moe-defaults-and-bounded-submissions-2026-11-04).
+- [ ] **Expand MoE accuracy/context coverage and recover safe prefill throughput.**
+  The complete new profile costs about 27% warm Qwen prefill throughput in a
+  short before/after comparison; decode is approximately unchanged. Preserve
+  the strict F32 oracle, full LDS reservation and bounded submissions while
+  investigating narrower arithmetic choices. Cover further MoE prompts,
+  longer contexts, batch sizes, concurrency and sustained load. The work cap
+  operates between nodes and cannot divide a single expensive kernel.
+  CPU F16 reference weights also round activations and fail 11 OLMoE positions
+  against F32; do not mistake that older reference discrepancy for GPU corruption.
 
 Existing evidence and reproduction commands are in
 [static-vulkan.md](docs/static-vulkan.md). Local investigation inputs and the
@@ -203,7 +213,7 @@ never substitute workstation libraries for cpkt/cpktmisc.
 | liblockdc | 0.27.0, ABI 9 | Latest release; resumable conversion with one segment/snapshot duplicated at a time. Collection provider adoption remains separate. |
 | liblql | 0.4.1, ABI 0 | Latest released SDK; no adjacent-source build. |
 | Mesa | 26.2.6 | Latest stable; retains the Raphael repair. 26.3 release candidates are excluded. |
-| llama.cpp | v0.8.0 | Stable release adopted; ten integration patches retained, four rebased, plus one new test-only patch. Includes the AMD KV fix. See the [integration record](vendor/llama/README.md). Rolling b12078 is prerelease. |
+| llama.cpp | v0.8.0 | Stable release with 13 ordered patches, including the Raphael precision policy, bounded submissions and regression cases. Includes the upstream AMD KV fix. See the [integration record](vendor/llama/README.md). Rolling b12078 is prerelease. |
 | cpkt | 0.6.1 | Latest release; includes the libssh2 AES-GCM handshake leak repair. Static users must relink. |
 | cpktmisc | 0.3.0 | Latest release; requires cpkt 0.6.1 and removes LZO. |
 | SPIRV-LLVM-Translator | 23.1.3 | Latest release; retains LLVM/Clang 23 compatibility. |

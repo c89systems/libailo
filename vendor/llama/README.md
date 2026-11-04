@@ -48,9 +48,10 @@ The source archive has SHA-256
 | 0006: worker logging scope | Rebased onto the new worker implementation |
 | 0007: Vulkan physical identity | Rebased; removed the local memory-budget guard superseded by upstream's heap clamp and underflow protection |
 | 0009: diagnostics routing | Rebased while retaining upstream's multi-device pinned-memory implementation |
-| 0010: Raphael activation policy | Rebased; preserves floating activations for PCI 1002:164e and FP16 support |
+| 0010: Raphael precision policy | Floating activations and, after the 2026-11-04 MoE follow-up, FP32 arithmetic for PCI 1002:164e; FP16 weight/KV storage remains supported |
 | 0011: strided KV prefill tests | New test-only cases at batches 255/256/512, both precisions and dense/padded/strided layouts |
 | 0012: embedded build identity, 2026-11-04 | Respect the parent-supplied GGML commit instead of probing the enclosing libailo Git repository |
+| 0013: bounded submissions, 2026-11-04 | Apply the existing work cap to the first graph and early ramp-up; add eight OLMoE expert projection regression cases |
 
 The regenerated C89 facade covers 1,111 upstream functions and 329 record
 fields with zero gaps. Upstream adds 28 functions, including experimental
@@ -120,3 +121,18 @@ runtime dependence on the checkout's Git state.
 
 Keep the rebase distinct from adopting new receiver features. Each new feature
 still needs its product specification and observable acceptance tests.
+
+## MoE precision and submission follow-up, 2026-11-04
+
+Patch 0010 now also selects FP32 arithmetic on Raphael PCI 1002:164e, retaining
+FP16 storage. Patch 0013 makes the scheduler respect its existing work cap on
+the first graph and during early submission growth. Eight expert projection
+cases cover the OLMoE vector/matrix boundary. Default batch-128 serving and
+strict F32-reference logits pass without environment workarounds; the measured
+Qwen prefill cost is about 27% for the complete profile change.
+
+All 13 zero-fuzz patches reproduce all four prepared source trees exactly;
+repeated normal builds also pass. GNU passes 82 native tests and five Lua tests;
+musl passes 80 native tests. Both pass 400 fresh matrix processes, 48 attention
+cases and six trained serving cases. See the [qualification record](../../docs/static-vulkan.md#raphael-moe-defaults-and-bounded-submissions-2026-11-04)
+for the unchanged error bounds, resource envelope and remaining coverage.

@@ -1,0 +1,39 @@
+--- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+@@ -14467,7 +14467,10 @@
+             flops_cap = 2'000'000'000ULL * ctx->device->shader_core_count;
+         }
+     }
+-    uint64_t flops_per_submit = std::min(flops_cap, ctx->last_total_flops / 40u);
++    // No previous graph is not permission to submit an unbounded first batch.
++    const uint64_t estimated_flops = ctx->last_total_flops / 40u;
++    uint64_t flops_per_submit = estimated_flops != 0
++        ? std::min(flops_cap, estimated_flops) : flops_cap;
+ 
+     auto const submit_after = [&](int start, int end) {
+         if (ctx->device->serialize_submissions) {
+@@ -14494,7 +14497,7 @@
+         submitted_nodes = 0;
+         batch_flops = 0;
+         if (submit_count < 3) {
+-            flops_per_submit *= 2;
++            flops_per_submit = std::min(flops_cap, flops_per_submit * 2);
+         }
+         submit_count++;
+     };
+--- a/tests/test-backend-ops.cpp
++++ b/tests/test-backend-ops.cpp
+@@ -11115,6 +11115,13 @@
+     test_cases.emplace_back(new test_mul_mat_id_w4a8(GGML_TYPE_MXFP4, GGML_TYPE_F32, 8, 2, false, 32, 32, 256));
+     test_cases.emplace_back(new test_mul_mat_id_w4a4(GGML_TYPE_MXFP4, GGML_TYPE_F32, 8, 2, false, 32, 32, 256));
+ 
++    // OLMoE expert projection shapes across the vector/matrix prefill boundary.
++    // These also qualify the FP32 path independently of whole-model routing.
++    for (int n : { 8, 9, 25, 128 }) {
++        test_cases.emplace_back(new test_mul_mat_id(GGML_TYPE_Q4_K, GGML_TYPE_F32, 64, 8, false, 1024, n, 2048));
++        test_cases.emplace_back(new test_mul_mat_id(GGML_TYPE_Q6_K, GGML_TYPE_F32, 64, 8, false, 2048, n, 1024));
++    }
++
+ #if 0
+     // > 2^31-element dst (8.9 GB), about 45 GB peak memory. Too large to be enabled by default.
+     // kernel_mul_mm dst offset of the last batch is past INT32_MAX: rows 0-31 use full tiles, rows 32-39 use edge tiles.

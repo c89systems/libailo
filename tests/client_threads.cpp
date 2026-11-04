@@ -333,6 +333,7 @@ void run(const char *path) {
   CHECK(client->generate(client.get(), &request, throwing_sink, nullptr, &info,
                          &error) == AILO_INTERNAL_ERROR);
   CHECK(!std::strstr(error.message, "private callback"));
+  CHECK(std::strcmp(error.message, "The event sink raised an exception") == 0);
   unsigned deltas = 0;
   CHECK(client->generate(client.get(), &request, accept, &deltas, &info,
                          &error) == AILO_OK);

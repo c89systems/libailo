@@ -79,7 +79,14 @@ struct emitter {
       event.compacted_items = change->items.data();
       event.compacted_item_count = change->items.size();
     }
-    const int accepted = sink(user, &event);
+    int accepted;
+    try {
+      accepted = sink(user, &event);
+    } catch (const std::bad_alloc &) {
+      throw;
+    } catch (...) {
+      throw failure(AILO_INTERNAL_ERROR, "The event sink raised an exception");
+    }
     if (accepted < 0)
       throw failure(AILO_SINK_FAILED, "The event sink failed");
     if (!accepted || self.is_cancelled())
