@@ -173,7 +173,7 @@ cleanup:
   ailo_storage_struct_ggml_backend_device_array_free(devices, NULL);
   return result;
 }
-static int dequantize(const char *source, const char *destination) {
+static int dequantize(const char *source, const char *destination, int f32) {
   struct ailo_llama_model_quantize_params *params = NULL;
   struct stat existing;
   ailo_error error;
@@ -190,7 +190,9 @@ static int dequantize(const char *source, const char *destination) {
   CHECK(ailo_llama_model_quantize_params_allow_requantize_set(
             params, 1, &error) == AILO_OK);
   CHECK(ailo_llama_model_quantize_params_ftype_set(
-            params, AILO_LLAMA_FTYPE_MOSTLY_F16, &error) == AILO_OK);
+            params,
+            f32 ? AILO_LLAMA_FTYPE_ALL_F32 : AILO_LLAMA_FTYPE_MOSTLY_F16,
+            &error) == AILO_OK);
   CHECK(ailo_llama_model_quantize_params_pure_set(params, 1, &error) ==
         AILO_OK);
   CHECK(ailo_llama_model_quantize(source, destination, params, &native_result,
@@ -206,10 +208,15 @@ int main(int argc, char **argv) {
   ailo_error error;
   char *path = NULL, *candidate = NULL;
   const char *checksum[1];
-  int result, conversion = argc == 5 && !strcmp(argv[1], "dequantize");
+  int result,
+      conversion = (argc == 5 || argc == 6) && !strcmp(argv[1], "dequantize");
+  if (conversion && argc == 6 && strcmp(argv[5], "f16") &&
+      strcmp(argv[5], "f32"))
+    conversion = 0;
   if (!conversion && (argc != 7 || strcmp(argv[1], "compare") ||
                       (strcmp(argv[6], "cpu") && strcmp(argv[6], "vulkan")))) {
-    fputs("Usage: ailo_qualify_logits dequantize MODEL SHA256 NEW_OUTPUT\n"
+    fputs("Usage: ailo_qualify_logits dequantize MODEL SHA256 NEW_OUTPUT "
+          "[f16|f32]\n"
           "   or: ailo_qualify_logits compare REFERENCE SHA256 CANDIDATE "
           "SHA256 cpu|vulkan\n",
           stderr);
@@ -225,7 +232,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   if (conversion) {
-    result = dequantize(path, argv[4]);
+    result = dequantize(path, argv[4], argc == 6 && !strcmp(argv[5], "f32"));
     ailo_string_free(path);
     return result;
   }

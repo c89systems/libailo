@@ -953,3 +953,146 @@ It establishes scoped numerical evidence for these two Vulkan workloads, not
 bitwise equivalence between native arithmetic paths or a model-quality score.
 Broader models, contexts, sustained performance and hardware acceptance remain
 subject to the campaign above.
+
+### Raphael 7B MoE and the 16 GB budget, 2026-11-04
+
+A real larger MoE is feasible on this Ryzen 5 7600/Raphael host. The fixture is
+[Allen AI's OLMoE-1B-7B-0125-Instruct-GGUF](https://huggingface.co/allenai/OLMoE-1B-7B-0125-Instruct-GGUF/tree/2ac1d27317927518c9ef7bd99f91f3f1e4ee288d),
+immutable revision `2ac1d27317927518c9ef7bd99f91f3f1e4ee288d`, file
+`OLMoE-1B-7B-0125-Instruct-Q4_K_M.gguf`, 4,213,512,192 bytes, SHA-256
+`4ddc0e53159ed512b8dd67914a66e27bc618f694672ba43a9a0454eabd9c684f`.
+The loaded card reports `olmoe`, 6,919,161,856 total parameters and 16 layers.
+The graph routes eight of 64 experts. Both existing Raphael protections remain.
+
+#### Memory accounting
+
+The final acceptance profile caps charged host memory at 10,000,000,000 bytes
+(page-aligned by Linux to 9,999,998,976), disables swap in the test scope and
+reserves another 6 GB for GPU allocations and headroom. A host cgroup limit alone
+is not a combined CPU/GPU allocation limit. DRM counters are collected from the
+actual process, alongside native model/context/compute buffers; duplicate file
+descriptors must be grouped by DRM client ID. These measurements do not claim
+an exact accounting of every driver allocation or machine-wide swap activity.
+
+The successful cold F32-reference run reaches the 10 GB host ceiling, with no
+OOM/kill or test-group swap. File-cache reclamation at that ceiling is expected.
+Its maximum process RSS is 9,756,152 KiB. Only this private reference's cached
+pages were evicted before the cold run; no machine-wide cache flush was used.
+The 27,678,429,184-byte reference is memory mapped, not fully resident. File
+size and virtual address space are not physical working-set requirements.
+
+With FP32 arithmetic and batch 8, the serving card reports 4,153,780,224 GPU
+model bytes, 33,554,432 context bytes and 1,876,224 compute bytes. Host-visible
+native buffers are reported separately. The process's DRM client has 4,116,676
+KiB resident GTT plus 35,084 KiB VRAM after inference: 4,251,402,240 bytes total,
+within the GPU reservation. After client close these fall to 2,296 and 320 KiB,
+respectively, totaling 2,678,784 bytes. Residual device infrastructure is retained;
+the model allocations are released. Host RSS and UMA mappings can alias GPU
+memory, so these counters must not be presented as disjoint physical pools.
+
+Earlier exploratory probes used a 16 GB **host-only** cgroup limit, including a
+successful 13,844,566,016-byte F16 model load/decode on Vulkan. Those probes are
+not combined-budget acceptance; the final 10 GB host / 6 GB GPU reservation
+supersedes their memory-accounting method. No persistent workstation setting,
+kernel tuning, adjacent repository edit or dependency source build was used.
+
+#### Reference precision and numerical results
+
+The qualifier now accepts `dequantize MODEL SHA256 NEW_OUTPUT [f16|f32]`.
+Omitting the representation retains the existing F16 behavior. F32 is needed
+to distinguish this model's routing sensitivity from the CPU F16 arithmetic
+path: upstream's CPU F16 dot-product trait converts activations to F16 as well.
+An F16 representation also rounds dequantized weights. It is not a full-FP32
+oracle. Neither representation recovers original pre-quantization training
+weights.
+
+The reference files generated from the pinned Q4 weights are:
+
+| Representation | Bytes | SHA-256 |
+| --- | ---: | --- |
+| F16 | 13,844,566,016 | `d84ad9cdf1150e5264a0dc318ddea6c695a6888250e8a01bbcf0499cb64bac71` |
+| F32 | 27,678,429,184 | `70bac7eab4179e79fcdfaaec67eb5f15419fef6e8a301679a8c209102f744400` |
+
+All comparisons retain the same 16 identical-prefix full-vocabulary positions,
+256-token context, 128-token batch, two CPU threads and max/RMS/KL thresholds
+`0.25 / 0.025 / 0.001`. A failed gate remains failed.
+
+| CPU reference / candidate | Worst max / RMS / KL | Violating positions |
+| --- | --- | ---: |
+| F16 / Q4 Vulkan default | 0.614853 / 0.156832 / 0.00164927 | 11 |
+| F16 / Q4 Vulkan, FP16 disabled | 0.614276 / 0.157621 / 0.00164802 | 11 |
+| F16 / F16 Vulkan | 0.616159 / 0.159483 / 0.00163448 | 11 |
+| F32 / F16 CPU | 0.618118 / 0.159100 / 0.00160965 | 11 |
+| F32 / Q4 Vulkan default | 0.170671 / 0.0360701 / 0.000179551 | 1 |
+| F32 / Q4 Vulkan, FP16 disabled | 0.00870603 / 0.00260335 / 0.000000613316 | 0 |
+
+All GPU comparisons above retain matching greedy argmax at every position.
+That alone is not numerical acceptance. Disabling fusion, Flash Attention,
+changing KV storage to F32, and disabling FP16 on the F16 candidate did not
+resolve the F16-reference failures. F32 KV storage alone also leaves the one
+F32-reference/default-GPU failure.
+
+An observational router trace locates the first F16-reference/GPU expert-set
+change at position 5, layer 0. The CPU's eighth/ninth router scores differ by
+0.00156257; a maximum CPU/GPU router difference of 0.00270032 swaps experts 15
+and 44. Each backend sorts its own scores correctly. The reciprocal CPU F16
+versus F32 failure demonstrates that the initial 11-position discrepancy is
+not sufficient evidence of a GPU defect. The remaining default-GPU failure
+against F32 is still open. No tolerances or shipped precision defaults changed.
+
+#### Streaming and the prefill boundary
+
+`tests/qualify_models.lua` adds the pinned `moe7b` fixture and optional
+`--model`, `--tokens`, `--batch` and `--trace` arguments. Defaults remain 16 output
+tokens and a 128-token batch; the fixture catalog now includes the 7B model.
+Use the installed Lua runner/module paths from `lua-receiver`. For example,
+with an existing cache/output directory:
+
+```sh
+# Run under an explicit host-memory limit; reserve GPU memory separately.
+RUNNER tests/qualify_models.lua LUA_PATH LUA_CPATH CACHE OUTPUT \
+  --model moe7b --tokens 64
+GGML_VK_DISABLE_F16=1 RUNNER tests/qualify_models.lua LUA_PATH LUA_CPATH CACHE OUTPUT \
+  --model moe7b --tokens 64 --batch 8
+```
+
+`RUNNER` denotes the selected loader/runtime/installed Lua runner command, not
+an additional executable. Acquisition requires explicit `--download`; cached
+runs remain offline. Native trace output requires the matching pslog Lua
+provider; use `--trace` with `GGML_SCHED_DEBUG=2` for per-operation assignments.
+
+Both CPU and Vulkan stream text with logprobs. GPU placement covers all 16
+repeating layers and the output layer. During actual `generate`, scheduler
+traces place expert gate/up/down `MUL_MAT_ID` operations on Vulkan; input
+embedding lookup remains on CPU. The request has 25 rendered prompt tokens;
+the GPU emits 52 tokens, with first text at token 1. Native cards, process status
+and DRM counters are saved before close and after reclamation.
+
+Short diagnostic observations on the same request:
+
+| GPU profile | First text s | Inclusive prefill tokens/s | Decode tokens/s | Generation s |
+| --- | ---: | ---: | ---: | ---: |
+| Shipped arithmetic, batch 128 | 4.44 | 5.63 | 11.33 | 8.95 |
+| FP16 disabled, batch 8 | 1.74 | 14.37 | 11.31 | 6.26 |
+| Same batch-8 control, with tracing | 1.75 | 14.29 | 11.26 | 6.28 |
+
+These are single short runs, not sustained throughput claims. Full-FP32
+reference comparisons above use a different raw prompt; they do not prove all
+52 Chat-token probability comparisons or long-context accuracy.
+
+Disabling FP16 with batch 128 **fails** the Chat prefill. GDB identifies the
+terminal exception as `vk::DeviceLostError` in Vulkan queue submission, propagated
+through decode. Kernel records correlate both failing process IDs with compute-ring
+timeouts and successful ring resets. That does not distinguish excessive dispatch
+duration from a stuck kernel. The C boundary currently reports only `Inference receiver
+raised an exception`. No OOM or test-group swap is recorded. Batch 8 completes
+in independent normal/traced runs. It is an explicit qualification workaround,
+not an automatically adopted production policy. Reduce/fix the larger-prefill
+failure and improve native error reporting before changing defaults or claiming
+this model's unrestricted FP32 serving acceptance.
+
+Evidence, exact pinned metadata, memory controls and exploratory sources are
+under ignored `build/raphael-16gb/`. Final budget logs are
+`logs/combined-strict.*`, `logs/stream-default.*`,
+`logs/stream-fp32-batch8.*` and `logs/stream-trace-fp32-batch8.*`.
+The earlier host-only-limit probes and failed controls remain separately named.

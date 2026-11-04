@@ -77,6 +77,29 @@ performance or hardware-support claims. Run builds and tests serially.
   cost across further workloads, compare kernel/firmware under controlled
   conditions, and retire or narrow the local workaround only after the same
   repeated gates pass. Test actual Mendocino before extending hardware claims.
+- [x] **Run a real 7B MoE within a 16 GB qualification budget.**
+  OLMoE-1B-7B-0125-Instruct Q4_K_M (4.21 GB, 6.919B total parameters) runs on
+  Raphael with all 16 layers/output and expert operations on Vulkan. The final
+  campaign caps host memory at 10 GB, reserves 6 GB for GPU allocations/headroom,
+  and disables test-group swap. The F32 reference is a 27.68 GB memory-mapped
+  file; the cold reference comparison respects the host limit without OOM.
+  Explicit FP32 arithmetic passes all 16 strict reference positions. Normal
+  serving and FP32 serving with batch 8 both stream 52 tokens; process-owned
+  GPU allocations fall from about 4.25 GB to 2.68 MB after close. See the
+  [qualification record](docs/static-vulkan.md#raphael-7b-moe-and-the-16-gb-budget-2026-11-04).
+- [ ] **Resolve MoE precision and larger FP32 prefill before changing defaults.**
+  The shipped FP16 path fails one OLMoE F32-reference position (RMS 0.03607
+  versus the unchanged 0.025 limit). Disabling FP16 passes the raw-prompt gate,
+  but batch-128 Chat prefill times out a compute ring and raises Vulkan
+  DeviceLostError. Batch 8 completes;
+  this is an explicit qualification workaround, not an adopted production
+  default. Reduce the failing 25-token prefill to a graph/kernel reproducer,
+  preserve the batch-8 control, and surface native device errors usefully at
+  the C boundary. Measure broader prompts/contexts before choosing a precision
+  or batching policy. Do not loosen tolerances or silently fall back to CPU.
+  Use an F32 oracle for this MoE: CPU F16 weights also round activations, and
+  that CPU path itself fails 11 positions against F32. The older F16-reference
+  discrepancies do not by themselves establish a GPU defect.
 
 Existing evidence and reproduction commands are in
 [static-vulkan.md](docs/static-vulkan.md). Local investigation inputs and the
