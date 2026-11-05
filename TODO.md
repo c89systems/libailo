@@ -110,6 +110,13 @@ performance or hardware-support claims. Run builds and tests serially.
   operates between nodes and cannot divide a single expensive kernel.
   CPU F16 reference weights also round activations and fail 11 OLMoE positions
   against F32; do not mistake that older reference discrepancy for GPU corruption.
+  The bounded 2026-11-05 pass recovers about 39% Qwen prefill throughput with
+  FP16 enabled and FP32 matrix accumulation while retaining submission limits;
+  both Qwen strict pairs pass. MoE accuracy remains unqualified: the comparison
+  and a CPU-only oracle retry hit their time limits under memory pressure.
+  Capture a reusable, provenance-checked F32 oracle before further precision
+  trials; do not change defaults from timing/Qwen evidence alone. See the
+  [short optimization record](docs/static-vulkan.md#bounded-raphael-optimization-pass-2026-11-05).
 
 Existing evidence and reproduction commands are in
 [static-vulkan.md](docs/static-vulkan.md). Local investigation inputs and the

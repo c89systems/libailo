@@ -1217,3 +1217,57 @@ BUILD/ailo_qualify_backend_ops test -b Vulkan0 -o MUL_MAT_ID -p "$params"
 ```
 
 Require `8/8 tests passed`; zero selected cases do not qualify the kernels.
+
+### Bounded Raphael optimization pass, 2026-11-05
+
+A short isolated trial compares the current profile with FP16 enabled while
+retaining floating activations, the Mesa LDS repair and patch 0013's submission
+limits. A second setting forces FP32 matrix accumulation with FP16 enabled.
+One private backend build supplies all three settings; experimental controls
+exist only under ignored `build/raphael-opt-short/`. The recorded vendor queue,
+normal prepared dependency sources and installed SDK are unchanged.
+
+The same pinned Qwen Q4 workload as above runs one warmup and five measured
+repetitions per setting, with finite full-vocabulary logits throughout:
+
+| Trial setting | Mean warm prefill tokens/s | Mean decode tokens/s |
+| --- | ---: | ---: |
+| Current FP32 profile and enforced submission cap | 241.66 | 15.98 |
+| FP16 enabled, same enforced cap | 331.22 | 16.07 |
+| FP16 enabled, FP32 matrix accumulation, same enforced cap | 336.14 | 16.05 |
+
+The last setting is about 39.1% faster than this pass's FP32 control, with no
+clear decode change. These are contemporaneous short observations; compare
+rows within this pass rather than absolute rates across different campaigns.
+Because the cap remains enforced in every row, it does not prevent recovering
+most of the precision-related throughput. Its separate cost was not measured
+against an otherwise identical uncapped binary.
+
+The FP32 matrix-accumulation setting passes both existing 16-position Qwen
+strict reference pairs, with unchanged max/RMS/KL limits `0.25/0.025/0.001`:
+
+| F16 CPU reference / Vulkan candidate | Worst max / RMS / KL |
+| --- | --- |
+| Q4 stored weights | 0.0704010414 / 0.0115375858 / 1.17941872e-5 |
+| F16 stored weights | 0.0650553487 / 0.00927953292 / 1.27726757e-5 |
+
+Both have zero differing argmax and zero violating positions. That result does
+not qualify OLMoE. Its full F32-reference comparison times out after 300 seconds
+under the 10 GB host cap with 6 GB reserved for GPU/headroom, without an accuracy
+result. A separate CPU-only reference capture, with no GPU model loaded, also
+hits its 150-second limit under a 15 GB host cap and 1 GB headroom. The latter
+log remains inside the CPU reference phase, records about 940,000 major page
+faults and roughly 66 GB of filesystem input, and produces no reusable oracle.
+Neither run records OOM or swap use. The reduced-precision candidate's MoE
+accuracy is therefore unknown, not a pass or a numerical failure.
+
+No production optimization is adopted from this pass. Retain the qualified FP32
+Raphael default. The next precision trial needs a reusable F32 oracle with the
+same model/source identity, token prefixes, context and numerical limits, so
+that disk paging does not consume the short GPU test budget. Attention already
+requests FP32 accumulation in the upstream model graph; changing matrix
+accumulation alone does not establish that FP16 operands meet the MoE gate.
+
+Sources, exact commands, timings, strict Qwen results and bounded timeout
+records are under `build/raphael-opt-short/`. The trial's reference-cache helper
+is an unfinished experiment and is not a shipped test tool or storage format.
