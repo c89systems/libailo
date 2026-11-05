@@ -1341,3 +1341,42 @@ provenance/checksum ledgers, source trials and bounded logs remain under ignored
 `build/raphael-oracle/` and `build/raphael-opt-short/`. Their source/format helpers
 remain experiments; standard native oracles and released SDK contracts are
 unchanged. The source archive contains this report, not these local artifacts.
+
+### FP32 tile and cache follow-up, 2026-11-05
+
+A bounded tile-selection experiment keeps FP32 arithmetic, floating-point
+activations, the full LDS reservation and submission limits. The isolated
+backend replaces only the ordinary dense matrix selector; expert selection is
+unchanged. Instrumentation confirms that the tested Qwen prefill shape
+`m=896,n=128` has two available configurations and already selects index 1
+(medium). Forcing medium is therefore a control for this shape; forcing index 0
+(small) changes the selected kernel. An earlier three-configuration-only trial
+did not exercise this two-configuration path and supplies no optimization evidence.
+
+The same pinned Qwen Q4 model, 256-token prefill, 32 teacher-forced decode tokens,
+one warmup and five measured repetitions give these mean rates:
+
+| FP32 tile selection | Prefill tokens/s | Decode tokens/s |
+| --- | ---: | ---: |
+| Current | 242.287 | 15.994 |
+| Medium control | 242.025 | 16.172 |
+| Small | 112.643 | 15.990 |
+
+Both trials pass the cached 16-position OLMoE CPU oracle with max/RMS/KL
+`0.00870603431/0.00260335092/6.13316045e-7`. They also pass the separate
+longer-prefill GPU regression corpus: medium
+`0.00216390073/0.000627446228/3.42675239e-8`, small zero differences. All retain
+zero violating positions and matching argmax. Artifact checksums are validated
+before reuse. Each run uses the existing 10 GB host cgroup cap, no swap and
+6 GB GPU/headroom reserve; none records OOM. Commands, isolated source, logs and
+memory records are in ignored `build/raphael-fp32-tuning/`.
+
+No tile or precision change is adopted: medium supplies no gain and small loses
+more than half the prefill throughput. The production cache instead avoids a
+disk catalog lookup when RAM already has the maximum safe reusable prefix.
+That removes lock acquisition and matching token-metadata decryption from this
+lookup case; capture/publication keeps its existing behavior. A regression
+holds the disk lock and proves the full RAM hit does not incur a lookup BUSY
+skip, while another proves a longer disk checkpoint still beats a partial RAM
+match and reproduces the cold output. This is a lookup-cost improvement, not a
+claim of faster uncached GPU arithmetic. See [cache behavior](client.md).

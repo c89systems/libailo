@@ -40,6 +40,50 @@ int observe(void *, const ailo_event *) { return 1; }
 int reject_end(void *, const ailo_event *event) {
   return event->kind == AILO_EVENT_RUN_END ? -1 : 1;
 }
+static void longest_checkpoint(ailo_cache_config config,
+                               ailo_client_config client_config) {
+  config.namespace_id = "snapshot-lookup-priority";
+  config.max_entries = 1;
+  auto cache = new_cache(config);
+  auto client = new_client(client_config, cache.get());
+  ailo_content content{};
+  content.kind = AILO_CONTENT_TEXT;
+  ailo_item item{};
+  item.content = &content;
+  item.content_count = 1;
+  auto request = ailo_request_default();
+  request.items = &item;
+  request.item_count = 1;
+  request.max_tokens = 3;
+  request.temperature = 0;
+  ailo_run_info info{};
+  auto run = [&](const char *prompt) {
+    content.data = prompt;
+    content.size = std::strlen(prompt);
+    std::string text;
+    CHECK(client->generate(
+              client.get(), &request,
+              [](void *u, const ailo_event *event) {
+                if (event->kind == AILO_EVENT_TEXT_DELTA)
+                  static_cast<std::string *>(u)->append(
+                      static_cast<const char *>(event->data), event->size);
+                return 1;
+              },
+              &text, &info, &error) == AILO_OK);
+    return text;
+  };
+  const auto cold = run("abcdefghijk");
+  CHECK(!cold.empty() && !info.usage.cached_tokens.lo);
+  (void)run("abcde");
+  CHECK(info.usage.cached_tokens.lo == info.usage.prompt_tokens.lo - 1);
+  ailo_cache_stats before{}, after{};
+  CHECK(cache->stats(cache.get(), &before, &error) == AILO_OK);
+  CHECK(before.entries == 1);
+  CHECK(run("abcdefghijk") == cold);
+  CHECK(info.usage.cached_tokens.lo == info.usage.prompt_tokens.lo - 1);
+  CHECK(cache->stats(cache.get(), &after, &error) == AILO_OK);
+  CHECK(after.snapshot_reads.lo == before.snapshot_reads.lo + 1);
+}
 std::vector<unsigned char> read(const fs::path &path) {
   std::ifstream stream(path, std::ios::binary);
   CHECK(stream);
@@ -134,6 +178,7 @@ int main(int argc, char **argv) {
     client_config.context_tokens = 256;
     client_config.chat_template =
         "{% for m in messages %}{{ m.content }}{% endfor %}";
+    longest_checkpoint(config, client_config);
     auto client = new_client(client_config, cache.get());
     ailo_content content{AILO_CONTENT_TEXT, "abcdefghijk", 11, nullptr};
     ailo_item item{};
@@ -268,6 +313,8 @@ int main(int argc, char **argv) {
                                               nullptr,
                                               &error) == AILO_INVALID_ARGUMENT);
     }
+    ailo_cache_stats before_disk_lock{}, after_disk_lock{};
+    CHECK(cache->stats(cache.get(), &before_disk_lock, &error) == AILO_OK);
     {
       auto owner = retain_cache(cache.get());
       auto disk_lock = owner->disk->lock();
@@ -275,6 +322,9 @@ int main(int argc, char **argv) {
       run(client.get());
       CHECK(info.usage.cached_tokens.lo == info.usage.prompt_tokens.lo - 1);
     }
+    CHECK(cache->stats(cache.get(), &after_disk_lock, &error) == AILO_OK);
+    CHECK(after_disk_lock.busy_skips.lo == before_disk_lock.busy_skips.lo &&
+          after_disk_lock.busy_skips.hi == before_disk_lock.busy_skips.hi);
     auto wrong_context = client_config;
     wrong_context.context_tokens = 512;
     auto incompatible = new_client(wrong_context, cache.get());

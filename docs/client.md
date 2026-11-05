@@ -298,7 +298,10 @@ lock protects publication, eviction and reads across processes. Explicit
 operations return BUSY on contention; generation can use RAM or recompute.
 
 Captured prompt checkpoints are published automatically and reused across
-cache/client reconstruction. `client->snapshot_export(client, slot, error)`
+cache/client reconstruction. Lookup skips the disk catalog when RAM already
+holds the longest safe prefix (all but the last token). A partial RAM match
+still searches disk for a longer checkpoint.
+`client->snapshot_export(client, slot, error)`
 also saves the last successfully cached prompt to a named slot. A cancelled
 request or rejected final event does not replace that reference. Export can
 fail if its checkpoint was evicted. `snapshot_import(client, slot,

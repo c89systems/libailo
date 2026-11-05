@@ -218,9 +218,13 @@ size_t cache_state::restore(state &client,
     if (prefix > count) {
       best = it;
       count = prefix;
+      if (count == tokens.size() - 1)
+        break;
     }
   }
-  if (disk) {
+  // The last token must be replayed. A maximal RAM prefix cannot be improved
+  // by scanning and decrypting the persistent snapshot catalog.
+  if (disk && count < tokens.size() - 1) {
     try {
       std::unique_ptr<cache_entry> loaded;
       const size_t reused =
