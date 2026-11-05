@@ -112,11 +112,21 @@ performance or hardware-support claims. Run builds and tests serially.
   against F32; do not mistake that older reference discrepancy for GPU corruption.
   The bounded 2026-11-05 pass recovers about 39% Qwen prefill throughput with
   FP16 enabled and FP32 matrix accumulation while retaining submission limits;
-  both Qwen strict pairs pass. MoE accuracy remains unqualified: the comparison
-  and a CPU-only oracle retry hit their time limits under memory pressure.
-  Capture a reusable, provenance-checked F32 oracle before further precision
-  trials; do not change defaults from timing/Qwen evidence alone. See the
+  both Qwen strict pairs pass. The subsequent cached CPU oracle rejects that
+  candidate at one MoE position. FP32 attention restores the short gate, but
+  longer-prefill regression checks still fail six positions; retaining FP32
+  expert and non-quantized matrices fails seven. Keep the qualified default;
+  do not change precision from timing or a single short prompt alone. See the
   [short optimization record](docs/static-vulkan.md#bounded-raphael-optimization-pass-2026-11-05).
+- [x] **Capture and validate a reusable F32 MoE oracle.**
+  The completed 16-position CPU capture occupies 3.2 MB, with source/model,
+  producer and artifact checksums plus the exact inference settings. Reuse
+  reproduces the current profile's prior strict result exactly and reduces GPU
+  comparisons to roughly 4–10 seconds. A separate larger-prefill GPU baseline
+  catches regressions that the short CPU corpus misses; it is not a CPU oracle.
+  Preserve provenance checks before loading either local artifact. A maintained
+  capture/load utility remains separate work; the ad hoc helper is not shipped.
+  See the [oracle follow-up](docs/static-vulkan.md#reusable-oracle-and-extended-moe-validation-2026-11-05).
 
 Existing evidence and reproduction commands are in
 [static-vulkan.md](docs/static-vulkan.md). Local investigation inputs and the
