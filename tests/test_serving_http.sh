@@ -157,6 +157,15 @@ http 200 POST /conversations '{"metadata":{"suite":"wire"},"items":[{"role":"use
 conv=$(jq -r .id "$body_file")
 http 200 GET "/conversations/$conv"
 check '.metadata.suite=="wire"'
+before_expired=$(jq -r .generations "$work/latest.json")
+control '{"fault":"finite-expiry"}'
+http 200 GET "/conversations/$conv"
+control '{"fault":"expire"}'
+http 404 GET "/conversations/$conv"
+jq -e '.opened==.closed' "$work/latest.json" >/dev/null
+http 404 POST /responses "$(jq -nc --arg c "$conv" '{conversation:$c,input:"Expired conversation",store:false,stream:true}')"
+jq -e --argjson before "$before_expired" '.generations==$before and .opened==.closed' "$work/latest.json" >/dev/null
+control '{}'
 http 200 POST "/conversations/$conv" '{"metadata":{"suite":"updated"}}'
 check '.metadata.suite=="updated"'
 http 200 POST "/conversations/$conv/items" '{"items":[{"role":"assistant","content":"Recorded"}]}'

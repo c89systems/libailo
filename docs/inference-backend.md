@@ -160,7 +160,10 @@ Transient output retention is distinct from stored-response retention. Follow
 the official [conversation-state contract](https://developers.openai.com/api/docs/guides/conversation-state):
 Responses defaults to store=true and response records remain retrievable for at
 least 30 days; store=false creates no retrievable response record. Conversation
-items explicitly attached to a conversation have no automatic 30-day expiry.
+items explicitly attached to a conversation have no automatic 30-day expiry;
+default Pouch instead expires the whole conversation after 90 days of inactivity,
+renewed by a newly committed nonempty append. Explicit conversation deletion
+retains surviving item archives. Custom providers own their lifetime policy.
 The library defaults to encrypted Pouch persistence in the XDG state directory,
 with its automatically generated key in the XDG configuration directory;
 [persistence](persistence.md) specifies paths, publication and cleanup. The

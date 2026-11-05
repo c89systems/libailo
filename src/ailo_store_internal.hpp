@@ -2,6 +2,7 @@
 #define AILO_STORE_INTERNAL_HPP
 #include "ailo_json_stream_internal.hpp"
 #include "ailo_openai_internal.hpp"
+#include <functional>
 #include <map>
 #include <string_view>
 
@@ -77,7 +78,11 @@ value describe(const record &);
 std::shared_ptr<record> describe(const value &);
 } // namespace storage
 std::shared_ptr<void> default_repository(const ailo_openai_config &,
-                                         ailo_record_repository &);
+                                         ailo_record_repository &,
+                                         std::function<uint64_t()> clock = {});
+// Deterministic maintenance entry point; the normal provider runs it each
+// minute.
+void collect_repository(const std::shared_ptr<void> &);
 } // namespace client
 } // namespace ailo
 #endif

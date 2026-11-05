@@ -178,9 +178,10 @@ struct repository {
           return AILO_NOT_FOUND;
         const auto &value = s.find(ns, kind, id);
         *reader = new json(value.at("parts"));
-        *expiry =
-            integer(s.fault == "expire" ? uint64_t(1)
-                                        : value.at("expires").get<uint64_t>());
+        *expiry = integer(s.fault == "expire" ? uint64_t(1)
+                          : s.fault == "finite-expiry"
+                              ? uint64_t(1) << 62
+                              : value.at("expires").get<uint64_t>());
         s.count("opened");
         return s.injected("open", e);
       });

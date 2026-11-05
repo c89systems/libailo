@@ -60,7 +60,8 @@ liblockdc's compression conversion now duplicates one segment or snapshot at a
 time, rather than the retained root, and resumes interrupted work before open
 returns. See [persistence](persistence.md). Collection push writers still stage
 encoded entries; this release does not resolve the streaming-provider adoption
-gate or activate conversation expiry.
+gate. Logical conversation expiry is implemented separately in libailo's
+current chunk-backed provider; see [persistence](persistence.md).
 
 ## Verification
 

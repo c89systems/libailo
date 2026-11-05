@@ -307,12 +307,9 @@ struct record_handle {
       if (!value)
         throw failure(AILO_INTERNAL_ERROR,
                       "Repository returned no read handle");
-      if (protocol == AILO_RECORD_CONVERSATION &&
-          ailo::detail::to_native(expires))
-        throw failure(AILO_IO_FAILED, "Conversation storage must not expire");
       if (ailo::detail::to_native(expires) &&
           ailo::detail::to_native(expires) <= api_now())
-        throw failure(AILO_NOT_FOUND, "Retained completion expired");
+        throw failure(AILO_NOT_FOUND, "Retained record expired");
     } catch (...) {
       if (value)
         repository.close(repository.user_data, value);

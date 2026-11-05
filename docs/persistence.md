@@ -69,11 +69,22 @@ nor an encryption key. TTL changes apply to newly created records; existing
 records retain their original deadlines.
 
 Durable sync is enabled. Startup and a maintenance worker remove expired
-response records and unreferenced storage objects; the worker runs every minute.
+records and unreferenced storage objects; the worker runs every minute.
 Open snapshots and admitted transactions protect their referenced chunks.
-Pouch's background compaction reclaims obsolete log records. Conversations and
-their item archives have no automatic TTL, and deleting a conversation retains
-its item rows. ZDR or `store=false` avoids response persistence; explicitly
+Pouch's background compaction reclaims obsolete log records. New conversations
+expire after 90 days (7,776,000 seconds) of inactivity. A newly committed,
+nonempty append resets that deadline from commit time. Reads, metadata updates,
+item deletions, empty appends, aborts and failed publication do not renew it.
+Expiry makes the entire conversation and its items unavailable at the deadline;
+startup/maintenance removes their metadata and unpinned payloads together.
+An admitted writer cannot revive a conversation that expires before publication.
+Already-open readers retain their immutable view until closed.
+
+Explicitly deleting a conversation instead retains a tombstone and its item
+archive without automatic expiry, preserving the existing deletion contract.
+Existing stored deadlines remain unchanged until a successful nonempty append
+applies the inactivity policy. Application-owned repositories govern their own
+conversation lifetime. ZDR or `store=false` avoids response persistence; explicitly
 attached conversations retain their separate documented lifetime.
 
 Admission checks the configured record limit and available unreserved disk
@@ -103,9 +114,10 @@ See the [released conversion contract](https://github.com/c89systems/liblockdc/b
 
 ## Collection adoption
 
-The accepted collection policy is 90 days of conversation inactivity, renewed
-by a newly committed append. Reads do not renew it. This policy is not active
-in the current chunk-backed provider. The released SDK now provides public
+The logical 90-day inactivity policy above is enforced in the current
+chunk-backed provider using its existing committed expiry metadata. Collection
+adoption must preserve it and configure native parent retention separately.
+The released SDK now provides public
 push-fed append writers and atomic parent-retention renewal, verified through
 both static and shared consumers. Its push writer stages encoded entries in
 up to 64 KiB of memory and spills larger encoded entries to an anonymous file;

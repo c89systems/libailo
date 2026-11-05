@@ -38,8 +38,17 @@ struct repository {
   ailo_record_repository api{};
   std::shared_ptr<void> owner;
   explicit repository(
-      const ailo_openai_config &c = ailo_openai_default_config())
-      : owner(default_repository(c, api)) {}
+      const ailo_openai_config &c = ailo_openai_default_config(),
+      std::function<uint64_t()> clock = {})
+      : owner(default_repository(c, api, std::move(clock))) {}
+  uint64_t expiry(const char *id) {
+    void *r = nullptr;
+    ailo_u64 expiry{};
+    CHECK(api.open(api.user_data, "tenant", AILO_RECORD_CONVERSATION, id, &r,
+                   &expiry, nullptr) == AILO_OK);
+    close(r);
+    return ailo::detail::to_native(expiry);
+  }
   void *reserve(const char *id, const char *ns = "tenant", uint64_t expiry = 0,
                 ailo_record_protocol protocol = AILO_RECORD_RESPONSE) {
     ailo_record_metadata m{ns,
@@ -123,6 +132,217 @@ void mode(const fs::path &p, unsigned bits) {
   struct stat s{};
   CHECK(!stat(p.c_str(), &s) && (s.st_mode & 0777) == bits);
 }
+void inactivity(const fs::path &work) {
+  constexpr uint64_t ttl = 90 * 24 * 60 * 60;
+  std::atomic<uint64_t> time{1000};
+  std::atomic<unsigned> advance_on_call{0};
+  std::atomic<uint64_t> deadline{time + ttl};
+  auto clock = [&]() -> uint64_t {
+    if (advance_on_call && --advance_on_call == 0)
+      time = deadline.load();
+    return time;
+  };
+  auto config = ailo_openai_default_config();
+  const auto root = (work / "inactivity").string();
+  const auto key = (work / "inactivity-key/pouch.key").string();
+  config.state_directory = root.c_str();
+  config.encryption_key_file = key.c_str();
+  auto item = [](const char *id) {
+    return std::string("[{\"id\":\"") + id +
+           "\",\"wire\":{\"type\":\"message\",\"id\":\"" + id +
+           "\",\"content\":\"retained history\"},\"canonical\":null}]";
+  };
+  {
+    repository r(config, clock);
+    auto t = r.conversation("idle");
+    r.state(t, 1);
+    r.write(t, AILO_RECORD_OUTPUT, "{\"id\":\"idle\"}");
+    r.commit(t);
+    CHECK(r.expiry("idle") == deadline);
+    time += 10;
+    auto change = [&](ailo_conversation_action action, unsigned revision,
+                      const char *item_id = nullptr) {
+      ailo_conversation_change c{"tenant",
+                                 "idle",
+                                 action,
+                                 ailo_u64_from_ulong(revision),
+                                 2 * 1024 * 1024,
+                                 nullptr,
+                                 item_id,
+                                 nullptr,
+                                 0};
+      void *tx = nullptr;
+      CHECK(r.api.amend(r.api.user_data, &c, &tx, nullptr) == AILO_OK);
+      r.state(tx, revision + 1);
+      return tx;
+    };
+    auto query = [&](const char *id = "idle") {
+      ailo_conversation_query q{"tenant", id, nullptr, nullptr, 0, 0, 0};
+      void *page = nullptr;
+      CHECK(r.api.query(r.api.user_data, &q, &page, nullptr) == AILO_OK);
+      return page;
+    };
+    auto page = query();
+    CHECK(r.read(page) == "[]");
+    r.close(page);
+    CHECK(r.expiry("idle") == deadline); // Reads do not renew.
+    t = change(AILO_CONVERSATION_APPEND, 1);
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, "[]");
+    r.commit(t);
+    CHECK(r.expiry("idle") == deadline); // Empty append does not renew.
+    t = change(AILO_CONVERSATION_UPDATE, 2);
+    r.commit(t);
+    CHECK(r.expiry("idle") == deadline);
+    t = change(AILO_CONVERSATION_APPEND, 3);
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("kept"));
+    time += 10; // Renewal uses commit time, not admission time.
+    r.commit(t);
+    deadline = time + ttl;
+    CHECK(r.expiry("idle") == deadline);
+    time += 10;
+    t = change(AILO_CONVERSATION_APPEND, 4);
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("aborted"));
+    r.api.abort(r.api.user_data, t);
+    CHECK(r.expiry("idle") == deadline);
+    t = change(AILO_CONVERSATION_APPEND, 4);
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("retry"));
+    fail_marker = true;
+    CHECK(r.api.commit(r.api.user_data, t, nullptr) == AILO_IO_FAILED);
+    r.api.abort(r.api.user_data, t);
+    CHECK(r.expiry("idle") == deadline);
+    t = change(AILO_CONVERSATION_APPEND, 4);
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("kept"));
+    CHECK(r.api.commit(r.api.user_data, t, nullptr) == AILO_INVALID_ARGUMENT);
+    r.api.abort(r.api.user_data, t);
+    CHECK(r.expiry("idle") == deadline); // Duplicate retries do not renew.
+    page = query();
+    CHECK(r.read(page).find("retry") == std::string::npos);
+    r.close(page);
+  }
+  {
+    // Interrupted publication/reopen must preserve the committed deadline.
+    repository r(config, clock);
+    CHECK(r.expiry("idle") == deadline);
+    const auto response_expiry = time + 5;
+    const ailo_record_metadata response{
+        "tenant",
+        "short-response",
+        AILO_RECORD_RESPONSE,
+        {},
+        ailo::detail::from_unsigned(response_expiry),
+        2 * 1024 * 1024};
+    auto t = r.conversation("idle", 4, &response);
+    r.state(t, 5);
+    r.write(t, AILO_RECORD_OUTPUT, "{\"id\":\"short-response\"}");
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("retry"));
+    r.commit(t);
+    deadline = time + ttl;
+    CHECK(r.expiry("idle") == deadline);
+    time = response_expiry;
+    collect_repository(r.owner);
+    CHECK(r.missing("short-response") && r.expiry("idle") == deadline);
+    ailo_conversation_change c{"tenant",
+                               "idle",
+                               AILO_CONVERSATION_DELETE_ITEM,
+                               ailo_u64_from_ulong(5),
+                               2 * 1024 * 1024,
+                               nullptr,
+                               "retry",
+                               nullptr,
+                               0};
+    CHECK(r.api.amend(r.api.user_data, &c, &t, nullptr) == AILO_OK);
+    r.state(t, 6);
+    r.commit(t);
+    CHECK(r.expiry("idle") == deadline);
+    // Explicit deletion retains its archive indefinitely, unlike idle expiry.
+    t = r.conversation("deleted");
+    r.state(t, 1);
+    r.write(t, AILO_RECORD_OUTPUT, "{\"id\":\"deleted\"}");
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("archived"));
+    r.commit(t);
+    c.id = "deleted";
+    c.action = AILO_CONVERSATION_DELETE;
+    c.revision = ailo_u64_from_ulong(1);
+    c.item_id = nullptr;
+    CHECK(r.api.amend(r.api.user_data, &c, &t, nullptr) == AILO_OK);
+    r.write(t, AILO_RECORD_CONVERSATION_STATE,
+            "{\"ailo_revision\":2,\"ailo_deleted\":true}");
+    r.commit(t);
+    CHECK(r.expiry("deleted") == 0);
+    auto old = r.open("idle", AILO_RECORD_CONVERSATION);
+    ailo_conversation_query q{"tenant", "idle", "kept", nullptr, 0, 0, 0};
+    void *page = nullptr;
+    CHECK(r.api.query(r.api.user_data, &q, &page, nullptr) == AILO_OK);
+    const auto history = r.read(page);
+    CHECK(history.find("retained history") != std::string::npos);
+    // Reject a writer admitted before expiry, including crossing the deadline
+    // during descriptor/alias publication immediately before the commit marker.
+    time = deadline - 1;
+    t = r.conversation("idle", 6);
+    r.state(t, 7);
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("too-late"));
+    advance_on_call = 2;
+    CHECK(r.api.commit(r.api.user_data, t, nullptr) == AILO_NOT_FOUND);
+    r.api.abort(r.api.user_data, t);
+    CHECK(time == deadline && r.missing("idle", AILO_RECORD_CONVERSATION));
+    c.id = "idle";
+    c.action = AILO_CONVERSATION_APPEND;
+    c.revision = ailo_u64_from_ulong(6);
+    t = nullptr;
+    CHECK(r.api.amend(r.api.user_data, &c, &t, nullptr) == AILO_NOT_FOUND &&
+          !t);
+    void *absent = nullptr;
+    CHECK(r.api.query(r.api.user_data, &q, &absent, nullptr) ==
+              AILO_NOT_FOUND &&
+          !absent);
+    collect_repository(r.owner);
+    CHECK(r.read(old).find("idle") != std::string::npos);
+    CHECK(r.read(page) ==
+          history); // GC preserves admitted immutable snapshots.
+    // The expired parent's item IDs are released, even while old readers pin
+    // their payloads. A surviving explicit-deletion archive is unaffected.
+    t = r.conversation("replacement");
+    r.state(t, 1);
+    r.write(t, AILO_RECORD_OUTPUT, "{\"id\":\"replacement\"}");
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("kept"));
+    r.commit(t);
+    CHECK(r.read(page) == history);
+    r.close(old);
+    r.close(page);
+    time += ttl;
+    collect_repository(r.owner);
+    q.id = "deleted";
+    q.item_id = "archived";
+    CHECK(r.api.query(r.api.user_data, &q, &page, nullptr) == AILO_OK);
+    CHECK(r.read(page).find("archived") != std::string::npos);
+    r.close(page);
+    t = r.conversation("startup");
+    r.state(t, 1);
+    r.write(t, AILO_RECORD_OUTPUT, "{\"id\":\"startup\"}");
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("startup-item"));
+    r.commit(t);
+  }
+  time += ttl;
+  {
+    repository r(config, clock);
+    CHECK(r.missing("startup", AILO_RECORD_CONVERSATION));
+    CHECK(r.missing("idle", AILO_RECORD_CONVERSATION));
+    CHECK(r.expiry("deleted") == 0);
+    // Startup maintenance releases expired item IDs as well as their parent.
+    auto t = r.conversation("after-startup");
+    r.state(t, 1);
+    r.write(t, AILO_RECORD_OUTPUT, "{}");
+    r.write(t, AILO_RECORD_CONVERSATION_ITEMS, item("startup-item"));
+    r.commit(t);
+    time = UINT64_MAX - ttl + 1;
+    t = r.conversation("overflow");
+    r.state(t, 1);
+    r.write(t, AILO_RECORD_OUTPUT, "{}");
+    CHECK(r.api.commit(r.api.user_data, t, nullptr) == AILO_OUT_OF_RANGE);
+    r.api.abort(r.api.user_data, t);
+    CHECK(r.missing("overflow", AILO_RECORD_CONVERSATION));
+  }
+}
 } // namespace
 extern "C" int __real_lc_client_open(const lc_client_config *, lc_client **,
                                      lc_error *);
@@ -150,6 +370,7 @@ int main(int argc, char **argv) {
           work.parent_path().parent_path().filename() == "build");
     fs::remove_all(work);
     fs::create_directories(work);
+    inactivity(work);
     const auto state = (work / "state").string(),
                config = (work / "config").string(),
                home = (work / "home").string();
@@ -586,9 +807,19 @@ int main(int argc, char **argv) {
       CHECK(info.stored &&
             output.find("response.output_text.delta") != std::string::npos);
       const std::string id = info.id;
+      output.clear();
+      const std::string conversation_body = "{}";
+      CHECK(client->conversation_create(client, conversation_body.data(),
+                                        conversation_body.size(), sink, &output,
+                                        &info, &error) == AILO_OK);
+      const std::string conversation_id = info.id;
       ailo_client_destroy(client);
       output.clear();
       CHECK(ailo_client_new(&c, &client, &error) == AILO_OK);
+      CHECK(client->conversation_retrieve(client, conversation_id.c_str(), sink,
+                                          &output, &info, &error) == AILO_OK &&
+            output.find(conversation_id) != std::string::npos);
+      output.clear();
       CHECK(client->chat_retrieve(client, chat_id.c_str(), 0, sink, &output,
                                   &info, &error) == AILO_OK &&
             output.find(chat_id) != std::string::npos);

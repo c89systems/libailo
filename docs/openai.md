@@ -342,8 +342,17 @@ byte-sink/error contract as the other adapters.
 
 This follows the official [conversation state guide](https://developers.openai.com/api/docs/guides/conversation-state)
 and [Conversations reference](https://developers.openai.com/api/reference/resources/conversations).
-Conversation roots and item rows have no automatic expiry. Responses create
-accepts a conversation ID string or `{ "id": "conv_..." }`, prepends its saved
+Default Pouch expires conversations and their item archives after 90 days of
+inactivity, renewed only by a newly committed nonempty append. Reads, metadata
+edits, item deletions, empty appends and failed/aborted writes do not renew it.
+Expired parents reject retrieval, item queries and mutations with HTTP 404;
+an already-open snapshot remains readable through cleanup. Explicit deletion
+retains the surviving item archive without automatic expiry. Custom repositories
+own their lifetime policy; response-record expiry is independent. See
+[persistence](persistence.md) for cleanup and existing-deadline semantics.
+
+The Responses create operation accepts a conversation ID string or
+`{ "id": "conv_..." }`, prepends its saved
 context, and appends new input/output items on success, including `store=false`
 and trusted ZDR. The response record, if requested, retains its separate lifetime.
 `previous_response_id` and `conversation` are mutually exclusive. Per-request
@@ -407,8 +416,9 @@ parent conversation, optionally one item or a cursor page. It uses ordinary
 `read(OUTPUT, emit)` and `close`. Return at most `limit+1` rows so libailo can compute
 `has_more`; internal limit zero requests ascending canonical history, excluding
 null canonical rows. Item IDs are namespace-wide unique and parent association
-must also be checked. These reads carry no TTL. The per-transaction byte allowance
-covers all sections together; total archive capacity is the provider's admission
+must also be checked. Providers must reject expired parents before opening the
+reader and keep admitted snapshots stable through cleanup. The per-transaction
+byte allowance covers all sections together; total archive capacity is the provider's admission
 policy. The built-in provider creates its configured state root and encryption
 key on first use; a custom provider retains its own construction policy.
 

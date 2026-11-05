@@ -1,6 +1,6 @@
 # Forward work
 
-Updated 2026-11-04. This is the implementation backlog, with observable completion
+Updated 2026-11-05. This is the implementation backlog, with observable completion
 conditions. GPU qualification is still open. Fix correctness before making
 performance or hardware-support claims. Run builds and tests serially.
 
@@ -127,6 +127,14 @@ performance or hardware-support claims. Run builds and tests serially.
   Preserve provenance checks before loading either local artifact. A maintained
   capture/load utility remains separate work; the ad hoc helper is not shipped.
   See the [oracle follow-up](docs/static-vulkan.md#reusable-oracle-and-extended-moe-validation-2026-11-05).
+- [x] **Remove redundant persistent-cache lookup for full RAM hits.**
+  A maximum safe RAM prefix skips the disk catalog; a partial match still
+  searches for a longer disk checkpoint. Regression tests prove both choices
+  and identical generated output. FP32 tile trials supply no GPU speedup:
+  medium is already selected for the tested two-configuration path, while
+  small reduces prefill from 242 to 113 tokens/s. All retained accuracy gates
+  pass; production precision, tiles and safeguards are unchanged. See the
+  [follow-up evidence](docs/static-vulkan.md#fp32-tile-and-cache-follow-up-2026-11-05).
 
 Existing evidence and reproduction commands are in
 [static-vulkan.md](docs/static-vulkan.md). Local investigation inputs and the
@@ -198,16 +206,19 @@ Halo assessment are under ignored `stash/`; they must remain uncommitted.
   native collection expiry: an SDK read invocation pins a generation, whereas
   a cursor/open receiver alone does not retain that view. Validate the least
   invasive lifetime design before requesting additional upstream APIs.
-- [ ] **Enforce 90 days of conversation inactivity.**
-  Configure the parent collection, not an age limit for individual entries.
-  Renew by 7,776,000 seconds on newly committed activity; reads, duplicate
-  retries, aborts and failed publication must not grant another logical
-  lifetime. Reconcile native append renewal with later libailo marker failure;
-  native physical publication alone is not logical conversation publication.
-  Preserve the documented lifetime of item archives after explicit conversation
-  deletion. Pouch expiry is lazy: decide and test the API-visible expiry boundary,
-  startup/recovery, maintenance races, snapshots and orphan reclamation using
-  controlled clocks. This policy is not active in today's chunk provider.
+- [x] **Enforce logical 90-day conversation inactivity independently of collections.**
+  The current Pouch provider publishes expiry with its existing commit marker.
+  Creation and newly committed nonempty appends set a 7,776,000-second deadline;
+  reads, metadata edits, item deletions, empty appends, aborts and failed commits
+  do not renew it. Controlled-clock tests cover the exact boundary, interrupted
+  publication/reopen, independent response expiry, pinned readers, parent/item
+  cleanup and explicit-deletion archives. Public adapter tests accept finite
+  provider lifetimes and reject expired conversations before inference.
+- [ ] **Carry the logical deadline into collection retention at cutover.**
+  Configure the parent collection, not individual entry age limits. Reconcile
+  native append renewal with later libailo marker failure; physical publication
+  alone must not renew logical visibility. Preserve pinned snapshots and the
+  separate lifetime of explicit-deletion item archives.
 - [ ] **Prove collection provider behavior and cost.**
   Test large fragmented items, first-byte delivery/backpressure, bounded memory,
   abort/error/cancellation, retries, commit-marker failure/restart, concurrent

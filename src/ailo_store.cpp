@@ -19,6 +19,7 @@ namespace storage {
 namespace {
 constexpr size_t chunk_size = 32768;
 constexpr int item_protocol = 3;
+constexpr uint64_t conversation_retention = 90 * 24 * 60 * 60;
 namespace fs = std::filesystem;
 [[noreturn]] void fail(const char *s, ailo_status status = AILO_IO_FAILED) {
   throw failure(status, s);
@@ -94,12 +95,14 @@ struct store {
   bool stopping = false;
   lc_client *client = nullptr;
   std::string root, key_file;
+  std::function<uint64_t()> clock;
   std::map<std::string, std::shared_ptr<record>> records;
   std::vector<std::weak_ptr<record>> versions;
   std::set<std::string> reservations, active_objects, objects;
   size_t reserved_bytes = 0;
   std::thread maintenance;
-  explicit store(std::string, std::string);
+  explicit store(std::string, std::string, std::function<uint64_t()>);
+  uint64_t now() const { return clock(); }
   ~store();
   void initialize();
   bool get(const std::string &, byte_sink);
@@ -109,7 +112,7 @@ struct store {
   std::vector<std::string> keys(const char *, const char *);
   void read(const blob &, byte_sink);
   void publish(const std::vector<std::shared_ptr<record>> &,
-               const std::vector<std::string> & = {});
+               const std::vector<std::string> & = {}, uint64_t = 0);
   void collect();
   void pin(const std::shared_ptr<record> &r) { versions.push_back(r); }
   std::shared_ptr<record> find(const char *, int, const char *, uint64_t);
@@ -169,6 +172,7 @@ struct transaction {
   size_t maximum = 0, bytes = 0;
   std::string removed;
   bool conversation = false;
+  ailo_conversation_action action = AILO_CONVERSATION_CREATE;
   explicit transaction(std::shared_ptr<store> s, size_t n)
       : owner(std::move(s)), maximum(n) {}
   ~transaction() {
@@ -476,7 +480,8 @@ std::shared_ptr<record> store::find(const char *ns, int protocol,
   return p->second;
 }
 void store::publish(const std::vector<std::shared_ptr<record>> &changed,
-                    const std::vector<std::string> &removed) {
+                    const std::vector<std::string> &removed,
+                    uint64_t previous_expiry) {
   const auto marker = unique("c-");
   // Prepare every potentially allocating in-memory update before publication.
   auto next = records;
@@ -508,12 +513,22 @@ void store::publish(const std::vector<std::shared_ptr<record>> &changed,
   }
   for (const auto &a : aliases)
     put(a.first, encode(a.second));
+  // An admitted writer must not resurrect a conversation that expired while
+  // payloads/descriptors were being written. Uncommitted aliases still resolve
+  // through their previous descriptors on reopen.
+  const auto time = now();
+  if (previous_expiry && previous_expiry <= time)
+    fail("Conversation expired before publication", AILO_NOT_FOUND);
+  for (const auto &r : changed)
+    if (r->protocol == AILO_RECORD_CONVERSATION && r->expires &&
+        r->expires <= time)
+      fail("Conversation expired before publication", AILO_NOT_FOUND);
   // One durable KV publication governs all response/conversation/item aliases.
   put(marker, "{\"kind\":\"commit\"}");
   records.swap(next);
 }
-store::store(std::string path, std::string key)
-    : root(std::move(path)), key_file(std::move(key)) {
+store::store(std::string path, std::string key, std::function<uint64_t()> time)
+    : root(std::move(path)), key_file(std::move(key)), clock(std::move(time)) {
   directory(root);
   directory(fs::path(key_file).parent_path().string());
   if (!fs::exists(key_file) && !fs::is_empty(root))
@@ -610,9 +625,18 @@ store::~store() {
 }
 void store::collect() {
   std::vector<std::string> expired;
-  const auto now = api_now();
+  std::set<std::pair<std::string, std::string>> conversations;
+  const auto time = now();
   for (const auto &p : records)
-    if (p.second->expires && p.second->expires <= now &&
+    if (p.second->expires && p.second->expires <= time &&
+        !reservations.count(p.first)) {
+      expired.push_back(p.first);
+      if (p.second->protocol == AILO_RECORD_CONVERSATION)
+        conversations.emplace(p.second->ns, p.second->id);
+    }
+  for (const auto &p : records)
+    if (p.second->protocol == item_protocol &&
+        conversations.count({p.second->ns, p.second->parent}) &&
         !reservations.count(p.first))
       expired.push_back(p.first);
   if (!expired.empty())
@@ -669,6 +693,11 @@ std::shared_ptr<record> fresh(const ailo_record_metadata &m) {
 }
 void complete(transaction &tx) {
   auto &s = *tx.owner;
+  const auto time = s.now();
+  const auto previous_expiry =
+      tx.conversation && tx.base ? tx.base->expires : 0;
+  if (previous_expiry && previous_expiry <= time)
+    fail("Conversation expired before commit", AILO_NOT_FOUND);
   for (const auto &p : tx.parts) {
     auto b = p.second->finish();
     if (!tx.conversation)
@@ -718,6 +747,16 @@ void complete(transaction &tx) {
         changed.push_back(std::move(child));
       }
     r.revision = tx.base ? tx.base->revision + 1 : 1;
+    if (tx.action == AILO_CONVERSATION_DELETE) {
+      // Explicit deletion retains the independently readable archive.
+      r.expires = 0;
+    } else if (tx.action == AILO_CONVERSATION_CREATE ||
+               (tx.action == AILO_CONVERSATION_APPEND && !new_ids.empty())) {
+      if (time > UINT64_MAX - conversation_retention)
+        fail("Conversation retention deadline exceeds its range",
+             AILO_OUT_OF_RANGE);
+      r.expires = time + conversation_retention;
+    }
   }
   changed.push_back(tx.result);
   for (auto &r : changed)
@@ -741,16 +780,17 @@ void complete(transaction &tx) {
         n += p.second.size;
       }
     }
-  s.publish(changed, removed);
+  s.publish(changed, removed, previous_expiry);
 }
 struct provider {
   std::string root, key_file;
+  std::function<uint64_t()> clock;
   std::shared_ptr<store> instance;
   std::mutex mutex;
-  explicit provider(const ailo_openai_config &c)
+  explicit provider(const ailo_openai_config &c, std::function<uint64_t()> time)
       : root(c.state_directory ? absolute(c.state_directory) : ""),
-        key_file(c.encryption_key_file ? absolute(c.encryption_key_file) : "") {
-  }
+        key_file(c.encryption_key_file ? absolute(c.encryption_key_file) : ""),
+        clock(time ? std::move(time) : std::function<uint64_t()>(api_now)) {}
   std::shared_ptr<store> get() {
     std::lock_guard<std::mutex> lock(mutex);
     if (instance)
@@ -770,7 +810,7 @@ struct provider {
              AILO_INVALID_ARGUMENT);
       return instance = std::move(existing);
     }
-    instance = std::make_shared<store>(root, key_file);
+    instance = std::make_shared<store>(root, key_file, clock);
     registry[root] = instance;
     return instance;
   }
@@ -833,8 +873,9 @@ void select(reader &out, const std::vector<row> &rows, const char *after,
 } // namespace storage
 using namespace storage;
 std::shared_ptr<void> default_repository(const ailo_openai_config &config,
-                                         ailo_record_repository &api) {
-  auto p = std::make_shared<provider>(config);
+                                         ailo_record_repository &api,
+                                         std::function<uint64_t()> clock) {
+  auto p = std::make_shared<provider>(config, std::move(clock));
   api.user_data = p.get();
   api.reserve = [](void *u, const ailo_record_metadata *m, void **result,
                    ailo_error *e) {
@@ -887,7 +928,7 @@ std::shared_ptr<void> default_repository(const ailo_openai_config &config,
       auto s = static_cast<provider *>(u)->get();
       std::lock_guard<std::mutex> lock(s->mutex);
       auto r = std::make_unique<reader>();
-      r->snapshot = s->find(ns, protocol, id, api_now());
+      r->snapshot = s->find(ns, protocol, id, s->now());
       *expiry = detail::from_unsigned(r->snapshot->expires);
       *out = r.release();
     });
@@ -929,7 +970,7 @@ std::shared_ptr<void> default_repository(const ailo_openai_config &config,
     return storage::boundary(e, [&] {
       auto s = static_cast<provider *>(u)->get();
       std::lock_guard<std::mutex> lock(s->mutex);
-      s->find(ns, protocol, id, api_now());
+      s->find(ns, protocol, id, s->now());
       const auto key = alias(ns, protocol, id);
       if (s->reservations.count(key))
         fail("Stored record is busy", AILO_BUSY);
@@ -952,12 +993,14 @@ std::shared_ptr<void> default_repository(const ailo_openai_config &config,
         tx->result->id = c->id;
         tx->result->protocol = AILO_RECORD_CONVERSATION;
       } else {
-        tx->base = s->find(c->namespace_id, AILO_RECORD_CONVERSATION, c->id, 0);
+        tx->base =
+            s->find(c->namespace_id, AILO_RECORD_CONVERSATION, c->id, s->now());
         if (tx->base->revision != detail::to_native(c->revision))
           fail("Conversation revision changed", AILO_BUSY);
         tx->result = std::make_shared<record>(*tx->base);
       }
       tx->conversation = true;
+      tx->action = c->action;
       for (size_t n = 0; n < c->input_count; ++n) {
         const auto item =
             alias(c->namespace_id, item_protocol, c->input_ids[n]);
@@ -989,7 +1032,7 @@ std::shared_ptr<void> default_repository(const ailo_openai_config &config,
       std::lock_guard<std::mutex> lock(s->mutex);
       auto r = std::make_unique<reader>();
       r->snapshot =
-          s->find(q->namespace_id, AILO_RECORD_CONVERSATION, q->id, 0);
+          s->find(q->namespace_id, AILO_RECORD_CONVERSATION, q->id, s->now());
       std::vector<std::shared_ptr<record>> items;
       for (const auto &p : s->records)
         if (p.second->protocol == item_protocol &&
@@ -1074,6 +1117,11 @@ std::shared_ptr<void> default_repository(const ailo_openai_config &config,
     });
   };
   return p;
+}
+void collect_repository(const std::shared_ptr<void> &owner) {
+  auto s = static_cast<provider *>(owner.get())->get();
+  std::lock_guard<std::mutex> lock(s->mutex);
+  s->collect();
 }
 } // namespace client
 } // namespace ailo

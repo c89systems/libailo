@@ -41,7 +41,9 @@ typedef enum ailo_conversation_action {
 /** Optimistic atomic mutation. revision=0 creates; other actions compare the
  * exact prior revision and hold the conversation until commit/abort. BUSY
  * rejects a conflicting writer before inference. response is optional and is
- * published in the SAME transaction. Conversation state/items never expire.
+ * published in the SAME transaction. The provider owns conversation lifetime;
+ * default Pouch expires after 90 days without a newly committed append. Reads,
+ * metadata updates, empty appends and failed/aborted writes do not renew it.
  * input_ids are new explicit input IDs to admit before inference. */
 typedef struct ailo_conversation_change {
   const char *namespace_id;
@@ -58,7 +60,8 @@ typedef struct ailo_conversation_change {
  * namespace/conversation. Return at most limit+1 rows for pagination. A zero
  * limit is an internal ascending full-history read for context reconstruction.
  * Deleting a conversation retains its item rows; queries may read those rows.
- * The returned handle uses ordinary read/close, without a TTL. Preserve stored
+ * Reject expired parents before returning a handle. Admitted read/close handles
+ * remain stable across expiry and cleanup. Preserve stored
  * field order: item type precedes encrypted_content for streaming projection.
  */
 typedef struct ailo_conversation_query {
